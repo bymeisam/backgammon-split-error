@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { parseCurl } from "@/lib/parseCurl";
 import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import MistakesSection from "./MistakesSection";
@@ -26,22 +26,11 @@ export default function GameReviewsPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [games, setGames] = useState<Game[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const autoFollowRef = useRef(true);
-  const gameCountRef = useRef(0);
-
-  function selectTab(index: number) {
-    autoFollowRef.current = false;
-    setSelectedIndex(index);
-  }
 
   async function handleFetch() {
     setError(null);
     setGames([]);
     setStatus("");
-    setSelectedIndex(0);
-    autoFollowRef.current = true;
-    gameCountRef.current = 0;
 
     let auth: string;
     let id: string;
@@ -100,10 +89,7 @@ export default function GameReviewsPage() {
         if (event.type === "status") {
           setStatus(event.message);
         } else if (event.type === "game") {
-          const index = gameCountRef.current;
-          gameCountRef.current += 1;
           setGames((prev) => [...prev, { gameIndex: event.gameIndex, data: event.data }]);
-          if (autoFollowRef.current) setSelectedIndex(index);
         } else if (event.type === "error") {
           sawError = true;
           setError(event.message);
@@ -140,9 +126,6 @@ export default function GameReviewsPage() {
     }
   }
 
-  const selectedGame = games[selectedIndex];
-  const prettyJson = selectedGame ? JSON.stringify(selectedGame.data, null, 2) : "";
-
   return (
     <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
       <main className="flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
@@ -152,7 +135,7 @@ export default function GameReviewsPage() {
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Fetches every game in a match from Galaxy&apos;s{" "}
-            <code className="font-mono">game_reviews</code> API and dumps the raw JSON below.
+            <code className="font-mono">game_reviews</code> API and breaks down mistakes below.
           </p>
         </div>
 
@@ -246,29 +229,6 @@ export default function GameReviewsPage() {
             {error}
           </p>
         )}
-
-        {games.length > 0 && (
-          <div className="flex gap-1 overflow-x-auto border-b border-black/10 dark:border-white/15">
-            {games.map((g, i) => (
-              <button
-                key={g.gameIndex}
-                type="button"
-                onClick={() => selectTab(i)}
-                className={`shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-medium transition-colors ${
-                  i === selectedIndex
-                    ? "border-black/10 bg-white text-black dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-50"
-                    : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
-              >
-                Game {g.gameIndex}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <pre className="max-h-[60vh] overflow-auto whitespace-pre rounded-lg border border-black/10 bg-white p-4 font-mono text-xs text-black dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100">
-          {prettyJson || "No data yet."}
-        </pre>
 
         <MistakesSection games={games} />
       </main>
