@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { parseCurl } from "@/lib/parseCurl";
 
 type Game = {
@@ -24,11 +24,22 @@ export default function GameReviewsPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [games, setGames] = useState<Game[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const autoFollowRef = useRef(true);
+  const gameCountRef = useRef(0);
+
+  function selectTab(index: number) {
+    autoFollowRef.current = false;
+    setSelectedIndex(index);
+  }
 
   async function handleFetch() {
     setError(null);
     setGames([]);
     setStatus("");
+    setSelectedIndex(0);
+    autoFollowRef.current = true;
+    gameCountRef.current = 0;
 
     let auth: string;
     let id: string;
@@ -87,7 +98,10 @@ export default function GameReviewsPage() {
         if (event.type === "status") {
           setStatus(event.message);
         } else if (event.type === "game") {
+          const index = gameCountRef.current;
+          gameCountRef.current += 1;
           setGames((prev) => [...prev, { gameIndex: event.gameIndex, data: event.data }]);
+          if (autoFollowRef.current) setSelectedIndex(index);
         } else if (event.type === "error") {
           sawError = true;
           setError(event.message);
@@ -124,7 +138,8 @@ export default function GameReviewsPage() {
     }
   }
 
-  const prettyJson = games.length > 0 ? JSON.stringify(games, null, 2) : "";
+  const selectedGame = games[selectedIndex];
+  const prettyJson = selectedGame ? JSON.stringify(selectedGame.data, null, 2) : "";
 
   return (
     <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
@@ -228,6 +243,25 @@ export default function GameReviewsPage() {
           <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
             {error}
           </p>
+        )}
+
+        {games.length > 0 && (
+          <div className="flex gap-1 overflow-x-auto border-b border-black/10 dark:border-white/15">
+            {games.map((g, i) => (
+              <button
+                key={g.gameIndex}
+                type="button"
+                onClick={() => selectTab(i)}
+                className={`shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-medium transition-colors ${
+                  i === selectedIndex
+                    ? "border-black/10 bg-white text-black dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-50"
+                    : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                }`}
+              >
+                Game {g.gameIndex}
+              </button>
+            ))}
+          </div>
         )}
 
         <pre className="max-h-[60vh] overflow-auto whitespace-pre rounded-lg border border-black/10 bg-white p-4 font-mono text-xs text-black dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100">
