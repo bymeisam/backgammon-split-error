@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { parseCurl } from "@/lib/parseCurl";
 import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
+import MistakesSection from "./MistakesSection";
 
 type Game = {
   gameIndex: number;
@@ -268,6 +269,8 @@ export default function GameReviewsPage() {
         <pre className="max-h-[60vh] overflow-auto whitespace-pre rounded-lg border border-black/10 bg-white p-4 font-mono text-xs text-black dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100">
           {prettyJson || "No data yet."}
         </pre>
+
+        <MistakesSection games={games} />
       </main>
     </div>
   );
