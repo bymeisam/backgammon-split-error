@@ -93,6 +93,17 @@ export async function POST(req: NextRequest) {
           break;
         }
 
+        const event = (data as { event?: unknown } | null)?.event;
+        if (Array.isArray(event) && event.length === 0) {
+          if (isFirst) {
+            send({
+              type: "error",
+              message: "Galaxy API returned an empty event array for game 1. Check your match ID and authorization.",
+            });
+          }
+          break;
+        }
+
         count += 1;
         send({ type: "game", gameIndex, data });
       }
