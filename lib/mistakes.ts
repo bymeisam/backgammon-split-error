@@ -20,6 +20,9 @@ export interface Decision {
   isMistake: boolean;
   severity: Severity | null;
   detail: string;
+  sourcePositionId: string | null;
+  myMoveNotation: string | null;
+  bestMoveNotation: string | null;
 }
 
 export interface PlayerOption {
@@ -53,6 +56,16 @@ function buildDetail(review: Review): string {
   return `${actual} → best: ${formatCubeAction(cube.receivers_best_action)}`;
 }
 
+function moveNotations(review: Review): { mine: string | null; best: string | null } {
+  const envelope = review.result;
+  if (envelope.analysed_event !== "move") return { mine: null, best: null };
+
+  const moves = envelope.result.moves;
+  const played = moves.find((m) => m.move_played);
+  const best = moves.find((m) => m.rank === 1) ?? moves[0];
+  return { mine: played?.notation ?? null, best: best?.notation ?? null };
+}
+
 export function extractDecisions(games: FetchedGame[]): Decision[] {
   const decisions: Decision[] = [];
 
@@ -69,6 +82,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
       const kind: DecisionKind = review.result.analysed_event === "move" ? "checker" : "cube";
       const absError = Math.abs(review.result.result.error_analysis.raw_error);
       const isMistake = absError > 0;
+      const { mine, best } = moveNotations(review);
 
       decisions.push({
         id: `${game.gameIndex}:${event.id}`,
@@ -80,6 +94,9 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         isMistake,
         severity: isMistake ? (absError >= BLUNDER_THRESHOLD ? "blunder" : "error") : null,
         detail: buildDetail(review),
+        sourcePositionId: review.source_position?.formatted_value ?? null,
+        myMoveNotation: mine,
+        bestMoveNotation: best,
       });
     }
   }

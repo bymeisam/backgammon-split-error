@@ -10,6 +10,7 @@ import {
   type Decision,
   type FetchedGame,
 } from "@/lib/mistakes";
+import BoardPanel from "./BoardPanel";
 
 function formatPR(pr: number | null): string {
   return pr === null ? "—" : pr.toFixed(2);
@@ -244,6 +245,8 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
             toggle={toggle}
             setAll={setAll}
           />
+
+          <BoardPanel checkerMistakes={checkerMistakes} cubeMistakes={cubeMistakes} />
         </>
       )}
     </div>
