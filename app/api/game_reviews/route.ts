@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
 
 const MAX_GAMES = 20;
 
@@ -83,9 +84,9 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        let data: unknown;
+        let data: GameReviewsResponse;
         try {
-          data = JSON.parse(text);
+          data = JSON.parse(text) as GameReviewsResponse;
         } catch {
           if (isFirst) {
             send({ type: "error", message: "Galaxy API returned a non-JSON response for game 1." });
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        const events = (data as { data?: { events?: unknown } } | null)?.data?.events;
+        const events = data.data?.events;
         if (Array.isArray(events) && events.length === 0) {
           if (isFirst) {
             send({

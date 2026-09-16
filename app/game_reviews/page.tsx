@@ -2,15 +2,16 @@
 
 import { useRef, useState } from "react";
 import { parseCurl } from "@/lib/parseCurl";
+import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
 
 type Game = {
   gameIndex: number;
-  data: unknown;
+  data: GameReviewsResponse;
 };
 
 type StreamEvent =
   | { type: "status"; message: string }
-  | { type: "game"; gameIndex: number; data: unknown }
+  | { type: "game"; gameIndex: number; data: GameReviewsResponse }
   | { type: "error"; message: string }
   | { type: "done"; count: number };
 
