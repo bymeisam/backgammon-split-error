@@ -145,7 +145,7 @@ export default function Board({
   return (
     <svg
       viewBox={`0 0 ${BOARD_W} ${BOARD_H}`}
-      className="w-full max-w-2xl"
+      className="w-full"
       role="img"
       aria-label="Backgammon board"
     >

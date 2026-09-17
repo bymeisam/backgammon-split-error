@@ -128,107 +128,109 @@ export default function GameReviewsPage() {
 
   return (
     <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            Game review dumper
-          </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Fetches every game in a match from Galaxy&apos;s{" "}
-            <code className="font-mono">game_reviews</code> API and breaks down mistakes below.
-          </p>
-        </div>
-
-        <div className="inline-flex w-fit rounded-full border border-black/10 bg-white p-1 dark:border-white/15 dark:bg-zinc-900">
-          <button
-            type="button"
-            onClick={() => setMode("curl")}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              mode === "curl"
-                ? "bg-foreground text-background"
-                : "text-zinc-600 dark:text-zinc-400"
-            }`}
-          >
-            Paste curl
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("manual")}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              mode === "manual"
-                ? "bg-foreground text-background"
-                : "text-zinc-600 dark:text-zinc-400"
-            }`}
-          >
-            Paste authorization + match ID
-          </button>
-        </div>
-
-        {mode === "curl" ? (
-          <div className="flex flex-col gap-2">
-            <label htmlFor="curl" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              curl command
-            </label>
-            <textarea
-              id="curl"
-              value={curlText}
-              onChange={(e) => setCurlText(e.target.value)}
-              placeholder={`curl 'https://api.backgammongalaxy.com/match-analytics/api/v1/game_reviews/46431891/1' -H 'authorization: Bearer xyz...'`}
-              rows={6}
-              className="w-full rounded-lg border border-black/10 bg-white p-3 font-mono text-xs text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
-            />
+      <main className="flex w-full max-w-7xl flex-col gap-6 px-6 py-12">
+        <div className="flex w-full max-w-2xl flex-col gap-6">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+              Game review dumper
+            </h1>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              Fetches every game in a match from Galaxy&apos;s{" "}
+              <code className="font-mono">game_reviews</code> API and breaks down mistakes below.
+            </p>
           </div>
-        ) : (
-          <div className="flex flex-col gap-3">
+
+          <div className="inline-flex w-fit rounded-full border border-black/10 bg-white p-1 dark:border-white/15 dark:bg-zinc-900">
+            <button
+              type="button"
+              onClick={() => setMode("curl")}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                mode === "curl"
+                  ? "bg-foreground text-background"
+                  : "text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              Paste curl
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("manual")}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                mode === "manual"
+                  ? "bg-foreground text-background"
+                  : "text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              Paste authorization + match ID
+            </button>
+          </div>
+
+          {mode === "curl" ? (
             <div className="flex flex-col gap-2">
-              <label htmlFor="auth" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Authorization header
+              <label htmlFor="curl" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                curl command
               </label>
-              <input
-                id="auth"
-                type="text"
-                value={authorization}
-                onChange={(e) => setAuthorization(e.target.value)}
-                placeholder="Bearer xyz..."
+              <textarea
+                id="curl"
+                value={curlText}
+                onChange={(e) => setCurlText(e.target.value)}
+                placeholder={`curl 'https://api.backgammongalaxy.com/match-analytics/api/v1/game_reviews/46431891/1' -H 'authorization: Bearer xyz...'`}
+                rows={6}
                 className="w-full rounded-lg border border-black/10 bg-white p-3 font-mono text-xs text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="matchId" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Match ID
-              </label>
-              <input
-                id="matchId"
-                type="text"
-                inputMode="numeric"
-                value={matchId}
-                onChange={(e) => setMatchId(e.target.value)}
-                placeholder="46431891"
-                className="w-full rounded-lg border border-black/10 bg-white p-3 font-mono text-xs text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
-              />
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="auth" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Authorization header
+                </label>
+                <input
+                  id="auth"
+                  type="text"
+                  value={authorization}
+                  onChange={(e) => setAuthorization(e.target.value)}
+                  placeholder="Bearer xyz..."
+                  className="w-full rounded-lg border border-black/10 bg-white p-3 font-mono text-xs text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="matchId" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Match ID
+                </label>
+                <input
+                  id="matchId"
+                  type="text"
+                  inputMode="numeric"
+                  value={matchId}
+                  onChange={(e) => setMatchId(e.target.value)}
+                  placeholder="46431891"
+                  className="w-full rounded-lg border border-black/10 bg-white p-3 font-mono text-xs text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
+                />
+              </div>
             </div>
+          )}
+
+          <div>
+            <button
+              type="button"
+              onClick={handleFetch}
+              disabled={loading}
+              className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
+            >
+              {loading ? "Fetching…" : "Fetch"}
+            </button>
           </div>
-        )}
 
-        <div>
-          <button
-            type="button"
-            onClick={handleFetch}
-            disabled={loading}
-            className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
-          >
-            {loading ? "Fetching…" : "Fetch"}
-          </button>
+          {status && !error && (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">{status}</p>
+          )}
+          {error && (
+            <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+              {error}
+            </p>
+          )}
         </div>
-
-        {status && !error && (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{status}</p>
-        )}
-        {error && (
-          <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-            {error}
-          </p>
-        )}
 
         <MistakesSection games={games} />
       </main>

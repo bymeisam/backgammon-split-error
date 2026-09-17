@@ -41,12 +41,16 @@ function MistakeTable({
   isTicked,
   toggle,
   setAll,
+  selectedId,
+  onSelectRow,
 }: {
   title: string;
   mistakes: Decision[];
   isTicked: (id: string) => boolean;
   toggle: (id: string) => void;
   setAll: (ids: string[], value: boolean) => void;
+  selectedId: string | null;
+  onSelectRow: (id: string) => void;
 }) {
   const ids = mistakes.map((m) => m.id);
 
@@ -90,7 +94,12 @@ function MistakeTable({
               {mistakes.map((m) => (
                 <tr
                   key={m.id}
-                  className="border-b border-black/5 last:border-b-0 dark:border-white/10"
+                  onClick={() => onSelectRow(m.id)}
+                  className={`cursor-pointer border-b border-black/5 last:border-b-0 dark:border-white/10 ${
+                    m.id === selectedId
+                      ? "bg-blue-50 ring-1 ring-inset ring-blue-400 dark:bg-blue-950/40 dark:ring-blue-500"
+                      : "hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+                  }`}
                 >
                   <td className="px-3 py-2">
                     <input
@@ -127,6 +136,8 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedGame, setSelectedGame] = useState<"all" | number>("all");
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
+  const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
+  const [moveTab, setMoveTab] = useState<"my" | "best">("my");
 
   const effectiveUserId = selectedUserId ?? playerOptions[0]?.userId ?? null;
 
@@ -163,6 +174,17 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
   const checkerPR = computePR(checkerDecisions, isTicked);
   const cubePR = computePR(cubeDecisions, isTicked);
   const totalPR = combinePR(checkerPR, cubePR);
+
+  const allMistakes = [...checkerMistakes, ...cubeMistakes].sort(
+    (a, b) => b.absError - a.absError
+  );
+  const selected =
+    allMistakes.find((m) => m.id === selectedDecisionId) ?? allMistakes[0] ?? null;
+
+  function selectRow(id: string) {
+    setSelectedDecisionId(id);
+    setMoveTab("my");
+  }
 
   if (games.length === 0) return null;
 
@@ -247,23 +269,33 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
             </div>
           </div>
 
-          <MistakeTable
-            title="Checker mistakes"
-            mistakes={checkerMistakes}
-            isTicked={isTicked}
-            toggle={toggle}
-            setAll={setAll}
-          />
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="flex-1 lg:min-w-0">
+              <BoardPanel selected={selected} moveTab={moveTab} onMoveTabChange={setMoveTab} />
+            </div>
 
-          <MistakeTable
-            title="Cube mistakes"
-            mistakes={cubeMistakes}
-            isTicked={isTicked}
-            toggle={toggle}
-            setAll={setAll}
-          />
+            <div className="flex w-full flex-col gap-6 lg:max-h-[80vh] lg:w-[380px] lg:shrink-0 lg:overflow-y-auto">
+              <MistakeTable
+                title="Checker mistakes"
+                mistakes={checkerMistakes}
+                isTicked={isTicked}
+                toggle={toggle}
+                setAll={setAll}
+                selectedId={selected?.id ?? null}
+                onSelectRow={selectRow}
+              />
 
-          <BoardPanel checkerMistakes={checkerMistakes} cubeMistakes={cubeMistakes} />
+              <MistakeTable
+                title="Cube mistakes"
+                mistakes={cubeMistakes}
+                isTicked={isTicked}
+                toggle={toggle}
+                setAll={setAll}
+                selectedId={selected?.id ?? null}
+                onSelectRow={selectRow}
+              />
+            </div>
+          </div>
         </>
       )}
     </div>
