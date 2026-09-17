@@ -106,7 +106,7 @@ function MistakeTable({
         <p className="text-sm text-zinc-500 dark:text-zinc-400">No mistakes in this scope.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
-          <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+          <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
                 <th className="w-8 px-3 py-2"></th>
