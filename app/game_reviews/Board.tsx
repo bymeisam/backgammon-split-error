@@ -138,9 +138,11 @@ function Stack({
 export default function Board({
   decoded,
   subMoves = [],
+  arrowColor = "#dc2626",
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
+  arrowColor?: string;
 }) {
   return (
     <svg
@@ -278,8 +280,8 @@ export default function Board({
 
       {/* move arrows */}
       <defs>
-        <marker id="board-arrowhead" markerWidth={8} markerHeight={8} refX={6} refY={4} orient="auto">
-          <path d="M0,0 L8,4 L0,8 Z" fill="#dc2626" />
+        <marker id="board-arrowhead" markerWidth={6} markerHeight={6} refX={4.5} refY={3} orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill={arrowColor} />
         </marker>
       </defs>
       {subMoves.map((move, i) => {
@@ -303,7 +305,7 @@ export default function Board({
               y1={from.y}
               x2={tipX}
               y2={tipY}
-              stroke="#dc2626"
+              stroke={arrowColor}
               strokeWidth={3}
               strokeLinecap="round"
               markerEnd="url(#board-arrowhead)"
@@ -315,7 +317,7 @@ export default function Board({
                 cy={to.y}
                 r={R + 6}
                 fill="none"
-                stroke="#dc2626"
+                stroke={arrowColor}
                 strokeWidth={2}
                 strokeDasharray="3 2"
               />
@@ -327,7 +329,7 @@ export default function Board({
                 textAnchor="middle"
                 fontSize={11}
                 fontWeight="bold"
-                fill="#dc2626"
+                fill={arrowColor}
                 stroke="#f5ecd9"
                 strokeWidth={3}
                 paintOrder="stroke"

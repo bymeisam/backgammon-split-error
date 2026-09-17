@@ -6,6 +6,10 @@ import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 import { parseNotation } from "@/lib/backgammonNotation";
 import Board from "./Board";
 
+const BLUNDER_COLOR = "#dc2626"; // red-600
+const ERROR_COLOR = "#d97706"; // amber-600
+const BEST_COLOR = "#16a34a"; // green-600
+
 export default function BoardPanel({
   selected,
   moveTab,
@@ -32,6 +36,13 @@ export default function BoardPanel({
       : null;
 
   const subMoves = useMemo(() => (notation ? parseNotation(notation) : []), [notation]);
+
+  const arrowColor =
+    moveTab === "best"
+      ? BEST_COLOR
+      : selected?.severity === "blunder"
+        ? BLUNDER_COLOR
+        : ERROR_COLOR;
 
   return (
     <div className="flex flex-col gap-3">
@@ -70,7 +81,7 @@ export default function BoardPanel({
             No mistakes in this scope to show on the board.
           </p>
         ) : decoded ? (
-          <Board decoded={decoded} subMoves={subMoves} />
+          <Board decoded={decoded} subMoves={subMoves} arrowColor={arrowColor} />
         ) : (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             No position data for this decision.
