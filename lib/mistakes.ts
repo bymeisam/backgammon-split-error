@@ -20,40 +20,47 @@ export interface Decision {
   isMistake: boolean;
   severity: Severity | null;
   detail: string;
+  myLabel: string;
+  bestLabel: string;
   sourcePositionId: string | null;
   myMoveNotation: string | null;
   bestMoveNotation: string | null;
 }
 
 export interface PlayerOption {
-  key: string;
   userId: string;
-  color: string;
 }
 
 function formatCubeAction(action: string): string {
   return action.replace(/_/g, " ");
 }
 
-function buildDetail(review: Review): string {
+function actionLabels(review: Review): { mine: string; best: string } {
   const envelope = review.result;
 
   if (envelope.analysed_event === "move") {
     const moves = envelope.result.moves;
     const played = moves.find((m) => m.move_played);
     const best = moves.find((m) => m.rank === 1) ?? moves[0];
-    return `played ${played?.notation ?? "?"} → best ${best?.notation ?? "?"}`;
+    return { mine: played?.notation ?? "?", best: best?.notation ?? "?" };
   }
 
   const cube = envelope.result.cube_analysis;
 
   if (envelope.analysed_event === "cube_double") {
-    const actual = review.double ? "doubled" : "did not double";
-    return `${actual} → best: ${formatCubeAction(cube.doublers_best_action)}`;
+    const mine = review.double ? "doubled" : "did not double";
+    return { mine, best: formatCubeAction(cube.doublers_best_action) };
   }
 
-  const actual = review.take ? "took" : "passed";
-  return `${actual} → best: ${formatCubeAction(cube.receivers_best_action)}`;
+  const mine = review.take ? "took" : "passed";
+  return { mine, best: formatCubeAction(cube.receivers_best_action) };
+}
+
+function buildDetail(review: Review): string {
+  const { mine, best } = actionLabels(review);
+  return review.result.analysed_event === "move"
+    ? `played ${mine} → best ${best}`
+    : `${mine} → best: ${best}`;
 }
 
 function moveNotations(review: Review): { mine: string | null; best: string | null } {
@@ -83,6 +90,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
       const absError = Math.abs(review.result.result.error_analysis.raw_error);
       const isMistake = absError > 0;
       const { mine, best } = moveNotations(review);
+      const labels = actionLabels(review);
 
       decisions.push({
         id: `${game.gameIndex}:${event.id}`,
@@ -94,6 +102,8 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         isMistake,
         severity: isMistake ? (absError >= BLUNDER_THRESHOLD ? "blunder" : "error") : null,
         detail: buildDetail(review),
+        myLabel: labels.mine,
+        bestLabel: labels.best,
         sourcePositionId: review.source_position?.formatted_value ?? null,
         myMoveNotation: mine,
         bestMoveNotation: best,
@@ -105,20 +115,16 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
 }
 
 export function extractPlayerOptions(games: FetchedGame[]): PlayerOption[] {
-  const seen = new Map<string, PlayerOption>();
+  const seen = new Set<string>();
 
   for (const game of games) {
     const events = game.data?.data?.events ?? [];
     for (const event of events) {
-      if (!event.user_id) continue;
-      const key = `${event.user_id}::${event.color}`;
-      if (!seen.has(key)) {
-        seen.set(key, { key, userId: event.user_id, color: event.color });
-      }
+      if (event.user_id) seen.add(event.user_id);
     }
   }
 
-  return Array.from(seen.values());
+  return Array.from(seen, (userId) => ({ userId }));
 }
 
 export function extractGameIndexes(games: FetchedGame[]): number[] {

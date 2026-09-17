@@ -28,6 +28,21 @@ function severityBadge(severity: "error" | "blunder") {
   );
 }
 
+function MoveDelta({ decision }: { decision: Decision }) {
+  const myColor =
+    decision.severity === "blunder"
+      ? "text-red-600 dark:text-red-400"
+      : "text-amber-600 dark:text-amber-400";
+
+  return (
+    <span className="whitespace-nowrap">
+      <span className={`font-semibold ${myColor}`}>{decision.myLabel}</span>
+      <span className="mx-1.5 text-zinc-400 dark:text-zinc-600">→</span>
+      <span className="font-semibold text-green-600 dark:text-green-400">{decision.bestLabel}</span>
+    </span>
+  );
+}
+
 function MistakeTable({
   title,
   mistakes,
@@ -93,8 +108,8 @@ function MistakeTable({
                     />
                   </td>
                   <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{m.gameIndex}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                    {m.detail}
+                  <td className="px-3 py-2 font-mono text-xs">
+                    <MoveDelta decision={m} />
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
                     {m.absError.toFixed(3)}
@@ -177,7 +192,7 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
               <div className="flex flex-wrap gap-3">
                 {playerOptions.map((p) => (
                   <label
-                    key={p.key}
+                    key={p.userId}
                     className="flex items-center gap-1.5 text-sm text-black dark:text-zinc-100"
                   >
                     <input
@@ -187,7 +202,6 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
                       onChange={() => setSelectedUserId(p.userId)}
                     />
                     {p.userId}
-                    {p.color && <span className="text-zinc-500 dark:text-zinc-400"> ({p.color})</span>}
                   </label>
                 ))}
               </div>
@@ -219,14 +233,23 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
             <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
               <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Total PR</p>
               <p className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">{formatPR(totalPR)}</p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {checkerPR.totalDecisions + cubePR.totalDecisions} decisions
+              </p>
             </div>
             <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
               <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Checker PR</p>
               <p className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">{formatPR(checkerPR.pr)}</p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {checkerPR.totalDecisions} decisions
+              </p>
             </div>
             <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
               <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cube PR</p>
               <p className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">{formatPR(cubePR.pr)}</p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {cubePR.totalDecisions} decisions
+              </p>
             </div>
           </div>
 
