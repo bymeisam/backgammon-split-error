@@ -33,6 +33,11 @@ const Y0 = MARGIN;
 const Y1 = MARGIN + 2 * ROW_H;
 const BOARD_H = Y1 + MARGIN;
 
+// Mine's off-tray section bounds, shared by the OffColumn render and the
+// arrow-anchor math so a "bear off" arrow always ends at the real next slot.
+const MINE_OFF_TOP_Y = Y0 + ROW_H + 6;
+const MINE_OFF_BOTTOM_Y = Y1 - 9;
+
 function colCenterX(col: number): number {
   return colX(col) + COL_WIDTHS[col] / 2;
 }
@@ -71,19 +76,6 @@ function stackBase(point: number): { cx: number; baseY: number; dir: 1 | -1 } {
 
 type PointRef = number | "bar" | "off";
 
-function anchorFor(ref: PointRef): { x: number; y: number } {
-  if (ref === "bar") {
-    return { x: colCenterX(BAR_COL), y: Y1 - TRI_H * 0.3 };
-  }
-  if (ref === "off") {
-    return { x: colCenterX(OFF_COL), y: Y1 - 40 };
-  }
-  const col = pointColumn(ref);
-  const cx = colCenterX(col);
-  const row = pointRow(ref);
-  return { x: cx, y: row === "bottom" ? Y1 - TRI_H * 0.5 : Y0 + TRI_H * 0.5 };
-}
-
 const MINE_FILL = "#1f2937";
 const MINE_STROKE = "#f8fafc";
 const OPP_FILL = "#f8fafc";
@@ -95,6 +87,17 @@ const OFF_SLOTS = 15;
 // is false, bottomY when true); checkers fill starting at the far end and
 // grow toward the badge. Mine and opponent use opposite badgeAtBottom values
 // so the two columns are true mirrors of each other across the center line.
+// Shared by the OffColumn renderer and the arrow-anchor math so the "next
+// empty slot" an arrow points at always matches what's actually drawn.
+function offColumnGeometry(topY: number, bottomY: number, badgeAtBottom: boolean) {
+  const badgeR = 11;
+  const badgeCy = badgeAtBottom ? bottomY - badgeR - 3 : topY + badgeR + 3;
+  const trackTop = badgeAtBottom ? topY : badgeCy + badgeR + 6;
+  const trackBottom = badgeAtBottom ? badgeCy - badgeR - 6 : bottomY;
+  const slotSpan = (trackBottom - trackTop) / OFF_SLOTS;
+  return { badgeR, badgeCy, trackTop, trackBottom, slotSpan };
+}
+
 function OffColumn({
   x,
   width,
@@ -121,11 +124,7 @@ function OffColumn({
   badgeTextColor: string;
 }) {
   const cx = x + width / 2;
-  const badgeR = 11;
-  const badgeCy = badgeAtBottom ? bottomY - badgeR - 3 : topY + badgeR + 3;
-  const trackTop = badgeAtBottom ? topY : badgeCy + badgeR + 6;
-  const trackBottom = badgeAtBottom ? badgeCy - badgeR - 6 : bottomY;
-  const slotSpan = (trackBottom - trackTop) / OFF_SLOTS;
+  const { badgeR, badgeCy, trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
   const slotH = Math.max(slotSpan - 1.5, 2);
 
   return (
@@ -202,6 +201,39 @@ function Stack({
   );
 }
 
+// Stack-aware anchor for a move arrow endpoint: the exact visual position of
+// the checker involved, not a generic per-point anchor. `isOrigin` picks the
+// top-of-stack (checker about to move) vs. the next open slot (where it will
+// land), both read from the *pre-move* `decoded` counts.
+function moveAnchor(
+  ref: PointRef,
+  decoded: DecodedPosition,
+  isOrigin: boolean
+): { x: number; y: number } {
+  if (ref === "bar") {
+    const cx = colCenterX(BAR_COL);
+    const baseY = Y1 - R - 3;
+    const dir = -1;
+    const index = isOrigin ? decoded.mineBar - 1 : decoded.mineBar;
+    const visualIndex = Math.min(Math.max(index, 0), MAX_STACK - 1);
+    return { x: cx, y: baseY + dir * visualIndex * STACK_GAP };
+  }
+
+  if (ref === "off") {
+    const { trackTop, slotSpan } = offColumnGeometry(MINE_OFF_TOP_Y, MINE_OFF_BOTTOM_Y, false);
+    const nextIndex = Math.min(Math.max(OFF_SLOTS - decoded.mineOff - 1, 0), OFF_SLOTS - 1);
+    const x = colX(OFF_COL) + 6 + (OFF_W - 12) / 2;
+    const y = trackTop + nextIndex * slotSpan + slotSpan / 2;
+    return { x, y };
+  }
+
+  const count = decoded.mine[ref - 1];
+  const index = isOrigin ? count - 1 : count;
+  const visualIndex = Math.min(Math.max(index, 0), MAX_STACK - 1);
+  const { cx, baseY, dir } = stackBase(ref);
+  return { x: cx, y: baseY + dir * visualIndex * STACK_GAP };
+}
+
 export default function Board({
   decoded,
   subMoves = [],
@@ -274,8 +306,8 @@ export default function Board({
       <OffColumn
         x={colX(OFF_COL) + 6}
         width={OFF_W - 12}
-        topY={Y0 + ROW_H + 6}
-        bottomY={Y1 - 9}
+        topY={MINE_OFF_TOP_Y}
+        bottomY={MINE_OFF_BOTTOM_Y}
         badgeAtBottom={false}
         count={decoded.mineOff}
         fill={MINE_FILL}
@@ -340,16 +372,8 @@ export default function Board({
         </marker>
       </defs>
       {subMoves.map((move, i) => {
-        const from = anchorFor(move.from);
-        const to = anchorFor(move.to);
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const shortenBy = R + 6;
-        const ux = dx / dist;
-        const uy = dy / dist;
-        const tipX = to.x - ux * shortenBy;
-        const tipY = to.y - uy * shortenBy;
+        const from = moveAnchor(move.from, decoded, true);
+        const to = moveAnchor(move.to, decoded, false);
         const midX = (from.x + to.x) / 2;
         const midY = (from.y + to.y) / 2;
 
@@ -358,8 +382,8 @@ export default function Board({
             <line
               x1={from.x}
               y1={from.y}
-              x2={tipX}
-              y2={tipY}
+              x2={to.x}
+              y2={to.y}
               stroke={arrowColor}
               strokeWidth={3}
               strokeLinecap="round"
