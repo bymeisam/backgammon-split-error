@@ -367,8 +367,8 @@ export default function Board({
 
       {/* move arrows */}
       <defs>
-        <marker id="board-arrowhead" markerWidth={6} markerHeight={6} refX={4.5} refY={3} orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z" fill={arrowColor} />
+        <marker id="board-arrowhead" markerWidth={4.5} markerHeight={4.5} refX={3.375} refY={2.25} orient="auto">
+          <path d="M0,0 L4.5,2.25 L0,4.5 Z" fill={arrowColor} />
         </marker>
       </defs>
       {subMoves.map((move, i) => {
