@@ -68,18 +68,20 @@ export function decodeGnuPositionId(id: string): DecodedPosition {
   const mine = new Array(24).fill(0);
   const opponent = new Array(24).fill(0);
 
+  // board[1] is the decision-maker ("mine"), already in their own frame, so
+  // it reads straight across. board[0] is the opponent, in *their* own
+  // frame, so it needs the 25 - point mirror to land at the matching
+  // physical point in the mover's frame.
   for (let point = 1; point <= 24; point++) {
-    mine[point - 1] = board[0][point - 1];
-    // Opponent's checkers physically at my-frame point `point` sit at
-    // the opponent's own point (25 - point), since the board mirrors.
-    opponent[point - 1] = board[1][24 - point];
+    mine[point - 1] = board[1][point - 1];
+    opponent[point - 1] = board[0][24 - point];
   }
 
-  const mineBar = board[0][24];
-  const opponentBar = board[1][24];
+  const mineBar = board[1][24];
+  const opponentBar = board[0][24];
 
-  const mineOnBoard = board[0].reduce((a, b) => a + b, 0);
-  const opponentOnBoard = board[1].reduce((a, b) => a + b, 0);
+  const mineOnBoard = board[1].reduce((a, b) => a + b, 0);
+  const opponentOnBoard = board[0].reduce((a, b) => a + b, 0);
   const mineOff = 15 - mineOnBoard;
   const opponentOff = 15 - opponentOnBoard;
 
