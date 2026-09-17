@@ -20,7 +20,15 @@ function formatRoll(roll: number[]): string {
   return roll.length > 0 ? roll.join("-") : "—";
 }
 
-function MoveDelta({ decision }: { decision: Decision }) {
+function MoveDelta({
+  decision,
+  activeTab,
+  onSelectTab,
+}: {
+  decision: Decision;
+  activeTab?: "my" | "best" | null;
+  onSelectTab?: (tab: "my" | "best") => void;
+}) {
   const myColor =
     decision.severity === "blunder"
       ? "text-red-600 dark:text-red-400"
@@ -28,9 +36,29 @@ function MoveDelta({ decision }: { decision: Decision }) {
 
   return (
     <span className="whitespace-nowrap">
-      <span className={`font-semibold ${myColor}`}>{decision.myLabel}</span>
+      <span
+        className={`cursor-pointer font-semibold ${myColor} ${
+          activeTab === "my" ? "underline" : "hover:underline"
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectTab?.("my");
+        }}
+      >
+        {decision.myLabel}
+      </span>
       <span className="mx-1.5 text-zinc-400 dark:text-zinc-600">→</span>
-      <span className="font-semibold text-green-600 dark:text-green-400">{decision.bestLabel}</span>
+      <span
+        className={`cursor-pointer font-semibold text-green-600 dark:text-green-400 ${
+          activeTab === "best" ? "underline" : "hover:underline"
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectTab?.("best");
+        }}
+      >
+        {decision.bestLabel}
+      </span>
     </span>
   );
 }
@@ -43,6 +71,7 @@ function MistakeTable({
   setAll,
   selectedId,
   onSelectRow,
+  moveTab,
 }: {
   title: string;
   mistakes: Decision[];
@@ -50,7 +79,8 @@ function MistakeTable({
   toggle: (id: string) => void;
   setAll: (ids: string[], value: boolean) => void;
   selectedId: string | null;
-  onSelectRow: (id: string) => void;
+  onSelectRow: (id: string, tab?: "my" | "best") => void;
+  moveTab: "my" | "best";
 }) {
   const ids = mistakes.map((m) => m.id);
 
@@ -113,7 +143,11 @@ function MistakeTable({
                     {formatRoll(m.roll)}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">
-                    <MoveDelta decision={m} />
+                    <MoveDelta
+                      decision={m}
+                      activeTab={m.id === selectedId ? moveTab : null}
+                      onSelectTab={(tab) => onSelectRow(m.id, tab)}
+                    />
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
                     {m.absError.toFixed(3)}
@@ -181,9 +215,9 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
   const selected =
     allMistakes.find((m) => m.id === selectedDecisionId) ?? allMistakes[0] ?? null;
 
-  function selectRow(id: string) {
+  function selectRow(id: string, tab: "my" | "best" = "my") {
     setSelectedDecisionId(id);
-    setMoveTab("my");
+    setMoveTab(tab);
   }
 
   if (games.length === 0) return null;
@@ -271,7 +305,7 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <div className="flex-1 lg:min-w-0">
-              <BoardPanel selected={selected} moveTab={moveTab} onMoveTabChange={setMoveTab} />
+              <BoardPanel selected={selected} moveTab={moveTab} />
             </div>
 
             <div className="flex w-full flex-col gap-6 lg:max-h-[80vh] lg:w-[380px] lg:shrink-0 lg:overflow-y-auto">
@@ -283,6 +317,7 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
                 setAll={setAll}
                 selectedId={selected?.id ?? null}
                 onSelectRow={selectRow}
+                moveTab={moveTab}
               />
 
               <MistakeTable
@@ -293,6 +328,7 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
                 setAll={setAll}
                 selectedId={selected?.id ?? null}
                 onSelectRow={selectRow}
+                moveTab={moveTab}
               />
             </div>
           </div>
