@@ -89,6 +89,73 @@ const MINE_STROKE = "#f8fafc";
 const OPP_FILL = "#f8fafc";
 const OPP_STROKE = "#1f2937";
 
+const OFF_SLOTS = 15;
+
+// Badge always sits at the "near" end of the range (topY when badgeAtBottom
+// is false, bottomY when true); checkers fill starting at the far end and
+// grow toward the badge. Mine and opponent use opposite badgeAtBottom values
+// so the two columns are true mirrors of each other across the center line.
+function OffColumn({
+  x,
+  width,
+  topY,
+  bottomY,
+  badgeAtBottom,
+  count,
+  fill,
+  stroke,
+  badgeFill,
+  badgeStroke,
+  badgeTextColor,
+}: {
+  x: number;
+  width: number;
+  topY: number;
+  bottomY: number;
+  badgeAtBottom: boolean;
+  count: number;
+  fill: string;
+  stroke: string;
+  badgeFill: string;
+  badgeStroke: string;
+  badgeTextColor: string;
+}) {
+  const cx = x + width / 2;
+  const badgeR = 11;
+  const badgeCy = badgeAtBottom ? bottomY - badgeR - 3 : topY + badgeR + 3;
+  const trackTop = badgeAtBottom ? topY : badgeCy + badgeR + 6;
+  const trackBottom = badgeAtBottom ? badgeCy - badgeR - 6 : bottomY;
+  const slotSpan = (trackBottom - trackTop) / OFF_SLOTS;
+  const slotH = Math.max(slotSpan - 1.5, 2);
+
+  return (
+    <>
+      {Array.from({ length: OFF_SLOTS }).map((_, i) => {
+        const y = trackTop + i * slotSpan;
+        // Fill from the end farthest from the badge, growing toward it.
+        const filled = badgeAtBottom ? i < count : i >= OFF_SLOTS - count;
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={y}
+            width={width}
+            height={slotH}
+            rx={1}
+            fill={filled ? fill : "transparent"}
+            stroke={filled ? stroke : "#00000022"}
+            strokeWidth={1}
+          />
+        );
+      })}
+      <circle cx={cx} cy={badgeCy} r={badgeR} fill={badgeFill} stroke={badgeStroke} strokeWidth={1.5} />
+      <text x={cx} y={badgeCy + 4} textAnchor="middle" fontSize={11} fontWeight="bold" fill={badgeTextColor}>
+        {count}
+      </text>
+    </>
+  );
+}
+
 function Stack({
   cx,
   baseY,
@@ -181,25 +248,19 @@ export default function Board({
         fill="#ffffff55"
         stroke="#00000033"
       />
-      <text
-        x={colCenterX(OFF_COL)}
-        y={Y0 + 18}
-        textAnchor="middle"
-        fontSize={10}
-        fill="#1f2937"
-      >
-        OFF
-      </text>
-      <text
-        x={colCenterX(OFF_COL)}
-        y={Y0 + ROW_H / 2 + 6}
-        textAnchor="middle"
-        fontSize={22}
-        fontWeight="bold"
-        fill={OPP_STROKE}
-      >
-        {decoded.opponentOff}
-      </text>
+      <OffColumn
+        x={colX(OFF_COL) + 6}
+        width={OFF_W - 12}
+        topY={Y0 + 3}
+        bottomY={Y0 + ROW_H - 9}
+        badgeAtBottom
+        count={decoded.opponentOff}
+        fill={OPP_FILL}
+        stroke={OPP_STROKE}
+        badgeFill={OPP_FILL}
+        badgeStroke={OPP_STROKE}
+        badgeTextColor={OPP_STROKE}
+      />
 
       <rect
         x={colX(OFF_COL) + 3}
@@ -210,25 +271,19 @@ export default function Board({
         fill="#00000022"
         stroke="#00000033"
       />
-      <text
-        x={colCenterX(OFF_COL)}
-        y={Y1 - 8}
-        textAnchor="middle"
-        fontSize={10}
-        fill="#1f2937"
-      >
-        OFF
-      </text>
-      <text
-        x={colCenterX(OFF_COL)}
-        y={Y0 + ROW_H + ROW_H / 2 + 6}
-        textAnchor="middle"
-        fontSize={22}
-        fontWeight="bold"
+      <OffColumn
+        x={colX(OFF_COL) + 6}
+        width={OFF_W - 12}
+        topY={Y0 + ROW_H + 6}
+        bottomY={Y1 - 9}
+        badgeAtBottom={false}
+        count={decoded.mineOff}
         fill={MINE_FILL}
-      >
-        {decoded.mineOff}
-      </text>
+        stroke={MINE_STROKE}
+        badgeFill={MINE_FILL}
+        badgeStroke={MINE_STROKE}
+        badgeTextColor={MINE_STROKE}
+      />
 
       {/* point checkers */}
       {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
