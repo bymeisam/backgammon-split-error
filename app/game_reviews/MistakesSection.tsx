@@ -11,13 +11,10 @@ import {
   type FetchedGame,
 } from "@/lib/mistakes";
 import BoardPanel from "./BoardPanel";
+import { DiceRoll } from "./Dice";
 
 function formatPR(pr: number | null): string {
   return pr === null ? "—" : pr.toFixed(2);
-}
-
-function formatRoll(roll: number[]): string {
-  return roll.length > 0 ? roll.join("-") : "—";
 }
 
 function MoveDelta({
@@ -139,8 +136,12 @@ function MistakeTable({
                     />
                   </td>
                   <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{m.gameIndex}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                    {formatRoll(m.roll)}
+                  <td className="px-3 py-2">
+                    {m.roll.length > 0 ? (
+                      <DiceRoll roll={m.roll} size={18} />
+                    ) : (
+                      <span className="text-xs text-zinc-400 dark:text-zinc-600">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">
                     <MoveDelta
