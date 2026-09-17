@@ -1,4 +1,4 @@
-import type { GameReviewsResponse, Review } from "@/lib/gameReviewsTypes";
+import type { GameEvent, GameReviewsResponse, Review } from "@/lib/gameReviewsTypes";
 
 export const BLUNDER_THRESHOLD = 0.08;
 
@@ -22,6 +22,7 @@ export interface Decision {
   detail: string;
   myLabel: string;
   bestLabel: string;
+  roll: number[];
   sourcePositionId: string | null;
   myMoveNotation: string | null;
   bestMoveNotation: string | null;
@@ -73,13 +74,27 @@ function moveNotations(review: Review): { mine: string | null; best: string | nu
   return { mine: played?.notation ?? null, best: best?.notation ?? null };
 }
 
+// A move_commited event's own rolled_dice is always empty — the roll it used
+// lives on the nearest preceding dice_rolled event (or game_started, for the
+// very first move of the game).
+function findPrecedingRoll(events: GameEvent[], index: number): number[] {
+  for (let i = index - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.event_type === "dice_rolled" || e.event_type === "game_started") {
+      if (e.rolled_dice && e.rolled_dice.length > 0) return e.rolled_dice;
+    }
+  }
+  return [];
+}
+
 export function extractDecisions(games: FetchedGame[]): Decision[] {
   const decisions: Decision[] = [];
 
   for (const game of games) {
     const events = game.data?.data?.events ?? [];
 
-    for (const event of events) {
+    for (let index = 0; index < events.length; index++) {
+      const event = events[index];
       const review = event.reviews?.[0];
       if (!review) continue;
 
@@ -104,6 +119,9 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         detail: buildDetail(review),
         myLabel: labels.mine,
         bestLabel: labels.best,
+        // Cube decisions are made before any roll; checker decisions pull the
+        // roll from the preceding dice_rolled/game_started event.
+        roll: kind === "checker" ? findPrecedingRoll(events, index) : [],
         sourcePositionId: review.source_position?.formatted_value ?? null,
         myMoveNotation: mine,
         bestMoveNotation: best,

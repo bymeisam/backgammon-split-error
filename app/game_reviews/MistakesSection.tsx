@@ -16,16 +16,8 @@ function formatPR(pr: number | null): string {
   return pr === null ? "—" : pr.toFixed(2);
 }
 
-function severityBadge(severity: "error" | "blunder") {
-  const classes =
-    severity === "blunder"
-      ? "border-red-300 bg-red-100 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-      : "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300";
-  return (
-    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${classes}`}>
-      {severity}
-    </span>
-  );
+function formatRoll(roll: number[]): string {
+  return roll.length > 0 ? roll.join("-") : "—";
 }
 
 function MoveDelta({ decision }: { decision: Decision }) {
@@ -89,9 +81,9 @@ function MistakeTable({
               <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
                 <th className="w-8 px-3 py-2"></th>
                 <th className="px-3 py-2">Game</th>
+                <th className="px-3 py-2">Roll</th>
                 <th className="px-3 py-2">Detail</th>
                 <th className="px-3 py-2">|Error|</th>
-                <th className="px-3 py-2">Severity</th>
               </tr>
             </thead>
             <tbody>
@@ -108,13 +100,15 @@ function MistakeTable({
                     />
                   </td>
                   <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{m.gameIndex}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                    {formatRoll(m.roll)}
+                  </td>
                   <td className="px-3 py-2 font-mono text-xs">
                     <MoveDelta decision={m} />
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
                     {m.absError.toFixed(3)}
                   </td>
-                  <td className="px-3 py-2">{m.severity && severityBadge(m.severity)}</td>
                 </tr>
               ))}
             </tbody>
