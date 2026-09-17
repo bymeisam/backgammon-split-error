@@ -44,9 +44,8 @@ function MoveDelta({
       >
         {decision.myLabel}
       </span>
-      <span className="mx-1.5 text-zinc-400 dark:text-zinc-600">→</span>
       <span
-        className={`cursor-pointer font-semibold text-green-600 dark:text-green-400 ${
+        className={`ml-1.5 cursor-pointer font-semibold text-green-600 dark:text-green-400 ${
           activeTab === "best" ? "underline" : "hover:underline"
         }`}
         onClick={(e) => {
@@ -111,7 +110,6 @@ function MistakeTable({
             <thead>
               <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
                 <th className="w-8 px-3 py-2"></th>
-                <th className="px-3 py-2">Game</th>
                 <th className="px-3 py-2">Roll</th>
                 <th className="px-3 py-2">Detail</th>
                 <th className="px-3 py-2">|Error|</th>
@@ -135,7 +133,6 @@ function MistakeTable({
                       onChange={() => toggle(m.id)}
                     />
                   </td>
-                  <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{m.gameIndex}</td>
                   <td className="px-3 py-2">
                     {m.roll.length > 0 ? (
                       <DiceRoll roll={m.roll} size={18} />
