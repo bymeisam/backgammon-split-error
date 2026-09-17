@@ -60,9 +60,27 @@ export default function BoardPanel({
         )}
 
         {selected && (
-          <p className="text-center text-xs text-zinc-600 dark:text-zinc-400">
-            Game {selected.gameIndex} · {selected.detail} · |error| {selected.absError.toFixed(3)}
-          </p>
+          <div className="flex flex-wrap items-stretch justify-center gap-2 text-xs">
+            <div className="flex items-center gap-1 rounded-lg border border-black/10 bg-zinc-50 px-3 py-1.5 dark:border-white/15 dark:bg-zinc-800">
+              <span className="text-zinc-500 dark:text-zinc-400">Game</span>
+              <span className="font-semibold text-black dark:text-zinc-50">{selected.gameIndex}</span>
+            </div>
+            <div
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
+                selected.severity === "blunder"
+                  ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+                  : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+              }`}
+            >
+              <span className="opacity-70">My move</span>
+              <span className="font-mono font-semibold">{selected.myLabel}</span>
+              <span className="opacity-70">({selected.absError.toFixed(3)})</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
+              <span className="opacity-70">Best move</span>
+              <span className="font-mono font-semibold">{selected.bestLabel}</span>
+            </div>
+          </div>
         )}
       </div>
     </div>
