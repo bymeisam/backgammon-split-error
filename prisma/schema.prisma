@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -10,4 +5,78 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum DecisionKind {
+  CHECKER
+  CUBE
+}
+
+enum ErrorSeverity {
+  NONE
+  DOUBTFUL
+  ERROR
+  BLUNDER
+}
+
+model Match {
+  id              Int       @id
+  matchLength     Int?
+  opponentName    String
+  opponentCountry String
+  opponentRating  Float
+  opponentError   Float
+  opponentScore   Int
+  userError       Float
+  userRating      Float
+  userScore       Int
+  playedAt        DateTime?
+  createdAt       DateTime  @default(now())
+
+  games Game[]
+}
+
+model Game {
+  id        Int       @id @default(autoincrement())
+  matchId   Int
+  match     Match     @relation(fields: [matchId], references: [id])
+  gameIndex Int
+  playedAt  DateTime?
+
+  decisions Decision[]
+
+  @@unique([matchId, gameIndex])
+}
+
+model Decision {
+  id              Int           @id @default(autoincrement())
+  gameId          Int
+  game            Game          @relation(fields: [gameId], references: [id])
+  eventId         BigInt
+  userId          String
+  color           String
+  kind            DecisionKind
+  analysedEvent   String
+  countAsDecision Boolean
+  rawError        Float
+  errorSeverity   ErrorSeverity
+  isBlunder       Boolean
+  luck            Float?
+  luckMwc         Float?
+  equity          Float?
+  mwc             Float?
+  classification  String
+  matchScoreBlack Int
+  matchScoreWhite Int
+  crawfordState   String
+  cubeOwnerUserId String?
+  notationPlayed  String?
+  notationBest    String?
+  cubeDetail      String?
+  timestamp       DateTime
+  myTag           String?
+  raw             Json
+
+  @@index([kind, classification])
+  @@index([userId])
 }
