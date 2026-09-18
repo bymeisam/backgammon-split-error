@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listMatches } from "@/lib/local-client";
+import { localClient } from "@/lib/local-client";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,6 @@ export async function GET(
     return NextResponse.json({ error: "Invalid page." }, { status: 400 });
   }
 
-  const data = await listMatches(page);
+  const data = await localClient.listMatches(page);
   return NextResponse.json(data);
 }

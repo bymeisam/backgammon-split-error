@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { parseAuthorizationFromCurl } from "@/lib/parseCurl";
-import { useGameStatsAuth } from "../GameStatsProvider";
+import { useGameStatsAuth } from "@/app/GameStatsProvider";
 
 export default function TokenModal() {
   const { setToken } = useGameStatsAuth();

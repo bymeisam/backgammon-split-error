@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGameReviews } from "@/lib/local-client";
+import { localClient } from "@/lib/local-client";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function GET(
     return NextResponse.json({ error: "Invalid matchId or gameIndex." }, { status: 400 });
   }
 
-  const data = await getGameReviews(matchId, gameIndex);
+  const data = await localClient.getGameReviews(matchId, gameIndex);
   if (!data) {
     return NextResponse.json({ error: "Not ingested yet." }, { status: 404 });
   }

@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import type { AnalysesListResponse, MatchAnalysis, RatingTitle } from "@/lib/analysesTypes";
 import type { GameEvent, GameReviewsResponse } from "@/lib/gameReviewsTypes";
+import type { MatchDataClient } from "@/lib/types/data-client";
 
 const PAGE_SIZE = 30;
 
@@ -72,3 +73,6 @@ export async function getGameReviews(
     type: "game_events",
   };
 }
+
+// Explicit conformance to the shared interface (see lib/types/data-client.ts).
+export const localClient: MatchDataClient = { listMatches, getGameReviews };
