@@ -8,16 +8,21 @@ export default function Home() {
           Galaxy Game Review Dumper
         </h1>
         <p className="text-lg leading-7 text-zinc-600 dark:text-zinc-400">
-          Fetch raw <code className="rounded bg-black/[.06] px-1 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">game_reviews</code>{" "}
-          JSON for a Backgammon Galaxy match, using a pasted curl or a token +
-          match ID.
+          Browse PR and mistake breakdowns for your Backgammon Galaxy matches,
+          synced into a local database.
         </p>
-        <div>
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/matches"
             className="inline-flex h-11 items-center justify-center rounded-full bg-foreground px-6 text-base font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
           >
             Open tool
+          </Link>
+          <Link
+            href="/galaxy/matches"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-6 text-base font-medium text-black transition-colors hover:bg-black/[.04] dark:border-white/15 dark:text-zinc-100 dark:hover:bg-white/[.06]"
+          >
+            Fetch live from Galaxy
           </Link>
         </div>
       </main>
