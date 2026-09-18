@@ -14,7 +14,7 @@ export default function Home() {
         </p>
         <div>
           <Link
-            href="/game_reviews"
+            href="/matches"
             className="inline-flex h-11 items-center justify-center rounded-full bg-foreground px-6 text-base font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
           >
             Open tool

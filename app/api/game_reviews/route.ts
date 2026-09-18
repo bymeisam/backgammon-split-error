@@ -1,11 +1,8 @@
 import { NextRequest } from "next/server";
 import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
+import { gameReviewsUrl } from "@/lib/galaxyEndpoints";
 
 const MAX_GAMES = 20;
-
-function baseUrlFor(matchId: string) {
-  return `https://api.backgammongalaxy.com/match-analytics/api/v1/game_reviews/${matchId}`;
-}
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +37,7 @@ export async function POST(req: NextRequest) {
       for (let gameIndex = 1; gameIndex <= MAX_GAMES; gameIndex++) {
         send({ type: "status", message: `Fetching game ${gameIndex}…` });
 
-        const url = `${baseUrlFor(matchId)}/${gameIndex}`;
+        const url = gameReviewsUrl(matchId, gameIndex);
         const isFirst = gameIndex === 1;
 
         let res: Response;
