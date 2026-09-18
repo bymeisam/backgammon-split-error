@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStatsAuth } from "@/app/GameStatsProvider";
-import type { AnalysesListResponse } from "@/lib/analysesTypes";
+import type { AnalysesListResponse, MatchAnalysis } from "@/lib/analysesTypes";
 import TokenModal from "./TokenModal";
+
+type SyncState =
+  | { status: "syncing" }
+  | { status: "synced" }
+  | { status: "error"; message: string };
 
 export default function MatchesPage() {
   const router = useRouter();
@@ -14,6 +19,7 @@ export default function MatchesPage() {
   const [data, setData] = useState<AnalysesListResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncStates, setSyncStates] = useState<Record<number, SyncState>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -47,6 +53,54 @@ export default function MatchesPage() {
     };
   }, [token, page]);
 
+  // Per-match, button-triggered sync. Deliberately structured as a handler
+  // over a single matchId (not a loop) — a later "sync all new" button can
+  // just call this once per match without any rewrite here.
+  async function onSyncMatch(match: MatchAnalysis) {
+    if (!token) return;
+
+    setSyncStates((prev) => ({ ...prev, [match.matchId]: { status: "syncing" } }));
+
+    try {
+      const res = await fetch(`/api/galaxy/matches/${match.matchId}/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          authorization: token,
+          indexData: {
+            opponentName: match.opponentName,
+            opponentCountry: match.opponentCountry,
+            opponentRating: match.opponentRating,
+            opponentError: match.opponentError,
+            opponentScore: match.opponentScore,
+            userError: match.userError,
+            userRating: match.userRating,
+            userScore: match.userScore,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status}).`);
+
+      // A 200 here just means the sync ran — if it ingested nothing and has
+      // errors, that's a real failure (e.g. a bad/expired token), not a
+      // success with an empty match.
+      if (json.gamesIngested === 0 && json.errors?.length > 0) {
+        throw new Error(json.errors[0]);
+      }
+
+      setSyncStates((prev) => ({ ...prev, [match.matchId]: { status: "synced" } }));
+    } catch (e) {
+      setSyncStates((prev) => ({
+        ...prev,
+        [match.matchId]: {
+          status: "error",
+          message: e instanceof Error ? e.message : "Sync failed.",
+        },
+      }));
+    }
+  }
+
   return (
     <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
       <main className="flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
@@ -78,30 +132,66 @@ export default function MatchesPage() {
                         <th className="px-3 py-2">Score</th>
                         <th className="px-3 py-2">Your error</th>
                         <th className="px-3 py-2">Opponent error</th>
+                        <th className="px-3 py-2"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {data.analyses.map((m) => (
-                        <tr
-                          key={m.matchId}
-                          onClick={() => router.push(`/galaxy/matches/${m.matchId}`)}
-                          className="cursor-pointer border-b border-black/5 last:border-b-0 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-zinc-800/60"
-                        >
-                          <td className="px-3 py-2 text-black dark:text-zinc-100">{m.opponentName}</td>
-                          <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                            {m.opponentRating}
-                          </td>
-                          <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                            {m.userScore}–{m.opponentScore}
-                          </td>
-                          <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                            {m.userError.toFixed(3)}
-                          </td>
-                          <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                            {m.opponentError.toFixed(3)}
-                          </td>
-                        </tr>
-                      ))}
+                      {data.analyses.map((m) => {
+                        const syncState = syncStates[m.matchId];
+                        return (
+                          <tr
+                            key={m.matchId}
+                            onClick={() => router.push(`/galaxy/matches/${m.matchId}`)}
+                            className="cursor-pointer border-b border-black/5 last:border-b-0 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-zinc-800/60"
+                          >
+                            <td className="px-3 py-2 text-black dark:text-zinc-100">{m.opponentName}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                              {m.opponentRating}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                              {m.userScore}–{m.opponentScore}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                              {m.userError.toFixed(3)}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                              {m.opponentError.toFixed(3)}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {syncState?.status === "syncing" ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-300" />
+                                  Syncing…
+                                </span>
+                              ) : syncState?.status === "synced" ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSyncMatch(m);
+                                  }}
+                                  className="text-xs font-medium text-green-600 hover:underline dark:text-green-400"
+                                  title="Synced — click to re-sync"
+                                >
+                                  ✓ Synced
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSyncMatch(m);
+                                  }}
+                                  className="rounded-full border border-black/10 px-3 py-1 text-xs font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                                  title={syncState?.status === "error" ? syncState.message : "Sync this match to the local DB"}
+                                >
+                                  {syncState?.status === "error" ? "Retry sync" : "Sync"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
