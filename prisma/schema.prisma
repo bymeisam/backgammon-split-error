@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 enum DecisionKind {
@@ -22,7 +22,7 @@ enum ErrorSeverity {
 model Match {
   id              Int       @id @default(autoincrement())
   source          String
-  sourceMatchId   String
+  sourceMatchId   String @db.VarChar(191)
   matchLength     Int?
   opponentName    String
   opponentCountry String
@@ -43,7 +43,7 @@ model Match {
 model PlayerIdentity {
   id           Int     @id @default(autoincrement())
   source       String
-  sourceUserId String
+  sourceUserId String @db.VarChar(191)
   displayName  String
   isMe         Boolean @default(true)
 
@@ -67,7 +67,7 @@ model Decision {
   gameId          Int
   game            Game          @relation(fields: [gameId], references: [id])
   eventId         BigInt
-  userId          String
+  userId          String        @db.VarChar(191)
   color           String
   kind            DecisionKind
   analysedEvent   String
@@ -83,7 +83,7 @@ model Decision {
   matchScoreBlack Int
   matchScoreWhite Int
   crawfordState   String
-  cubeOwnerUserId String?
+  cubeOwnerUserId String?       @db.VarChar(191)
   notationPlayed  String?
   notationBest    String?
   cubeDetail      String?

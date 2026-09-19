@@ -11,7 +11,7 @@
 // (verified against lib/gnuPositionId.ts) reused for every decision — it
 // doesn't need to reflect the literal move, only to decode without error.
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import {
   PrismaClient,
   DecisionKind,
@@ -25,7 +25,7 @@ import type {
   AnalysisEnvelope,
 } from "../lib/gameReviewsTypes";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaMariaDb(process.env.DATABASE_URL as string);
 const prisma = new PrismaClient({ adapter });
 
 const YOU_USER_ID = "seed-user-you";

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 
-// Throwaway smoke test for the local Postgres + Prisma infra setup — not a
-// feature. Visit /api/db-check with the Docker Postgres container running to
+// Throwaway smoke test for the local MySQL + Prisma infra setup — not a
+// feature. Visit /api/db-check with the Docker MySQL container running to
 // confirm Prisma can actually reach it. Disabled outside development since it
 // only exists to verify this setup step.
 export async function GET() {
@@ -11,16 +11,16 @@ export async function GET() {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaMariaDb(process.env.DATABASE_URL as string);
   const prisma = new PrismaClient({ adapter });
 
   try {
     await prisma.$queryRaw`SELECT 1`;
-    return NextResponse.json({ ok: true, message: "Postgres connection OK" });
+    return NextResponse.json({ ok: true, message: "MySQL connection OK" });
   } catch (error) {
-    console.error("Postgres connection FAILED:", error);
+    console.error("MySQL connection FAILED:", error);
     return NextResponse.json(
-      { ok: false, message: "Postgres connection FAILED" },
+      { ok: false, message: "MySQL connection FAILED" },
       { status: 500 }
     );
   } finally {

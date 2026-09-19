@@ -9,6 +9,37 @@ from, and any computation applied. `raw` on `Decision` is the exception: it's
 the complete original event object, not a derived field, so nothing needs
 mapping for it beyond "store it as-is."
 
+## Collation for externally-sourced identifiers
+
+Any column storing an externally-sourced string identifier (a Galaxy user
+ID, match ID, or similar from any future source) must use a case-sensitive/
+binary collation, not the engine default — MySQL's default collation is
+case-insensitive, which could silently merge two distinct external IDs that
+differ only in case. This applies whether or not the column is part of a
+unique constraint — even a plain `WHERE userId = ...` lookup is vulnerable
+to a false match under a case-insensitive collation.
+
+Columns currently pinned this way: `Match.sourceMatchId`,
+`PlayerIdentity.sourceUserId`, `Decision.userId`, `Decision.cubeOwnerUserId`.
+
+`Decision.eventId` is also an externally-sourced identifier (Galaxy's own
+event ID), but it does not need a collation pin — collation only governs
+string comparison, and `eventId` is stored as `BigInt`, a numeric type with
+no case-sensitivity concept at all. It's listed here for completeness, so
+its absence from the collation-pinned column list above isn't mistaken for
+an oversight.
+
+**Note on implementation:** Prisma's schema DSL does not expose a collation
+attribute for MySQL (only for SQL Server via `@db.Collation`). These four
+columns are pinned to `utf8mb4_bin` by hand-editing the generated migration
+SQL directly (adding `COLLATE utf8mb4_bin` to each column's definition) —
+this is not visible in `schema.prisma` itself, only in the migration file.
+Because of this, the collation pin is not automatically preserved if these
+columns are ever altered by a future Prisma migration — anyone changing one
+of these columns must manually re-add the `COLLATE utf8mb4_bin` clause to
+the new migration's SQL. See the comment in the relevant migration file for
+the same warning.
+
 ## Match
 
 Sourced from `analyses/list/{page}`'s per-match `MatchAnalysis` rows

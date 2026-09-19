@@ -20,15 +20,15 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Database (local Postgres + Prisma)
+## Database (local MySQL + Prisma)
 
-Local development uses a Postgres container (via Docker Compose) and Prisma as the client. This section covers infra setup only — no models exist yet.
+Local development uses a MySQL container (via Docker Compose) and Prisma as the client.
 
 ### Prerequisites
 
 - **Node.js** — any current LTS.
 - **npm** — this project's package manager (there's a `package-lock.json`; don't add a yarn/pnpm lockfile alongside it).
-- **Docker** — required to run local Postgres. Install steps genuinely differ by OS, so use the official docs rather than ad-hoc instructions:
+- **Docker** — required to run local MySQL. Install steps genuinely differ by OS, so use the official docs rather than ad-hoc instructions:
   - **macOS / Windows**: [Docker Desktop](https://docs.docker.com/desktop/). On Windows, Docker Desktop requires [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) — the installer will prompt for this if it's missing.
   - **Linux**: [Docker Engine](https://docs.docker.com/engine/install/) via your distro's package manager, which includes the `docker compose` plugin. Docker Desktop for Linux is also an option if you prefer a GUI.
 
@@ -38,7 +38,7 @@ Local development uses a Postgres container (via Docker Compose) and Prisma as t
    ```bash
    cp .env.example .env
    ```
-2. Start Postgres:
+2. Start MySQL:
    ```bash
    docker compose up -d
    ```
@@ -52,11 +52,11 @@ Local development uses a Postgres container (via Docker Compose) and Prisma as t
    ```
    Then open [http://localhost:3000/api/db-check](http://localhost:3000/api/db-check) (or `curl localhost:3000/api/db-check`).
 
-**What success looks like**: `{"ok":true,"message":"Postgres connection OK"}`. This route (`app/api/db-check/route.ts`) is a throwaway smoke test for this setup step, not a feature — it's disabled outside development and can be deleted once real models/routes exist.
+**What success looks like**: `{"ok":true,"message":"MySQL connection OK"}`. This route (`app/api/db-check/route.ts`) is a throwaway smoke test for this setup step, not a feature — it's disabled outside development and can be deleted once it's no longer needed.
 
 ### If this doesn't work
 
-- **Port 5432 already in use** — common if you also have a native Postgres install. Either stop the native instance, or remap the host port in `docker-compose.yml` (e.g. `"5433:5432"`) and update `DATABASE_URL` in `.env` to match.
+- **Port 3306 already in use** — common if you also have a native MySQL install. Either stop the native instance, or remap the host port in `docker-compose.yml` (e.g. `"3307:3306"`) and update `DATABASE_URL` in `.env` to match.
 - **Docker daemon not running** — `docker compose up -d` will fail with a connection error to the Docker daemon/socket. Start Docker Desktop, or on Linux, `sudo systemctl start docker`.
 - **Line endings (CRLF/LF)** — no shell scripts exist in this setup yet, so this isn't an issue today; if one gets added later, make sure it's checked in with LF endings (e.g. via `.gitattributes`) so it still runs under WSL2/Git Bash on Windows.
 
