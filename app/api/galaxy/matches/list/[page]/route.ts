@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createGalaxyClient } from "@/lib/galaxy-client";
+import { prisma } from "@/lib/prisma";
+
+const SOURCE = "galaxy";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +31,20 @@ export async function POST(
 
   try {
     const data = await createGalaxyClient(authorization).listMatches(page);
+
+    // Best-effort: this is how PlayerIdentity ever gets populated (from the
+    // authenticated user's own userId/userName on this response), but a
+    // failure here shouldn't block returning the match list itself.
+    try {
+      await prisma.playerIdentity.upsert({
+        where: { source_sourceUserId: { source: SOURCE, sourceUserId: data.userId } },
+        create: { source: SOURCE, sourceUserId: data.userId, displayName: data.userName },
+        update: { displayName: data.userName },
+      });
+    } catch (e) {
+      console.error("Failed to upsert PlayerIdentity:", e);
+    }
+
     return NextResponse.json(data);
   } catch (e) {
     return jsonError(e instanceof Error ? e.message : "Something went wrong.", 502);

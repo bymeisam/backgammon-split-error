@@ -20,7 +20,9 @@ enum ErrorSeverity {
 }
 
 model Match {
-  id              Int       @id
+  id              Int       @id @default(autoincrement())
+  source          String
+  sourceMatchId   String
   matchLength     Int?
   opponentName    String
   opponentCountry String
@@ -34,6 +36,18 @@ model Match {
   createdAt       DateTime  @default(now())
 
   games Game[]
+
+  @@unique([source, sourceMatchId])
+}
+
+model PlayerIdentity {
+  id           Int     @id @default(autoincrement())
+  source       String
+  sourceUserId String
+  displayName  String
+  isMe         Boolean @default(true)
+
+  @@unique([source, sourceUserId])
 }
 
 model Game {

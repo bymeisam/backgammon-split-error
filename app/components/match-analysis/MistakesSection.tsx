@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   combinePR,
   computePR,
@@ -12,6 +12,13 @@ import {
 } from "@/lib/mistakes";
 import BoardPanel from "./BoardPanel";
 import { DiceRoll } from "./Dice";
+
+interface PlayerIdentity {
+  source: string;
+  sourceUserId: string;
+  displayName: string;
+  isMe: boolean;
+}
 
 function formatPR(pr: number | null): string {
   return pr === null ? "—" : pr.toFixed(2);
@@ -165,13 +172,35 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
   const playerOptions = useMemo(() => extractPlayerOptions(games), [games]);
   const gameIndexes = useMemo(() => extractGameIndexes(games), [games]);
 
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [identities, setIdentities] = useState<PlayerIdentity[]>([]);
   const [selectedGame, setSelectedGame] = useState<"all" | number>("all");
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
   const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
   const [moveTab, setMoveTab] = useState<"my" | "best">("my");
 
-  const effectiveUserId = selectedUserId ?? playerOptions[0]?.userId ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/player-identities")
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled) setIdentities(json as PlayerIdentity[]);
+      })
+      .catch(() => {
+        // Non-fatal — falls back to showing the raw userId below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Resolve "which player is you" from PlayerIdentity instead of asking —
+  // match a userId actually present in this match's decisions against a
+  // known "isMe" identity, falling back to whichever userId shows up first
+  // (never a hardcoded id) when there's no identity data to resolve against.
+  const meIdentity = identities.find(
+    (i) => i.isMe && playerOptions.some((p) => p.userId === i.sourceUserId)
+  );
+  const effectiveUserId = meIdentity?.sourceUserId ?? playerOptions[0]?.userId ?? null;
 
   const isTicked = (id: string) => ticked[id] !== false;
   const toggle = (id: string) =>
@@ -234,25 +263,10 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
         <>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Which player is you?
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">You</span>
+              <span className="text-sm text-black dark:text-zinc-100">
+                {meIdentity?.displayName ?? effectiveUserId ?? "—"}
               </span>
-              <div className="flex flex-wrap gap-3">
-                {playerOptions.map((p) => (
-                  <label
-                    key={p.userId}
-                    className="flex items-center gap-1.5 text-sm text-black dark:text-zinc-100"
-                  >
-                    <input
-                      type="radio"
-                      name="player"
-                      checked={effectiveUserId === p.userId}
-                      onChange={() => setSelectedUserId(p.userId)}
-                    />
-                    {p.userId}
-                  </label>
-                ))}
-              </div>
             </div>
 
             <div className="flex flex-col gap-2">

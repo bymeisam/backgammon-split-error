@@ -8,6 +8,10 @@ import type { MatchDataClient } from "@/lib/types/data-client";
 
 const PAGE_SIZE = 30;
 
+// Local-client reads rows that were ingested from Galaxy, so the source tag
+// used to resolve Match by (source, sourceMatchId) is hardcoded here too.
+const SOURCE = "galaxy";
+
 // We don't store rating-title/"who's asking" data locally (nothing here
 // models a logged-in Galaxy user) — these fields exist only to satisfy the
 // shared response shape and aren't rendered by the current list UI.
@@ -29,7 +33,7 @@ export async function listMatches(page: number): Promise<AnalysesListResponse> {
   ]);
 
   const analyses: MatchAnalysis[] = rows.map((m) => ({
-    matchId: m.id,
+    matchId: Number(m.sourceMatchId),
     opponentCountry: m.opponentCountry,
     opponentError: m.opponentError,
     opponentName: m.opponentName,
@@ -56,8 +60,13 @@ export async function getGameReviews(
   matchId: number,
   gameIndex: number
 ): Promise<GameReviewsResponse | null> {
+  const match = await prisma.match.findUnique({
+    where: { source_sourceMatchId: { source: SOURCE, sourceMatchId: String(matchId) } },
+  });
+  if (!match) return null;
+
   const game = await prisma.game.findUnique({
-    where: { matchId_gameIndex: { matchId, gameIndex } },
+    where: { matchId_gameIndex: { matchId: match.id, gameIndex } },
   });
   if (!game) return null;
 

@@ -11,6 +11,12 @@ import type { Review } from "@/lib/gameReviewsTypes";
 
 const MAX_GAMES = 20;
 
+// This file is Galaxy-specific ingest logic, so the source tag is hardcoded
+// here rather than threaded through as a parameter — a future second source
+// would get its own ingest module with its own SOURCE constant, not a branch
+// in this one.
+const SOURCE = "galaxy";
+
 // game_started/game_over/turn_forfeited events are never decisions and are
 // never stored as Decision rows — excluded explicitly, even though they
 // wouldn't normally carry a reviews[0] anyway.
@@ -79,9 +85,13 @@ export async function ingestMatch(
   let matchLength: number | null = null;
   const gamePlayedAts: Date[] = [];
 
-  await prisma.match.upsert({
-    where: { id: matchId },
-    create: { id: matchId, ...indexData },
+  // matchId here is the Galaxy match ID (what the URL/UI use) — Match.id is
+  // now an internal auto-increment key, resolved via the (source,
+  // sourceMatchId) compound unique instead of being the primary key itself.
+  const sourceMatchId = String(matchId);
+  const match = await prisma.match.upsert({
+    where: { source_sourceMatchId: { source: SOURCE, sourceMatchId } },
+    create: { source: SOURCE, sourceMatchId, ...indexData },
     update: { ...indexData },
   });
 
@@ -101,8 +111,8 @@ export async function ingestMatch(
     if (!response) break;
 
     const game = await prisma.game.upsert({
-      where: { matchId_gameIndex: { matchId, gameIndex } },
-      create: { matchId, gameIndex },
+      where: { matchId_gameIndex: { matchId: match.id, gameIndex } },
+      create: { matchId: match.id, gameIndex },
       update: {},
     });
 
@@ -124,12 +134,16 @@ export async function ingestMatch(
         const errorAnalysis = review.result.result.error_analysis;
         const probabilities = review.result.result.probabilities;
 
+        // Classification always comes from source_position, never
+        // destination_position: the analysis is about the quality of a
+        // decision made AT a position, so the phase that matters is the
+        // board state before the move (source), not after (destination).
+        // Falling back to destination would silently mislabel the decision's
+        // phase, so a missing source classification is a hard failure for
+        // this decision rather than a silent substitution.
         const classification = review.source_position?.classification;
         if (!classification) {
-          errors.push(
-            `game ${gameIndex} event ${event.id}: missing source_position.classification, skipped`
-          );
-          continue;
+          throw new Error("missing source_position.classification");
         }
 
         // Owner entering this decision, before applying its own outcome.
@@ -200,7 +214,7 @@ export async function ingestMatch(
     matchUpdate.playedAt = new Date(Math.min(...gamePlayedAts.map((d) => d.getTime())));
   }
   if (Object.keys(matchUpdate).length > 0) {
-    await prisma.match.update({ where: { id: matchId }, data: matchUpdate });
+    await prisma.match.update({ where: { id: match.id }, data: matchUpdate });
   }
 
   return { matchId, gamesIngested, decisionsIngested, errors };

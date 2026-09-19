@@ -335,14 +335,30 @@ function buildRawEvent(params: {
 }
 
 async function main() {
-  // FK-safe order: children before parents.
+  // FK-safe order: children before parents. PlayerIdentity is standalone,
+  // order relative to the others doesn't matter.
   await prisma.decision.deleteMany();
   await prisma.game.deleteMany();
   await prisma.match.deleteMany();
+  await prisma.playerIdentity.deleteMany();
 
-  await prisma.match.create({
+  await prisma.playerIdentity.create({
     data: {
-      id: 1,
+      source: "galaxy",
+      sourceUserId: YOU_USER_ID,
+      displayName: "Seed Test User",
+      isMe: true,
+    },
+  });
+
+  // Match.id is now an internal auto-increment key — source/sourceMatchId
+  // is what a real Galaxy match ID maps to, so seed data uses the same
+  // shape ingestMatch would (matching "1"/"2" here is just for readability,
+  // not a real Galaxy match ID).
+  const match1 = await prisma.match.create({
+    data: {
+      source: "galaxy",
+      sourceMatchId: "1",
       matchLength: 5,
       opponentName: "TEST Opponent Alpha",
       opponentCountry: "XX",
@@ -358,7 +374,8 @@ async function main() {
 
   await prisma.match.create({
     data: {
-      id: 2,
+      source: "galaxy",
+      sourceMatchId: "2",
       matchLength: 5,
       opponentName: "TEST Opponent Beta",
       opponentCountry: "ZZ",
@@ -391,7 +408,7 @@ async function main() {
 
     const game = await prisma.game.create({
       data: {
-        matchId: 1,
+        matchId: match1.id,
         gameIndex,
         playedAt: gamePlayedAt,
       },
