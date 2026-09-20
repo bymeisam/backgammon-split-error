@@ -25,6 +25,12 @@ export default function Home() {
             Fetch live from Galaxy
           </Link>
         </div>
+        <Link
+          href="/status"
+          className="text-sm text-zinc-500 underline-offset-4 hover:text-black hover:underline dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          Status
+        </Link>
       </main>
     </div>
   );
