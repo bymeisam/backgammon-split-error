@@ -19,6 +19,13 @@ enum ErrorSeverity {
   BLUNDER
 }
 
+enum IngestStatus {
+  PENDING
+  INGESTING
+  DONE
+  FAILED
+}
+
 model Match {
   id              Int       @id @default(autoincrement())
   source          String
@@ -34,10 +41,23 @@ model Match {
   userScore       Int
   playedAt        DateTime?
   createdAt       DateTime  @default(now())
+  ingestStatus    IngestStatus @default(PENDING)
+  ingestError     String?      @db.Text
 
   games Game[]
 
   @@unique([source, sourceMatchId])
+}
+
+model SyncRun {
+  id            Int       @id @default(autoincrement())
+  type          String
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  matchesFound  Int       @default(0)
+  matchesSynced Int       @default(0)
+  matchesFailed Int       @default(0)
+  errors        Json?
 }
 
 model PlayerIdentity {

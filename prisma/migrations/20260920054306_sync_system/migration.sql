@@ -1,0 +1,17 @@
+-- AlterTable
+ALTER TABLE `Match` ADD COLUMN `ingestError` TEXT NULL,
+    ADD COLUMN `ingestStatus` ENUM('PENDING', 'INGESTING', 'DONE', 'FAILED') NOT NULL DEFAULT 'PENDING';
+
+-- CreateTable
+CREATE TABLE `SyncRun` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `type` VARCHAR(191) NOT NULL,
+    `startedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `finishedAt` DATETIME(3) NULL,
+    `matchesFound` INTEGER NOT NULL DEFAULT 0,
+    `matchesSynced` INTEGER NOT NULL DEFAULT 0,
+    `matchesFailed` INTEGER NOT NULL DEFAULT 0,
+    `errors` JSON NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
