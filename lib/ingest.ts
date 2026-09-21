@@ -90,8 +90,13 @@ function moveNotations(review: Review): { played: string | null; best: string | 
   return { played: played?.notation ?? null, best: best?.notation ?? null };
 }
 
+// Only ever reads cube_analysis for the two event types that actually carry
+// it — never as a fallback/else, since "resignation" (and any other future
+// analysed_event) has no cube_analysis at all and would crash on one.
 function buildCubeDetail(review: Review): string | null {
-  if (review.result.analysed_event === "move") return null;
+  if (review.result.analysed_event !== "cube_double" && review.result.analysed_event !== "cube_pass") {
+    return null;
+  }
   const cube = review.result.result.cube_analysis;
 
   if (review.result.analysed_event === "cube_double") {
@@ -101,6 +106,55 @@ function buildCubeDetail(review: Review): string | null {
 
   const mine = review.take ? "took" : "passed";
   return `${mine} — best: ${cube.receivers_best_action.replace(/_/g, " ")}`;
+}
+
+// Resignation-only fields (resign_error/should_resign/resignation_type/
+// equity_before/equity_after) — null for every other kind, same convention
+// as notationPlayed/notationBest/cubeDetail being null outside their kind.
+function buildResignationDetail(review: Review): {
+  resignError: number | null;
+  shouldResign: boolean | null;
+  resignationType: string | null;
+  equityBefore: number | null;
+  equityAfter: number | null;
+} {
+  if (review.result.analysed_event !== "resignation") {
+    return {
+      resignError: null,
+      shouldResign: null,
+      resignationType: null,
+      equityBefore: null,
+      equityAfter: null,
+    };
+  }
+
+  const result = review.result.result;
+  return {
+    resignError: result.resign_error,
+    shouldResign: result.should_resign,
+    resignationType: result.resignation_type,
+    equityBefore: result.equity_before,
+    equityAfter: result.equity_after,
+  };
+}
+
+// The only place that decides what analysed_event values are known. Returns
+// null for anything outside the four confirmed shapes (move/cube_double/
+// cube_pass/resignation) so the caller can log and skip instead of guessing
+// a kind — this is deliberately not a fallback/else, so a fifth future shape
+// surfaces as a warning instead of silently being miscounted as CUBE.
+function decisionKindFor(analysedEvent: string): DecisionKind | null {
+  switch (analysedEvent) {
+    case "move":
+      return DecisionKind.CHECKER;
+    case "cube_double":
+    case "cube_pass":
+      return DecisionKind.CUBE;
+    case "resignation":
+      return DecisionKind.RESIGNATION;
+    default:
+      return null;
+  }
 }
 
 export async function ingestMatch(
@@ -159,7 +213,20 @@ export async function ingestMatch(
 
       try {
         const analysedEvent = review.result.analysed_event;
-        const kind = analysedEvent === "move" ? DecisionKind.CHECKER : DecisionKind.CUBE;
+        const kind = decisionKindFor(analysedEvent);
+
+        // Unrecognized analysed_event — surface it loudly rather than
+        // guessing a kind (the old code defaulted anything non-"move" to
+        // CUBE, which is exactly what silently broke on "resignation").
+        // This guard is permanent, not just for resignation: any future
+        // fifth shape lands here too.
+        if (kind === null) {
+          const message = `match ${matchId} game ${gameIndex} event ${event.id}: unrecognized analysed_event "${analysedEvent}", skipped`;
+          console.warn(message);
+          warnings.push(message);
+          continue;
+        }
+
         const metadata = review.result.result.metadata;
         const errorAnalysis = review.result.result.error_analysis;
         const probabilities = review.result.result.probabilities;
@@ -194,6 +261,7 @@ export async function ingestMatch(
         }
 
         const { played, best } = moveNotations(review);
+        const resignation = buildResignationDetail(review);
         const timestamp = new Date(metadata.timestamp);
         decisionTimestamps.push(timestamp);
         matchLength = metadata.match_length;
@@ -219,6 +287,11 @@ export async function ingestMatch(
           notationPlayed: played,
           notationBest: best,
           cubeDetail: buildCubeDetail(review),
+          resignError: resignation.resignError,
+          shouldResign: resignation.shouldResign,
+          resignationType: resignation.resignationType,
+          equityBefore: resignation.equityBefore,
+          equityAfter: resignation.equityAfter,
           timestamp,
           myTag: null,
           // Round-trip through JSON so the value is a plain JSON-compatible

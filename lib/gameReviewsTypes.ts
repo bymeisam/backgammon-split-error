@@ -10,6 +10,8 @@ export type EventType =
   | "dice_rolled"
   | "double_requested"
   | "double_accepted"
+  | "double_rejected"
+  | "resigned"
   | "game_started"
   | "game_over"
   | "turn_forfeited";
@@ -115,6 +117,22 @@ export interface CubeResult extends AnalysisResultBase {
   cube_analysis: CubeAnalysis;
 }
 
+// Resignation events (event_type: "resigned") have no cube_analysis and no
+// moves — a structurally distinct fourth shape, not a variant of the cube
+// shape. Confirmed against a real payload (match 2856675, event 440889365):
+// result.result keys were exactly metadata/equity/probabilities/
+// error_analysis/resign_error/should_resign/resignation_type/equity_before/
+// equity_after — no cube_analysis key at all. In that same real payload,
+// resignation_type/equity_before/equity_after were all present but `null`
+// (not just absent) — confirmed nullable rather than assumed non-null.
+export interface ResignationResult extends AnalysisResultBase {
+  resign_error: number;
+  should_resign: boolean;
+  resignation_type: string | null;
+  equity_before: number | null;
+  equity_after: number | null;
+}
+
 export interface MoveAnalysisEnvelope {
   version: string;
   analysed_event: "move";
@@ -127,7 +145,16 @@ export interface CubeAnalysisEnvelope {
   result: CubeResult;
 }
 
-export type AnalysisEnvelope = MoveAnalysisEnvelope | CubeAnalysisEnvelope;
+export interface ResignationAnalysisEnvelope {
+  version: string;
+  analysed_event: "resignation";
+  result: ResignationResult;
+}
+
+export type AnalysisEnvelope =
+  | MoveAnalysisEnvelope
+  | CubeAnalysisEnvelope
+  | ResignationAnalysisEnvelope;
 
 export interface Review {
   id: number;

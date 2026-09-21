@@ -89,8 +89,8 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `eventId` | `event.id` (the original event's id from the payload), as `BigInt`. Unique per `(gameId, eventId)` — this is what makes re-sync idempotent. |
 | `userId` | `event.user_id` — whichever player made this decision, not necessarily "you". |
 | `color` | `event.color` |
-| `kind` | `CHECKER` if `review.result.analysed_event === "move"`, else `CUBE`. |
-| `analysedEvent` | `review.result.analysed_event` verbatim (`"move"` / `"cube_double"` / `"cube_pass"`). |
+| `kind` | `CHECKER` for `"move"`, `CUBE` for `"cube_double"`/`"cube_pass"`, `RESIGNATION` for `"resignation"` — an exact mapping (`decisionKindFor` in `lib/ingest.ts`), never a fallback/else. Any other `analysed_event` is logged as a warning and skipped rather than guessed (see "Unrecognized analysed_event" below). |
+| `analysedEvent` | `review.result.analysed_event` verbatim (`"move"` / `"cube_double"` / `"cube_pass"` / `"resignation"`). |
 | `countAsDecision` | `metadata.count_as_decision` |
 | `rawError` | `error_analysis.raw_error`, unmodified (not absolute-valued — the app layer takes `Math.abs()` where it needs magnitude). |
 | `errorSeverity` | `error_analysis.error_severity`, mapped from the payload's lowercase string to the `NONE`/`DOUBTFUL`/`ERROR`/`BLUNDER` enum. |
@@ -103,10 +103,15 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `matchScoreBlack` | `metadata.scores?.black`, nullable. `metadata.scores` is `null` for money-game-type matches (confirmed against a real match: `scores: null` *and* `match_length: null` together, consistently across every decision in the match) — there's no running match score to report for a match that isn't played to a fixed length. Not a data quality issue, a real category of match the original schema didn't account for. |
 | `matchScoreWhite` | `metadata.scores?.white`, nullable — same reasoning as `matchScoreBlack`. |
 | `crawfordState` | `metadata.crawford_state`. **Investigated and confirmed non-nullable** — even for money-game-type matches (where `scores`/`match_length` are null), `crawford_state` is still always a real string (`"none"` in every case checked, since the Crawford rule doesn't apply outside match play, but it's reported as a normal value rather than omitted). Recorded here so this isn't re-investigated later. |
-| `cubeOwnerUserId` | Not in the payload directly — computed at ingest by walking a game's cube-kind decisions in order: starts `null` (centered), and becomes the taking player's `user_id` after a `cube_pass` review with `take === true`. Reflects who owned the cube *entering* each decision, before that decision's own outcome is applied. Always `null` for `CHECKER` kind. |
-| `notationPlayed` | For `CHECKER` kind: the candidate move with `move_played: true`. Null for `CUBE` kind. |
-| `notationBest` | For `CHECKER` kind: the candidate move with `rank === 1` (falls back to the first move if none has rank 1). Null for `CUBE` kind. |
-| `cubeDetail` | For `CUBE` kind: a human-readable summary built from `review.double`/`review.take` plus `cube_analysis.doublers_best_action`/`receivers_best_action`. Null for `CHECKER` kind. |
+| `cubeOwnerUserId` | Not in the payload directly — computed at ingest by walking a game's cube-kind decisions in order: starts `null` (centered), and becomes the taking player's `user_id` after a `cube_pass` review with `take === true`. Reflects who owned the cube *entering* each decision, before that decision's own outcome is applied. `null` for `CHECKER` and `RESIGNATION` kind. |
+| `notationPlayed` | For `CHECKER` kind: the candidate move with `move_played: true`. Null for `CUBE`/`RESIGNATION` kind. |
+| `notationBest` | For `CHECKER` kind: the candidate move with `rank === 1` (falls back to the first move if none has rank 1). Null for `CUBE`/`RESIGNATION` kind. |
+| `cubeDetail` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): a human-readable summary built from `review.double`/`review.take` plus `cube_analysis.doublers_best_action`/`receivers_best_action`. Null for `CHECKER`/`RESIGNATION` kind. |
+| `resignError` | For `RESIGNATION` kind: `result.result.resign_error`. Null otherwise. |
+| `shouldResign` | For `RESIGNATION` kind: `result.result.should_resign`. Null otherwise. |
+| `resignationType` | For `RESIGNATION` kind: `result.result.resignation_type` — **confirmed nullable even for `RESIGNATION` rows**, not just absent for other kinds (seen `null` on a real blunder-severity resignation, match `2856675` event `440889365`). Null for other kinds too. |
+| `equityBefore` | For `RESIGNATION` kind: `result.result.equity_before` — same nullability note as `resignationType`. Null for other kinds too. |
+| `equityAfter` | For `RESIGNATION` kind: `result.result.equity_after` — same nullability note as `resignationType`. Null for other kinds too. |
 | `timestamp` | `metadata.timestamp` |
 | `myTag` | No source field yet — always `null`. |
 | `raw` | The complete original `event` object (not just `reviews[0]`) — the zero-blind-spot archive `getGameReviews` reconstructs a game's events array from. |
@@ -157,6 +162,53 @@ Any other `event_type` that ever hits this path is unconfirmed — it'll be
 logged rather than silently trusted, and should only be added to the
 confirmed-safe list above once its `error_analysis: null` case has actually
 been checked in context against real data, the way the three above were.
+
+### The `resignation` decision shape
+
+`event_type: "resigned"` events carry `analysed_event: "resignation"` — a
+fourth, structurally distinct result shape, confirmed against a real payload
+(match `2856675`, event `440889365`): `result.result` has exactly
+`metadata`/`equity`/`probabilities`/`error_analysis`/`resign_error`/
+`should_resign`/`resignation_type`/`equity_before`/`equity_after` — no
+`moves` key (like `move` events have) and no `cube_analysis` key (like
+`cube_double`/`cube_pass` events have). Treating it as cube-shaped (the
+original bug: any non-`"move"` event was assumed to be `CUBE` and
+unconditionally read `cube_analysis`) crashed on `undefined.receivers_best_action`.
+In that same real payload, `resignation_type`/`equity_before`/`equity_after`
+were all present but `null` — confirmed genuinely nullable, not assumed
+always-populated just because they're resignation-specific fields (only
+`resign_error`/`should_resign` were non-null in the one case checked).
+
+The general fields (`rawError`, `errorSeverity`, `isBlunder`, `luck`,
+`luckMwc`, `equity`, `mwc`, `classification`, `matchScoreBlack`/`White`,
+`crawfordState`, `timestamp`) come from `error_analysis`/`metadata`/
+`probabilities`, same as every other kind — no special-casing needed there.
+Only the cube-specific (`cubeDetail`) and resignation-specific
+(`resignError`/`shouldResign`/`resignationType`/`equityBefore`/
+`equityAfter`) fields are kind-gated.
+
+**RESIGNATION decisions are excluded from checker/cube PR calculations.**
+`lib/mistakes.ts`'s checker/cube PR buckets are built by filtering on
+`kind === "checker"` / `kind === "cube"` — a `"resignation"`-kind decision
+matches neither filter and is naturally excluded from both totals, the same
+way checker and cube decisions already never blend into each other. This is
+deliberate: a resignation decision (should I resign given the current
+equity?) isn't directly comparable to either a checker-play or a cube
+decision, so folding its error into one of those buckets would just pollute
+the stat with an unrelated decision type.
+
+### Unrecognized `analysed_event`
+
+`lib/ingest.ts`'s `decisionKindFor` (and `lib/mistakes.ts`'s copy of the same
+mapping) only recognizes the four confirmed shapes above (`move`,
+`cube_double`, `cube_pass`, `resignation`) and returns `null` for anything
+else — the caller then logs a warning (`console.warn` +
+`IngestSummary.warnings`, same non-fatal treatment as the null-`error_analysis`
+warnings) and skips the event, rather than guessing a kind the way the
+original `analysed_event === "move" ? CHECKER : CUBE` fallback did. This
+guard is permanent, not a one-off fix for `resignation` — the next
+unrecognized `analysed_event` Galaxy introduces will surface the same way
+instead of silently crashing or being miscounted.
 
 **Deliberately not added:** a `Match.isMoneyGame` (or similar) categorical
 flag. The evidence for "money game" is indirect — absence of

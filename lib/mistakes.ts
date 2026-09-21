@@ -7,7 +7,7 @@ export interface FetchedGame {
   data: GameReviewsResponse;
 }
 
-export type DecisionKind = "checker" | "cube";
+export type DecisionKind = "checker" | "cube" | "resignation";
 export type Severity = "error" | "blunder";
 
 export interface Decision {
@@ -36,6 +36,24 @@ function formatCubeAction(action: string): string {
   return action.replace(/_/g, " ");
 }
 
+// The kind mapping for a given analysed_event — the single place this
+// project decides what's known. Returns null for anything outside the four
+// confirmed shapes (move/cube_double/cube_pass/resignation) so callers skip
+// rather than guess; matches decisionKindFor in lib/ingest.ts.
+function decisionKindFor(analysedEvent: string): DecisionKind | null {
+  switch (analysedEvent) {
+    case "move":
+      return "checker";
+    case "cube_double":
+    case "cube_pass":
+      return "cube";
+    case "resignation":
+      return "resignation";
+    default:
+      return null;
+  }
+}
+
 function actionLabels(review: Review): { mine: string; best: string } {
   const envelope = review.result;
 
@@ -44,6 +62,12 @@ function actionLabels(review: Review): { mine: string; best: string } {
     const played = moves.find((m) => m.move_played);
     const best = moves.find((m) => m.rank === 1) ?? moves[0];
     return { mine: played?.notation ?? "?", best: best?.notation ?? "?" };
+  }
+
+  if (envelope.analysed_event === "resignation") {
+    const mine = "resigned";
+    const best = envelope.result.should_resign ? "should resign" : "should not resign";
+    return { mine, best };
   }
 
   const cube = envelope.result.cube_analysis;
@@ -101,7 +125,13 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
       const metadata = review.result?.result?.metadata;
       if (!metadata?.count_as_decision) continue;
 
-      const kind: DecisionKind = review.result.analysed_event === "move" ? "checker" : "cube";
+      // Unrecognized analysed_event — skip rather than guess a kind (see
+      // decisionKindFor). RESIGNATION-kind decisions fall through this filter
+      // naturally further down (MistakesSection only buckets "checker"/
+      // "cube"), so they're never folded into either PR total.
+      const kind = decisionKindFor(review.result.analysed_event);
+      if (kind === null) continue;
+
       const absError = Math.abs(review.result.result.error_analysis.raw_error);
       const isMistake = absError > 0;
       const { mine, best } = moveNotations(review);

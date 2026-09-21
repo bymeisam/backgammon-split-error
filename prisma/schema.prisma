@@ -10,6 +10,7 @@ datasource db {
 enum DecisionKind {
   CHECKER
   CUBE
+  RESIGNATION
 }
 
 enum ErrorSeverity {
@@ -107,6 +108,11 @@ model Decision {
   notationPlayed  String?
   notationBest    String?
   cubeDetail      String?
+  resignError     Float?
+  shouldResign    Boolean?
+  resignationType String?
+  equityBefore    Float?
+  equityAfter     Float?
   timestamp       DateTime
   myTag           String?
   raw             Json
