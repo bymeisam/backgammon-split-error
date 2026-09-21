@@ -23,22 +23,26 @@ const SOURCE = "galaxy";
 const NON_DECISION_EVENT_TYPES = new Set(["game_started", "game_over", "turn_forfeited"]);
 
 // Some events carry a review with error_analysis: null — an outcome-logging
-// event with nothing to grade, not a real decision (confirmed for
-// double_rejected: it sits right after the doubler's own fully-analyzed
-// double_requested decision and records the receiver's rejection, with no
-// analysis of its own — see docs/field-mapping.md). Structurally skipped via
+// event with nothing to grade, not a real decision. Structurally skipped via
 // the error_analysis === null check below rather than keyed off event_type,
-// so it also covers any future event type with the same shape. But since we
-// can't know every event_type this might appear under, anything outside
-// this confirmed-safe list gets logged loudly (console.warn + summary
-// warnings) instead of being silently trusted forever — only add a type
-// here once you've actually confirmed its error_analysis is genuinely
-// always null, the way double_rejected was.
+// so it also covers any future event type with the same shape. Note this
+// isn't "these event_types are always null" (double_accepted, for one,
+// often carries a real, fully-analyzed cube_pass decision) — it's "when
+// THIS event_type's error_analysis happens to be null, it's confirmed safe
+// to skip" (verified by checking the surrounding event sequence: the real
+// decision is already captured by a preceding double_requested/similar
+// event — see docs/field-mapping.md). Since we can't know every event_type
+// this might appear under, anything outside this confirmed-safe list gets
+// logged loudly (console.warn + summary warnings) instead of being
+// silently trusted forever — only add a type here once its null case has
+// actually been checked in context, the way double_rejected/double_accepted
+// were.
 const EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS = new Set([
   "game_started",
   "game_over",
   "turn_forfeited",
   "double_rejected",
+  "double_accepted",
 ]);
 
 export interface MatchIndexData {
@@ -164,7 +168,7 @@ export async function ingestMatch(
         // EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS above.
         if (errorAnalysis === null) {
           if (!EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS.has(event.event_type)) {
-            const message = `game ${gameIndex} event ${event.id}: unconfirmed event_type "${event.event_type}" with null error_analysis, skipped`;
+            const message = `match ${matchId} game ${gameIndex} event ${event.id}: unconfirmed event_type "${event.event_type}" with null error_analysis, skipped`;
             console.warn(message);
             warnings.push(message);
           }

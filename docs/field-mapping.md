@@ -129,8 +129,8 @@ count against the match's success the way `IngestSummary.errors` does) —
 so a genuinely new/unexpected shape doesn't silently slip through unnoticed
 forever.
 
-**Confirmed safe** (real `error_analysis: null`, verified against real
-payloads, not assumed):
+**Confirmed safe to skip when `error_analysis` is null** (checked in
+context against real payloads, not assumed):
 - `game_started` / `game_over` / `turn_forfeited` — never carry a
   meaningful review anyway (excluded earlier via `NON_DECISION_EVENT_TYPES`,
   before this check would even run).
@@ -138,20 +138,25 @@ payloads, not assumed):
   event (which *is* fully analyzed) and records the receiver's rejection.
   `double: null`, `take: false`, `error_analysis: null` — an outcome record,
   not an independent decision.
-
-**Confirmed NOT to have this shape** (has real, populated `error_analysis`
-— genuinely a decision, correctly left off the skip list):
-- `double_accepted` — verified against a real point-match: `analysed_event:
-  "cube_pass"`, `take: true`, and a fully-populated `error_analysis`
-  (including a real detected blunder in one case: `raw_error: -0.1129,
-  error_severity: "blunder"`). This is the receiver's genuine take/pass
-  decision and must be ingested normally.
+- `double_accepted` — **this one is not uniform, and an earlier version of
+  this doc got it wrong by checking only one example.** Verified against a
+  real point-match, it can carry the receiver's genuine, fully-analyzed
+  take/pass decision (`analysed_event: "cube_pass"`, real `error_analysis`,
+  including a real detected blunder in one case: `raw_error: -0.1129,
+  error_severity: "blunder"`) — that case is *not* skipped, since
+  `error_analysis` isn't null, and is ingested normally. But verified
+  against real backfill data, `double_accepted` can *also* show up with
+  `analysed_event: "cube_double"` and `error_analysis: null`, sitting right
+  after its own `double_requested` event exactly like `double_rejected`
+  does — a pure outcome record. The structural `error_analysis === null`
+  check already handles both cases correctly without needing to know why
+  Galaxy shapes it differently case to case; only the *null* case needed
+  adding to this confirmed-safe list.
 
 Any other `event_type` that ever hits this path is unconfirmed — it'll be
 logged rather than silently trusted, and should only be added to the
-confirmed-safe list above once its `error_analysis: null` shape has
-actually been verified against real data, the same way `double_rejected`
-was here.
+confirmed-safe list above once its `error_analysis: null` case has actually
+been checked in context against real data, the way the three above were.
 
 **Deliberately not added:** a `Match.isMoneyGame` (or similar) categorical
 flag. The evidence for "money game" is indirect — absence of
