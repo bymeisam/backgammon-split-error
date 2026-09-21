@@ -8,6 +8,7 @@
 import { prisma } from "@/lib/prisma";
 import { createGalaxyClient } from "@/lib/galaxy-client";
 import { ingestMatch, type MatchIndexData } from "@/lib/ingest";
+import { appendSyncErrorLog } from "@/lib/errorLog";
 
 const SOURCE = "galaxy";
 
@@ -37,6 +38,10 @@ export interface SyncRunResult {
   matchesProcessed: number;
   matchesSynced: number;
   matchesFailed: number;
+  // Matches present in the index whose ingestStatus was already DONE before
+  // this run started — never entered the detail-ingest loop below, so
+  // matchesProcessed/matchesSynced/matchesFailed say nothing about them.
+  detailAlreadyDone: number;
   stillPending: number;
   errors: SyncRunError[];
 }
@@ -91,6 +96,10 @@ export async function runSync({
 
   // --- Step 2: detail-ingest. Matches already DONE are never touched here
   // — no Galaxy call is made for them — which is what makes reruns cheap.
+  // detailAlreadyDone is captured here, before the loop below can change any
+  // status — index-sync above never touches ingestStatus, so this is exactly
+  // "how many matches in the index needed no work this run."
+  const detailAlreadyDone = await prisma.match.count({ where: { ingestStatus: "DONE" } });
   const toIngest = await prisma.match.findMany({
     where: { ingestStatus: { in: [...NEEDS_INGEST_STATUSES] } },
     orderBy: { id: "desc" },
@@ -128,6 +137,16 @@ export async function runSync({
       };
 
       const summary = await ingestMatch(externalMatchId, indexData, token);
+
+      // One line per match accounting for every event encountered: ingested
+      // decisions, events skipped only because count_as_decision was false
+      // (still upserted — see IngestSummary), and events with no review at
+      // all. Unconfirmed analysed_event/event_type cases are logged
+      // separately by ingestMatch itself as they're encountered.
+      console.log(
+        `match ${externalMatchId}: ${summary.gamesIngested} games, ${summary.decisionsIngested} decisions upserted, ${summary.decisionsSkippedNotCounted} not-counted, ${summary.eventsSkippedNoReview} no-review`
+      );
+
       if (summary.errors.length > 0) {
         throw new Error(summary.errors.join("; "));
       }
@@ -141,8 +160,15 @@ export async function runSync({
       const message = e instanceof Error ? e.message : "Unknown error";
       // Printed immediately (not just accumulated for the final summary) so
       // a long run's failures are visible as they happen, not only once the
-      // whole thing finishes.
+      // whole thing finishes. Kept short and console-only on purpose — the
+      // full detail (stack trace included) goes to logs/sync-errors.log
+      // instead, so terminal scrollback truncation never loses anything.
       console.error(`match ${externalMatchId} FAILED: ${message}`);
+      await appendSyncErrorLog({
+        matchId: externalMatchId,
+        message,
+        stack: e instanceof Error ? e.stack : undefined,
+      });
       await prisma.match.update({
         where: { id: match.id },
         data: { ingestStatus: "FAILED", ingestError: message },
@@ -182,6 +208,7 @@ export async function runSync({
     matchesProcessed,
     matchesSynced,
     matchesFailed,
+    detailAlreadyDone,
     stillPending,
     errors,
   };

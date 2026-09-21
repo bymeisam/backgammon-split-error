@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# sync-script error log (local-only, see lib/errorLog.ts)
+/logs

@@ -60,6 +60,16 @@ export interface IngestSummary {
   matchId: number;
   gamesIngested: number;
   decisionsIngested: number;
+  // Events with a real reviews[0] whose metadata.count_as_decision is
+  // false — still upserted as a Decision row exactly as before (this step
+  // doesn't change that), so this is a visibility-only counter, not an
+  // exclusive bucket: an event counted here may also be counted in
+  // decisionsIngested above.
+  decisionsSkippedNotCounted: number;
+  // Events with no reviews at all — game_started/game_over/turn_forfeited
+  // (which never carry a meaningful review; see NON_DECISION_EVENT_TYPES)
+  // plus any other event type whose reviews array happened to be empty.
+  eventsSkippedNoReview: number;
   errors: string[];
   // Non-fatal: an event with error_analysis: null was skipped under an
   // event_type not in EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS. Doesn't
@@ -166,6 +176,8 @@ export async function ingestMatch(
   const warnings: string[] = [];
   let gamesIngested = 0;
   let decisionsIngested = 0;
+  let decisionsSkippedNotCounted = 0;
+  let eventsSkippedNoReview = 0;
   let matchLength: number | null = null;
   const gamePlayedAts: Date[] = [];
 
@@ -206,10 +218,16 @@ export async function ingestMatch(
     const decisionTimestamps: Date[] = [];
 
     for (const event of response.data.events) {
-      if (NON_DECISION_EVENT_TYPES.has(event.event_type)) continue;
+      if (NON_DECISION_EVENT_TYPES.has(event.event_type)) {
+        eventsSkippedNoReview++;
+        continue;
+      }
 
       const review = event.reviews?.[0];
-      if (!review) continue;
+      if (!review) {
+        eventsSkippedNoReview++;
+        continue;
+      }
 
       try {
         const analysedEvent = review.result.analysed_event;
@@ -230,6 +248,13 @@ export async function ingestMatch(
         const metadata = review.result.result.metadata;
         const errorAnalysis = review.result.result.error_analysis;
         const probabilities = review.result.result.probabilities;
+
+        // Visibility only — still upserted below exactly as before regardless
+        // of this flag (filtering by it happens at read time, per
+        // docs/field-mapping.md), so this doesn't gate anything.
+        if (!metadata.count_as_decision) {
+          decisionsSkippedNotCounted++;
+        }
 
         // Outcome-logging event with nothing to grade — see the comment on
         // EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS above.
@@ -331,5 +356,13 @@ export async function ingestMatch(
     await prisma.match.update({ where: { id: match.id }, data: matchUpdate });
   }
 
-  return { matchId, gamesIngested, decisionsIngested, errors, warnings };
+  return {
+    matchId,
+    gamesIngested,
+    decisionsIngested,
+    decisionsSkippedNotCounted,
+    eventsSkippedNoReview,
+    errors,
+    warnings,
+  };
 }
