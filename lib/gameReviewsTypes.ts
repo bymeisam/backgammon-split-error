@@ -20,10 +20,13 @@ export interface Metadata {
   analysis_time_ms: number;
   crawford_state: string;
   match_length: number;
+  // Null for money-game-type matches — confirmed against real data, not
+  // assumed. crawford_state stays a plain string (always populated, e.g.
+  // "none", even for money games — separately confirmed, not speculative).
   scores: {
     black: number;
     white: number;
-  };
+  } | null;
   count_as_decision: boolean;
   request_id: string | null;
   max_move: number | null;

@@ -100,8 +100,8 @@ model Decision {
   equity          Float?
   mwc             Float?
   classification  String
-  matchScoreBlack Int
-  matchScoreWhite Int
+  matchScoreBlack Int?
+  matchScoreWhite Int?
   crawfordState   String
   cubeOwnerUserId String?       @db.VarChar(191)
   notationPlayed  String?

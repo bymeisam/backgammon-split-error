@@ -22,6 +22,25 @@ const SOURCE = "galaxy";
 // wouldn't normally carry a reviews[0] anyway.
 const NON_DECISION_EVENT_TYPES = new Set(["game_started", "game_over", "turn_forfeited"]);
 
+// Some events carry a review with error_analysis: null — an outcome-logging
+// event with nothing to grade, not a real decision (confirmed for
+// double_rejected: it sits right after the doubler's own fully-analyzed
+// double_requested decision and records the receiver's rejection, with no
+// analysis of its own — see docs/field-mapping.md). Structurally skipped via
+// the error_analysis === null check below rather than keyed off event_type,
+// so it also covers any future event type with the same shape. But since we
+// can't know every event_type this might appear under, anything outside
+// this confirmed-safe list gets logged loudly (console.warn + summary
+// warnings) instead of being silently trusted forever — only add a type
+// here once you've actually confirmed its error_analysis is genuinely
+// always null, the way double_rejected was.
+const EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS = new Set([
+  "game_started",
+  "game_over",
+  "turn_forfeited",
+  "double_rejected",
+]);
+
 export interface MatchIndexData {
   opponentName: string;
   opponentCountry: string;
@@ -38,6 +57,12 @@ export interface IngestSummary {
   gamesIngested: number;
   decisionsIngested: number;
   errors: string[];
+  // Non-fatal: an event with error_analysis: null was skipped under an
+  // event_type not in EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS. Doesn't
+  // count against the match's success (unlike errors) — just surfaces that
+  // something unconfirmed was seen, in case it turns out to be a real
+  // decision shape that should be handled properly instead of skipped.
+  warnings: string[];
 }
 
 function mapSeverity(severity: string): ErrorSeverity {
@@ -80,6 +105,7 @@ export async function ingestMatch(
   token: string
 ): Promise<IngestSummary> {
   const errors: string[] = [];
+  const warnings: string[] = [];
   let gamesIngested = 0;
   let decisionsIngested = 0;
   let matchLength: number | null = null;
@@ -134,6 +160,17 @@ export async function ingestMatch(
         const errorAnalysis = review.result.result.error_analysis;
         const probabilities = review.result.result.probabilities;
 
+        // Outcome-logging event with nothing to grade — see the comment on
+        // EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS above.
+        if (errorAnalysis === null) {
+          if (!EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS.has(event.event_type)) {
+            const message = `game ${gameIndex} event ${event.id}: unconfirmed event_type "${event.event_type}" with null error_analysis, skipped`;
+            console.warn(message);
+            warnings.push(message);
+          }
+          continue;
+        }
+
         // Classification always comes from source_position, never
         // destination_position: the analysis is about the quality of a
         // decision made AT a position, so the phase that matters is the
@@ -171,8 +208,8 @@ export async function ingestMatch(
           equity: review.result.result.equity,
           mwc: probabilities.mwc_context !== null ? probabilities.mwc : null,
           classification,
-          matchScoreBlack: metadata.scores.black,
-          matchScoreWhite: metadata.scores.white,
+          matchScoreBlack: metadata.scores?.black ?? null,
+          matchScoreWhite: metadata.scores?.white ?? null,
           crawfordState: metadata.crawford_state,
           cubeOwnerUserId,
           notationPlayed: played,
@@ -217,5 +254,5 @@ export async function ingestMatch(
     await prisma.match.update({ where: { id: match.id }, data: matchUpdate });
   }
 
-  return { matchId, gamesIngested, decisionsIngested, errors };
+  return { matchId, gamesIngested, decisionsIngested, errors, warnings };
 }
