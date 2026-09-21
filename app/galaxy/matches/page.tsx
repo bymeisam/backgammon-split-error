@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStatsAuth } from "@/app/GameStatsProvider";
 import type { AnalysesListResponse, MatchAnalysis } from "@/lib/analysesTypes";
@@ -20,6 +20,7 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncStates, setSyncStates] = useState<Record<number, SyncState>>({});
+  const [jumpToMatchId, setJumpToMatchId] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -101,12 +102,39 @@ export default function MatchesPage() {
     }
   }
 
+  function onJumpToMatch(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = jumpToMatchId.trim();
+    if (!trimmed) return;
+    router.push(`/galaxy/matches/${trimmed}`);
+  }
+
   return (
     <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
       <main className="flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          Matches
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+            Matches
+          </h1>
+
+          {token && (
+            <form onSubmit={onJumpToMatch} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={jumpToMatchId}
+                onChange={(e) => setJumpToMatchId(e.target.value)}
+                placeholder="Match ID"
+                className="w-32 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
+              />
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              >
+                Jump to match
+              </button>
+            </form>
+          )}
+        </div>
 
         {!token ? (
           <TokenModal />
