@@ -139,6 +139,10 @@ export async function runSync({
       matchesSynced++;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
+      // Printed immediately (not just accumulated for the final summary) so
+      // a long run's failures are visible as they happen, not only once the
+      // whole thing finishes.
+      console.error(`match ${externalMatchId} FAILED: ${message}`);
       await prisma.match.update({
         where: { id: match.id },
         data: { ingestStatus: "FAILED", ingestError: message },

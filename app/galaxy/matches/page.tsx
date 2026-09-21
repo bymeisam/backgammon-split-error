@@ -21,6 +21,14 @@ export default function MatchesPage() {
   const [error, setError] = useState<string | null>(null);
   const [syncStates, setSyncStates] = useState<Record<number, SyncState>>({});
   const [jumpToMatchId, setJumpToMatchId] = useState("");
+  const [jsonGameIndex, setJsonGameIndex] = useState("1");
+  const [jsonDump, setJsonDump] = useState<
+    | { status: "loading" }
+    | { status: "data"; text: string }
+    | { status: "error"; message: string }
+    | null
+  >(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -102,11 +110,47 @@ export default function MatchesPage() {
     }
   }
 
+  async function onCopyJson() {
+    if (jsonDump?.status !== "data") return;
+    await navigator.clipboard.writeText(jsonDump.text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   function onJumpToMatch(e: FormEvent) {
     e.preventDefault();
     const trimmed = jumpToMatchId.trim();
     if (!trimmed) return;
     router.push(`/galaxy/matches/${trimmed}`);
+  }
+
+  // Debug tool: raw game_reviews JSON for a matchId/gameIndex, reusing the
+  // same route the detail page's client-side loop already calls — no new
+  // fetch path. Not meant to replace the PR/mistakes/board view, just a
+  // quick way to inspect an event's real shape without leaving the browser.
+  async function onShowJsonDump() {
+    const trimmedMatchId = jumpToMatchId.trim();
+    const trimmedGameIndex = jsonGameIndex.trim();
+    if (!trimmedMatchId || !trimmedGameIndex || !token) return;
+
+    setJsonDump({ status: "loading" });
+    setCopied(false);
+
+    try {
+      const res = await fetch(`/api/galaxy/matches/${trimmedMatchId}/${trimmedGameIndex}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorization: token }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status}).`);
+      setJsonDump({ status: "data", text: JSON.stringify(json, null, 2) });
+    } catch (e) {
+      setJsonDump({
+        status: "error",
+        message: e instanceof Error ? e.message : "Something went wrong.",
+      });
+    }
   }
 
   return (
@@ -118,7 +162,7 @@ export default function MatchesPage() {
           </h1>
 
           {token && (
-            <form onSubmit={onJumpToMatch} className="flex items-center gap-2">
+            <form onSubmit={onJumpToMatch} className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
                 value={jumpToMatchId}
@@ -132,9 +176,66 @@ export default function MatchesPage() {
               >
                 Jump to match
               </button>
+              <span className="mx-1 h-5 w-px bg-black/10 dark:bg-white/15" />
+              <input
+                type="text"
+                value={jsonGameIndex}
+                onChange={(e) => setJsonGameIndex(e.target.value)}
+                placeholder="Game"
+                title="Game index"
+                className="w-16 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
+              />
+              <button
+                type="button"
+                onClick={onShowJsonDump}
+                className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              >
+                Show JSON
+              </button>
             </form>
           )}
         </div>
+
+        {jsonDump && (
+          <div className="rounded-lg border border-black/10 bg-white p-3 dark:border-white/15 dark:bg-zinc-900">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Raw JSON — match {jumpToMatchId || "?"} game {jsonGameIndex || "?"}
+              </span>
+              <div className="flex items-center gap-3">
+                {jsonDump.status === "data" && (
+                  <button
+                    type="button"
+                    onClick={onCopyJson}
+                    className="text-xs text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100"
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setJsonDump(null)}
+                  className="text-xs text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            {jsonDump.status === "loading" && (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>
+            )}
+            {jsonDump.status === "error" && (
+              <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+                {jsonDump.message}
+              </p>
+            )}
+            {jsonDump.status === "data" && (
+              <pre className="max-h-[60vh] overflow-auto rounded-lg bg-zinc-50 p-3 text-xs text-black dark:bg-black dark:text-zinc-100">
+                {jsonDump.text}
+              </pre>
+            )}
+          </div>
+        )}
 
         {!token ? (
           <TokenModal />
