@@ -90,6 +90,21 @@ export async function runSync({
     const listResponse = await client.listMatches(page);
     totalPages = listResponse.totalPages;
 
+    // Same upsert as app/api/galaxy/matches/list/[page]/route.ts, done here
+    // too so the CLI/script path (which never hits that route) also
+    // establishes "you" before detail-ingest runs below — ingestMatch's
+    // opponent-identity resolution depends on this row already existing to
+    // tell "you" apart from the opponent in a match's own userIds.
+    try {
+      await prisma.playerIdentity.upsert({
+        where: { source_sourceUserId: { source: SOURCE, sourceUserId: listResponse.userId } },
+        create: { source: SOURCE, sourceUserId: listResponse.userId, displayName: listResponse.userName },
+        update: { displayName: listResponse.userName },
+      });
+    } catch (e) {
+      console.error("Failed to upsert PlayerIdentity (you):", e);
+    }
+
     for (const m of listResponse.analyses) {
       const indexData: MatchIndexData = {
         opponentName: m.opponentName,

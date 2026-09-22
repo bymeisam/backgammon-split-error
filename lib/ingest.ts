@@ -191,6 +191,16 @@ export async function ingestMatch(
     update: { ...indexData },
   });
 
+  // Opponent identity resolution: a match is 1v1, so any user_id seen in
+  // this match's events that isn't "you" is unambiguously the opponent.
+  // Requires the "you" PlayerIdentity row to already exist (upserted during
+  // index-sync — see lib/sync.ts — or by visiting /galaxy/matches, which
+  // does the same upsert); if it doesn't, opponentUserId simply never gets
+  // set and no opponent row is written for this call, rather than risking
+  // misidentifying your own user_id as the opponent's.
+  const me = await prisma.playerIdentity.findFirst({ where: { source: SOURCE, isMe: true } });
+  let opponentUserId: string | null = null;
+
   const client = createGalaxyClient(token);
 
   for (let gameIndex = 1; gameIndex <= MAX_GAMES; gameIndex++) {
@@ -218,6 +228,10 @@ export async function ingestMatch(
     const decisionTimestamps: Date[] = [];
 
     for (const event of response.data.events) {
+      if (me && opponentUserId === null && event.user_id && event.user_id !== me.sourceUserId) {
+        opponentUserId = event.user_id;
+      }
+
       if (NON_DECISION_EVENT_TYPES.has(event.event_type)) {
         eventsSkippedNoReview++;
         continue;
@@ -354,6 +368,30 @@ export async function ingestMatch(
   }
   if (Object.keys(matchUpdate).length > 0) {
     await prisma.match.update({ where: { id: match.id }, data: matchUpdate });
+  }
+
+  // Reflects this match's own currently-known opponentName on every
+  // (re-)ingest — not a cross-match "most recent name wins" comparison the
+  // way the one-time backfill script (scripts/backfill-opponent-identities.ts)
+  // does; a match re-synced out of chronological order could in theory
+  // regress a displayName that a newer match already set. Acceptable here:
+  // display-name changes are rare, and matches are normally processed
+  // roughly in order by the resumable sync loop.
+  if (opponentUserId) {
+    try {
+      await prisma.playerIdentity.upsert({
+        where: { source_sourceUserId: { source: SOURCE, sourceUserId: opponentUserId } },
+        create: {
+          source: SOURCE,
+          sourceUserId: opponentUserId,
+          displayName: indexData.opponentName,
+          isMe: false,
+        },
+        update: { displayName: indexData.opponentName },
+      });
+    } catch (e) {
+      console.error(`Failed to upsert opponent PlayerIdentity for match ${matchId}:`, e);
+    }
   }
 
   return {

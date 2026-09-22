@@ -163,6 +163,41 @@ logged rather than silently trusted, and should only be added to the
 confirmed-safe list above once its `error_analysis: null` case has actually
 been checked in context against real data, the way the three above were.
 
+**`count_as_decision: false` and `error_analysis: null` are independent
+conditions — a row is normally still written for the former.** For most
+events, `metadata.count_as_decision === false` (pre-roll cube checks,
+forced-move cases with only one legal move, etc.) does **not** skip the
+Decision row — `lib/ingest.ts` still writes it, with `countAsDecision: false`
+stored and the real (non-null) grading fields populated, so a downstream
+consumer that needs the complete event sequence (e.g. a game-replay
+scrubber) can query `Game.decisions` unfiltered and see every event; only
+`lib/mistakes.ts`'s PR calculation filters `countAsDecision: false` out, at
+read time. It's only the *separate* `error_analysis === null` check above
+that actually skips writing a row at all.
+
+In theory these two conditions could both hold for the same event — a
+`count_as_decision: false` event whose `error_analysis` also happens to be
+`null` — which would mean it falls through the null-`error_analysis` skip
+and gets no row, a gap a naive read of `countAsDecision: false` wouldn't
+explain (it'd just look entirely absent, not "present but excluded").
+Diagnosed for `double_rejected`/`double_accepted` specifically (the two
+confirmed-safe types above) against the live backfill DB (984,552 Decision
+rows at the time of checking): every stored row for both types —
+2,206 `double_accepted` + 1,828 `double_rejected`, 4,034 combined — has
+`countAsDecision: true`, zero have `false`. No variance found, and no
+direct evidence (logs or data) that the combination has ever actually
+dropped a row for these two types — consistent with (though not proof of,
+since skipped rows leave no trace to query) the two event types cleanly
+partitioning into a "real decision" instance (`error_analysis` populated,
+`count_as_decision: true`) and an "outcome record" instance
+(`error_analysis: null`, presumably `count_as_decision: false` too) — in
+which case this isn't a second, independent gap on top of the
+already-understood null-`error_analysis` skip, just the same skip
+redundantly flagged. Left undocumented as a fix target — the existing
+unrecognized-`event_type`/unconfirmed-null-`error_analysis` warnings remain
+the real safety net for catching this (or any other event-type shape) if it
+ever does turn out to drop a row that mattered.
+
 ### The `resignation` decision shape
 
 `event_type: "resigned"` events carry `analysed_event: "resignation"` — a
@@ -222,16 +257,62 @@ data ever confirms this more directly.
 
 ## PlayerIdentity
 
-Populated as a side effect of the `analyses/list` fetch (already called by
-`/galaxy/matches`) — no dedicated endpoint, no token decoding.
+Covers **both** you and your opponents — a lookup/reference table keyed by
+`(source, sourceUserId)`, not a replacement for the raw `userId`/
+`cubeOwnerUserId` string columns already on `Decision`, which stay exactly
+as they are.
+
+**`source` is what scopes a `sourceUserId`'s meaning, and it's mandatory on
+every row — no exceptions.** A bare Galaxy user ID string (Mongo-style,
+e.g. `"62febc99a2eb070024ace099"`) means nothing on its own; it's only ever
+meaningful as "this ID, on this platform." `source` is hardcoded `"galaxy"`
+everywhere a `PlayerIdentity` row gets created — `lib/ingest.ts`,
+`lib/sync.ts`, and `app/api/galaxy/matches/list/[page]/route.ts` all use the
+same `const SOURCE = "galaxy"` convention as `Match.source`. If a second
+platform is ever added, its own ingest module gets its own `SOURCE`
+constant (same pattern `Match`/`Decision` already follow) — never a shared
+or null value.
 
 | Column | Origin |
 |---|---|
 | `id` | Internal auto-increment key. |
-| `source` | Hardcoded `"galaxy"` (same convention as `Match.source`). |
-| `sourceUserId` | `AnalysesListResponse.userId` — the authenticated user's own platform ID (not per-match; this is who's asking, from the top level of the response). |
-| `displayName` | `AnalysesListResponse.userName` |
-| `isMe` | Defaults `true` — every row populated this way is, by construction, about whoever's token was used to fetch the list. |
+| `source` | Hardcoded `"galaxy"` — see above. |
+| `sourceUserId` | The platform's own user ID. For the `isMe: true` row: `AnalysesListResponse.userId` (the authenticated user's own ID, from the top level of the `analyses/list` response — not per-match). For opponent rows: `event.user_id` from a match's own event stream, for whichever `user_id` isn't the known `isMe: true` one. |
+| `displayName` | For the `isMe: true` row: `AnalysesListResponse.userName`. For opponent rows: `Match.opponentName` from that opponent's **most recently played** match (`Match.playedAt`, falling back to `createdAt` if null) — an opponent's display name can change between matches, and picking arbitrarily (e.g. whichever match happened to be processed last) would silently pick an unpredictable one instead of a deliberate "most recent" choice. |
+| `isMe` | `true` only for the authenticated user's own row. `false` for every opponent row — set explicitly on create, since the column's schema default is `true` and would otherwise mislabel an opponent. |
+
+**Populated from three places, all using the same `(source, sourceUserId)`
+upsert so re-running any of them is idempotent:**
+- `app/api/galaxy/matches/list/[page]/route.ts` — upserts the `isMe: true`
+  row on every list-page fetch (unchanged, original behavior).
+- `lib/sync.ts`'s index-sync step — upserts the same `isMe: true` row on
+  every `analyses/list` page walked during a sync run, so the CLI/script
+  path (`scripts/backfill.ts`/`scripts/incremental-sync.ts`, which never hit
+  the route above) also has "you" established before detail-ingest runs.
+- `lib/ingest.ts`'s `ingestMatch` — after detail-ingesting a match, resolves
+  the opponent's `user_id` from that match's own event stream (any `user_id`
+  seen that isn't the already-known `isMe: true` one — a match is 1v1, so
+  this is unambiguous) and upserts a `PlayerIdentity` row for them with
+  `displayName: indexData.opponentName`, `isMe: false`. **Depends on the
+  `isMe: true` row already existing** — if it doesn't yet (a fresh DB that's
+  never synced or visited `/galaxy/matches`), `ingestMatch` can't tell "you"
+  from "opponent" and simply skips opponent-identity population for that
+  call, rather than risking misattributing your own `user_id` as an
+  opponent's. Each individual `ingestMatch` call reflects only *that*
+  match's own currently-known `opponentName` on upsert — unlike the one-time
+  backfill script below, this isn't a full cross-match "most recent name"
+  comparison, so a match re-synced out of chronological order could in
+  theory regress a `displayName` a newer match already set. Accepted as a
+  rare edge case (display-name changes are uncommon, and matches are
+  normally processed roughly in order by the resumable sync loop).
+
+**One-time backfill:** `scripts/backfill-opponent-identities.ts` populated
+`PlayerIdentity` for every opponent already present in decisions ingested
+before this feature existed (2,111 distinct opponents, from 8,464 distinct
+`(matchId, userId)` pairs across 4,274 matches) — computing the
+"most-recently-played match's name" per opponent exactly as described
+above, across the whole dataset at once rather than one match at a time.
+Safe to re-run (same upsert semantics as the three ongoing paths above).
 
 Used anywhere the UI needs to show a name instead of a raw `userId`, or
 decide "which side is you" in a match's decisions — `MistakesSection`
