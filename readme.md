@@ -22,7 +22,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Database (local MySQL + Prisma)
 
-Local development uses a MySQL container (via Docker Compose) and Prisma as the client.
+Local development uses a MySQL 8.4 LTS container (via Docker Compose, pinned in `docker-compose.yml`) and Prisma as the client.
 
 ### Prerequisites
 
