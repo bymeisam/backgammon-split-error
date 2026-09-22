@@ -16,6 +16,26 @@ const SOURCE = "galaxy";
 // previous run crashed mid-ingest without reaching FAILED.
 const NEEDS_INGEST_STATUSES = ["PENDING", "INGESTING", "FAILED"] as const;
 
+// A single Prisma validation error can itself run several KB (it pretty-
+// prints the whole query args); ingestMatch's per-event errors get joined
+// with "; " into one message, so a match with many failed events can easily
+// produce a message hundreds of KB long. The full, untruncated version
+// (stack included) always goes to logs/sync-errors.log via
+// appendSyncErrorLog. This bounded version is for console/DB only — writing
+// something that large into Match.ingestError (a MySQL TEXT column, 64KB
+// max) or the SyncRun.errors JSON column can itself throw and crash the
+// whole run, which is exactly what happened before this fix (match
+// 32699544: a ~480KB joined message overflowed ingestError's TEXT limit,
+// and that throw wasn't caught by anything, killing the whole backfill).
+const MAX_SHORT_ERROR_LENGTH = 500;
+
+function summarizeError(message: string): string {
+  const flattened = message.replace(/\s+/g, " ").trim();
+  return flattened.length > MAX_SHORT_ERROR_LENGTH
+    ? `${flattened.slice(0, MAX_SHORT_ERROR_LENGTH)}... (truncated — full detail in logs/sync-errors.log)`
+    : flattened;
+}
+
 export type SyncType = "BACKFILL" | "INCREMENTAL";
 
 export interface SyncRunOptions {
@@ -157,24 +177,38 @@ export async function runSync({
       });
       matchesSynced++;
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
+      const fullMessage = e instanceof Error ? e.message : "Unknown error";
+      const stack = e instanceof Error ? e.stack : undefined;
+      const shortMessage = summarizeError(fullMessage);
+
       // Printed immediately (not just accumulated for the final summary) so
       // a long run's failures are visible as they happen, not only once the
       // whole thing finishes. Kept short and console-only on purpose — the
-      // full detail (stack trace included) goes to logs/sync-errors.log
-      // instead, so terminal scrollback truncation never loses anything.
-      console.error(`match ${externalMatchId} FAILED: ${message}`);
-      await appendSyncErrorLog({
-        matchId: externalMatchId,
-        message,
-        stack: e instanceof Error ? e.stack : undefined,
-      });
-      await prisma.match.update({
-        where: { id: match.id },
-        data: { ingestStatus: "FAILED", ingestError: message },
-      });
+      // full detail (stack trace included, untruncated) goes to
+      // logs/sync-errors.log instead, so terminal scrollback truncation
+      // never loses anything.
+      console.error(`match ${externalMatchId} FAILED: ${shortMessage}`);
+
+      // The failure-handling path itself must not be able to crash the run
+      // either — that's the whole point of this catch block. Wrapped
+      // separately so a logging/DB problem here (a dropped connection, for
+      // instance) is reported and skipped rather than propagating past this
+      // match, the same way ingestMatch's own per-event try/catch already
+      // stops one bad event from taking down its match.
+      try {
+        await appendSyncErrorLog({ matchId: externalMatchId, message: fullMessage, stack });
+        await prisma.match.update({
+          where: { id: match.id },
+          data: { ingestStatus: "FAILED", ingestError: shortMessage },
+        });
+      } catch (loggingError) {
+        console.error(
+          `match ${externalMatchId}: failed to record failure detail: ${loggingError instanceof Error ? loggingError.message : "unknown error"}`
+        );
+      }
+
       matchesFailed++;
-      errors.push({ matchId: externalMatchId, error: message });
+      errors.push({ matchId: externalMatchId, error: shortMessage });
       // Deliberately no rethrow — one match's failure must not stop the loop.
     }
 

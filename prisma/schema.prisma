@@ -93,7 +93,7 @@ model Decision {
   kind            DecisionKind
   analysedEvent   String
   countAsDecision Boolean
-  rawError        Float
+  rawError        Float?
   errorSeverity   ErrorSeverity
   isBlunder       Boolean
   luck            Float?

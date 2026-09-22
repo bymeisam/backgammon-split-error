@@ -49,7 +49,13 @@ export interface Probabilities {
 }
 
 export interface ErrorAnalysis {
-  raw_error: number;
+  // Confirmed nullable against a real payload: some events have a non-null
+  // error_analysis (real error_severity/is_blunder/luck values) but a null
+  // raw_error — analysis_level: 1, error_severity: "doubtful", event_type
+  // "dice_rolled" paired with analysed_event "cube_double" — a partial/
+  // low-confidence analysis that grades severity without a computed
+  // equity-error magnitude (see docs/field-mapping.md).
+  raw_error: number | null;
   luck_mwc: number | null;
   mwc_error: number | null;
   luck: number | null;

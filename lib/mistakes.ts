@@ -132,7 +132,17 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
       const kind = decisionKindFor(review.result.analysed_event);
       if (kind === null) continue;
 
-      const absError = Math.abs(review.result.result.error_analysis.raw_error);
+      // A non-null error_analysis with a null raw_error is a partial/
+      // low-confidence analysis (graded severity, no computed equity-error
+      // magnitude — see docs/field-mapping.md) — ungraded, not a zero-error
+      // clean play. Excluded entirely here (both PR numerator and
+      // denominator), same treatment as count_as_decision: false and an
+      // unrecognized analysed_event above, rather than risking Math.abs(null)
+      // silently coercing to 0 and counting it as a clean decision.
+      const rawError = review.result.result.error_analysis.raw_error;
+      if (rawError === null) continue;
+
+      const absError = Math.abs(rawError);
       const isMistake = absError > 0;
       const { mine, best } = moveNotations(review);
       const labels = actionLabels(review);

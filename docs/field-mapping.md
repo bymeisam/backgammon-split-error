@@ -92,7 +92,7 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `kind` | `CHECKER` for `"move"`, `CUBE` for `"cube_double"`/`"cube_pass"`, `RESIGNATION` for `"resignation"` — an exact mapping (`decisionKindFor` in `lib/ingest.ts`), never a fallback/else. Any other `analysed_event` is logged as a warning and skipped rather than guessed (see "Unrecognized analysed_event" below). |
 | `analysedEvent` | `review.result.analysed_event` verbatim (`"move"` / `"cube_double"` / `"cube_pass"` / `"resignation"`). |
 | `countAsDecision` | `metadata.count_as_decision` |
-| `rawError` | `error_analysis.raw_error`, unmodified (not absolute-valued — the app layer takes `Math.abs()` where it needs magnitude). |
+| `rawError` | `error_analysis.raw_error`, unmodified (not absolute-valued — the app layer takes `Math.abs()` where it needs magnitude). **Nullable** — confirmed against real data (match `32699544`): some events have a non-null `error_analysis` (real `error_severity`/`is_blunder`/`luck` values) but a null `raw_error` — `analysis_level: 1`, `error_severity: "doubtful"`, `event_type: "dice_rolled"` paired with `analysed_event: "cube_double"` — a partial/low-confidence analysis that grades severity without computing an equity-error magnitude. `lib/mistakes.ts`'s `extractDecisions` excludes `rawError: null` decisions entirely from PR (both numerator and denominator) — same treatment as `count_as_decision: false` and an unrecognized `analysed_event` — rather than letting `Math.abs(null)` silently coerce to `0` and count an ungraded decision as a zero-error clean play. |
 | `errorSeverity` | `error_analysis.error_severity`, mapped from the payload's lowercase string to the `NONE`/`DOUBTFUL`/`ERROR`/`BLUNDER` enum. |
 | `isBlunder` | `error_analysis.is_blunder` |
 | `luck` | `error_analysis.luck` |
@@ -238,3 +238,41 @@ decide "which side is you" in a match's decisions — `MistakesSection`
 resolves this by matching a `userId` actually present in the match against a
 `PlayerIdentity` row with `isMe: true`, rather than asking the viewer to pick
 manually.
+
+## Debugging notes
+
+**A misleading Prisma error message: "Argument `<relation>` is missing."**
+Hit while diagnosing why `rawError` needed to become nullable (match
+`32699544`, 53 failed events, `prisma.decision.upsert()`). `lib/ingest.ts`
+writes `Decision` rows using the scalar `gameId` foreign key directly (never
+a nested `game: { connect: ... } }`), which is normally valid and had worked
+for every prior match. But when a *different* field in the same `create`/
+`update` payload fails type validation first (here: passing `rawError: null`
+for what was then a required `Float` column), Prisma's error reporter
+doesn't clearly say which field actually failed — it falls back to
+describing the *other* create-input variant (the "checked" one, which needs
+a nested `game` relation instead of a scalar `gameId`) and reports that as
+the problem, even though `gameId` was present and correct all along.
+
+**Lesson: don't trust the literal error text for a nested Prisma
+create/update failure — diff the actual payload against the schema
+field-by-field instead.** The real cause here only became visible by
+comparing the dumped `create` object (which Prisma does print in full) to
+`schema.prisma` column-by-column and spotting the one field whose value
+(`null`) didn't match its declared (non-nullable) type. If a future
+`Argument \`X\` is missing` error shows up and `X` looks like it's obviously
+present in the payload, suspect a different field's type mismatch first
+rather than the field actually named in the message.
+
+**A second, related lesson: a large `create`/`update` failure can crash the
+whole sync run, not just the one decision.** `lib/ingest.ts`'s per-event
+`try`/`catch` already caught this correctly and kept going — the actual
+crash came from `lib/sync.ts` writing the resulting (~480KB, many events
+joined together) error message into `Match.ingestError`, a MySQL `TEXT`
+column capped at 64KB. That write itself threw, uncaught, and killed the
+whole backfill. Fixed by bounding what goes to the console/DB (`lib/sync.ts`'s
+`summarizeError`, ~500 chars, single line) while the full, untruncated
+detail (stack trace included) always goes to `logs/sync-errors.log`
+instead — and by wrapping the failure-handling writes themselves in their
+own `try`/`catch`, so even a problem while *recording* a failure can't
+propagate and take down the run.
