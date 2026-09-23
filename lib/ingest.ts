@@ -225,7 +225,21 @@ export async function ingestMatch(
     // Cube ownership isn't in the payload directly — walk this game's
     // cube-kind decisions in order, tracking who last took a double.
     let cubeOwner: string | null = null;
-    const decisionTimestamps: Date[] = [];
+    // Game.playedAt = metadata.timestamp of this game's first decision *by
+    // eventId* (not earliest timestamp value, and not assumed to already be
+    // in eventId order from the API) with a populated error_analysis.
+    // metadata.timestamp is NOT a real play-time source in general — it's
+    // stamped with when Galaxy served that analysis, confirmed by re-fetching
+    // the same event and watching it advance in real time (see
+    // docs/field-mapping.md's playedAt section for the investigation). This
+    // rule is a deliberate, known-imperfect choice: for a match ingested
+    // shortly after being played (the normal case going forward, via
+    // incremental sync), "first request for this match" and "played" are
+    // close enough to be useful; it only breaks down for a large historical
+    // backfill run months/years after the fact, which is exactly what
+    // happened for this app's original 2026-09 backfill (see
+    // scripts/backfill-played-at.ts for the one-time consequence of that).
+    const decisionTimestampsByEventId: { eventId: number; timestamp: Date }[] = [];
 
     for (const event of response.data.events) {
       if (me && opponentUserId === null && event.user_id && event.user_id !== me.sourceUserId) {
@@ -302,7 +316,7 @@ export async function ingestMatch(
         const { played, best } = moveNotations(review);
         const resignation = buildResignationDetail(review);
         const timestamp = new Date(metadata.timestamp);
-        decisionTimestamps.push(timestamp);
+        decisionTimestampsByEventId.push({ eventId: event.id, timestamp });
         matchLength = metadata.match_length;
 
         const decisionData = {
@@ -352,10 +366,10 @@ export async function ingestMatch(
       }
     }
 
-    if (decisionTimestamps.length > 0) {
-      const earliest = new Date(Math.min(...decisionTimestamps.map((d) => d.getTime())));
-      await prisma.game.update({ where: { id: game.id }, data: { playedAt: earliest } });
-      gamePlayedAts.push(earliest);
+    if (decisionTimestampsByEventId.length > 0) {
+      const first = decisionTimestampsByEventId.reduce((a, b) => (a.eventId < b.eventId ? a : b));
+      await prisma.game.update({ where: { id: game.id }, data: { playedAt: first.timestamp } });
+      gamePlayedAts.push(first.timestamp);
     }
 
     gamesIngested++;
@@ -363,8 +377,13 @@ export async function ingestMatch(
 
   const matchUpdate: { matchLength?: number; playedAt?: Date } = {};
   if (matchLength !== null) matchUpdate.matchLength = matchLength;
+  // Match.playedAt = the Game.playedAt of the match's first game (lowest
+  // gameIndex), not the earliest across all games — gamePlayedAts is built
+  // in ascending gameIndex order by the loop above (only pushed for a game
+  // that had at least one valid decision), so its first element is exactly
+  // that lowest-gameIndex value.
   if (gamePlayedAts.length > 0) {
-    matchUpdate.playedAt = new Date(Math.min(...gamePlayedAts.map((d) => d.getTime())));
+    matchUpdate.playedAt = gamePlayedAts[0];
   }
   if (Object.keys(matchUpdate).length > 0) {
     await prisma.match.update({ where: { id: match.id }, data: matchUpdate });

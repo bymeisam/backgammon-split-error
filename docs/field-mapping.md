@@ -141,7 +141,7 @@ own decisions/games (`matchLength`, `playedAt`).
 | `userRating` | `MatchAnalysis.userRating` |
 | `userScore` | `MatchAnalysis.userScore` |
 | `matchLength` | `metadata.match_length` from any decision in the match (constant across the match; last one seen wins). Null until the match has been detail-ingested. |
-| `playedAt` | `min(Game.playedAt)` across the match's games, set once detail ingest completes. Null until then — distinct from `createdAt`. |
+| `playedAt` | The `Game.playedAt` of the match's first game (lowest `gameIndex`) that has one — see "playedAt: what it actually means" below. Null until then — distinct from `createdAt`. |
 | `createdAt` | DB default (`now()`), set when the row is first created — i.e. when the match was first ingested, not when it was played. |
 
 ## Game
@@ -151,7 +151,49 @@ own decisions/games (`matchLength`, `playedAt`).
 | `id` | Internal auto-increment key. |
 | `matchId` | FK to `Match.id` (the internal key, not `sourceMatchId`). |
 | `gameIndex` | The loop index used to fetch `game_reviews/{matchId}/{gameIndex}` (starts at 1). |
-| `playedAt` | `min(timestamp)` across that game's decisions, i.e. `metadata.timestamp` of the earliest one. Null until detail-ingested. |
+| `playedAt` | `metadata.timestamp` of this game's first decision **by eventId** (not earliest timestamp value) with a populated `error_analysis`. Null until detail-ingested — see below. |
+
+### `playedAt`: what it actually means (and its permanent limitation)
+
+`metadata.timestamp` is **not** a historical "when this move was played" fact —
+it's stamped with whenever Galaxy served that specific analysis in response
+to a request. Confirmed directly, twice: re-fetching the exact same
+match/event a few seconds apart returns a timestamp that advances by the
+same few seconds each time, and checking known-ancient matches (by their
+position deep in `analyses/list` pagination — years old by any reasonable
+account-history reading) showed their stored `playedAt` landing within
+*minutes* of `SyncRun.startedAt` for whichever backfill run first requested
+them, not any plausible real play date. This holds even for the very first
+decision of a game specifically (not just an average across the match) —
+tested directly against 10 known-ancient matches, all of which clustered
+into the same 6-minute window regardless of how old the match actually was.
+No alternative timestamp source exists anywhere in Galaxy's API either:
+`game_started` events never carry a `reviews[0]`/`metadata` at all (checked
+across matches from a few hours old to years old), and `analyses/list`'s
+per-match payload has no date-like field of any kind — only `matchId`,
+which correlates with recency but isn't a date. The only fallback ever
+available is *relative* ordering (page position / `matchId` magnitude), not
+an exact calendar date.
+
+Given that, `playedAt` is populated the way described above anyway — a
+deliberate, known-imperfect choice, not an oversight. For a match ingested
+shortly after being played (the normal case going forward via incremental
+sync), "when we first requested this match's analysis" and "when it was
+played" are close enough to be genuinely useful. It only breaks down for a
+large historical backfill run happening long after the matches themselves —
+which is exactly what the original 2026-09 backfill was. **Every `playedAt`
+value produced by that backfill batch (the bulk of this app's historical
+data) reflects when this app's ingest process happened to request that
+match, clustered by whichever `SyncRun` touched it — not a real play date,
+and there is no way to recover the real one.** This is a permanent,
+accepted limitation of the historical data, not a bug to keep chasing.
+
+`scripts/backfill-played-at.ts` reconciles every already-ingested match's
+`Game`/`Match.playedAt` to the rule above (re-derived from stored
+`Decision.raw` JSON, no live Galaxy calls) — useful for keeping stored
+values self-consistent with `lib/ingest.ts`'s current rule if that rule
+ever changes again, but it does not and cannot fix the historical backfill's
+fundamentally wrong dates, for the reason above.
 
 ## Decision
 

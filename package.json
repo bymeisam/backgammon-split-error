@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "backfill": "tsx scripts/backfill.ts",
+    "sync:incremental": "tsx scripts/incremental-sync.ts",
+    "backfill:opponent-identities": "tsx scripts/backfill-opponent-identities.ts",
+    "backfill:played-at": "tsx scripts/backfill-played-at.ts"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.10.0",
