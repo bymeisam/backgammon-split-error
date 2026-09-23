@@ -40,6 +40,61 @@ of these columns must manually re-add the `COLLATE utf8mb4_bin` clause to
 the new migration's SQL. See the comment in the relevant migration file for
 the same warning.
 
+## Credential scoping
+
+Two separate MySQL connection strings, each pointed at a user scoped to the
+minimum privilege its callers actually need — introduced when the Oracle
+HeatWave instance was set up with two real MySQL users:
+
+- **`bg_readwrite`** — `SELECT`/`INSERT`/`UPDATE`/`DELETE`/`CREATE`/`ALTER`/
+  `INDEX`/`REFERENCES` on the `backgammon` database. Used for ingest and
+  schema migrations.
+- **`bg_readonly`** — `SELECT` only on the `backgammon` database. Used for
+  read-only access.
+
+`lib/prisma.ts` exports one Prisma client per credential — `prisma` (reads
+`DATABASE_URL`) and `prismaReadOnly` (reads `DATABASE_URL_READONLY`) — via a
+shared client-construction helper, rather than each caller building its own
+adapter. Locally both env vars point at the same single Docker MySQL user
+(`app`) — there's no local privilege separation to test against — but the
+split exists in the code regardless of environment, so production
+(`bg_readwrite`/`bg_readonly`) is a config change, not a code change.
+
+**Call sites, by actual need:**
+
+| Client | Used by |
+|---|---|
+| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts` |
+| `prismaReadOnly` (read-only) | `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx` |
+
+**`prisma migrate deploy` itself is a separate concern from these two app
+runtime clients.** It's configured in `prisma7.config.ts`, which reads
+`DATABASE_URL` — the same var the read-write app client uses — and stays
+there deliberately: schema changes need `CREATE`/`ALTER`/`INDEX`/
+`REFERENCES`, privileges `bg_readwrite` already has but a narrower app-only
+user wouldn't. Don't point migrations at `bg_readonly`, and don't invent a
+third, even-more-privileged migration-only user unless `bg_readwrite`'s
+grants ever turn out to be insufficient.
+
+**One deliberately-flagged ambiguous case:** `scripts/backfill-opponent-identities.ts`
+is named like the other "backfill" scripts, but unlike a pure diagnostic, it
+*writes* — it upserts `PlayerIdentity` rows. It uses the read-write client,
+not read-only, despite the naming similarity. The rule going forward: only
+a script that **exclusively reads** (verification/diagnostic scripts) gets
+the read-only client; anything that writes, even a one-time backfill, gets
+read-write. `app/api/db-check/route.ts` is the one other place that reads
+`DATABASE_URL` directly rather than either shared client — left as-is since
+its specific job is verifying that exact connection string works (a
+narrower purpose than a general read-only health check), not because it's
+an oversight.
+
+`allowPublicKeyRetrieval=true` and `ssl=true` (as query params on the
+connection-string URL — the `mariadb` driver parses query params into
+connection options directly) are required for both `DATABASE_URL` and
+`DATABASE_URL_READONLY` in production, connecting to Oracle HeatWave's NLB
+public IP — see `.env.example` for the exact URL shape. Not needed locally
+(plain Docker MySQL, no SSL).
+
 ## Match
 
 Sourced from `analyses/list/{page}`'s per-match `MatchAnalysis` rows

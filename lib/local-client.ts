@@ -1,7 +1,9 @@
 // DB-backed read path for match data — same shapes the Galaxy-calling code
 // uses (AnalysesListResponse / GameReviewsResponse), sourced from MySQL
-// instead of the Galaxy API. Read-only; nothing here writes to the DB.
-import { prisma } from "@/lib/prisma";
+// instead of the Galaxy API. Read-only; nothing here writes to the DB — uses
+// the read-only client (DATABASE_URL_READONLY / bg_readonly in production)
+// accordingly.
+import { prismaReadOnly as prisma } from "@/lib/prisma";
 import type { AnalysesListResponse, MatchAnalysis, RatingTitle } from "@/lib/analysesTypes";
 import type { GameEvent, GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import type { MatchDataClient } from "@/lib/types/data-client";

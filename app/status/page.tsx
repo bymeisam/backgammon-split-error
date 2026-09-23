@@ -20,7 +20,12 @@ interface DbStatus {
 }
 
 async function getDbStatus(): Promise<DbStatus> {
-  const url = process.env.DATABASE_URL;
+  // Read-only client — this page only ever queries (row counts, connection
+  // check, latest migration name), never writes. Intentionally builds its
+  // own short-lived client rather than importing the shared singleton from
+  // lib/prisma.ts, so a status check can't be misled by the shared pool's
+  // own state.
+  const url = process.env.DATABASE_URL_READONLY;
   const engine = url ? new URL(url).protocol.replace(":", "") : "unknown";
 
   const adapter = new PrismaMariaDb(url as string);
