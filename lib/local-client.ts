@@ -27,7 +27,14 @@ const PLACEHOLDER_RATING_TITLE: RatingTitle = {
 export async function listMatches(page: number): Promise<AnalysesListResponse> {
   const [rows, total] = await Promise.all([
     prisma.match.findMany({
-      orderBy: { id: "desc" },
+      // playedAt is null until detail-ingest completes (see
+      // docs/field-mapping.md's Match.playedAt row) — createdAt as the
+      // second sort key both breaks ties among same-playedAt matches and
+      // orders the still-null ones (index-synced only) among themselves,
+      // consistent with the same playedAt-falling-back-to-createdAt
+      // "most recent" convention already used for opponent displayName
+      // resolution (docs/field-mapping.md's PlayerIdentity section).
+      orderBy: [{ playedAt: "desc" }, { createdAt: "desc" }],
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
@@ -45,6 +52,7 @@ export async function listMatches(page: number): Promise<AnalysesListResponse> {
     userError: m.userError,
     userRating: m.userRating,
     userScore: m.userScore,
+    playedAt: (m.playedAt ?? m.createdAt).toISOString(),
   }));
 
   return {

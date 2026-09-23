@@ -4,6 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AnalysesListResponse } from "@/lib/analysesTypes";
 
+// Fixed abbreviations rather than Intl.DateTimeFormat: browsers/Node disagree
+// on locale output for "short month" (e.g. Node gives "Sept", not "Sep"), so
+// this keeps the "22 Sep 2026" format deterministic across environments.
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function formatMatchDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export default function MatchesPage() {
   const router = useRouter();
 
@@ -58,6 +71,7 @@ export default function MatchesPage() {
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
+                    <th className="px-3 py-2">Date</th>
                     <th className="px-3 py-2">Opponent</th>
                     <th className="px-3 py-2">Rating</th>
                     <th className="px-3 py-2">Score</th>
@@ -72,6 +86,9 @@ export default function MatchesPage() {
                       onClick={() => router.push(`/matches/${m.matchId}`)}
                       className="cursor-pointer border-b border-black/5 last:border-b-0 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-zinc-800/60"
                     >
+                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                        {m.playedAt ? formatMatchDate(m.playedAt) : "—"}
+                      </td>
                       <td className="px-3 py-2 text-black dark:text-zinc-100">{m.opponentName}</td>
                       <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
                         {m.opponentRating}

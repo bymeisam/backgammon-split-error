@@ -19,6 +19,10 @@ export interface MatchAnalysis {
   userError: number;
   userRating: number;
   userScore: number;
+  // ISO 8601 string. Only populated by lib/local-client.ts (DB-backed) — the
+  // raw Galaxy API response has no equivalent field, so this stays undefined
+  // for lib/galaxy-client.ts's live path.
+  playedAt?: string;
 }
 
 export interface AnalysesListResponse {
