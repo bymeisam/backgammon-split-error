@@ -265,7 +265,14 @@ export default function MatchesPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.analyses.map((m) => {
+                      {/* Galaxy's analyses/list returns each page sorted
+                          ascending by matchId (oldest-in-page first), and
+                          the response has no play-timestamp field to sort by
+                          instead — matchId descending is the best available
+                          proxy for "most recent first" within a page. */}
+                      {[...data.analyses]
+                        .sort((a, b) => b.matchId - a.matchId)
+                        .map((m) => {
                         const syncState = syncStates[m.matchId];
                         return (
                           <tr
