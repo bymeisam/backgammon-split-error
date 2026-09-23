@@ -71,6 +71,7 @@ export default function MatchesPage() {
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
+                    <th className="px-3 py-2">Match ID</th>
                     <th className="px-3 py-2">Date</th>
                     <th className="px-3 py-2">Opponent</th>
                     <th className="px-3 py-2">Rating</th>
@@ -86,6 +87,9 @@ export default function MatchesPage() {
                       onClick={() => router.push(`/matches/${m.matchId}`)}
                       className="cursor-pointer border-b border-black/5 last:border-b-0 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-zinc-800/60"
                     >
+                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                        {m.matchId}
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
                         {m.playedAt ? formatMatchDate(m.playedAt) : "—"}
                       </td>

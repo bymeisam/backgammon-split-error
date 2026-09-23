@@ -24,20 +24,41 @@ const PLACEHOLDER_RATING_TITLE: RatingTitle = {
   shortTitle: "",
 };
 
+interface MatchRow {
+  sourceMatchId: string;
+  opponentCountry: string;
+  opponentError: number;
+  opponentName: string;
+  opponentRating: number;
+  opponentScore: number;
+  userError: number;
+  userRating: number;
+  userScore: number;
+  playedAt: Date | null;
+  createdAt: Date;
+}
+
 export async function listMatches(page: number): Promise<AnalysesListResponse> {
   const [rows, total] = await Promise.all([
-    prisma.match.findMany({
-      // playedAt is null until detail-ingest completes (see
-      // docs/field-mapping.md's Match.playedAt row) — createdAt as the
-      // second sort key both breaks ties among same-playedAt matches and
-      // orders the still-null ones (index-synced only) among themselves,
-      // consistent with the same playedAt-falling-back-to-createdAt
-      // "most recent" convention already used for opponent displayName
-      // resolution (docs/field-mapping.md's PlayerIdentity section).
-      orderBy: [{ playedAt: "desc" }, { createdAt: "desc" }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
+    // Sorted by sourceMatchId (Galaxy's own matchId) descending, not
+    // playedAt — playedAt is unreliable for most of this app's historical
+    // data (see docs/field-mapping.md's "playedAt: what it actually means"
+    // section: it reflects ingest-processing time for anything from the
+    // original 2026-09 backfill, not real play dates), while matchId is
+    // always populated and correlates with recency — the same proxy
+    // app/galaxy/matches/page.tsx already sorts by, for consistency.
+    // sourceMatchId is a VARCHAR (values range from 5 to 8+ digits), so a
+    // plain `ORDER BY sourceMatchId` would sort lexicographically, not
+    // numerically — raw SQL with an explicit CAST is required here, Prisma's
+    // `orderBy` has no way to express that.
+    prisma.$queryRaw<MatchRow[]>`
+      SELECT sourceMatchId, opponentCountry, opponentError, opponentName,
+             opponentRating, opponentScore, userError, userRating, userScore,
+             playedAt, createdAt
+      FROM \`Match\`
+      ORDER BY CAST(sourceMatchId AS UNSIGNED) DESC
+      LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}
+    `,
     prisma.match.count(),
   ]);
 
