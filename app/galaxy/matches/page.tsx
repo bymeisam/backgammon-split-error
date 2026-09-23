@@ -20,6 +20,10 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncStates, setSyncStates] = useState<Record<number, SyncState>>({});
+  // sourceMatchIds (as strings, matching the DB column) already fully
+  // ingested (ingestStatus: DONE), for the currently-displayed page only —
+  // refetched fresh whenever `data` changes, not accumulated across pages.
+  const [doneMatchIds, setDoneMatchIds] = useState<Set<string>>(new Set());
   const [jumpToMatchId, setJumpToMatchId] = useState("");
   const [jsonGameIndex, setJsonGameIndex] = useState("1");
   const [jsonDump, setJsonDump] = useState<
@@ -61,6 +65,38 @@ export default function MatchesPage() {
       cancelled = true;
     };
   }, [token, page]);
+
+  // One batched existence check per page load, not N per-match lookups —
+  // separate from the list fetch above so a failure here (or the DB simply
+  // being briefly unreachable) can't block the match list itself from
+  // rendering; worst case every row just falls back to showing "Sync".
+  useEffect(() => {
+    if (!data || data.analyses.length === 0) {
+      setDoneMatchIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+
+    async function run() {
+      try {
+        const matchIds = data!.analyses.map((m) => m.matchId).join(",");
+        const res = await fetch(`/api/matches/check-existence?matchIds=${matchIds}`);
+        if (!res.ok) throw new Error(`Request failed (${res.status}).`);
+        const json = await res.json();
+        if (!cancelled) setDoneMatchIds(new Set(json.done as string[]));
+      } catch (e) {
+        console.error("Failed to check existing matches:", e);
+        if (!cancelled) setDoneMatchIds(new Set());
+      }
+    }
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data]);
 
   // Per-match, button-triggered sync. Deliberately structured as a handler
   // over a single matchId (not a loop) — a later "sync all new" button can
@@ -273,7 +309,17 @@ export default function MatchesPage() {
                       {[...data.analyses]
                         .sort((a, b) => b.matchId - a.matchId)
                         .map((m) => {
-                        const syncState = syncStates[m.matchId];
+                        // Session-local state (this click, this page load)
+                        // takes priority; otherwise fall back to the DB
+                        // existence check — a match already fully ingested
+                        // (in an earlier session, or via a sync script) gets
+                        // the same "✓ Synced" treatment without requiring
+                        // the user to have clicked Sync just now.
+                        const syncState =
+                          syncStates[m.matchId] ??
+                          (doneMatchIds.has(String(m.matchId))
+                            ? ({ status: "synced" } satisfies SyncState)
+                            : undefined);
                         return (
                           <tr
                             key={m.matchId}
@@ -300,17 +346,12 @@ export default function MatchesPage() {
                                   Syncing…
                                 </span>
                               ) : syncState?.status === "synced" ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSyncMatch(m);
-                                  }}
-                                  className="text-xs font-medium text-green-600 hover:underline dark:text-green-400"
-                                  title="Synced — click to re-sync"
+                                <span
+                                  className="text-xs font-medium text-green-600 dark:text-green-400"
+                                  title="Already synced"
                                 >
                                   ✓ Synced
-                                </button>
+                                </span>
                               ) : (
                                 <button
                                   type="button"
