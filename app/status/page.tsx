@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
+import { buildConnectionConfig } from "@/lib/prisma";
 import { STATUS_NOTES } from "./notes";
 
 import nextPkg from "next/package.json";
@@ -28,7 +29,10 @@ async function getDbStatus(): Promise<DbStatus> {
   const url = process.env.DATABASE_URL_READONLY;
   const engine = url ? new URL(url).protocol.replace(":", "") : "unknown";
 
-  const adapter = new PrismaMariaDb(url as string);
+  // buildConnectionConfig (from lib/prisma.ts) pins Oracle's private CA for
+  // SSL connections — a bare `new PrismaMariaDb(url)` would fail TLS
+  // verification against it. Reusing the helper, not the shared client.
+  const adapter = new PrismaMariaDb(buildConnectionConfig(url as string));
   const prisma = new PrismaClient({ adapter });
 
   try {

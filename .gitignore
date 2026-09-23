@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+# Oracle HeatWave's public CA cert — the app needs this shipped in prod to
+# validate its private CA, not a secret (see lib/prisma.ts, docs/field-mapping.md).
+!/certs/oracle-mysql-ca.pem
 
 # debug
 npm-debug.log*

@@ -89,11 +89,37 @@ narrower purpose than a general read-only health check), not because it's
 an oversight.
 
 `allowPublicKeyRetrieval=true` and `ssl=true` (as query params on the
-connection-string URL — the `mariadb` driver parses query params into
-connection options directly) are required for both `DATABASE_URL` and
+connection-string URL) are required for both `DATABASE_URL` and
 `DATABASE_URL_READONLY` in production, connecting to Oracle HeatWave's NLB
 public IP — see `.env.example` for the exact URL shape. Not needed locally
 (plain Docker MySQL, no SSL).
+
+**`ssl=true` alone is not enough** — the query param maps to boolean
+`ssl: true`, which uses Node's default TLS verification (publicly-trusted
+CAs only). Oracle HeatWave issues its own private CA for this DB endpoint
+(`CN=MySQL_Endpoint_CA`, self-signed, not publicly trusted), so a bare
+`ssl: true` connection fails with "self-signed certificate in certificate
+chain" — surfaced by the `mariadb` driver as an opaque `pool timeout` rather
+than a clear TLS error, since the underlying handshake failure isn't
+propagated as an obvious error message. `lib/prisma.ts`'s
+`buildConnectionConfig` (exported, reused by `app/status/page.tsx`'s
+isolated client — see above) handles this: it parses the URL itself and,
+when `ssl=true` is present, attaches `certs/oracle-mysql-ca.pem` (the CA
+cert, fetched directly from the server's TLS handshake — safe to commit,
+it's public) as `ssl.ca`. This is real chain-of-trust validation against
+that specific CA, not disabled verification — a rogue/unsigned cert is
+still rejected. One more wrinkle: the driver's TLS handshake code doesn't
+forward `host` into the underlying `tls.connect()` call, and even if it
+did, Oracle's cert has no SAN and its CN (`MySQL_Endpoint_Server`) isn't the
+IP the app connects by — so hostname matching would fail regardless.
+`buildConnectionConfig` also sets `ssl.checkServerIdentity: () => undefined`
+to skip only that hostname check; chain validation against the pinned CA
+still fully applies. Any new code that needs to connect to Oracle directly
+(bypassing the shared `prisma`/`prismaReadOnly` clients) must go through
+`buildConnectionConfig`, not construct `new PrismaMariaDb(url)` from a bare
+URL string — `app/api/db-check/route.ts` and `prisma/seed.ts` are the two
+exceptions, and both are intentionally local-only (see above / their own
+header comments), never meant to run against Oracle.
 
 ## Match
 
