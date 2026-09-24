@@ -120,4 +120,32 @@ model Decision {
   @@unique([gameId, eventId])
   @@index([kind, classification])
   @@index([userId])
+  // Covers lib/recompute-mistake-stats.ts's groupBy WHERE (countAsDecision,
+  // rawError) filter and its (classification, kind, errorSeverity) grouping
+  // in one index — measured 7,417ms without it (full scan of 1.24M rows to
+  // find the ~592k matching), before adding this.
+  @@index([countAsDecision, rawError, kind, classification, errorSeverity])
+}
+
+// Precomputed decision-level mistake-pattern breakdown, recomputed in full
+// on every sync run (see lib/recompute-mistake-stats.ts, called from
+// lib/sync.ts's runSync) — not incrementally maintained, so it stays
+// self-correcting after any retroactive fix to the underlying Decision data
+// (e.g. this session's rawError/playedAt corrections) rather than
+// accumulating drift. category reuses DecisionKind (the same field
+// Decision.kind already uses) rather than introducing a second taxonomy for
+// the same cube-vs-checker-vs-resignation distinction; classification has
+// no enum anywhere in this schema (Galaxy's own classification taxonomy,
+// not fixed/hardcoded — see the read side in app/matches/analysis), so it
+// stays a plain string here too.
+model MistakeStat {
+  id             Int           @id @default(autoincrement())
+  classification String
+  category       DecisionKind
+  errorSeverity  ErrorSeverity
+  decisionCount  Int
+  sumAbsRawError Float
+  computedAt     DateTime
+
+  @@unique([classification, category, errorSeverity])
 }

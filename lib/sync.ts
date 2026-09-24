@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { createGalaxyClient } from "@/lib/galaxy-client";
 import { ingestMatch, type MatchIndexData } from "@/lib/ingest";
 import { appendSyncErrorLog } from "@/lib/errorLog";
+import { recomputeMistakeStats } from "@/lib/recompute-mistake-stats";
 
 const SOURCE = "galaxy";
 
@@ -247,6 +248,23 @@ export async function runSync({
       errors: errors.length > 0 ? JSON.parse(JSON.stringify(errors)) : undefined,
     },
   });
+
+  // Once, after every match in this run has finished processing — not
+  // per-match, not per-decision. Both scripts/backfill.ts and
+  // scripts/incremental-sync.ts/api/sync/incremental route through this
+  // shared runSync, so hooking in here keeps MistakeStat current after both
+  // the full historical backfill and every day-to-day incremental sync,
+  // with no separate scheduling needed. Own try/catch, same as the other
+  // secondary side-effects in this function (error logging, PlayerIdentity
+  // upserts) — a failure recomputing stats shouldn't erase a sync run that
+  // otherwise succeeded.
+  try {
+    await recomputeMistakeStats();
+  } catch (e) {
+    console.error(
+      `Failed to recompute MistakeStat: ${e instanceof Error ? e.message : "unknown error"}`
+    );
+  }
 
   return {
     syncRunId: syncRun.id,
