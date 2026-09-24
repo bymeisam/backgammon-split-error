@@ -14,9 +14,16 @@ const BEST_COLOR = "#16a34a"; // green-600
 export default function BoardPanel({
   selected,
   moveTab,
+  onSelectTab,
 }: {
   selected: Decision | null;
   moveTab: "my" | "best";
+  // Optional: when provided, the my-move/best-move boxes below the board
+  // become the click target for switching tabs (used by
+  // app/mistakes/DecisionCard.tsx, whose own separate toggle buttons were
+  // removed as redundant with this). Left undefined, this renders exactly
+  // as before — MistakesSection.tsx's usage is untouched.
+  onSelectTab?: (tab: "my" | "best") => void;
 }) {
   const decoded = useMemo(() => {
     if (!selected?.sourcePositionId) return null;
@@ -45,8 +52,6 @@ export default function BoardPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-black dark:text-zinc-50">Board</h3>
-
       <div className="flex flex-col items-center gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
         {selected && selected.roll.length > 0 && (
           <div className="flex w-full justify-end">
@@ -72,21 +77,49 @@ export default function BoardPanel({
               <span className="text-zinc-500 dark:text-zinc-400">Game</span>
               <span className="font-semibold text-black dark:text-zinc-50">{selected.gameIndex}</span>
             </div>
-            <div
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
-                selected.severity === "blunder"
-                  ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-                  : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-              }`}
-            >
-              <span className="opacity-70">My move</span>
-              <span className="font-mono font-semibold">{selected.myLabel}</span>
-              <span className="opacity-70">({selected.absError.toFixed(3)})</span>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
-              <span className="opacity-70">Best move</span>
-              <span className="font-mono font-semibold">{selected.bestLabel}</span>
-            </div>
+            {onSelectTab ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("my")}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 transition-colors ${
+                    selected.severity === "blunder"
+                      ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+                      : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                  } ${moveTab === "my" ? "ring-1 ring-inset ring-black/30 dark:ring-white/40" : "opacity-70 hover:opacity-100"}`}
+                >
+                  <span className="font-mono font-semibold">{selected.myLabel}</span>
+                  <span className="opacity-70">({selected.absError.toFixed(3)})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("best")}
+                  className={`flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 transition-colors dark:border-green-800 dark:bg-green-950 dark:text-green-300 ${
+                    moveTab === "best" ? "ring-1 ring-inset ring-black/30 dark:ring-white/40" : "opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <span className="font-mono font-semibold">{selected.bestLabel}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <div
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
+                    selected.severity === "blunder"
+                      ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+                      : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                  }`}
+                >
+                  <span className="opacity-70">My move</span>
+                  <span className="font-mono font-semibold">{selected.myLabel}</span>
+                  <span className="opacity-70">({selected.absError.toFixed(3)})</span>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
+                  <span className="opacity-70">Best move</span>
+                  <span className="font-mono font-semibold">{selected.bestLabel}</span>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

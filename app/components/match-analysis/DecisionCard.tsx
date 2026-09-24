@@ -5,13 +5,17 @@ import BoardPanel from "./BoardPanel";
 import type { Decision } from "@/lib/mistakes";
 
 // The board-detail panel for app/mistakes's selected decision — wraps
-// BoardPanel (reused exactly as-is) plus the context (classification,
-// severity, error size, link back to the match) BoardPanel itself doesn't
-// render. moveTab is a controlled prop, not internal state — the list panel
-// (DecisionListWithDetail, via its reused MoveDelta) can also drive it by
-// clicking a row's move-notation text, matching MistakesSection's exact
-// existing interaction. Only ever rendered once (for the current
-// selection), never per list row.
+// BoardPanel plus the context (classification, severity, error size, link
+// back to the match) BoardPanel itself doesn't render. No separate
+// my-move/best-move toggle here — that was redundant with two other
+// clickable places that already switch the same moveTab: the list panel's
+// row labels (DecisionListWithDetail, via reused MoveDelta) and, now,
+// BoardPanel's own my-move/best-move boxes below the board (passed
+// onSelectTab, which BoardPanel only turns into buttons when given one —
+// MistakesSection's usage elsewhere doesn't pass it, so stays unchanged).
+// moveTab is a controlled prop, not internal state, so all three inputs
+// stay in sync. Only ever rendered once (for the current selection), never
+// per list row.
 export default function DecisionCard({
   decision,
   classification,
@@ -55,32 +59,7 @@ export default function DecisionCard({
         </Link>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onMoveTabChange("my")}
-          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-            moveTab === "my"
-              ? "border-black/20 bg-zinc-100 text-black dark:border-white/25 dark:bg-zinc-800 dark:text-zinc-50"
-              : "border-black/10 text-zinc-500 hover:bg-zinc-50 dark:border-white/15 dark:text-zinc-400 dark:hover:bg-zinc-800"
-          }`}
-        >
-          My move
-        </button>
-        <button
-          type="button"
-          onClick={() => onMoveTabChange("best")}
-          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-            moveTab === "best"
-              ? "border-black/20 bg-zinc-100 text-black dark:border-white/25 dark:bg-zinc-800 dark:text-zinc-50"
-              : "border-black/10 text-zinc-500 hover:bg-zinc-50 dark:border-white/15 dark:text-zinc-400 dark:hover:bg-zinc-800"
-          }`}
-        >
-          Best move
-        </button>
-      </div>
-
-      <BoardPanel selected={decision} moveTab={moveTab} />
+      <BoardPanel selected={decision} moveTab={moveTab} onSelectTab={onMoveTabChange} />
     </div>
   );
 }
