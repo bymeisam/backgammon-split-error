@@ -2,6 +2,7 @@
 
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { ParsedSubMove } from "@/lib/backgammonNotation";
+import { DiceRoll } from "./Dice";
 
 const MARGIN = 16;
 const POINT_W = 48;
@@ -37,6 +38,18 @@ const BOARD_H = Y1 + MARGIN;
 // arrow-anchor math so a "bear off" arrow always ends at the real next slot.
 const MINE_OFF_TOP_Y = Y0 + ROW_H + 6;
 const MINE_OFF_BOTTOM_Y = Y1 - 9;
+
+// Dice sit in the "right field" (points 1-6/19-24 — the columns between the
+// bar and the off-tray), centered on the board's own horizontal dividing
+// line, per request — embedded in the board SVG itself (via foreignObject,
+// since DiceRoll/Die are HTML+CSS, not SVG), not floating in a separate row
+// above it.
+const DICE_AREA_LEFT = colX(BAR_COL + 1);
+const DICE_AREA_RIGHT = colX(OFF_COL);
+const DICE_BOX_W = 100;
+const DICE_BOX_H = 36;
+const DICE_X = (DICE_AREA_LEFT + DICE_AREA_RIGHT) / 2 - DICE_BOX_W / 2;
+const DICE_Y = Y0 + ROW_H - DICE_BOX_H / 2;
 
 function colCenterX(col: number): number {
   return colX(col) + COL_WIDTHS[col] / 2;
@@ -238,10 +251,12 @@ export default function Board({
   decoded,
   subMoves = [],
   arrowColor = "#dc2626",
+  roll = [],
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
   arrowColor?: string;
+  roll?: number[];
 }) {
   return (
     <svg
@@ -419,6 +434,14 @@ export default function Board({
           </g>
         );
       })}
+
+      {roll.length > 0 && (
+        <foreignObject x={DICE_X} y={DICE_Y} width={DICE_BOX_W} height={DICE_BOX_H}>
+          <div className="flex h-full w-full items-center justify-center">
+            <DiceRoll roll={roll} size={28} color="mine" />
+          </div>
+        </foreignObject>
+      )}
     </svg>
   );
 }

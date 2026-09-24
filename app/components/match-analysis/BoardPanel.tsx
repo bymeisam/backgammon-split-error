@@ -5,7 +5,6 @@ import type { Decision } from "@/lib/mistakes";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 import { parseNotation } from "@/lib/backgammonNotation";
 import Board from "./Board";
-import { DiceRoll } from "./Dice";
 
 const BLUNDER_COLOR = "#dc2626"; // red-600
 const ERROR_COLOR = "#d97706"; // amber-600
@@ -53,18 +52,12 @@ export default function BoardPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col items-center gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
-        {selected && selected.roll.length > 0 && (
-          <div className="flex w-full justify-end">
-            <DiceRoll roll={selected.roll} size={32} color="mine" />
-          </div>
-        )}
-
         {!selected ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             No mistakes in this scope to show on the board.
           </p>
         ) : decoded ? (
-          <Board decoded={decoded} subMoves={subMoves} arrowColor={arrowColor} />
+          <Board decoded={decoded} subMoves={subMoves} arrowColor={arrowColor} roll={selected.roll} />
         ) : (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             No position data for this decision.

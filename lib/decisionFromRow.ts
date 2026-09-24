@@ -14,7 +14,14 @@ import type {
   ErrorSeverity as PrismaErrorSeverity,
 } from "@/lib/generated/prisma/client";
 import type { GameEvent } from "@/lib/gameReviewsTypes";
-import { actionLabels, moveNotations, type Decision, type DecisionKind, type Severity } from "@/lib/mistakes";
+import {
+  actionLabels,
+  findPrecedingRoll,
+  moveNotations,
+  type Decision,
+  type DecisionKind,
+  type Severity,
+} from "@/lib/mistakes";
 
 const KIND_MAP: Record<PrismaDecisionKind, DecisionKind> = {
   CHECKER: "checker",
@@ -44,6 +51,8 @@ function severityFor(severity: PrismaErrorSeverity): Severity | null {
 
 export interface DecisionRow {
   id: number;
+  gameId: number;
+  eventId: bigint;
   userId: string;
   color: string;
   kind: PrismaDecisionKind;
@@ -53,11 +62,45 @@ export interface DecisionRow {
   game: { gameIndex: number };
 }
 
+// Galaxy analyses a dice_rolled event too (as a "should you have doubled
+// before this roll" cube check — kind: CUBE, often countAsDecision: false),
+// so it's stored as its own sibling Decision row in the same game, carrying
+// rolled_dice at its raw JSON's top level. A checker decision's own
+// move_commited event never carries its own roll — the caller must fetch
+// every Decision row for the games it's displaying (not just the
+// countAsDecision: true ones /mistakes normally queries) and build this
+// lookup from them, keyed by "gameId:eventId", before calling
+// decisionFromRow. Mirrors lib/mistakes.ts's own live-fetch extraction
+// (which always has the full event list already), just narrowed to
+// whichever games are actually on the current page.
+export function buildRollLookup(
+  gameRows: { gameId: number; eventId: bigint; raw: unknown }[]
+): Map<string, number[]> {
+  const byGame = new Map<number, { eventId: bigint; event: GameEvent }[]>();
+  for (const row of gameRows) {
+    const list = byGame.get(row.gameId) ?? [];
+    list.push({ eventId: row.eventId, event: row.raw as unknown as GameEvent });
+    byGame.set(row.gameId, list);
+  }
+
+  const lookup = new Map<string, number[]>();
+  for (const [gameId, rows] of byGame) {
+    rows.sort((a, b) => (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0));
+    const events = rows.map((r) => r.event);
+    rows.forEach((r, index) => {
+      lookup.set(`${gameId}:${r.eventId}`, findPrecedingRoll(events, index));
+    });
+  }
+  return lookup;
+}
+
 // Returns null for a row with no usable data (rawError null, or somehow no
 // reviews[0] in its own raw JSON) — same "ungraded, skip it" treatment
 // lib/mistakes.ts's own extractDecisions gives a null rawError, rather than
-// crashing or faking a zero.
-export function decisionFromRow(row: DecisionRow): Decision | null {
+// crashing or faking a zero. `rollLookup` is optional so callers that don't
+// care about dice (or haven't fetched the sibling rows) can omit it and get
+// an empty roll, same as before.
+export function decisionFromRow(row: DecisionRow, rollLookup?: Map<string, number[]>): Decision | null {
   if (row.rawError === null) return null;
 
   const event = row.raw as unknown as GameEvent;
@@ -83,15 +126,7 @@ export function decisionFromRow(row: DecisionRow): Decision | null {
         : `${mine} → best: ${best}`,
     myLabel: mine,
     bestLabel: best,
-    // A move_commited event's own rolled_dice is always empty (the real
-    // roll lives on the preceding dice_rolled/game_started event) —
-    // reconstructing it needs the full game's event sequence, which this
-    // standalone, per-decision view deliberately doesn't fetch (see
-    // app/mistakes/page.tsx). Falls back to this event's own rolled_dice,
-    // which is only ever populated for event types other than
-    // move_commited, so this is empty (BoardPanel already renders no dice
-    // row for an empty roll) for the common checker-decision case here.
-    roll: event.rolled_dice ?? [],
+    roll: rollLookup?.get(`${row.gameId}:${row.eventId}`) ?? event.rolled_dice ?? [],
     sourcePositionId: review.source_position?.formatted_value ?? null,
     myMoveNotation,
     bestMoveNotation,

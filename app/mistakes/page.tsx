@@ -5,7 +5,7 @@ import {
   DecisionKind as PrismaDecisionKind,
   ErrorSeverity as PrismaErrorSeverity,
 } from "@/lib/generated/prisma/client";
-import { decisionFromRow } from "@/lib/decisionFromRow";
+import { decisionFromRow, buildRollLookup } from "@/lib/decisionFromRow";
 import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
 
 // Server component, queried fresh on every request (no caching) — same
@@ -171,6 +171,8 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
       take: pageSize,
       select: {
         id: true,
+        gameId: true,
+        eventId: true,
         userId: true,
         color: true,
         kind: true,
@@ -183,9 +185,26 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
     }),
   ]);
 
+  // A checker decision's own move_commited event never carries its roll —
+  // the preceding dice_rolled event does, stored as its own sibling
+  // Decision row (kind: CUBE, often countAsDecision: false) in the same
+  // game. The page's main query above only selects countAsDecision: true
+  // rows, so it never sees those siblings; fetch every row for just the
+  // games actually on this page (cheap — a handful of games, not the whole
+  // table) and build a "gameId:eventId" -> roll lookup from them.
+  const gameIds = [...new Set(rows.map((row) => row.gameId))];
+  const gameRows =
+    gameIds.length > 0
+      ? await prisma.decision.findMany({
+          where: { gameId: { in: gameIds } },
+          select: { gameId: true, eventId: true, raw: true },
+        })
+      : [];
+  const rollLookup = buildRollLookup(gameRows);
+
   const items = rows
     .map((row) => {
-      const decision = decisionFromRow(row);
+      const decision = decisionFromRow(row, rollLookup);
       if (!decision) return null;
       return {
         decision,

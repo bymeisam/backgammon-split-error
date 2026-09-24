@@ -105,8 +105,10 @@ export function moveNotations(review: Review): { mine: string | null; best: stri
 
 // A move_commited event's own rolled_dice is always empty — the roll it used
 // lives on the nearest preceding dice_rolled event (or game_started, for the
-// very first move of the game).
-function findPrecedingRoll(events: GameEvent[], index: number): number[] {
+// very first move of the game). Exported for lib/decisionFromRow.ts, which
+// needs the same backward scan but over a narrower, DB-fetched events slice
+// (only the games actually shown on a page) rather than a full live fetch.
+export function findPrecedingRoll(events: GameEvent[], index: number): number[] {
   for (let i = index - 1; i >= 0; i--) {
     const e = events[i];
     if (e.event_type === "dice_rolled" || e.event_type === "game_started") {
