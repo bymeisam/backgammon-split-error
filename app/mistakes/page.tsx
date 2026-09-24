@@ -6,7 +6,7 @@ import {
   ErrorSeverity as PrismaErrorSeverity,
 } from "@/lib/generated/prisma/client";
 import { decisionFromRow } from "@/lib/decisionFromRow";
-import DecisionCard from "@/app/components/match-analysis/DecisionCard";
+import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
 
 // Server component, queried fresh on every request (no caching) — same
 // pattern /status and /matches/analysis already use. prismaReadOnly
@@ -139,9 +139,11 @@ interface Filters {
 }
 
 // The slow part: count + the 50-(or fewer-)row fetch (each with its full
-// raw JSON) + card rendering + pagination. Its own Suspense boundary in the
-// parent, so this is the only part a person actually waits on, and only
-// once they've applied a filter — never on first load.
+// raw JSON) + pagination. Its own Suspense boundary in the parent, so this
+// is the only part a person actually waits on, and only once they've
+// applied a filter — never on first load. Rendering itself (list + single
+// selected board) is DecisionListWithDetail's job — only one board/SVG
+// ever renders at a time there, not once per row.
 async function DecisionListSection({ filters }: { filters: Filters }) {
   const { classification, categoryParam, severityParam, pageSize, page } = filters;
   const category = categoryParam ? CATEGORY_PARAM_MAP[categoryParam] : undefined;
@@ -181,7 +183,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
     }),
   ]);
 
-  const cards = rows
+  const items = rows
     .map((row) => {
       const decision = decisionFromRow(row);
       if (!decision) return null;
@@ -209,21 +211,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
         {total.toLocaleString()} {filterDescription} decision{total === 1 ? "" : "s"}.
       </p>
 
-      <div className="flex flex-col gap-4">
-        {cards.length === 0 && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No decisions match this filter.
-          </p>
-        )}
-        {cards.map((c) => (
-          <DecisionCard
-            key={c.decision.id}
-            decision={c.decision}
-            classification={c.classification}
-            matchHref={c.matchHref}
-          />
-        ))}
-      </div>
+      <DecisionListWithDetail items={items} />
 
       <div className="flex items-center justify-between">
         <Link

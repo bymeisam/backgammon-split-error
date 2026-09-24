@@ -24,7 +24,10 @@ function formatPR(pr: number | null): string {
   return pr === null ? "—" : pr.toFixed(2);
 }
 
-function MoveDelta({
+// Exported for app/components/match-analysis/DecisionListWithDetail.tsx
+// (the /mistakes list panel), which reuses this exact component/styling
+// directly rather than a re-implementation, per the ask.
+export function MoveDelta({
   decision,
   activeTab,
   onSelectTab,

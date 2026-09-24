@@ -1,25 +1,30 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import BoardPanel from "./BoardPanel";
 import type { Decision } from "@/lib/mistakes";
 
-// Standalone per-decision card for app/mistakes — wraps BoardPanel (reused
-// exactly as-is) with the my-move/best-move toggle state BoardPanel needs,
-// plus the row-level context (classification, severity, error size, link
-// back to the match) BoardPanel itself doesn't render.
+// The board-detail panel for app/mistakes's selected decision — wraps
+// BoardPanel (reused exactly as-is) plus the context (classification,
+// severity, error size, link back to the match) BoardPanel itself doesn't
+// render. moveTab is a controlled prop, not internal state — the list panel
+// (DecisionListWithDetail, via its reused MoveDelta) can also drive it by
+// clicking a row's move-notation text, matching MistakesSection's exact
+// existing interaction. Only ever rendered once (for the current
+// selection), never per list row.
 export default function DecisionCard({
   decision,
   classification,
   matchHref,
+  moveTab,
+  onMoveTabChange,
 }: {
   decision: Decision;
   classification: string;
   matchHref: string;
+  moveTab: "my" | "best";
+  onMoveTabChange: (tab: "my" | "best") => void;
 }) {
-  const [moveTab, setMoveTab] = useState<"my" | "best">("my");
-
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -53,7 +58,7 @@ export default function DecisionCard({
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setMoveTab("my")}
+          onClick={() => onMoveTabChange("my")}
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             moveTab === "my"
               ? "border-black/20 bg-zinc-100 text-black dark:border-white/25 dark:bg-zinc-800 dark:text-zinc-50"
@@ -64,7 +69,7 @@ export default function DecisionCard({
         </button>
         <button
           type="button"
-          onClick={() => setMoveTab("best")}
+          onClick={() => onMoveTabChange("best")}
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             moveTab === "best"
               ? "border-black/20 bg-zinc-100 text-black dark:border-white/25 dark:bg-zinc-800 dark:text-zinc-50"
