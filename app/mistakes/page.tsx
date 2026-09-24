@@ -275,7 +275,7 @@ export default async function MistakesPage({
 
   return (
     <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
+      <main className="flex w-full max-w-7xl flex-col gap-6 px-6 py-12">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
             Mistakes
