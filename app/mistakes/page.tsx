@@ -230,7 +230,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
         {total.toLocaleString()} {filterDescription} decision{total === 1 ? "" : "s"}.
       </p>
 
-      <DecisionListWithDetail items={items} />
+      <DecisionListWithDetail items={items} showClassification={!classification} />
 
       <div className="flex items-center justify-between">
         <Link

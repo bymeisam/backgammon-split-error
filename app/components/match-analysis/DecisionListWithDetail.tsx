@@ -3,6 +3,9 @@
 import { useState } from "react";
 import DecisionCard from "./DecisionCard";
 import { MoveDelta } from "./MistakesSection";
+import SeverityBadge from "@/app/components/ui/SeverityBadge";
+import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
+import type { severityBadges, classificationBadges } from "@/lib/badges";
 import type { Decision } from "@/lib/mistakes";
 
 export interface DecisionListItem {
@@ -17,12 +20,19 @@ export interface DecisionListItem {
 // item, board panel and list laid out side-by-side via lg:flex-row. The
 // list row itself reuses MistakesSection's own MoveDelta component/styling
 // directly (color-coded my-move/best-move notation, red for blunder/amber
-// otherwise, green for best — matching its exact existing convention) —
-// classification, severity badge, and the match link deliberately don't
-// appear here; that context lives only in the single selected DecisionCard,
-// not duplicated per row. Only the *selected* decision ever gets a
-// BoardPanel/board SVG rendered.
-export default function DecisionListWithDetail({ items }: { items: DecisionListItem[] }) {
+// otherwise, green for best — matching its exact existing convention),
+// plus a compact SeverityBadge inline with it and (only when no
+// classification filter is applied) a ClassificationBadge — the match link
+// deliberately doesn't appear here; that lives only in the single selected
+// DecisionCard, not duplicated per row. Only the *selected* decision ever
+// gets a BoardPanel/board SVG rendered.
+export default function DecisionListWithDetail({
+  items,
+  showClassification,
+}: {
+  items: DecisionListItem[];
+  showClassification: boolean;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [moveTab, setMoveTab] = useState<"my" | "best">("my");
   const selected = items.find((i) => i.decision.id === selectedId) ?? items[0] ?? null;
@@ -74,11 +84,21 @@ export default function DecisionListWithDetail({ items }: { items: DecisionListI
                     }`}
                   >
                     <td className="px-3 py-2 font-mono text-xs">
-                      <MoveDelta
-                        decision={item.decision}
-                        activeTab={isSelected ? moveTab : null}
-                        onSelectTab={(tab) => selectRow(item.decision.id, tab)}
-                      />
+                      <span className="inline-flex items-center gap-1.5">
+                        {item.decision.severity && (
+                          <SeverityBadge type={item.decision.severity as keyof typeof severityBadges} />
+                        )}
+                        {showClassification && (
+                          <ClassificationBadge
+                            type={item.classification as keyof typeof classificationBadges}
+                          />
+                        )}
+                        <MoveDelta
+                          decision={item.decision}
+                          activeTab={isSelected ? moveTab : null}
+                          onSelectTab={(tab) => selectRow(item.decision.id, tab)}
+                        />
+                      </span>
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
                       {item.decision.absError.toFixed(3)}

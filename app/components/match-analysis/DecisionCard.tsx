@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import BoardPanel from "./BoardPanel";
+import SeverityBadge from "@/app/components/ui/SeverityBadge";
+import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
+import type { severityBadges, classificationBadges } from "@/lib/badges";
 import type { Decision } from "@/lib/mistakes";
 
 // The board-detail panel for app/mistakes's selected decision — wraps
@@ -33,20 +36,8 @@ export default function DecisionCard({
     <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-black/10 bg-zinc-50 px-2.5 py-1 font-mono text-zinc-700 dark:border-white/15 dark:bg-zinc-800 dark:text-zinc-300">
-            {classification}
-          </span>
-          <span
-            className={`rounded-full border px-2.5 py-1 font-mono ${
-              decision.severity === "blunder"
-                ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-                : decision.severity === "error"
-                  ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                  : "border-black/10 bg-zinc-50 text-zinc-500 dark:border-white/15 dark:bg-zinc-800 dark:text-zinc-400"
-            }`}
-          >
-            {decision.severity ?? "none"}
-          </span>
+          <ClassificationBadge type={classification as keyof typeof classificationBadges} />
+          <SeverityBadge type={(decision.severity ?? "none") as keyof typeof severityBadges} />
           <span className="text-zinc-500 dark:text-zinc-400">
             |error| {decision.absError.toFixed(3)}
           </span>
