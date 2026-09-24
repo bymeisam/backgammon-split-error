@@ -63,7 +63,34 @@ function aggregateBy(stats: MistakeStat[], keyOf: (s: MistakeStat) => string): R
   return [...buckets.values()].sort((a, b) => b.total - a.total);
 }
 
-function BreakdownTable({ keyHeader, rows }: { keyHeader: string; rows: Row[] }) {
+// Which /mistakes query param this table's `key` values feed — classifications
+// use `classification=<value>` verbatim, categories use `category=<lowercased
+// enum value>` (app/mistakes/page.tsx maps "checker"/"cube"/"resignation"
+// back to the DecisionKind enum).
+function mistakesHref(paramName: "classification" | "category", key: string, severity?: string): string {
+  const value = paramName === "category" ? key.toLowerCase() : key;
+  const sp = new URLSearchParams({ [paramName]: value });
+  if (severity) sp.set("severity", severity);
+  return `/mistakes?${sp.toString()}`;
+}
+
+function CountLink({ href, count }: { href: string; count: number }) {
+  return (
+    <Link href={href} className="hover:underline hover:text-black dark:hover:text-zinc-100">
+      {count.toLocaleString()}
+    </Link>
+  );
+}
+
+function BreakdownTable({
+  keyHeader,
+  paramName,
+  rows,
+}: {
+  keyHeader: string;
+  paramName: "classification" | "category";
+  rows: Row[];
+}) {
   return (
     <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
       <table className="w-full border-collapse text-left text-sm">
@@ -84,16 +111,16 @@ function BreakdownTable({ keyHeader, rows }: { keyHeader: string; rows: Row[] })
             >
               <td className="px-3 py-2 text-black dark:text-zinc-100">{r.key}</td>
               <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                {r.blunderCount.toLocaleString()}
+                <CountLink href={mistakesHref(paramName, r.key, "blunder")} count={r.blunderCount} />
               </td>
               <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                {r.errorCount.toLocaleString()}
+                <CountLink href={mistakesHref(paramName, r.key, "error")} count={r.errorCount} />
               </td>
               <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                {r.doubtfulCount.toLocaleString()}
+                <CountLink href={mistakesHref(paramName, r.key, "doubtful")} count={r.doubtfulCount} />
               </td>
               <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
-                {r.total.toLocaleString()}
+                <CountLink href={mistakesHref(paramName, r.key)} count={r.total} />
               </td>
             </tr>
           ))}
@@ -134,14 +161,14 @@ export default async function MatchesAnalysisPage() {
           <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
             Error concentration by game phase
           </h2>
-          <BreakdownTable keyHeader="Classification" rows={byClassification} />
+          <BreakdownTable keyHeader="Classification" paramName="classification" rows={byClassification} />
         </section>
 
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
             Cube errors vs. checker-play errors
           </h2>
-          <BreakdownTable keyHeader="Category" rows={byCategory} />
+          <BreakdownTable keyHeader="Category" paramName="category" rows={byCategory} />
         </section>
       </main>
     </div>

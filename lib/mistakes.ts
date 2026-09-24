@@ -54,7 +54,8 @@ function decisionKindFor(analysedEvent: string): DecisionKind | null {
   }
 }
 
-function actionLabels(review: Review): { mine: string; best: string } {
+// Exported for the same reason as moveNotations below.
+export function actionLabels(review: Review): { mine: string; best: string } {
   const envelope = review.result;
 
   if (envelope.analysed_event === "move") {
@@ -88,7 +89,11 @@ function buildDetail(review: Review): string {
     : `${mine} → best: ${best}`;
 }
 
-function moveNotations(review: Review): { mine: string | null; best: string | null } {
+// Exported for lib/decisionFromRow.ts, which builds a Decision straight
+// from a stored DB row's raw JSON (a single already-ingested event) rather
+// than from a live game_reviews fetch — reuses this exact logic instead of
+// duplicating it, so the two paths can't silently diverge.
+export function moveNotations(review: Review): { mine: string | null; best: string | null } {
   const envelope = review.result;
   if (envelope.analysed_event !== "move") return { mine: null, best: null };
 
