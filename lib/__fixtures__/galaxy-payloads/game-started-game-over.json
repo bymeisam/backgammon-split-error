@@ -1,0 +1,27 @@
+{
+  "data": {
+    "match_id": 90000006,
+    "game_index": 1,
+    "events": [
+      {
+        "id": 7000000006,
+        "color": "",
+        "user_id": "",
+        "moves": [],
+        "event_type": "game_started",
+        "rolled_dice": [5, 2],
+        "reviews": []
+      },
+      {
+        "id": 7000000007,
+        "color": "white",
+        "user_id": "user_me",
+        "moves": [],
+        "event_type": "game_over",
+        "rolled_dice": [],
+        "reviews": []
+      }
+    ]
+  },
+  "type": "game_events"
+}

@@ -1,0 +1,113 @@
+{
+  "data": {
+    "match_id": 90000004,
+    "game_index": 1,
+    "events": [
+      {
+        "id": 7000000004,
+        "color": "white",
+        "user_id": "user_me",
+        "moves": [24, 18],
+        "event_type": "move_commited",
+        "rolled_dice": [],
+        "reviews": [
+          {
+            "id": 8000000004,
+            "second": 1,
+            "take": null,
+            "level": 2,
+            "double": null,
+            "threshold": null,
+            "source_match": null,
+            "resigned_points": null,
+            "source_position": {
+              "id": 9000000005,
+              "classification": "opening_game",
+              "formatted_value": "4HPwATDgc/ABMA"
+            },
+            "destination_position": {
+              "id": 9000000006,
+              "classification": "opening_game",
+              "formatted_value": "sNsmARTYzuABMA"
+            },
+            "result": {
+              "version": "1.0",
+              "analysed_event": "move",
+              "result": {
+                "equity": -0.02,
+                "metadata": {
+                  "timestamp": "2026-09-18T02:52:00.000000Z",
+                  "analysis_level": 2,
+                  "analysis_time_ms": 5,
+                  "crawford_state": "none",
+                  "match_length": null,
+                  "scores": null,
+                  "count_as_decision": true,
+                  "request_id": null,
+                  "max_move": null
+                },
+                "probabilities": {
+                  "lose": 0.51,
+                  "lose_backgammon": 0.01,
+                  "lose_gammon": 0.14,
+                  "win": 0.49,
+                  "win_backgammon": 0.01,
+                  "win_gammon": 0.13,
+                  "mwc_context": "cubeless",
+                  "mwc": 0.49,
+                  "volatility": 1.2,
+                  "market_losing_probability": 0.26,
+                  "market_gaining_probability": 0.73
+                },
+                "error_analysis": {
+                  "raw_error": -0.02,
+                  "luck_mwc": 0.01,
+                  "mwc_error": 0.02,
+                  "luck": 0.01,
+                  "equity_error": -0.02,
+                  "error_severity": "none",
+                  "is_blunder": false,
+                  "is_error": false
+                },
+                "moves": [
+                  {
+                    "level": 2,
+                    "final": { "xgid": "xgid-2", "gnubgid": "gnubgid-2" },
+                    "notation": "24/18",
+                    "rank": 1,
+                    "equity": -0.02,
+                    "probabilities": {
+                      "lose": 0.51,
+                      "lose_backgammon": 0.01,
+                      "lose_gammon": 0.14,
+                      "win": 0.49,
+                      "win_backgammon": 0.01,
+                      "win_gammon": 0.13,
+                      "mwc_context": "cubeless",
+                      "mwc": 0.49,
+                      "volatility": 1.2,
+                      "market_losing_probability": 0.26,
+                      "market_gaining_probability": 0.73
+                    },
+                    "error_analysis": {
+                      "raw_error": -0.02,
+                      "luck_mwc": 0.01,
+                      "mwc_error": 0.02,
+                      "luck": 0.01,
+                      "equity_error": -0.02,
+                      "error_severity": "none",
+                      "is_blunder": false,
+                      "is_error": false
+                    },
+                    "move_played": true
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "type": "game_events"
+}

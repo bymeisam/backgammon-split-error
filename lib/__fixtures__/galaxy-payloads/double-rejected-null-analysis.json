@@ -1,0 +1,67 @@
+{
+  "data": {
+    "match_id": 90000002,
+    "game_index": 1,
+    "events": [
+      {
+        "id": 7000000002,
+        "color": "black",
+        "user_id": "user_opponent",
+        "moves": [],
+        "event_type": "double_rejected",
+        "rolled_dice": [],
+        "reviews": [
+          {
+            "id": 8000000002,
+            "second": 1,
+            "take": false,
+            "level": 2,
+            "double": null,
+            "threshold": null,
+            "source_match": null,
+            "resigned_points": null,
+            "source_position": {
+              "id": 9000000003,
+              "classification": "middle_game",
+              "formatted_value": "sNsmARTYzuABMA"
+            },
+            "destination_position": null,
+            "result": {
+              "version": "1.0",
+              "analysed_event": "cube_pass",
+              "result": {
+                "equity": -1,
+                "metadata": {
+                  "timestamp": "2026-09-18T02:50:00.000000Z",
+                  "analysis_level": 2,
+                  "analysis_time_ms": 0,
+                  "crawford_state": "none",
+                  "match_length": 7,
+                  "scores": { "black": 0, "white": 0 },
+                  "count_as_decision": false,
+                  "request_id": null,
+                  "max_move": null
+                },
+                "probabilities": {
+                  "lose": 1,
+                  "lose_backgammon": 0,
+                  "lose_gammon": 0,
+                  "win": 0,
+                  "win_backgammon": 0,
+                  "win_gammon": 0,
+                  "mwc_context": null,
+                  "mwc": null,
+                  "volatility": null,
+                  "market_losing_probability": null,
+                  "market_gaining_probability": null
+                },
+                "error_analysis": null
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "type": "game_events"
+}

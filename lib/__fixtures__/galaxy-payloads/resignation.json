@@ -1,0 +1,81 @@
+{
+  "data": {
+    "match_id": 90000005,
+    "game_index": 1,
+    "events": [
+      {
+        "id": 7000000005,
+        "color": "black",
+        "user_id": "user_opponent",
+        "moves": [],
+        "event_type": "resigned",
+        "rolled_dice": [],
+        "reviews": [
+          {
+            "id": 8000000005,
+            "second": 1,
+            "take": null,
+            "level": 2,
+            "double": null,
+            "threshold": null,
+            "source_match": null,
+            "resigned_points": 2,
+            "source_position": {
+              "id": 9000000007,
+              "classification": "end_game_contact",
+              "formatted_value": "4HPwATDgc/ABMA"
+            },
+            "destination_position": null,
+            "result": {
+              "version": "1.0",
+              "analysed_event": "resignation",
+              "result": {
+                "equity": -1,
+                "metadata": {
+                  "timestamp": "2026-09-18T02:53:00.000000Z",
+                  "analysis_level": 2,
+                  "analysis_time_ms": 0,
+                  "crawford_state": "none",
+                  "match_length": 7,
+                  "scores": { "black": 2, "white": 3 },
+                  "count_as_decision": true,
+                  "request_id": null,
+                  "max_move": null
+                },
+                "probabilities": {
+                  "lose": 1,
+                  "lose_backgammon": 0,
+                  "lose_gammon": 0,
+                  "win": 0,
+                  "win_backgammon": 0,
+                  "win_gammon": 0,
+                  "mwc_context": "cubeful",
+                  "mwc": 0.1,
+                  "volatility": 0,
+                  "market_losing_probability": 0,
+                  "market_gaining_probability": 0
+                },
+                "error_analysis": {
+                  "raw_error": 0.15,
+                  "luck_mwc": null,
+                  "mwc_error": 0.15,
+                  "luck": null,
+                  "equity_error": 0.15,
+                  "error_severity": "error",
+                  "is_blunder": false,
+                  "is_error": true
+                },
+                "resign_error": 0.15,
+                "should_resign": true,
+                "resignation_type": "gammon",
+                "equity_before": -0.8,
+                "equity_after": -1
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "type": "game_events"
+}
