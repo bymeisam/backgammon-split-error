@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AnalysesListResponse } from "@/lib/analysesTypes";
 
@@ -54,9 +55,17 @@ export default function MatchesPage() {
   return (
     <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
       <main className="flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          Matches
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+            Matches
+          </h1>
+          <Link
+            href="/matches/analysis"
+            className="text-sm text-zinc-600 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100"
+          >
+            Mistake pattern analysis →
+          </Link>
+        </div>
 
         {loading && <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>}
         {error && (
