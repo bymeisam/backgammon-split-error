@@ -1,5 +1,7 @@
 "use client";
 
+import { style } from "./Dice.styles";
+
 const PIPS: Record<number, [number, number][]> = {
   1: [[50, 50]],
   2: [[25, 25], [75, 75]],
@@ -41,7 +43,7 @@ export function DiceRoll({
 }) {
   if (roll.length === 0) return null;
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className={style.rollWrapper}>
       {roll.map((v, i) => (
         <Die key={i} value={v} size={size} color={color} />
       ))}

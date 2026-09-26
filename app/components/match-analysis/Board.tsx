@@ -3,6 +3,7 @@
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { ParsedSubMove } from "@/lib/backgammonNotation";
 import { DiceRoll } from "./Dice";
+import { style } from "./BoardPanel.styles";
 
 const MARGIN = 16;
 const POINT_W = 48;
@@ -261,7 +262,7 @@ export default function Board({
   return (
     <svg
       viewBox={`0 0 ${BOARD_W} ${BOARD_H}`}
-      className="w-full"
+      className={style.boardSvg}
       role="img"
       aria-label="Backgammon board"
     >
@@ -437,7 +438,7 @@ export default function Board({
 
       {roll.length > 0 && (
         <foreignObject x={DICE_X} y={DICE_Y} width={DICE_BOX_W} height={DICE_BOX_H}>
-          <div className="flex h-full w-full items-center justify-center">
+          <div className={style.diceWrapper}>
             <DiceRoll roll={roll} size={28} color="mine" />
           </div>
         </foreignObject>

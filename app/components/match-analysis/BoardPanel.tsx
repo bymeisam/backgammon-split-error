@@ -5,6 +5,7 @@ import type { Decision } from "@/lib/mistakes";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 import { parseNotation } from "@/lib/backgammonNotation";
 import Board from "./Board";
+import { style } from "./BoardPanel.styles";
 
 const BLUNDER_COLOR = "#dc2626"; // red-600
 const ERROR_COLOR = "#d97706"; // amber-600
@@ -50,69 +51,50 @@ export default function BoardPanel({
         : ERROR_COLOR;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div
-        data-testid="board-panel"
-        className="flex flex-col items-center gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900"
-      >
+    <div className={style.panelStack}>
+      <div data-testid="board-panel" className={style.panel}>
         {!selected ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No mistakes in this scope to show on the board.
-          </p>
+          <p className={style.emptyState}>No mistakes in this scope to show on the board.</p>
         ) : decoded ? (
           <Board decoded={decoded} subMoves={subMoves} arrowColor={arrowColor} roll={selected.roll} />
         ) : (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No position data for this decision.
-          </p>
+          <p className={style.emptyState}>No position data for this decision.</p>
         )}
 
         {selected && (
-          <div className="flex flex-wrap items-stretch justify-center gap-2 text-xs">
-            <div className="flex items-center gap-1 rounded-lg border border-black/10 bg-zinc-50 px-3 py-1.5 dark:border-white/15 dark:bg-zinc-800">
-              <span className="text-zinc-500 dark:text-zinc-400">Game</span>
-              <span className="font-semibold text-black dark:text-zinc-50">{selected.gameIndex}</span>
+          <div className={style.infoRow}>
+            <div className={style.gameBadge}>
+              <span className={style.gameBadgeLabel}>Game</span>
+              <span className={style.gameBadgeValue}>{selected.gameIndex}</span>
             </div>
             {onSelectTab ? (
               <>
                 <button
                   type="button"
                   onClick={() => onSelectTab("my")}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 transition-colors ${
-                    selected.severity === "blunder"
-                      ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-                      : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                  } ${moveTab === "my" ? "ring-1 ring-inset ring-black/30 dark:ring-white/40" : "opacity-70 hover:opacity-100"}`}
+                  className={style.myMoveBadge({ severity: selected.severity, isActive: moveTab === "my" })}
                 >
-                  <span className="font-mono font-semibold">{selected.myLabel}</span>
-                  <span className="opacity-70">({selected.absError.toFixed(3)})</span>
+                  <span className={style.moveNotation}>{selected.myLabel}</span>
+                  <span className={style.mutedLabel}>({selected.absError.toFixed(3)})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => onSelectTab("best")}
-                  className={`flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 transition-colors dark:border-green-800 dark:bg-green-950 dark:text-green-300 ${
-                    moveTab === "best" ? "ring-1 ring-inset ring-black/30 dark:ring-white/40" : "opacity-70 hover:opacity-100"
-                  }`}
+                  className={style.bestMoveButton(moveTab === "best")}
                 >
-                  <span className="font-mono font-semibold">{selected.bestLabel}</span>
+                  <span className={style.moveNotation}>{selected.bestLabel}</span>
                 </button>
               </>
             ) : (
               <>
-                <div
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
-                    selected.severity === "blunder"
-                      ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-                      : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                  }`}
-                >
-                  <span className="opacity-70">My move</span>
-                  <span className="font-mono font-semibold">{selected.myLabel}</span>
-                  <span className="opacity-70">({selected.absError.toFixed(3)})</span>
+                <div className={style.myMoveStatic(selected.severity)}>
+                  <span className={style.mutedLabel}>My move</span>
+                  <span className={style.moveNotation}>{selected.myLabel}</span>
+                  <span className={style.mutedLabel}>({selected.absError.toFixed(3)})</span>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
-                  <span className="opacity-70">Best move</span>
-                  <span className="font-mono font-semibold">{selected.bestLabel}</span>
+                <div className={style.bestMoveStatic}>
+                  <span className={style.mutedLabel}>Best move</span>
+                  <span className={style.moveNotation}>{selected.bestLabel}</span>
                 </div>
               </>
             )}

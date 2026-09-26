@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useGameStatsAuth } from "@/app/GameStatsProvider";
 import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import MistakesSection from "@/app/components/match-analysis/MistakesSection";
+import { style } from "./galaxyMatchDetail.styles";
 
 const MAX_GAMES = 20;
 
@@ -98,20 +99,12 @@ export default function GalaxyMatchAnalysisPage() {
   if (!token) return null;
 
   return (
-    <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex w-full max-w-7xl flex-col gap-6 px-6 py-12">
-        <div className="flex w-full max-w-2xl flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            Match {matchId}
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {loading || (!error && status) ? status : null}
-          </p>
-          {error && (
-            <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-              {error}
-            </p>
-          )}
+    <div className={style.pageContainer}>
+      <main className={style.main}>
+        <div className={style.headerBlock}>
+          <h1 className={style.title}>Match {matchId}</h1>
+          <p className={style.statusText}>{loading || (!error && status) ? status : null}</p>
+          {error && <p className={style.errorBox}>{error}</p>}
         </div>
 
         <MistakesSection games={games} />
