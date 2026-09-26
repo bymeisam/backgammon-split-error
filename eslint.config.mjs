@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The visual-regression suite's dedicated dev server output (see
+    // playwright.config.ts, next.config.ts's distDir override) — same kind
+    // of auto-generated, unlinted content as .next/** above, just under a
+    // different name since both can't share one distDir.
+    ".next-test/**",
   ]),
 ]);
 

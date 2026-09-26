@@ -13,8 +13,17 @@
 # testing
 /coverage
 
+# Playwright's transient run output (actual/diff images, traces, HTML
+# report) — not the baselines themselves, which live in
+# e2e/*.spec.ts-snapshots/ and ARE committed (see e2e/README.md).
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+
 # next.js
 /.next/
+/.next-test/
 /out/
 
 # production

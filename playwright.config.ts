@@ -1,0 +1,91 @@
+import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
+
+// Visual regression only — a separate suite/runner from Vitest
+// (vitest.config.ts), run via `npm run test:visual`, not part of `npm test`.
+// Scoped tightly to e2e/ (see e2e/board-visual.spec.ts): BoardPanel
+// screenshots across its three real page call sites, not general page
+// coverage. See e2e/README.md for the baseline-update workflow.
+
+// dotenv.parse (not dotenv.config) deliberately — this must NOT mutate
+// process.env; it's read into a plain object and passed only to the
+// dedicated webServer entry's own `env` below.
+const testDbEnv = dotenv.parse(fs.readFileSync(path.resolve(__dirname, ".env.test")));
+
+export default defineConfig({
+  testDir: "./e2e",
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  // 2 everywhere, not just CI: measured that headless Chromium's rendering
+  // of some diagonal-arrow board states isn't fully deterministic between
+  // process runs even with --disable-gpu below (~1% pixel jitter, never
+  // twice in a row for the same test in repeated local testing) — the
+  // standard mitigation for this exact class of noise. maxDiffPixelRatio
+  // stays 0 (see below) rather than widening the tolerance instead: a real
+  // regression fails the same way on every retry, this jitter doesn't, so
+  // retries catch the real/noise distinction that a looser pixel tolerance
+  // can't (a real single-arrow bug measured the same ~1% magnitude).
+  retries: 2,
+  reporter: [["list"]],
+  use: {
+    // :3100, not :3000 — a dedicated server (see webServer below), never
+    // the real dev server. All 12 tests run against it: the 8
+    // /matches-/galaxy-matches ones don't care (their fetches are fully
+    // mocked, so which server/DB serves the page shell is irrelevant), and
+    // the 4 /mistakes ones need it specifically (DATABASE_URL pointed at
+    // the seeded bg_test schema instead of whatever the real .env has).
+    baseURL: "http://localhost:3100",
+    viewport: { width: 1400, height: 900 },
+    deviceScaleFactor: 1,
+    trace: "retain-on-failure",
+  },
+  expect: {
+    // maxDiffPixelRatio/maxDiffPixels deliberately left at 0: measured that
+    // a real one-arrow-path regression (a wrong move drawn) only touches
+    // ~1% of this image's pixels, the same order of magnitude as GPU
+    // compositor anti-aliasing jitter on diagonal SVG lines between runs of
+    // byte-identical data — any pixel-count allowance big enough to absorb
+    // that noise would also hide that class of real bug. Fixed the noise at
+    // its source instead (--disable-gpu below), not by loosening the
+    // comparison.
+    toHaveScreenshot: { animations: "disabled", maxDiffPixelRatio: 0 },
+  },
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // Headless Chromium's GPU-compositor path rasterizes diagonal SVG
+        // lines with a few px of run-to-run jitter even for byte-identical
+        // markup (measured: ~1% of the board-panel image, on the same
+        // order of magnitude as a real one-arrow regression — see above).
+        // Software rendering is deterministic, which is why this is here
+        // instead of a looser pixel tolerance.
+        launchOptions: { args: ["--disable-gpu"] },
+      },
+    },
+  ],
+  // One dedicated server, port 3100, DATABASE_URL/DATABASE_URL_READONLY
+  // overridden to the seeded bg_test schema (.env.test, e2e/README.md,
+  // e2e/seed-test-db.ts) — never the real .env's values, and never the
+  // real dev server on :3000 (a second `next dev` for the same project
+  // can't share that one anyway — it refuses to start a second instance
+  // against the same .next build dir). The 8 /matches-/galaxy-matches
+  // tests run against this same server too — harmless, since their
+  // fetches are all mocked via page.route() (see board-visual.spec.ts), so
+  // which DB the server is connected to never actually matters to them;
+  // only /mistakes (a server component querying Prisma directly) needs
+  // bg_test specifically. NEXT_DIST_DIR (see next.config.ts) points this
+  // instance at its own .next-test build dir, since a second `next dev`
+  // for the same project otherwise refuses to start (a lock file inside
+  // distDir) regardless of port.
+  webServer: {
+    command: "npm run dev -- -p 3100",
+    url: "http://localhost:3100",
+    reuseExistingServer: true,
+    timeout: 120_000,
+    env: { ...testDbEnv, NEXT_DIST_DIR: ".next-test" },
+  },
+});

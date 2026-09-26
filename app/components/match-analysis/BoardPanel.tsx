@@ -51,7 +51,10 @@ export default function BoardPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
+      <div
+        data-testid="board-panel"
+        className="flex flex-col items-center gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900"
+      >
         {!selected ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             No mistakes in this scope to show on the board.

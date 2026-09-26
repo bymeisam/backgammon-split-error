@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:visual": "playwright test",
     "postinstall": "prisma generate",
     "backfill": "tsx scripts/backfill.ts",
     "sync:incremental": "tsx scripts/incremental-sync.ts",
@@ -24,6 +25,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
