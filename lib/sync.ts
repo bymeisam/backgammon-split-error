@@ -10,6 +10,7 @@ import { createGalaxyClient } from "@/lib/galaxy-client";
 import { ingestMatch, type MatchIndexData } from "@/lib/ingest";
 import { appendSyncErrorLog } from "@/lib/errorLog";
 import { recomputeMistakeStats } from "@/lib/recompute-mistake-stats";
+import { recomputeRepeatedPositions } from "@/lib/recompute-repeated-positions";
 
 const SOURCE = "galaxy";
 
@@ -263,6 +264,16 @@ export async function runSync({
   } catch (e) {
     console.error(
       `Failed to recompute MistakeStat: ${e instanceof Error ? e.message : "unknown error"}`
+    );
+  }
+
+  // Same reasoning/placement as recomputeMistakeStats above — own try/catch
+  // so a failure here can't erase an otherwise-successful sync run.
+  try {
+    await recomputeRepeatedPositions();
+  } catch (e) {
+    console.error(
+      `Failed to recompute RepeatedPosition: ${e instanceof Error ? e.message : "unknown error"}`
     );
   }
 

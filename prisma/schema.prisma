@@ -149,3 +149,35 @@ model MistakeStat {
 
   @@unique([classification, category, errorSeverity])
 }
+
+// Precomputed "faced/erred on this exact board position more than once"
+// breakdown — same recompute-in-full-on-every-sync pattern as MistakeStat
+// above (see lib/recompute-repeated-positions.ts, also called from
+// lib/sync.ts's runSync). Only ever populated with groups whose count is
+// > 1 (see the recompute function) — a row existing here always means a
+// real repeat, not every distinct position. CHECKER decisions only: cube
+// decisions have no comparable "same board, multiple candidate moves"
+// framing (confirmed during investigation — see PROGRESS.md), so they're
+// excluded entirely rather than mixed in. errorSeverity reuses the real
+// ErrorSeverity enum (matching MistakeStat's own errorSeverity field, and
+// for the same reason given in MistakeStat's comment: a real enum already
+// exists for this, so it stays typed rather than a plain string).
+//
+// sourcePositionId is an externally-sourced string identifier (Galaxy's
+// own GNU Position ID, via reviews[0].source_position.formatted_value —
+// NOT final.gnubgid, confirmed during investigation) — pinned to a
+// case-sensitive/binary collation by hand in the migration SQL, same as
+// Match.sourceMatchId/PlayerIdentity.sourceUserId/Decision.userId/
+// Decision.cubeOwnerUserId (see docs/field-mapping.md's "Collation for
+// externally-sourced identifiers" section, updated alongside this model).
+model RepeatedPosition {
+  id               Int           @id @default(autoincrement())
+  sourcePositionId String        @db.VarChar(191)
+  classification   String
+  errorSeverity    ErrorSeverity
+  occurrenceCount  Int
+  computedAt       DateTime
+
+  @@unique([sourcePositionId, errorSeverity])
+  @@index([classification, errorSeverity])
+}

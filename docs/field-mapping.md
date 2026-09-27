@@ -20,7 +20,8 @@ unique constraint — even a plain `WHERE userId = ...` lookup is vulnerable
 to a false match under a case-insensitive collation.
 
 Columns currently pinned this way: `Match.sourceMatchId`,
-`PlayerIdentity.sourceUserId`, `Decision.userId`, `Decision.cubeOwnerUserId`.
+`PlayerIdentity.sourceUserId`, `Decision.userId`, `Decision.cubeOwnerUserId`,
+`RepeatedPosition.sourcePositionId`.
 
 `Decision.eventId` is also an externally-sourced identifier (Galaxy's own
 event ID), but it does not need a collation pin — collation only governs
