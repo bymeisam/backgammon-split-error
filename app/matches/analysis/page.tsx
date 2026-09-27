@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { ErrorSeverity, type MistakeStat } from "@/lib/generated/prisma/client";
+import { getClassificationLabel } from "@/lib/classificationLabels";
 
 // Server component, queried fresh on every request (no caching) — same
 // "reflect current DB state" requirement /status follows. Reads only
@@ -109,7 +110,9 @@ function BreakdownTable({
               key={r.key}
               className="border-b border-black/5 last:border-b-0 dark:border-white/10"
             >
-              <td className="px-3 py-2 text-black dark:text-zinc-100">{r.key}</td>
+              <td className="px-3 py-2 text-black dark:text-zinc-100">
+                {paramName === "classification" ? getClassificationLabel(r.key) : r.key}
+              </td>
               <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
                 <CountLink href={mistakesHref(paramName, r.key, "blunder")} count={r.blunderCount} />
               </td>

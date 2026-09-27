@@ -7,6 +7,7 @@ import DecisionListWithDetail from "@/app/components/match-analysis/DecisionList
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import type { severityBadges, classificationBadges } from "@/lib/badges";
+import { getClassificationLabel } from "@/lib/classificationLabels";
 import { style } from "./repeatedPositions.styles";
 
 // Server component, queried fresh on every request — same pattern
@@ -52,17 +53,23 @@ function FilterSelect({
   name,
   current,
   options,
+  labelFor,
 }: {
   name: string;
   current: string | undefined;
   options: string[];
+  // Optional: defaults to the raw (lowercased) value, same as before.
+  // Passed getClassificationLabel for the classification dropdown
+  // specifically — severity has no separate label mapper (its raw values
+  // already read fine: "blunder", "error", etc.).
+  labelFor?: (value: string) => string;
 }) {
   return (
     <select name={name} defaultValue={current ?? ""} className={style.filterSelect}>
       <option value="">All</option>
       {options.map((value) => (
         <option key={value} value={value.toLowerCase()}>
-          {value.toLowerCase()}
+          {labelFor ? labelFor(value) : value.toLowerCase()}
         </option>
       ))}
     </select>
@@ -82,7 +89,12 @@ async function FilterSelects({
     <>
       <label className={style.filterLabel}>
         Classification
-        <FilterSelect name="classification" current={classification} options={classifications} />
+        <FilterSelect
+          name="classification"
+          current={classification}
+          options={classifications}
+          labelFor={getClassificationLabel}
+        />
       </label>
       <label className={style.filterLabel}>
         Severity
@@ -139,7 +151,10 @@ async function PositionListSection({ filters }: { filters: Filters }) {
     severity: severityParam,
     pageSize: String(pageSize),
   };
-  const filterDescription = [classification, severityParam].filter(Boolean).join(" ") || "all";
+  const filterDescription =
+    [classification ? getClassificationLabel(classification) : undefined, severityParam]
+      .filter(Boolean)
+      .join(" ") || "all";
 
   return (
     <>
@@ -321,7 +336,7 @@ async function PositionDetailSection({
       </div>
       <p className={style.mutedText}>
         {items.length} occurrence{items.length === 1 ? "" : "s"} of this position (
-        {position.classification}, {position.errorSeverity.toLowerCase()}).
+        {getClassificationLabel(position.classification)}, {position.errorSeverity.toLowerCase()}).
       </p>
       <DecisionListWithDetail items={items} showClassification={false} />
     </>

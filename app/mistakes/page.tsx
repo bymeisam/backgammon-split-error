@@ -7,6 +7,7 @@ import {
 } from "@/lib/generated/prisma/client";
 import { decisionFromRow, buildRollLookup } from "@/lib/decisionFromRow";
 import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
+import { getClassificationLabel } from "@/lib/classificationLabels";
 import { style } from "./mistakes.styles";
 
 // Server component, queried fresh on every request (no caching) — same
@@ -63,17 +64,23 @@ function FilterSelect({
   name,
   current,
   options,
+  labelFor,
 }: {
   name: string;
   current: string | undefined;
   options: string[];
+  // Optional: defaults to the raw (lowercased) value, same as before.
+  // Passed getClassificationLabel for the classification dropdown
+  // specifically — category/severity have no separate label mapper (their
+  // raw values already read fine: "checker", "blunder", etc.).
+  labelFor?: (value: string) => string;
 }) {
   return (
     <select name={name} defaultValue={current ?? ""} className={style.filterSelect}>
       <option value="">All</option>
       {options.map((value) => (
         <option key={value} value={value.toLowerCase()}>
-          {value.toLowerCase()}
+          {labelFor ? labelFor(value) : value.toLowerCase()}
         </option>
       ))}
     </select>
@@ -95,7 +102,12 @@ async function FilterSelects({
     <>
       <label className={style.filterLabel}>
         Classification
-        <FilterSelect name="classification" current={classification} options={classifications} />
+        <FilterSelect
+          name="classification"
+          current={classification}
+          options={classifications}
+          labelFor={getClassificationLabel}
+        />
       </label>
       <label className={style.filterLabel}>
         Category
@@ -216,7 +228,9 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
     pageSize: String(pageSize),
   };
   const filterDescription =
-    [classification, categoryParam, severityParam].filter(Boolean).join(" ") || "all";
+    [classification ? getClassificationLabel(classification) : undefined, categoryParam, severityParam]
+      .filter(Boolean)
+      .join(" ") || "all";
 
   return (
     <>

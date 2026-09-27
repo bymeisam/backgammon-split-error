@@ -1,4 +1,5 @@
 import type { BadgeConfig } from "@/app/components/ui/Badge";
+import { CLASSIFICATION_OPTIONS } from "@/lib/classificationLabels";
 
 // Reuses MistakesSection.tsx's existing two-tone my-move/best-move palette
 // exactly (red for blunder, amber for anything else) rather than inventing
@@ -13,28 +14,41 @@ export const severityBadges: Record<string, BadgeConfig> = {
   none: { code: "-", label: "No mistake" },
 };
 
-// All 17 real classification values (confirmed live via /mistakes's
-// MistakeStat-sourced filter dropdown — see app/mistakes/page.tsx's
-// getFilterOptions). Deliberately no per-value color: classification badges
-// are for quick text identification only, not a signal competing with
-// severity's color coding, so `color` is left unset (Badge's neutral
-// default) for every entry here.
-export const classificationBadges: Record<string, BadgeConfig> = {
-  "6_prime": { code: "6PR", label: "6-Prime" },
-  attacking_game: { code: "AG", label: "Attacking Game" },
-  blitz: { code: "BLZ", label: "Blitz" },
-  close_out: { code: "CO", label: "Close Out" },
-  crunching_game: { code: "CG", label: "Crunching Game" },
-  deep_anchor_game: { code: "DAG", label: "Deep Anchor Game" },
-  early_backgame: { code: "EBG", label: "Early Backgame" },
-  early_blitz: { code: "EBZ", label: "Early Blitz" },
-  end_game_contact: { code: "EGC", label: "End Game Contact" },
-  holding_game: { code: "HG", label: "Holding Game" },
-  late_backgame: { code: "LBG", label: "Late Backgame" },
-  late_game_hit: { code: "LGH", label: "Late Game Hit" },
-  middle_game: { code: "MG", label: "Middle Game" },
-  mutual_holding_game: { code: "MHG", label: "Mutual Holding Game" },
-  one_man_back: { code: "OMB", label: "One Man Back" },
-  opening_game: { code: "OG", label: "Opening Game" },
-  race: { code: "RACE", label: "Race" },
+// Short 2-4 char codes for the compact badge itself — a Badge-display-only
+// concern (collision-avoidance within a small visual footprint), not
+// something lib/classificationLabels.ts's mapper needs to know about.
+// Labels (the tooltip text) come from that mapper instead of being
+// hand-maintained a second time here — see the comment above it for why
+// (single source of truth; this map used to define its own "Opening Game"
+// label for opening_game, which had drifted from the wording the mapper
+// now uses, "Opening").
+const CLASSIFICATION_CODES: Record<string, string> = {
+  "6_prime": "6PR",
+  attacking_game: "AG",
+  blitz: "BLZ",
+  close_out: "CO",
+  crunching_game: "CG",
+  deep_anchor_game: "DAG",
+  early_backgame: "EBG",
+  early_blitz: "EBZ",
+  end_game_contact: "EGC",
+  holding_game: "HG",
+  late_backgame: "LBG",
+  late_game_hit: "LGH",
+  middle_game: "MG",
+  mutual_holding_game: "MHG",
+  one_man_back: "OMB",
+  opening_game: "OG",
+  race: "RACE",
 };
+
+// Deliberately no per-value color: classification badges are for quick
+// text identification only, not a signal competing with severity's color
+// coding, so `color` is left unset (Badge's neutral default) for every
+// entry here.
+export const classificationBadges: Record<string, BadgeConfig> = Object.fromEntries(
+  CLASSIFICATION_OPTIONS.map(({ value, label }) => [
+    value,
+    { code: CLASSIFICATION_CODES[value] ?? value, label },
+  ])
+);
