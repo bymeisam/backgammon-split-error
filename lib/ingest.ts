@@ -7,7 +7,12 @@
 import { prisma } from "@/lib/prisma";
 import { createGalaxyClient } from "@/lib/galaxy-client";
 import { DecisionKind, ErrorSeverity } from "@/lib/generated/prisma/client";
-import type { Review } from "@/lib/gameReviewsTypes";
+import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
+
+// How many of a game's own CHECKER decisions get a plyNumber at all —
+// deeper plies aren't a useful filter dimension (see Decision.plyNumber's
+// own schema comment).
+const MAX_TRACKED_PLY = 4;
 
 const MAX_GAMES = 20;
 
@@ -167,6 +172,37 @@ function decisionKindFor(analysedEvent: string): DecisionKind | null {
   }
 }
 
+// Ordinal position (1, 2, 3, ...) among this game's own CHECKER decisions,
+// ordered by eventId ascending — computed once per game, up front, rather
+// than via a running counter as events are processed in whatever order the
+// API happens to return them (confirmed elsewhere in this file, see the
+// playedAt comment below, that events aren't assumed to already be in
+// eventId order). Eligibility mirrors exactly what actually becomes a
+// CHECKER Decision row further down this file: has a review, resolves to
+// CHECKER kind, and error_analysis isn't null (an event failing either
+// check never gets a Decision row at all, so it must never consume a ply
+// slot either). Returns a lookup from eventId -> plyNumber for only the
+// first MAX_TRACKED_PLY such events; every other CHECKER event's plyNumber
+// is null (see Decision.plyNumber's own schema comment for why deeper plies
+// aren't tracked).
+function checkerPlyByEventId(events: GameEvent[]): Map<number, number> {
+  const orderedEventIds = events
+    .filter((event) => {
+      const review = event.reviews?.[0];
+      if (!review) return false;
+      if (decisionKindFor(review.result.analysed_event) !== DecisionKind.CHECKER) return false;
+      return review.result.result.error_analysis !== null;
+    })
+    .map((event) => event.id)
+    .sort((a, b) => a - b);
+
+  const plyByEventId = new Map<number, number>();
+  orderedEventIds.slice(0, MAX_TRACKED_PLY).forEach((eventId, index) => {
+    plyByEventId.set(eventId, index + 1);
+  });
+  return plyByEventId;
+}
+
 export async function ingestMatch(
   matchId: number,
   indexData: MatchIndexData,
@@ -240,6 +276,7 @@ export async function ingestMatch(
     // happened for this app's original 2026-09 backfill (see
     // scripts/backfill-played-at.ts for the one-time consequence of that).
     const decisionTimestampsByEventId: { eventId: number; timestamp: Date }[] = [];
+    const plyByEventId = checkerPlyByEventId(response.data.events);
 
     for (const event of response.data.events) {
       if (me && opponentUserId === null && event.user_id && event.user_id !== me.sourceUserId) {
@@ -333,6 +370,7 @@ export async function ingestMatch(
           equity: review.result.result.equity,
           mwc: probabilities.mwc_context !== null ? probabilities.mwc : null,
           classification,
+          plyNumber: plyByEventId.get(event.id) ?? null,
           matchScoreBlack: metadata.scores?.black ?? null,
           matchScoreWhite: metadata.scores?.white ?? null,
           crawfordState: metadata.crawford_state,

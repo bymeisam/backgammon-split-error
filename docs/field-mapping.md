@@ -224,6 +224,7 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `equity` | `result.result.equity` (the decision-level equity, not a per-candidate-move one). |
 | `mwc` | `probabilities.mwc`, but only when `probabilities.mwc_context` is non-null — forced to `null` otherwise. |
 | `classification` | **`review.source_position.classification` only — never `destination_position`.** The analysis is about the quality of a decision made *at* a position, so the phase that matters is the board state before the move (source), not after (destination); falling back to destination would silently mislabel the decision's phase. If `source_position`/`.classification` is ever actually missing, ingest throws for that one decision (caught, recorded in the ingest summary's `errors`) rather than silently substituting destination. |
+| `plyNumber` | Not in the payload directly — computed at ingest from `eventId` order alone (see "Ply number" below). `1`-`4` for a game's first four `CHECKER` decisions (by `eventId` ascending), `null` beyond that and always `null` for `CUBE`/`RESIGNATION` kind. |
 | `matchScoreBlack` | `metadata.scores?.black`, nullable. `metadata.scores` is `null` for money-game-type matches (confirmed against a real match: `scores: null` *and* `match_length: null` together, consistently across every decision in the match) — there's no running match score to report for a match that isn't played to a fixed length. Not a data quality issue, a real category of match the original schema didn't account for. |
 | `matchScoreWhite` | `metadata.scores?.white`, nullable — same reasoning as `matchScoreBlack`. |
 | `crawfordState` | `metadata.crawford_state`. **Investigated and confirmed non-nullable** — even for money-game-type matches (where `scores`/`match_length` are null), `crawford_state` is still always a real string (`"none"` in every case checked, since the Crawford rule doesn't apply outside match play, but it's reported as a normal value rather than omitted). Recorded here so this isn't re-investigated later. |
@@ -239,6 +240,57 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `timestamp` | `metadata.timestamp` |
 | `myTag` | No source field yet — always `null`. |
 | `raw` | The complete original `event` object (not just `reviews[0]`) — the zero-blind-spot archive `getGameReviews` reconstructs a game's events array from. |
+
+### Ply number
+
+`Decision.plyNumber` (and the mirrored `RepeatedPosition.plyNumber`, an
+independent grouping dimension on that precomputed aggregate alongside
+`classification`/`errorSeverity`) is a game's own `CHECKER` decisions
+numbered 1, 2, 3, 4 in `eventId` order — `null` beyond the fourth, and
+always `null` for `CUBE`/`RESIGNATION` kind (deeper plies aren't a useful
+filter dimension; see `lib/ingest.ts`'s `checkerPlyByEventId`).
+
+**This replaced an earlier, now fully removed approach.** The original
+"Opening (first move)" vs. "Opening (response)" filter split
+`classification: opening_game` into two dropdown options by matching each
+decision's source position against `STARTING_POSITION_ID`, a hardcoded GNU
+Position ID (`4HPwATDgc/ABMA`) for the standard backgammon starting
+position. That worked, but it was chosen for the wrong reason: it's a
+**Galaxy-specific encoding artifact** — the GNU Position ID format is one
+particular way of serializing a board position, and matching against a
+literal constant in that format has no equivalent in a different data
+source's encoding. This app already has a future data source on its
+roadmap (importing `.xgp`/`.xg` files, XG's own formats) that would need an
+entirely separate position-matching constant and comparison logic, with no
+guarantee its encoding even supports the same kind of exact-string
+equality check GNU Position IDs happen to allow.
+
+Ordinal ply position has no such dependency. "The Nth checker decision of
+this game" is a property of *when* a decision happens in a game's move
+sequence, not of *how* any particular data source chooses to serialize the
+resulting board state — every plausible future source reports decisions in
+some game-relative order, so the same `eventId`-ascending counting rule
+(or that source's equivalent ordering field) applies unchanged. This is why
+it's modeled as a genuinely separate, independent filter dimension (`ply`,
+usable alongside `classification`, not a per-classification split) rather
+than another `extraFilter` layered onto `CLASSIFICATION_OPTIONS` the old
+approach used — the two dimensions don't need to know about each other.
+
+One data point worth recording: the old approach's "response" bucket
+(`opening_game` rows *not* matching `STARTING_POSITION_ID`) counted 30,985
+rows against the "first move" bucket's 15,395 — an unexplained ~2:1 ratio,
+since a game's very first response should be roughly as common as its very
+first move. Ordinal ply resolves this cleanly: ply 1 and ply 2 come out to
+15,311 and 15,200 respectively (see `scripts/backfill-ply-number.ts`'s
+output, and `PROGRESS.md`'s entry for this change) — a genuine, expected
+near-1:1 ratio. The old discrepancy was an artifact of position-ID matching
+(most likely: a meaningful slice of "opening_game" decisions whose source
+position isn't the literal starting position turn out to still be
+*earlier* than the classification's typical response point once measured
+by ply directly, or some other position-matching quirk) rather than a real
+gameplay asymmetry — not fully root-caused, and no longer relevant now that
+the whole matching approach is gone, but recorded here since it's a
+concrete illustration of why ply is the more robust dimension.
 
 ### Events skipped via null `error_analysis`
 

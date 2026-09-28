@@ -104,6 +104,18 @@ model Decision {
   matchScoreBlack Int?
   matchScoreWhite Int?
   crawfordState   String
+  // Ordinal position among this game's own CHECKER decisions, ordered by
+  // eventId ascending: 1 for the first, 2 for the second, etc., up to 4 —
+  // null beyond that (deeper plies aren't a useful filter dimension). Always
+  // null for CUBE/RESIGNATION kind. Computed at ingest time (lib/ingest.ts)
+  // from eventId order alone — a plain per-row attribute, same category as
+  // classification/kind/errorSeverity, not a derived/precomputed summary
+  // table. Chosen over Galaxy-specific position-ID matching (the previous
+  // "opening first move/response" approach) specifically because ordinal
+  // ply position is a universal concept independent of any one data
+  // source's position-encoding format — see docs/field-mapping.md's "Ply
+  // number" section for the full reasoning.
+  plyNumber       Int?
   cubeOwnerUserId String?       @db.VarChar(191)
   notationPlayed  String?
   notationBest    String?
@@ -175,9 +187,18 @@ model RepeatedPosition {
   sourcePositionId String        @db.VarChar(191)
   classification   String
   errorSeverity    ErrorSeverity
+  // Same ordinal-ply attribute as Decision.plyNumber (see its own comment),
+  // carried onto this precomputed aggregate as an independent grouping
+  // dimension alongside classification/errorSeverity — a real position
+  // within the first 4 plies always arises at the same fixed ply across
+  // every occurrence (it takes exactly that many prior checker decisions to
+  // reach it), so this refines existing groups rather than fragmenting
+  // them. Null for positions beyond ply 4, same as the source column.
+  plyNumber        Int?
   occurrenceCount  Int
   computedAt       DateTime
 
-  @@unique([sourcePositionId, errorSeverity])
+  @@unique([sourcePositionId, errorSeverity, plyNumber])
   @@index([classification, errorSeverity])
+  @@index([plyNumber])
 }

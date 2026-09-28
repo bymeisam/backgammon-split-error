@@ -1,5 +1,5 @@
 import type { BadgeConfig } from "@/app/components/ui/Badge";
-import { CLASSIFICATION_OPTIONS } from "@/lib/classificationLabels";
+import { CLASSIFICATION_LABELS_BY_RAW_VALUE } from "@/lib/classificationLabels";
 
 // Reuses MistakesSection.tsx's existing two-tone my-move/best-move palette
 // exactly (red for blunder, amber for anything else) rather than inventing
@@ -17,11 +17,13 @@ export const severityBadges: Record<string, BadgeConfig> = {
 // Short 2-4 char codes for the compact badge itself — a Badge-display-only
 // concern (collision-avoidance within a small visual footprint), not
 // something lib/classificationLabels.ts's mapper needs to know about.
-// Labels (the tooltip text) come from that mapper instead of being
-// hand-maintained a second time here — see the comment above it for why
-// (single source of truth; this map used to define its own "Opening Game"
-// label for opening_game, which had drifted from the wording the mapper
-// now uses, "Opening").
+// Labels (the tooltip text) come from that mapper's raw-value map instead of
+// being hand-maintained a second time here — see the comment above it for
+// why (single source of truth; this map used to define its own "Opening
+// Game" label for opening_game, which had drifted from the wording the
+// mapper now uses, "Opening"). Keyed by the same 17 real raw classification
+// values as CLASSIFICATION_LABELS_BY_RAW_VALUE below, since a badge is
+// always given an actual row's raw classification.
 const CLASSIFICATION_CODES: Record<string, string> = {
   "6_prime": "6PR",
   attacking_game: "AG",
@@ -47,7 +49,7 @@ const CLASSIFICATION_CODES: Record<string, string> = {
 // coding, so `color` is left unset (Badge's neutral default) for every
 // entry here.
 export const classificationBadges: Record<string, BadgeConfig> = Object.fromEntries(
-  CLASSIFICATION_OPTIONS.map(({ value, label }) => [
+  Object.entries(CLASSIFICATION_LABELS_BY_RAW_VALUE).map(([value, label]) => [
     value,
     { code: CLASSIFICATION_CODES[value] ?? value, label },
   ])

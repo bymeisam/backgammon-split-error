@@ -32,6 +32,13 @@ interface RawRow {
   sourcePositionId: string | null;
   classification: string;
   errorSeverity: ErrorSeverity;
+  // Real Decision column now (see Decision.plyNumber's schema comment) —
+  // grouped alongside sourcePositionId/errorSeverity below as an
+  // independent dimension. A real position within the first 4 plies always
+  // arises at the same fixed ply across every occurrence (see
+  // RepeatedPosition.plyNumber's own schema comment), so this refines
+  // existing groups rather than fragmenting them.
+  plyNumber: number | null;
 }
 
 export async function recomputeRepeatedPositions(): Promise<void> {
@@ -39,14 +46,21 @@ export async function recomputeRepeatedPositions(): Promise<void> {
     SELECT
       JSON_UNQUOTE(JSON_EXTRACT(raw, '$.reviews[0].source_position.formatted_value')) AS sourcePositionId,
       classification,
-      errorSeverity
+      errorSeverity,
+      plyNumber
     FROM Decision
     WHERE kind = 'CHECKER' AND countAsDecision = 1 AND rawError IS NOT NULL
   `;
 
   const groups = new Map<
     string,
-    { sourcePositionId: string; classification: string; errorSeverity: ErrorSeverity; count: number }
+    {
+      sourcePositionId: string;
+      classification: string;
+      errorSeverity: ErrorSeverity;
+      plyNumber: number | null;
+      count: number;
+    }
   >();
 
   for (const row of rows) {
@@ -54,7 +68,7 @@ export async function recomputeRepeatedPositions(): Promise<void> {
     // investigation — this guard is a safety net, not an expected path.
     if (!row.sourcePositionId) continue;
 
-    const key = `${row.sourcePositionId}:${row.errorSeverity}`;
+    const key = `${row.sourcePositionId}:${row.errorSeverity}:${row.plyNumber ?? "null"}`;
     const existing = groups.get(key);
     if (existing) {
       existing.count++;
@@ -63,22 +77,24 @@ export async function recomputeRepeatedPositions(): Promise<void> {
         sourcePositionId: row.sourcePositionId,
         classification: row.classification,
         errorSeverity: row.errorSeverity,
+        plyNumber: row.plyNumber,
         count: 1,
       });
     }
   }
 
   const computedAt = new Date();
-  // Only real repeats — a position/severity pair seen exactly once isn't a
-  // "repeated position" at all, and keeping it here would make this table
-  // roughly the size of Decision itself instead of the small, genuinely
-  // interesting subset it's meant to be.
+  // Only real repeats — a position/severity/ply combination seen exactly
+  // once isn't a "repeated position" at all, and keeping it here would make
+  // this table roughly the size of Decision itself instead of the small,
+  // genuinely interesting subset it's meant to be.
   const data = [...groups.values()]
     .filter((g) => g.count > 1)
     .map((g) => ({
       sourcePositionId: g.sourcePositionId,
       classification: g.classification,
       errorSeverity: g.errorSeverity,
+      plyNumber: g.plyNumber,
       occurrenceCount: g.count,
       computedAt,
     }));

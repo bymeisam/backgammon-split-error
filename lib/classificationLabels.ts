@@ -4,73 +4,106 @@
 // same point) into human-readable labels for dropdowns/badges/displayed
 // text. Nothing else in this codebase should hand-write a
 // classification -> label mapping of its own — see lib/badges.ts's
-// classificationBadges, which now derives its labels from here instead of
+// classificationBadges, which derives its labels from here instead of
 // maintaining a second, potentially-drifting copy.
 //
-// The 17 values themselves aren't guessed — confirmed live earlier this
-// session via /mistakes's MistakeStat-sourced filter dropdown (see
-// PROGRESS.md's 2026-09-24 badge entries), the same list lib/badges.ts's
-// classificationBadges already uses.
-export interface ClassificationOption {
-  // Unique key this option is selected/queried by — a dropdown's `value`
-  // attribute and the corresponding URL query param value. For every
-  // option below this is identical to `classification` (a plain 1:1
-  // mapping onto a real Decision.classification value), but doesn't have
-  // to stay that way: a future option representing a SUBSET of one
-  // classification (e.g. splitting opening_game into "Opening (first
-  // move)" vs "Opening (response)" — a later task, not this one) would
-  // get its own distinct value here while still pointing at the same
-  // classification underneath via the field below.
-  value: string;
-  // Human-readable label for dropdowns, badge tooltips, and any other
-  // displayed text.
-  label: string;
-  // The real Decision.classification value this option filters on.
-  classification: string;
-  // Extra Prisma `where` conditions beyond matching `classification`, for
-  // an option that represents a subset of one classification rather than
-  // the whole thing. Unused by every option below — all 17 are plain 1:1
-  // mappings today — this field exists so a future option (e.g. "Opening
-  // (response)") can add whatever extra condition it needs without a
-  // second, parallel lookup structure being invented for it later.
-  extraFilter?: Record<string, unknown>;
-}
-
-export const CLASSIFICATION_OPTIONS: ClassificationOption[] = [
-  { value: "6_prime", label: "6-Prime", classification: "6_prime" },
-  { value: "attacking_game", label: "Attacking Game", classification: "attacking_game" },
-  { value: "blitz", label: "Blitz", classification: "blitz" },
-  { value: "close_out", label: "Close Out", classification: "close_out" },
-  { value: "crunching_game", label: "Crunching Game", classification: "crunching_game" },
-  { value: "deep_anchor_game", label: "Deep Anchor Game", classification: "deep_anchor_game" },
-  { value: "early_backgame", label: "Early Backgame", classification: "early_backgame" },
-  { value: "early_blitz", label: "Early Blitz", classification: "early_blitz" },
-  { value: "end_game_contact", label: "End Game Contact", classification: "end_game_contact" },
-  { value: "holding_game", label: "Holding Game", classification: "holding_game" },
-  { value: "late_backgame", label: "Late Backgame", classification: "late_backgame" },
-  { value: "late_game_hit", label: "Late Game Hit", classification: "late_game_hit" },
-  { value: "middle_game", label: "Middle Game", classification: "middle_game" },
-  { value: "mutual_holding_game", label: "Mutual Holding Game", classification: "mutual_holding_game" },
-  { value: "one_man_back", label: "One Man Back", classification: "one_man_back" },
-  // "Opening", not "Opening Game" (which this used to say, back when it
-  // lived only in lib/badges.ts) — deliberately shorter, anticipating the
-  // upcoming opening_game split into "Opening (first move)"/"Opening
-  // (response)" options, where bare "Opening" reads naturally as the
-  // umbrella term for both.
-  { value: "opening_game", label: "Opening", classification: "opening_game" },
-  { value: "race", label: "Race", classification: "race" },
-];
-
-const BY_VALUE = new Map(CLASSIFICATION_OPTIONS.map((o) => [o.value, o]));
+// The 17 real classification values aren't guessed — confirmed live
+// earlier this session via /mistakes's MistakeStat-sourced filter dropdown
+// (see PROGRESS.md's 2026-09-24 badge entries).
+export const CLASSIFICATION_LABELS_BY_RAW_VALUE: Record<string, string> = {
+  "6_prime": "6-Prime",
+  attacking_game: "Attacking Game",
+  blitz: "Blitz",
+  close_out: "Close Out",
+  crunching_game: "Crunching Game",
+  deep_anchor_game: "Deep Anchor Game",
+  early_backgame: "Early Backgame",
+  early_blitz: "Early Blitz",
+  end_game_contact: "End Game Contact",
+  holding_game: "Holding Game",
+  late_backgame: "Late Backgame",
+  late_game_hit: "Late Game Hit",
+  middle_game: "Middle Game",
+  mutual_holding_game: "Mutual Holding Game",
+  one_man_back: "One Man Back",
+  opening_game: "Opening",
+  race: "Race",
+};
 
 // Falls back to the raw value itself rather than throwing — classification
 // values live in Galaxy's data, not this codebase, so a value outside the
 // 17 mapped above is possible if Galaxy ever adds one (same defensive
 // stance ClassificationBadge already takes for its own lookup).
 export function getClassificationLabel(value: string): string {
-  return BY_VALUE.get(value)?.label ?? value;
+  return CLASSIFICATION_LABELS_BY_RAW_VALUE[value] ?? value;
 }
 
-export function getClassificationOption(value: string): ClassificationOption | undefined {
-  return BY_VALUE.get(value);
+// "Phase" dropdown: the single merged filter /mistakes and /repeated-positions
+// use in place of what used to be two separate dropdowns (Classification and
+// Ply). Each option carries its own where-fragment — either a plain
+// classification match or a plyNumber match — so both pages can spread
+// resolvePhaseWhere()'s result directly into their existing `where` object
+// alongside severity/category, with no other special-casing needed. This
+// intentionally allows overlap between options (e.g. "2nd roll" (ply 3) is a
+// subset of whatever classification that decision happens to carry, usually
+// middle_game) — that's expected, not a bug to dedupe away.
+//
+// The four ply options assume the mover alternates strictly across a game's
+// first 4 plies (ply 1/3 = one player's own two turns, ply 2/4 = the other
+// player's responses to each). Checked directly against real data before
+// shipping this: true for 14,928 of 15,351 games with ply data (97.2%) — the
+// 423 exceptions (2.8%) are real, not a bug in plyNumber itself, most likely
+// caused by a forced-pass/dance turn consuming what would otherwise be the
+// other player's ply slot (most violations land on the ply2->ply3 or
+// ply3->ply4 boundary specifically, consistent with a skipped turn shifting
+// everything after it by one player). The "response" wording is therefore a
+// convenience label that's very reliable but not a hard guarantee — plyNumber
+// itself (an objective ordinal count) is unaffected either way.
+export interface PhaseOption {
+  value: string;
+  label: string;
+  where: { classification: string } | { plyNumber: number };
+}
+
+const FIXED_PHASE_OPTIONS: PhaseOption[] = [
+  { value: "opening_game", label: "Opening (both plies)", where: { classification: "opening_game" } },
+  { value: "ply_1", label: "1st roll", where: { plyNumber: 1 } },
+  { value: "ply_2", label: "1st roll – response", where: { plyNumber: 2 } },
+  { value: "ply_3", label: "2nd roll", where: { plyNumber: 3 } },
+  { value: "ply_4", label: "2nd roll – response", where: { plyNumber: 4 } },
+];
+
+const FIXED_PHASE_BY_VALUE = new Map(FIXED_PHASE_OPTIONS.map((o) => [o.value, o]));
+
+// Builds the full Phase dropdown: the 5 fixed options above, followed by
+// every OTHER classification actually present (opening_game excluded — it's
+// already covered by "Opening (both plies)") — sourced dynamically from
+// whatever the caller passes (a live distinct-values query against
+// MistakeStat/RepeatedPosition), not a hardcoded list, so a classification
+// Galaxy adds in the future shows up automatically without a code change.
+export function phaseOptionsFor(rawClassifications: string[]): PhaseOption[] {
+  const remaining = rawClassifications
+    .filter((c) => c !== "opening_game")
+    .sort()
+    .map((c) => ({ value: c, label: getClassificationLabel(c), where: { classification: c } }));
+  return [...FIXED_PHASE_OPTIONS, ...remaining];
+}
+
+// Resolves a Phase dropdown's selected value (or a raw classification value
+// from an old-style ?classification= link — see the two pages' own comments
+// on the alias) into a where-fragment. Doesn't need the dynamic
+// classification list at all: anything that isn't one of the 5 fixed values
+// is treated as a raw classification value directly, exactly how the
+// classification param already worked before this merge — no validation
+// against a known set, since classification is a free-form string handled
+// at the DB layer either way.
+export function resolvePhaseWhere(value: string): { classification: string } | { plyNumber: number } {
+  return FIXED_PHASE_BY_VALUE.get(value)?.where ?? { classification: value };
+}
+
+// Label for a resolved Phase value — same dual lookup as getClassificationLabel
+// (fixed option first, then a raw classification value, then the raw value
+// itself as a last resort).
+export function getPhaseLabel(value: string): string {
+  return FIXED_PHASE_BY_VALUE.get(value)?.label ?? getClassificationLabel(value);
 }

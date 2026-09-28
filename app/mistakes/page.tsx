@@ -7,7 +7,7 @@ import {
 } from "@/lib/generated/prisma/client";
 import { decisionFromRow, buildRollLookup } from "@/lib/decisionFromRow";
 import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
-import { getClassificationLabel } from "@/lib/classificationLabels";
+import { phaseOptionsFor, resolvePhaseWhere, getPhaseLabel } from "@/lib/classificationLabels";
 import { style } from "./mistakes.styles";
 
 // Server component, queried fresh on every request (no caching) — same
@@ -64,23 +64,17 @@ function FilterSelect({
   name,
   current,
   options,
-  labelFor,
 }: {
   name: string;
   current: string | undefined;
   options: string[];
-  // Optional: defaults to the raw (lowercased) value, same as before.
-  // Passed getClassificationLabel for the classification dropdown
-  // specifically — category/severity have no separate label mapper (their
-  // raw values already read fine: "checker", "blunder", etc.).
-  labelFor?: (value: string) => string;
 }) {
   return (
     <select name={name} defaultValue={current ?? ""} className={style.filterSelect}>
       <option value="">All</option>
       {options.map((value) => (
         <option key={value} value={value.toLowerCase()}>
-          {labelFor ? labelFor(value) : value.toLowerCase()}
+          {value.toLowerCase()}
         </option>
       ))}
     </select>
@@ -88,26 +82,29 @@ function FilterSelect({
 }
 
 async function FilterSelects({
-  classification,
+  phase,
   categoryParam,
   severityParam,
 }: {
-  classification: string | undefined;
+  phase: string | undefined;
   categoryParam: string | undefined;
   severityParam: string | undefined;
 }) {
   const { classifications, categories, severities } = await getFilterOptions();
+  const phaseOptions = phaseOptionsFor(classifications);
 
   return (
     <>
       <label className={style.filterLabel}>
-        Classification
-        <FilterSelect
-          name="classification"
-          current={classification}
-          options={classifications}
-          labelFor={getClassificationLabel}
-        />
+        Phase
+        <select name="phase" defaultValue={phase ?? ""} className={style.filterSelect}>
+          <option value="">Any</option>
+          {phaseOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className={style.filterLabel}>
         Category
@@ -124,7 +121,7 @@ async function FilterSelects({
 function FilterSelectsFallback() {
   return (
     <>
-      {["Classification", "Category", "Severity"].map((label) => (
+      {["Phase", "Category", "Severity"].map((label) => (
         <label key={label} className={style.filterLabel}>
           {label}
           <select disabled className={style.filterSelectDisabled}>
@@ -137,7 +134,7 @@ function FilterSelectsFallback() {
 }
 
 interface Filters {
-  classification: string | undefined;
+  phase: string | undefined;
   categoryParam: string | undefined;
   severityParam: string | undefined;
   pageSize: number;
@@ -151,7 +148,7 @@ interface Filters {
 // selected board) is DecisionListWithDetail's job — only one board/SVG
 // ever renders at a time there, not once per row.
 async function DecisionListSection({ filters }: { filters: Filters }) {
-  const { classification, categoryParam, severityParam, pageSize, page } = filters;
+  const { phase, categoryParam, severityParam, pageSize, page } = filters;
   const category = categoryParam ? CATEGORY_PARAM_MAP[categoryParam] : undefined;
   const errorSeverity = severityParam ? SEVERITY_PARAM_MAP[severityParam] : undefined;
 
@@ -163,7 +160,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   const where = {
     countAsDecision: true,
     rawError: { not: null },
-    ...(classification ? { classification } : {}),
+    ...(phase ? resolvePhaseWhere(phase) : {}),
     ...(category ? { kind: category } : {}),
     ...(errorSeverity ? { errorSeverity } : {}),
   };
@@ -222,15 +219,14 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const baseParams = {
-    classification,
+    phase,
     category: categoryParam,
     severity: severityParam,
     pageSize: String(pageSize),
   };
   const filterDescription =
-    [classification ? getClassificationLabel(classification) : undefined, categoryParam, severityParam]
-      .filter(Boolean)
-      .join(" ") || "all";
+    [phase ? getPhaseLabel(phase) : undefined, categoryParam, severityParam].filter(Boolean).join(" ") ||
+    "all";
 
   return (
     <>
@@ -238,7 +234,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
         {total.toLocaleString()} {filterDescription} decision{total === 1 ? "" : "s"}.
       </p>
 
-      <DecisionListWithDetail items={items} showClassification={!classification} />
+      <DecisionListWithDetail items={items} showClassification={!phase} />
 
       <div className={style.paginationRow}>
         <Link
@@ -282,7 +278,19 @@ export default async function MistakesPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const sp = await searchParams;
-  const classification = typeof sp.classification === "string" ? sp.classification : undefined;
+  // ?phase= is the current param; ?classification= is accepted as an alias
+  // for it (only when phase itself isn't present) so old drill-down links
+  // from /matches/analysis (?classification=<value>&severity=<severity>)
+  // keep working unchanged — a raw classification value is already a valid
+  // Phase value (resolvePhaseWhere falls back to treating anything that
+  // isn't one of the 5 fixed Phase options as a plain classification match,
+  // exactly how the old ?classification= param behaved on its own).
+  const phase =
+    typeof sp.phase === "string"
+      ? sp.phase
+      : typeof sp.classification === "string"
+        ? sp.classification
+        : undefined;
   const categoryParam = typeof sp.category === "string" ? sp.category.toLowerCase() : undefined;
   const severityParam = typeof sp.severity === "string" ? sp.severity.toLowerCase() : undefined;
   const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
@@ -292,7 +300,7 @@ export default async function MistakesPage({
     ? pageSizeParam
     : DEFAULT_PAGE_SIZE;
 
-  const hasFilter = Boolean(classification || categoryParam || severityParam);
+  const hasFilter = Boolean(phase || categoryParam || severityParam);
 
   return (
     <div className={style.pageContainer}>
@@ -309,11 +317,7 @@ export default async function MistakesPage({
 
         <form method="get" className={style.form}>
           <Suspense fallback={<FilterSelectsFallback />}>
-            <FilterSelects
-              classification={classification}
-              categoryParam={categoryParam}
-              severityParam={severityParam}
-            />
+            <FilterSelects phase={phase} categoryParam={categoryParam} severityParam={severityParam} />
           </Suspense>
           <label className={style.filterLabel}>
             Per page
@@ -332,9 +336,7 @@ export default async function MistakesPage({
 
         {hasFilter ? (
           <Suspense fallback={<DecisionListFallback />}>
-            <DecisionListSection
-              filters={{ classification, categoryParam, severityParam, pageSize, page }}
-            />
+            <DecisionListSection filters={{ phase, categoryParam, severityParam, pageSize, page }} />
           </Suspense>
         ) : (
           <p className={style.noFilterText}>Select a filter above to see matching decisions.</p>

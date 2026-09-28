@@ -7,7 +7,7 @@ import DecisionListWithDetail from "@/app/components/match-analysis/DecisionList
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import type { severityBadges, classificationBadges } from "@/lib/badges";
-import { getClassificationLabel } from "@/lib/classificationLabels";
+import { getClassificationLabel, phaseOptionsFor, resolvePhaseWhere, getPhaseLabel } from "@/lib/classificationLabels";
 import { style } from "./repeatedPositions.styles";
 
 // Server component, queried fresh on every request — same pattern
@@ -53,23 +53,17 @@ function FilterSelect({
   name,
   current,
   options,
-  labelFor,
 }: {
   name: string;
   current: string | undefined;
   options: string[];
-  // Optional: defaults to the raw (lowercased) value, same as before.
-  // Passed getClassificationLabel for the classification dropdown
-  // specifically — severity has no separate label mapper (its raw values
-  // already read fine: "blunder", "error", etc.).
-  labelFor?: (value: string) => string;
 }) {
   return (
     <select name={name} defaultValue={current ?? ""} className={style.filterSelect}>
       <option value="">All</option>
       {options.map((value) => (
         <option key={value} value={value.toLowerCase()}>
-          {labelFor ? labelFor(value) : value.toLowerCase()}
+          {value.toLowerCase()}
         </option>
       ))}
     </select>
@@ -77,24 +71,27 @@ function FilterSelect({
 }
 
 async function FilterSelects({
-  classification,
+  phase,
   severityParam,
 }: {
-  classification: string | undefined;
+  phase: string | undefined;
   severityParam: string | undefined;
 }) {
   const { classifications, severities } = await getFilterOptions();
+  const phaseOptions = phaseOptionsFor(classifications);
 
   return (
     <>
       <label className={style.filterLabel}>
-        Classification
-        <FilterSelect
-          name="classification"
-          current={classification}
-          options={classifications}
-          labelFor={getClassificationLabel}
-        />
+        Phase
+        <select name="phase" defaultValue={phase ?? ""} className={style.filterSelect}>
+          <option value="">Any</option>
+          {phaseOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className={style.filterLabel}>
         Severity
@@ -107,7 +104,7 @@ async function FilterSelects({
 function FilterSelectsFallback() {
   return (
     <>
-      {["Classification", "Severity"].map((label) => (
+      {["Phase", "Severity"].map((label) => (
         <label key={label} className={style.filterLabel}>
           {label}
           <select disabled className={style.filterSelectDisabled}>
@@ -120,18 +117,18 @@ function FilterSelectsFallback() {
 }
 
 interface Filters {
-  classification: string | undefined;
+  phase: string | undefined;
   severityParam: string | undefined;
   pageSize: number;
   page: number;
 }
 
 async function PositionListSection({ filters }: { filters: Filters }) {
-  const { classification, severityParam, pageSize, page } = filters;
+  const { phase, severityParam, pageSize, page } = filters;
   const errorSeverity = severityParam ? SEVERITY_PARAM_MAP[severityParam] : undefined;
 
   const where = {
-    ...(classification ? { classification } : {}),
+    ...(phase ? resolvePhaseWhere(phase) : {}),
     ...(errorSeverity ? { errorSeverity } : {}),
   };
 
@@ -147,14 +144,12 @@ async function PositionListSection({ filters }: { filters: Filters }) {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const baseParams = {
-    classification,
+    phase,
     severity: severityParam,
     pageSize: String(pageSize),
   };
   const filterDescription =
-    [classification ? getClassificationLabel(classification) : undefined, severityParam]
-      .filter(Boolean)
-      .join(" ") || "all";
+    [phase ? getPhaseLabel(phase) : undefined, severityParam].filter(Boolean).join(" ") || "all";
 
   return (
     <>
@@ -253,7 +248,9 @@ function PositionListFallback() {
 // the same indexed columns the recompute function's own query uses
 // (kind/countAsDecision/rawError/errorSeverity) before the unindexed JSON
 // match, same reasoning as lib/recompute-repeated-positions.ts: cheap once
-// narrowed, not a full-table JSON scan.
+// narrowed, not a full-table scan. Operates on one already-resolved
+// RepeatedPosition row (by numeric positionId), never on the Phase dropdown
+// value directly, so it needs no filter-resolution logic of its own.
 async function PositionDetailSection({
   positionId,
   baseParams,
@@ -336,7 +333,8 @@ async function PositionDetailSection({
       </div>
       <p className={style.mutedText}>
         {items.length} occurrence{items.length === 1 ? "" : "s"} of this position (
-        {getClassificationLabel(position.classification)}, {position.errorSeverity.toLowerCase()}).
+        {getClassificationLabel(position.classification)}, {position.errorSeverity.toLowerCase()}
+        {position.plyNumber ? `, ply ${position.plyNumber}` : ""}).
       </p>
       <DecisionListWithDetail items={items} showClassification={false} />
     </>
@@ -349,7 +347,16 @@ export default async function RepeatedPositionsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const sp = await searchParams;
-  const classification = typeof sp.classification === "string" ? sp.classification : undefined;
+  // ?phase= is the current param; ?classification= is accepted as an alias
+  // for it (only when phase itself isn't present) so old drill-down links
+  // (?classification=<value>&severity=<severity>) keep working unchanged —
+  // see app/mistakes/page.tsx's identical comment for the full reasoning.
+  const phase =
+    typeof sp.phase === "string"
+      ? sp.phase
+      : typeof sp.classification === "string"
+        ? sp.classification
+        : undefined;
   const severityParam = typeof sp.severity === "string" ? sp.severity.toLowerCase() : undefined;
   const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
@@ -363,11 +370,15 @@ export default async function RepeatedPositionsPage({
       ? positionIdParam
       : undefined;
 
-  const baseParams = { classification, severity: severityParam, pageSize: String(pageSize) };
+  const baseParams = {
+    phase,
+    severity: severityParam,
+    pageSize: String(pageSize),
+  };
   // Same gate /mistakes uses: no query against the (small but real) list
   // runs until a filter is actually applied — a positionId deep link is
   // its own explicit, already-scoped action and bypasses this regardless.
-  const hasFilter = Boolean(classification || severityParam);
+  const hasFilter = Boolean(phase || severityParam);
 
   return (
     <div className={style.pageContainer}>
@@ -384,7 +395,7 @@ export default async function RepeatedPositionsPage({
 
         <form method="get" className={style.form}>
           <Suspense fallback={<FilterSelectsFallback />}>
-            <FilterSelects classification={classification} severityParam={severityParam} />
+            <FilterSelects phase={phase} severityParam={severityParam} />
           </Suspense>
           <label className={style.filterLabel}>
             Per page
@@ -407,7 +418,7 @@ export default async function RepeatedPositionsPage({
           </Suspense>
         ) : hasFilter ? (
           <Suspense fallback={<PositionListFallback />}>
-            <PositionListSection filters={{ classification, severityParam, pageSize, page }} />
+            <PositionListSection filters={{ phase, severityParam, pageSize, page }} />
           </Suspense>
         ) : (
           <p className={style.noFilterText}>Select a filter above to see repeated positions.</p>

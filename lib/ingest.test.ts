@@ -7,7 +7,7 @@
 // silently shipping. Prisma and the Galaxy client are both mocked — no
 // live DB or network call, pure processing-logic verification.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
+import type { GameEvent, GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import type { MatchIndexData } from "@/lib/ingest";
 
 import forcedMoveNotCounted from "./__fixtures__/galaxy-payloads/forced-move-not-counted.json";
@@ -81,6 +81,97 @@ function serveSingleGame(fixture: GameReviewsResponse) {
   getGameReviews.mockImplementation(async (_matchId: number, gameIndex: number) =>
     gameIndex === 1 ? fixture : null
   );
+}
+
+const PROBABILITIES = {
+  lose: 0.5,
+  lose_backgammon: 0,
+  lose_gammon: 0,
+  win: 0.5,
+  win_backgammon: 0,
+  win_gammon: 0,
+  mwc_context: null,
+  mwc: null,
+  volatility: null,
+  market_losing_probability: null,
+  market_gaining_probability: null,
+};
+
+const ERROR_ANALYSIS_NONE = {
+  raw_error: 0,
+  luck_mwc: null,
+  mwc_error: 0,
+  luck: 0,
+  equity_error: null,
+  error_severity: "none" as const,
+  is_blunder: false,
+  is_error: false,
+};
+
+// Minimal but structurally complete CHECKER ("move") event — enough for
+// ingestMatch to fully process it into a Decision row, used to build
+// multi-event fixtures inline (for the plyNumber test below) rather than a
+// full JSON fixture file, since only eventId/event_type/analysed_event/
+// error_analysis actually vary across cases.
+function moveEvent(id: number, opts: { errorAnalysisNull?: boolean } = {}): GameEvent {
+  return {
+    id,
+    color: "white",
+    user_id: "user_me",
+    moves: [],
+    event_type: "move_commited",
+    rolled_dice: [],
+    reviews: [
+      {
+        id: id + 1_000_000,
+        second: 1,
+        take: null,
+        level: 2,
+        double: null,
+        threshold: null,
+        source_match: null,
+        resigned_points: null,
+        source_position: { id: 1, classification: "opening_game", formatted_value: "pos" },
+        destination_position: null,
+        result: {
+          version: "1.0",
+          analysed_event: "move",
+          result: {
+            equity: 0,
+            metadata: {
+              timestamp: "2026-09-18T02:49:15.400013Z",
+              analysis_level: 2,
+              analysis_time_ms: 5,
+              crawford_state: "none",
+              match_length: 7,
+              scores: { black: 0, white: 0 },
+              count_as_decision: true,
+              request_id: null,
+              max_move: null,
+            },
+            probabilities: PROBABILITIES,
+            error_analysis: opts.errorAnalysisNull ? null : ERROR_ANALYSIS_NONE,
+            moves: [
+              {
+                level: 2,
+                final: { xgid: "x", gnubgid: "g" },
+                notation: "13/7",
+                rank: 1,
+                equity: 0,
+                probabilities: PROBABILITIES,
+                error_analysis: ERROR_ANALYSIS_NONE,
+                move_played: true,
+              },
+            ],
+          },
+        },
+      },
+    ],
+  } as unknown as GameEvent;
+}
+
+function gameReviewsResponse(events: GameEvent[]): GameReviewsResponse {
+  return { data: { events, match_id: 1, game_index: 1 }, type: "game_events" };
 }
 
 beforeEach(() => {
@@ -169,6 +260,40 @@ describe("ingestMatch", () => {
     expect(create.resignationType).toBe("gammon");
     expect(create.equityBefore).toBe(-0.8);
     expect(create.equityAfter).toBe(-1);
+  });
+
+  it("assigns plyNumber 1-4 by eventId ascending regardless of array order, null beyond ply 4, and skips ineligible events", async () => {
+    // Deliberately shuffled and with a gap: eventIds 50/10/90/20/30/40/70/60,
+    // one of which (30) has a null error_analysis and must not consume a ply
+    // slot. In eventId order, the eligible ones are 10,20,40,50,60,70,90 —
+    // so ply 1-4 should land on 10,20,40,50, and 60/70/90 should be null.
+    serveSingleGame(
+      gameReviewsResponse([
+        moveEvent(50),
+        moveEvent(10),
+        moveEvent(90),
+        moveEvent(20),
+        moveEvent(30, { errorAnalysisNull: true }),
+        moveEvent(40),
+        moveEvent(70),
+        moveEvent(60),
+      ])
+    );
+
+    const summary = await ingestMatch(90000007, indexData, "token");
+
+    expect(summary.decisionsIngested).toBe(7);
+    const plyByEventId = new Map(
+      decisionUpsert.mock.calls.map(([{ create }]) => [Number(create.eventId), create.plyNumber])
+    );
+    expect(plyByEventId.get(10)).toBe(1);
+    expect(plyByEventId.get(20)).toBe(2);
+    expect(plyByEventId.get(40)).toBe(3);
+    expect(plyByEventId.get(50)).toBe(4);
+    expect(plyByEventId.get(60)).toBeNull();
+    expect(plyByEventId.get(70)).toBeNull();
+    expect(plyByEventId.get(90)).toBeNull();
+    expect(plyByEventId.has(30)).toBe(false);
   });
 
   it("stores NO Decision row for game_started/game_over events", async () => {
