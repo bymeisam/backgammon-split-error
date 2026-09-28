@@ -1,0 +1,14 @@
+-- Fixes /mistakes' ply-based Phase filter (?phase=ply_N), which was doing a
+-- full table scan (~1M rows, 5-43s depending on the rest of the filter) —
+-- no existing index covered plyNumber at all. Chosen over a wider composite
+-- index (plyNumber, countAsDecision, kind, errorSeverity, eventId) after
+-- measuring both with EXPLAIN: the wider index breaks the ORDER BY eventId
+-- DESC ordering guarantee whenever kind/errorSeverity aren't both filtered
+-- (3 of 5 realistic filter combinations), forcing an expensive in-memory
+-- sort (500-950ms measured) instead of a direct reverse index range scan.
+-- Putting countAsDecision (always present, unconditional) right after
+-- plyNumber keeps eventId immediately reachable as the third column in
+-- every case. See prisma/schema.prisma's own comment on this index and
+-- docs/field-mapping.md's "Ply number" section for the full measurements.
+-- CreateIndex
+CREATE INDEX `Decision_plyNumber_countAsDecision_eventId_idx` ON `Decision`(`plyNumber`, `countAsDecision`, `eventId`);

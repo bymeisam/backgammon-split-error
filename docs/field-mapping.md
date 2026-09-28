@@ -292,6 +292,49 @@ gameplay asymmetry — not fully root-caused, and no longer relevant now that
 the whole matching approach is gone, but recorded here since it's a
 concrete illustration of why ply is the more robust dimension.
 
+**`Decision.plyNumber` index.** No index covers `plyNumber` on its own —
+the pre-existing composite index
+(`countAsDecision, rawError, kind, classification, errorSeverity`) doesn't
+include it at all, so `/mistakes`' ply-based Phase filter
+(`?phase=ply_N`) originally forced a full table scan (~1M rows, measured
+5-43s depending on the rest of the filter). Fixed with
+`@@index([plyNumber, countAsDecision, eventId])`.
+
+Two composite shapes were measured with `EXPLAIN` before choosing:
+- **Wide** — `(plyNumber, countAsDecision, kind, errorSeverity, eventId)`.
+  Excellent for the one case where every column is filtered (severity *and*
+  category both given — an index lookup straight to the ~500-row match), but
+  catastrophic otherwise: `kind`/`errorSeverity` sitting between
+  `countAsDecision` and `eventId` means dropping either one from the query
+  breaks the physical eventId ordering the index would otherwise provide,
+  forcing an in-memory sort. Measured 500-950ms on the 3 of 5 realistic
+  filter combinations that don't specify `errorSeverity` — worse than doing
+  nothing extra for those cases.
+- **Narrow** (chosen) — `(plyNumber, countAsDecision, eventId)`. Since
+  `plyNumber` alone already narrows ~1M rows down to roughly 15-30k for any
+  given value, and `countAsDecision` is the one other condition `/mistakes`
+  always applies unconditionally, putting `eventId` immediately after both
+  keeps `ORDER BY eventId DESC` satisfiable directly from the index (a
+  reverse range scan) in every case, regardless of whether `kind`/
+  `errorSeverity` are filtered — they become cheap residual checks on an
+  already-small candidate set instead. Measured 1-12ms across all 5 filter
+  combinations, both locally and on Oracle.
+
+`rawError` isn't part of this index — like `kind`/`errorSeverity` when
+unfiltered, `IS NOT NULL` stays a residual filter on the narrowed set,
+which is cheap enough not to need indexing separately.
+
+Measured before/after, both locally and on Oracle (`PROGRESS.md`'s entry
+for this fix has the full table): roughly 20-100x faster locally (up to
+43s → ~0.5s, the remainder being `COUNT(*)`'s inherent need to scan every
+matching row even with the index), and roughly 10-20x faster on Oracle
+(~1.3-2.6s → ~0.12-0.15s). Confirmed via `EXPLAIN` that
+`recomputeMistakeStats`/`recomputeRepeatedPositions`/`PositionDetailSection`
+(the other queries touching `Decision`'s existing indexes) still pick the
+exact same indexes as before — a new index can only help or be irrelevant
+to an unrelated query, and this one only ever gets chosen when `plyNumber`
+is actually in the `WHERE` clause.
+
 ### Events skipped via null `error_analysis`
 
 Some events carry a `reviews[0]` but `error_analysis: null` inside it — an

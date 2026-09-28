@@ -137,6 +137,29 @@ model Decision {
   // in one index — measured 7,417ms without it (full scan of 1.24M rows to
   // find the ~592k matching), before adding this.
   @@index([countAsDecision, rawError, kind, classification, errorSeverity])
+  // Covers /mistakes' ply-based Phase filter (?phase=ply_N -> plyNumber
+  // equality), which the index above doesn't help at all (it doesn't
+  // include plyNumber) — measured a full ~1M-row table scan without this,
+  // 5-43s depending on the rest of the filter. countAsDecision as the
+  // second column (not rawError/kind/errorSeverity) is deliberate: it's the
+  // one other condition /mistakes' query always applies unconditionally,
+  // while kind/errorSeverity are optional — putting an always-present
+  // equality column right after plyNumber keeps eventId (third column)
+  // immediately reachable in every case, so the ORDER BY eventId DESC is
+  // always satisfied directly from the index (a reverse range scan) instead
+  // of a filesort, regardless of whether kind/errorSeverity happen to be
+  // filtered. A wider index (plyNumber, countAsDecision, kind,
+  // errorSeverity, eventId) was measured and rejected for exactly this
+  // reason: with kind/errorSeverity in between, dropping either one from
+  // the query breaks the eventId ordering guarantee, forcing an in-memory
+  // sort — measured 500-950ms (vs. 1-12ms for the index below) on the 3 of
+  // 5 realistic filter combinations that omit errorSeverity. rawError isn't
+  // part of this index at all — it stays a cheap residual `IS NOT NULL`
+  // filter on the already-narrow (~15-30k row) candidate set this index
+  // produces, same reasoning kind/errorSeverity get when not explicitly
+  // filtered. See docs/field-mapping.md's "Ply number" section for the
+  // full before/after measurements.
+  @@index([plyNumber, countAsDecision, eventId])
 }
 
 // Precomputed decision-level mistake-pattern breakdown, recomputed in full
