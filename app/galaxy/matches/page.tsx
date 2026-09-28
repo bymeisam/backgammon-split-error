@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStatsAuth } from "@/app/GameStatsProvider";
 import type { AnalysesListResponse, MatchAnalysis } from "@/lib/analysesTypes";
+import { style } from "./galaxyMatches.styles";
 import TokenModal from "./TokenModal";
 
 type SyncState =
@@ -190,41 +191,41 @@ export default function MatchesPage() {
   }
 
   return (
-    <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+    <div className={style.pageContainer}>
+      <main className={style.main}>
+        <div className={style.headerRow}>
+          <h1 className={style.title}>
             Matches
           </h1>
 
           {token && (
-            <form onSubmit={onJumpToMatch} className="flex flex-wrap items-center gap-2">
+            <form onSubmit={onJumpToMatch} className={style.jumpForm}>
               <input
                 type="text"
                 value={jumpToMatchId}
                 onChange={(e) => setJumpToMatchId(e.target.value)}
                 placeholder="Match ID"
-                className="w-32 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
+                className={style.matchIdInput}
               />
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                className={style.pillButton}
               >
                 Jump to match
               </button>
-              <span className="mx-1 h-5 w-px bg-black/10 dark:bg-white/15" />
+              <span className={style.divider} />
               <input
                 type="text"
                 value={jsonGameIndex}
                 onChange={(e) => setJsonGameIndex(e.target.value)}
                 placeholder="Game"
                 title="Game index"
-                className="w-16 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30"
+                className={style.gameIndexInput}
               />
               <button
                 type="button"
                 onClick={onShowJsonDump}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                className={style.pillButton}
               >
                 Show JSON
               </button>
@@ -233,17 +234,17 @@ export default function MatchesPage() {
         </div>
 
         {jsonDump && (
-          <div className="rounded-lg border border-black/10 bg-white p-3 dark:border-white/15 dark:bg-zinc-900">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <div className={style.jsonBox}>
+            <div className={style.jsonBoxHeader}>
+              <span className={style.jsonBoxLabel}>
                 Raw JSON — match {jumpToMatchId || "?"} game {jsonGameIndex || "?"}
               </span>
-              <div className="flex items-center gap-3">
+              <div className={style.jsonBoxActions}>
                 {jsonDump.status === "data" && (
                   <button
                     type="button"
                     onClick={onCopyJson}
-                    className="text-xs text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100"
+                    className={style.jsonLinkButton}
                   >
                     {copied ? "Copied!" : "Copy"}
                   </button>
@@ -251,22 +252,22 @@ export default function MatchesPage() {
                 <button
                   type="button"
                   onClick={() => setJsonDump(null)}
-                  className="text-xs text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100"
+                  className={style.jsonLinkButton}
                 >
                   Close
                 </button>
               </div>
             </div>
             {jsonDump.status === "loading" && (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>
+              <p className={style.mutedText}>Loading…</p>
             )}
             {jsonDump.status === "error" && (
-              <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+              <p className={style.errorBox}>
                 {jsonDump.message}
               </p>
             )}
             {jsonDump.status === "data" && (
-              <pre className="max-h-[60vh] overflow-auto rounded-lg bg-zinc-50 p-3 text-xs text-black dark:bg-black dark:text-zinc-100">
+              <pre className={style.jsonPre}>
                 {jsonDump.text}
               </pre>
             )}
@@ -278,26 +279,26 @@ export default function MatchesPage() {
         ) : (
           <>
             {loading && (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>
+              <p className={style.mutedText}>Loading…</p>
             )}
             {error && (
-              <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+              <p className={style.errorBox}>
                 {error}
               </p>
             )}
 
             {data && (
               <>
-                <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
-                  <table className="w-full border-collapse text-left text-sm">
+                <div className={style.tableWrapper}>
+                  <table className={style.table}>
                     <thead>
-                      <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
-                        <th className="px-3 py-2">Opponent</th>
-                        <th className="px-3 py-2">Rating</th>
-                        <th className="px-3 py-2">Score</th>
-                        <th className="px-3 py-2">Your error</th>
-                        <th className="px-3 py-2">Opponent error</th>
-                        <th className="px-3 py-2"></th>
+                      <tr className={style.theadRow}>
+                        <th className={style.headCell}>Opponent</th>
+                        <th className={style.headCell}>Rating</th>
+                        <th className={style.headCell}>Score</th>
+                        <th className={style.headCell}>Your error</th>
+                        <th className={style.headCell}>Opponent error</th>
+                        <th className={style.headCell}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -324,30 +325,30 @@ export default function MatchesPage() {
                           <tr
                             key={m.matchId}
                             onClick={() => router.push(`/galaxy/matches/${m.matchId}`)}
-                            className="cursor-pointer border-b border-black/5 last:border-b-0 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-zinc-800/60"
+                            className={style.bodyRow}
                           >
-                            <td className="px-3 py-2 text-black dark:text-zinc-100">{m.opponentName}</td>
-                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                            <td className={style.opponentCell}>{m.opponentName}</td>
+                            <td className={style.monoCell}>
                               {m.opponentRating}
                             </td>
-                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                            <td className={style.monoCell}>
                               {m.userScore}–{m.opponentScore}
                             </td>
-                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                            <td className={style.monoCell}>
                               {m.userError.toFixed(3)}
                             </td>
-                            <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                            <td className={style.monoCell}>
                               {m.opponentError.toFixed(3)}
                             </td>
-                            <td className="px-3 py-2 text-right">
+                            <td className={style.actionCell}>
                               {syncState?.status === "syncing" ? (
-                                <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-300" />
+                                <span className={style.syncingLabel}>
+                                  <span className={style.spinner} />
                                   Syncing…
                                 </span>
                               ) : syncState?.status === "synced" ? (
                                 <span
-                                  className="text-xs font-medium text-green-600 dark:text-green-400"
+                                  className={style.syncedLabel}
                                   title="Already synced"
                                 >
                                   ✓ Synced
@@ -359,7 +360,7 @@ export default function MatchesPage() {
                                     e.stopPropagation();
                                     onSyncMatch(m);
                                   }}
-                                  className="rounded-full border border-black/10 px-3 py-1 text-xs font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                                  className={style.syncButton}
                                   title={syncState?.status === "error" ? syncState.message : "Sync this match to the local DB"}
                                 >
                                   {syncState?.status === "error" ? "Retry sync" : "Sync"}
@@ -373,23 +374,23 @@ export default function MatchesPage() {
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className={style.paginationRow}>
                   <button
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                    className={style.paginationButton}
                   >
                     Prev
                   </button>
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <span className={style.mutedText}>
                     Page {data.page} of {data.totalPages}
                   </span>
                   <button
                     type="button"
                     onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
                     disabled={page >= data.totalPages}
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                    className={style.paginationButton}
                   >
                     Next
                   </button>
