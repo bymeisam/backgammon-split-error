@@ -5,6 +5,11 @@
 // rendered page, never an isolated component sandbox. See e2e/README.md
 // for the baseline-update workflow.
 //
+// A second describe block below ("Shared markup visual regression") covers
+// list/filter/badge markup that these board-only screenshots never touch
+// (they're clipped to board-panel's own element) — see e2e/README.md's
+// "Shared markup coverage" section for what it does and doesn't cover.
+//
 // Same 4 representative decisions, same underlying real data (match
 // 46576635, games 5/6/7 — the same match used by the Vitest suite's
 // gnuPositionId regression tests), rendered in all three contexts. All 12
@@ -140,6 +145,16 @@ async function mockGameFetches(page: Page) {
 
 const boardPanel = (page: Page) => page.getByTestId("board-panel");
 
+// Not part of the original board-only suite — added to cover shared
+// list/filter/badge markup the board-panel screenshots above never touch
+// (they're clipped to board-panel's own bounding box). See PROGRESS.md's
+// entry for this addition for the full reasoning: these three testids
+// (mistake-row-list, move-delta, mistakes-section) were added specifically
+// so a future Tailwind-to-styles.ts conversion of that markup has a real
+// guard, the same way the board conversion already did.
+const mistakeRowList = (page: Page) => page.getByTestId("mistake-row-list");
+const mistakesSection = (page: Page) => page.getByTestId("mistakes-section");
+
 // Both /matches/[matchId] and /galaxy/matches/[matchId] fetch their 3
 // mocked games one at a time, re-rendering after each arrives — clicking a
 // row before the last one lands risked an intermittent extra re-render
@@ -220,4 +235,79 @@ test.describe("BoardPanel visual regression", () => {
       await expect(boardPanel(page)).toHaveScreenshot(`mistakes-${decision.name}.png`);
     });
   }
+});
+
+// Shared list/filter/badge markup that the board-only suite above never
+// exercises (board-panel screenshots are clipped to their own element,
+// which excludes all of this). Reuses the exact same mocked/seeded page
+// visits as the tests above — no new fixtures, no live data. See
+// PROGRESS.md's entry for this addition: this suite existing is what makes
+// converting this markup to lib/styles-style .styles.ts files safe to do
+// later, the same way the board conversion's own suite already protects it.
+test.describe("Shared markup visual regression", () => {
+  // bar-checkers/normal-midgame share one mistakesFilter (middle_game/
+  // checker/error — see DECISIONS' own comment), so filtering on it
+  // surfaces at least 2 rows — enough to exercise both the selected-row
+  // highlight and an unselected row's own resting style, not just a
+  // single-row list.
+  const MULTI_ROW_DECISION = DECISIONS[0]; // bar-checkers
+
+  test("mistake-row-list on /mistakes", async ({ page }) => {
+    const { classification, category, severity } = MULTI_ROW_DECISION.mistakesFilter;
+    await page.goto(
+      `/mistakes?classification=${classification}&category=${category}&severity=${severity}`
+    );
+    await page.getByText(MULTI_ROW_DECISION.myLabel, { exact: true }).first().click();
+    // Same correctness-before-screenshot signal the board tests already
+    // use for /mistakes — the click can land before hydration finishes.
+    await expect(boardPanel(page)).toContainText(MULTI_ROW_DECISION.myLabel);
+    await expect(mistakeRowList(page)).toHaveScreenshot("mistake-row-list.png");
+  });
+
+  test("move-delta — active/inactive tab states on /mistakes", async ({ page }) => {
+    const { classification, category, severity } = MULTI_ROW_DECISION.mistakesFilter;
+    await page.goto(
+      `/mistakes?classification=${classification}&category=${category}&severity=${severity}`
+    );
+    // Scoped to the specific row by its own label text, not .first() on the
+    // page — mistake-row-list has multiple move-delta elements once filtered
+    // down to 2+ rows, and a bare getByTestId would be an ambiguous locator.
+    const row = page.locator("tr", { hasText: MULTI_ROW_DECISION.myLabel });
+    const moveDelta = row.getByTestId("move-delta");
+
+    // Selecting the row (clicking its own "my" label) is the same action
+    // the board tests already use — defaults this row's own active tab to
+    // "my", the first conditional branch (underline on my, not on best).
+    await row.getByText(MULTI_ROW_DECISION.myLabel, { exact: true }).click();
+    await expect(boardPanel(page)).toContainText(MULTI_ROW_DECISION.myLabel);
+    await expect(moveDelta).toHaveScreenshot("move-delta-my-active.png");
+
+    // The second (best) of MoveDelta's two direct child spans — clicking it
+    // switches this row's own active tab to "best" (the same onSelectTab
+    // callback the board tests exercise via the my-label click), covering
+    // the opposite half of both ternaries without needing to know the
+    // exact best-label text (not tracked in DECISIONS above).
+    await moveDelta.locator("> span").nth(1).click();
+    await expect(moveDelta).toHaveScreenshot("move-delta-best-active.png");
+  });
+
+  test("mistakes-section on /matches/[matchId]", async ({ page }) => {
+    await mockGameFetches(page);
+    await page.goto(`/matches/${MATCH_ID}`);
+    await waitForAllGamesLoaded(page);
+    await expect(mistakesSection(page)).toHaveScreenshot("mistakes-section-matches.png");
+  });
+
+  test("mistakes-section on /galaxy/matches/[matchId]", async ({ page }) => {
+    await mockGameFetches(page);
+    await page.goto("/galaxy/matches");
+    await page.getByRole("button", { name: "Paste authorization" }).click();
+    await page.locator("#auth").fill("Bearer visual-test-token");
+    await page.getByRole("button", { name: "Connect" }).click();
+    await page.getByPlaceholder("Match ID").fill(MATCH_ID);
+    await page.getByRole("button", { name: "Jump to match" }).click();
+    await page.waitForURL(`**/galaxy/matches/${MATCH_ID}`);
+    await waitForAllGamesLoaded(page);
+    await expect(mistakesSection(page)).toHaveScreenshot("mistakes-section-galaxy-matches.png");
+  });
 });

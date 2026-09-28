@@ -61,7 +61,10 @@ export default function DecisionListWithDetail({
         )}
       </div>
 
-      <div className="flex w-full flex-col gap-2 lg:max-h-[80vh] lg:w-[380px] lg:shrink-0 lg:overflow-y-auto">
+      <div
+        data-testid="mistake-row-list"
+        className="flex w-full flex-col gap-2 lg:max-h-[80vh] lg:w-[380px] lg:shrink-0 lg:overflow-y-auto"
+      >
         <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
           <table className="w-full border-collapse text-left text-sm">
             <thead>

@@ -1,4 +1,4 @@
-# Visual regression: BoardPanel
+# Visual regression: BoardPanel + shared list/filter/badge markup
 
 Playwright suite protecting `app/components/match-analysis/BoardPanel.tsx`
 across its three real call sites — `/matches/[matchId]`,
@@ -10,6 +10,22 @@ the others. This is a separate suite/runner from the Vitest unit tests
 Built as the safety net *before* the planned CSS restructuring work, not
 after — the point is to have something that catches "the restructuring
 changed how the board looks or where it sits" before that work starts.
+
+**Important scope note:** the original 12 tests screenshot *only* the
+`[data-testid="board-panel"]` element, never the full page. That means
+list rows, filter controls, badges, and PR summaries render on the pages
+these tests visit but are entirely outside the screenshot's clipped
+region — invisible to this suite even though the page itself is "tested."
+The "Shared markup visual regression" tests below (4 more, added
+2026-09-28) close part of that gap specifically for the components an
+inventory found still had inline Tailwind classes and no coverage at all:
+`MistakesSection.tsx` (its own chrome, excluding `BoardPanel`),
+`MoveDelta` (exported from `MistakesSection.tsx`, reused by
+`DecisionListWithDetail.tsx`), and `DecisionListWithDetail.tsx`'s own list
+region. This is deliberately *not* full coverage of every unconverted
+file (see PROGRESS.md's inventory entry) — just enough to make converting
+*this specific markup* to `.styles.ts` files safe, since that's the next
+planned work.
 
 ## What it does
 
@@ -45,6 +61,48 @@ step already disambiguates them, same as it does for the much larger real
 mistake lists on `/matches`/`/galaxy/matches`. All 12 screenshots are now
 fully deterministic, independent of the real dev DB's live state — the
 *only* variable across all three contexts is the surrounding page.
+
+## Shared markup coverage (4 tests, added 2026-09-28)
+
+All four reuse the exact same mocked/seeded page visits as the 12 tests
+above — no new fixtures, no new live-data dependency:
+
+- **`mistake-row-list` on `/mistakes`** — screenshots
+  `[data-testid="mistake-row-list"]` (added to `DecisionListWithDetail.tsx`'s
+  own list wrapper) after filtering to the `bar-checkers`/`normal-midgame`
+  combo (`middle_game`/`checker`/`error` — the one filter shared by two of
+  the four representative decisions, see `DECISIONS`' own comment), so the
+  list has 2+ rows and exercises both the selected-row highlight and an
+  unselected row's resting style, not just a single row.
+- **`move-delta` — active/inactive tab states on `/mistakes`** — same page
+  visit as above, scoped to one specific row's own `[data-testid="move-delta"]`
+  (via a `tr` locator filtered by that row's exact label text — a bare
+  `getByTestId` would be ambiguous once the list has 2+ rows). Two
+  screenshots: `move-delta-my-active.png` right after selecting the row
+  (default tab), and `move-delta-best-active.png` after clicking its own
+  "best" label — covering both branches of `MoveDelta`'s conditional
+  underline styling without needing to hardcode the exact best-move
+  notation text.
+- **`mistakes-section` on `/matches/[matchId]` and `/galaxy/matches/[matchId]`**
+  — screenshots `[data-testid="mistakes-section"]`, a new wrapper `<div>`
+  around `MistakesSection.tsx`'s "You"/Game filters and the 3 PR summary
+  cards. This is the one place this addition went beyond adding a bare
+  attribute to an existing element: there was no single existing element
+  spanning exactly "filters + PR summary" without also including the board
+  (screenshotting the board here would reintroduce the GPU-jitter flake
+  documented below, for a region already covered by the 12 tests above).
+  The wrapper's own `className="flex flex-col gap-6"` exactly reproduces
+  the outer container's spacing — verified to introduce zero visual change
+  via this same suite (16/16 passing against the pre-existing baselines,
+  not just reasoned about).
+
+**`/repeated-positions` is not covered** — it renders the same
+`DecisionListWithDetail`/`MoveDelta`, but `bg_test` (see "Setup" below)
+only seeds `Match`/`Game`/`Decision`, no `RepeatedPosition` rows, and none
+of the 4 representative decisions are necessarily a *repeated* position in
+this 8-row dataset. Adding coverage there would mean extending the seed
+script and the recompute step, not reusing an existing page visit —
+skipped as not cheap, per the instruction that introduced this section.
 
 **No `app/mistakes/page.tsx` (or any other application-route) changes were
 needed to make this work** — `/mistakes`, `lib/local-client.ts`, and
@@ -137,6 +195,13 @@ tell a genuine failure apart from noise that just hadn't been retried yet.
 - Only the `/matches`/`/galaxy/matches` tests fail → the bug is in
   `MistakesSection.tsx` (shared by those two, not `/mistakes`) or one of
   those two page files specifically.
+- `mistake-row-list` and `move-delta` fail together → the change is in
+  `MoveDelta` itself (rendered inside `mistake-row-list`'s own screenshot
+  region, so a real change there legitimately shows up in both) — verified
+  directly via mutation testing, not assumed.
+- Only `mistakes-section` (both contexts) fails → the change is in
+  `MistakesSection.tsx`'s filters/PR-summary chrome specifically, not
+  `MoveDelta` or the mistake tables below it.
 
 ## Known flake source, mitigated with retries
 
@@ -162,6 +227,18 @@ on every attempt, so it still fails the suite; this jitter has never
 failed twice in a row in local testing, so a retry clears it. A test
 marked "flaky" in the output (not "failed") means exactly this — passed
 on retry, nothing to investigate.
+
+Confirmed again while adding the 4 shared-markup tests (2026-09-28): 10
+consecutive full-suite runs, 7/10 clean, 3/10 with exactly one `/mistakes`
+board test flaking (a different decision each time — `normal-midgame`,
+`near-bearoff`, `both-arrows`), always recovering on retry, never one of
+the 4 new tests. Also observed once that a *board* test can fail all 3
+attempts in the same run as an unrelated new-test mutation (higher system
+load under the full 16-test parallel run, apparently enough to correlate
+two separate jitter events) — confirmed it was coincidental, not caused by
+the mutation, by re-running that one board test in isolation 5/5 clean
+with the mutation still reverted. If this happens again, isolate the
+suspect test with `--grep` before assuming a real regression.
 
 ## Fixtures
 
