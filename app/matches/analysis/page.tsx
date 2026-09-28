@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { ErrorSeverity, type MistakeStat } from "@/lib/generated/prisma/client";
 import { getClassificationLabel } from "@/lib/classificationLabels";
+import { style } from "./matchesAnalysis.styles";
 
 // Server component, queried fresh on every request (no caching) — same
 // "reflect current DB state" requirement /status follows. Reads only
@@ -77,7 +78,7 @@ function mistakesHref(paramName: "classification" | "category", key: string, sev
 
 function CountLink({ href, count }: { href: string; count: number }) {
   return (
-    <Link href={href} className="hover:underline hover:text-black dark:hover:text-zinc-100">
+    <Link href={href} className={style.countLink}>
       {count.toLocaleString()}
     </Link>
   );
@@ -93,36 +94,33 @@ function BreakdownTable({
   rows: Row[];
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
-      <table className="w-full border-collapse text-left text-sm">
+    <div className={style.tableWrapper}>
+      <table className={style.table}>
         <thead>
-          <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
-            <th className="px-3 py-2">{keyHeader}</th>
-            <th className="px-3 py-2">Blunders</th>
-            <th className="px-3 py-2">Errors</th>
-            <th className="px-3 py-2">Doubtful</th>
-            <th className="px-3 py-2">Total</th>
+          <tr className={style.tableHeadRow}>
+            <th className={style.tableHeadCell}>{keyHeader}</th>
+            <th className={style.tableHeadCell}>Blunders</th>
+            <th className={style.tableHeadCell}>Errors</th>
+            <th className={style.tableHeadCell}>Doubtful</th>
+            <th className={style.tableHeadCell}>Total</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr
-              key={r.key}
-              className="border-b border-black/5 last:border-b-0 dark:border-white/10"
-            >
-              <td className="px-3 py-2 text-black dark:text-zinc-100">
+            <tr key={r.key} className={style.tableRow}>
+              <td className={style.tableKeyCell}>
                 {paramName === "classification" ? getClassificationLabel(r.key) : r.key}
               </td>
-              <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+              <td className={style.tableNumberCell}>
                 <CountLink href={mistakesHref(paramName, r.key, "blunder")} count={r.blunderCount} />
               </td>
-              <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+              <td className={style.tableNumberCell}>
                 <CountLink href={mistakesHref(paramName, r.key, "error")} count={r.errorCount} />
               </td>
-              <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+              <td className={style.tableNumberCell}>
                 <CountLink href={mistakesHref(paramName, r.key, "doubtful")} count={r.doubtfulCount} />
               </td>
-              <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+              <td className={style.tableNumberCell}>
                 <CountLink href={mistakesHref(paramName, r.key)} count={r.total} />
               </td>
             </tr>
@@ -142,33 +140,33 @@ export default async function MatchesAnalysisPage() {
   const computedAt = stats[0]?.computedAt ?? null;
 
   return (
-    <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex w-full max-w-4xl flex-col gap-8 px-6 py-12">
+    <div className={style.pageContainer}>
+      <main className={style.main}>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+          <h1 className={style.title}>
             Mistake pattern analysis
           </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className={style.subtitle}>
             Precomputed from every counted decision with a graded error,
             recomputed in full at the end of every sync run. Total includes
             all severities (including no-mistake decisions); Blunders/
             Errors/Doubtful break that down.
             {computedAt && <> Last computed {computedAt.toISOString()}.</>}{" "}
-            <Link href="/matches" className="underline hover:text-black dark:hover:text-zinc-100">
+            <Link href="/matches" className={style.backLink}>
               ← back to matches
             </Link>
           </p>
         </div>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+        <section className={style.section}>
+          <h2 className={style.sectionTitle}>
             Error concentration by game phase
           </h2>
           <BreakdownTable keyHeader="Classification" paramName="classification" rows={byClassification} />
         </section>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+        <section className={style.section}>
+          <h2 className={style.sectionTitle}>
             Cube errors vs. checker-play errors
           </h2>
           <BreakdownTable keyHeader="Category" paramName="category" rows={byCategory} />

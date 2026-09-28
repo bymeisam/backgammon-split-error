@@ -3,6 +3,7 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { buildConnectionConfig } from "@/lib/prisma";
 import { STATUS_NOTES } from "./notes";
+import { style } from "./status.styles";
 
 import nextPkg from "next/package.json";
 import reactPkg from "react/package.json";
@@ -74,9 +75,9 @@ async function getDbStatus(): Promise<DbStatus> {
 
 function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-center justify-between border-b border-black/5 py-2 text-sm last:border-b-0 dark:border-white/10">
-      <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
-      <span className="font-mono text-black dark:text-zinc-100">{value}</span>
+    <div className={style.rowWrapper}>
+      <span className={style.rowLabel}>{label}</span>
+      <span className={style.rowValue}>{value}</span>
     </div>
   );
 }
@@ -85,21 +86,21 @@ export default async function StatusPage() {
   const db = await getDbStatus();
 
   return (
-    <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex w-full max-w-2xl flex-col gap-6 px-6 py-12">
+    <div className={style.pageContainer}>
+      <main className={style.main}>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+          <h1 className={style.title}>
             Status
           </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className={style.subtitle}>
             Live stack/DB snapshot. Versions and counts below are read directly from
             package.json and the database on every load — nothing here is manually
             maintained except the notes at the bottom.
           </p>
         </div>
 
-        <section className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <section className={style.section}>
+          <h2 className={style.sectionTitle}>
             Stack
           </h2>
           <Row label="Next.js" value={nextPkg.version} />
@@ -110,15 +111,15 @@ export default async function StatusPage() {
           <Row label="Node.js" value={process.version} />
         </section>
 
-        <section className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <section className={style.section}>
+          <h2 className={style.sectionTitle}>
             Database
           </h2>
           <Row label="Engine" value={db.engine} />
           <Row
             label="Connection"
             value={
-              <span className={db.connected ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+              <span className={style.connectionStatus(db.connected)}>
                 {db.connected ? "OK" : "FAILED"}
               </span>
             }
@@ -135,11 +136,11 @@ export default async function StatusPage() {
           )}
         </section>
 
-        <section className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <section className={style.section}>
+          <h2 className={style.sectionTitle}>
             Notes
           </h2>
-          <ul className="list-disc space-y-1.5 pl-5 text-sm text-black dark:text-zinc-100">
+          <ul className={style.notesList}>
             {STATUS_NOTES.map((note, i) => (
               <li key={i}>{note}</li>
             ))}

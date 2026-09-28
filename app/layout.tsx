@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { GameStatsProvider } from "./GameStatsProvider";
+import { style } from "./layout.styles";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,11 +21,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={style.html(geistSans.variable, geistMono.variable)}>
+      <body className={style.body}>
         <GameStatsProvider>{children}</GameStatsProvider>
       </body>
     </html>

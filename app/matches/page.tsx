@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AnalysesListResponse } from "@/lib/analysesTypes";
+import { style } from "./matches.styles";
 
 // Fixed abbreviations rather than Intl.DateTimeFormat: browsers/Node disagree
 // on locale output for "short month" (e.g. Node gives "Sept", not "Sep"), so
@@ -53,40 +54,37 @@ export default function MatchesPage() {
   }, [page]);
 
   return (
-    <div className="flex flex-1 justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+    <div className={style.pageContainer}>
+      <main className={style.main}>
+        <div className={style.headerRow}>
+          <h1 className={style.title}>
             Matches
           </h1>
-          <Link
-            href="/matches/analysis"
-            className="text-sm text-zinc-600 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100"
-          >
+          <Link href="/matches/analysis" className={style.analysisLink}>
             Mistake pattern analysis →
           </Link>
         </div>
 
-        {loading && <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading…</p>}
+        {loading && <p className={style.mutedText}>Loading…</p>}
         {error && (
-          <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <p className={style.errorBox}>
             {error}
           </p>
         )}
 
         {data && (
           <>
-            <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
-              <table className="w-full border-collapse text-left text-sm">
+            <div className={style.tableWrapper}>
+              <table className={style.table}>
                 <thead>
-                  <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
-                    <th className="px-3 py-2">Match ID</th>
-                    <th className="px-3 py-2">Date</th>
-                    <th className="px-3 py-2">Opponent</th>
-                    <th className="px-3 py-2">Rating</th>
-                    <th className="px-3 py-2">Score</th>
-                    <th className="px-3 py-2">Your error</th>
-                    <th className="px-3 py-2">Opponent error</th>
+                  <tr className={style.tableHeadRow}>
+                    <th className={style.tableHeadCell}>Match ID</th>
+                    <th className={style.tableHeadCell}>Date</th>
+                    <th className={style.tableHeadCell}>Opponent</th>
+                    <th className={style.tableHeadCell}>Rating</th>
+                    <th className={style.tableHeadCell}>Score</th>
+                    <th className={style.tableHeadCell}>Your error</th>
+                    <th className={style.tableHeadCell}>Opponent error</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -94,25 +92,25 @@ export default function MatchesPage() {
                     <tr
                       key={m.matchId}
                       onClick={() => router.push(`/matches/${m.matchId}`)}
-                      className="cursor-pointer border-b border-black/5 last:border-b-0 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-zinc-800/60"
+                      className={style.tableRow}
                     >
-                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                      <td className={style.tableCell}>
                         {m.matchId}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                      <td className={style.tableCell}>
                         {m.playedAt ? formatMatchDate(m.playedAt) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-black dark:text-zinc-100">{m.opponentName}</td>
-                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                      <td className={style.opponentCell}>{m.opponentName}</td>
+                      <td className={style.tableCell}>
                         {m.opponentRating}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                      <td className={style.tableCell}>
                         {m.userScore}–{m.opponentScore}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                      <td className={style.tableCell}>
                         {m.userError.toFixed(3)}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                      <td className={style.tableCell}>
                         {m.opponentError.toFixed(3)}
                       </td>
                     </tr>
@@ -121,23 +119,23 @@ export default function MatchesPage() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className={style.paginationRow}>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                className={style.paginationButton}
               >
                 Prev
               </button>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              <span className={style.mutedText}>
                 Page {data.page} of {data.totalPages}
               </span>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
                 disabled={page >= data.totalPages}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                className={style.paginationButton}
               >
                 Next
               </button>
