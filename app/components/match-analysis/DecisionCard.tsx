@@ -6,6 +6,7 @@ import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import type { severityBadges, classificationBadges } from "@/lib/badges";
 import type { Decision } from "@/lib/mistakes";
+import { style } from "./DecisionListWithDetail.styles";
 
 // The board-detail panel for app/mistakes's selected decision — wraps
 // BoardPanel plus the context (classification, severity, error size, link
@@ -33,19 +34,16 @@ export default function DecisionCard({
   onMoveTabChange: (tab: "my" | "best") => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex flex-wrap items-center gap-2">
+    <div data-testid="decision-card" className={style.card}>
+      <div className={style.cardHeader}>
+        <div className={style.cardBadgeGroup}>
           <ClassificationBadge type={classification as keyof typeof classificationBadges} />
           <SeverityBadge type={(decision.severity ?? "none") as keyof typeof severityBadges} />
-          <span className="text-zinc-500 dark:text-zinc-400">
+          <span className={style.cardErrorText}>
             |error| {decision.absError.toFixed(3)}
           </span>
         </div>
-        <Link
-          href={matchHref}
-          className="text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
+        <Link href={matchHref} className={style.cardMatchLink}>
           View match →
         </Link>
       </div>

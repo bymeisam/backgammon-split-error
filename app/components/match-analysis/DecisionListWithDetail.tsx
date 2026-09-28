@@ -7,6 +7,7 @@ import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import type { severityBadges, classificationBadges } from "@/lib/badges";
 import type { Decision } from "@/lib/mistakes";
+import { style } from "./DecisionListWithDetail.styles";
 
 export interface DecisionListItem {
   decision: Decision;
@@ -43,12 +44,12 @@ export default function DecisionListWithDetail({
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No decisions match this filter.</p>;
+    return <p className={style.emptyStateText}>No decisions match this filter.</p>;
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <div className="flex-1 lg:min-w-0">
+    <div className={style.layout}>
+      <div className={style.cardColumn}>
         {selected && (
           <DecisionCard
             key={selected.decision.id}
@@ -61,16 +62,13 @@ export default function DecisionListWithDetail({
         )}
       </div>
 
-      <div
-        data-testid="mistake-row-list"
-        className="flex w-full flex-col gap-2 lg:max-h-[80vh] lg:w-[380px] lg:shrink-0 lg:overflow-y-auto"
-      >
-        <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
-          <table className="w-full border-collapse text-left text-sm">
+      <div data-testid="mistake-row-list" className={style.listWrapper}>
+        <div className={style.listScroll}>
+          <table className={style.listTable}>
             <thead>
-              <tr className="border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400">
-                <th className="px-3 py-2">Detail</th>
-                <th className="px-3 py-2">|Error|</th>
+              <tr className={style.listHeadRow}>
+                <th className={style.tableCell}>Detail</th>
+                <th className={style.tableCell}>|Error|</th>
               </tr>
             </thead>
             <tbody>
@@ -80,14 +78,10 @@ export default function DecisionListWithDetail({
                   <tr
                     key={item.decision.id}
                     onClick={() => selectRow(item.decision.id)}
-                    className={`cursor-pointer border-b border-black/5 last:border-b-0 dark:border-white/10 ${
-                      isSelected
-                        ? "bg-blue-50 ring-1 ring-inset ring-blue-400 dark:bg-blue-950/40 dark:ring-blue-500"
-                        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-                    }`}
+                    className={style.listRow(isSelected)}
                   >
-                    <td className="px-3 py-2 font-mono text-xs">
-                      <span className="inline-flex items-center gap-1.5">
+                    <td className={style.listDetailCell}>
+                      <span className={style.listBadgeGroup}>
                         {item.decision.severity && (
                           <SeverityBadge type={item.decision.severity as keyof typeof severityBadges} />
                         )}
@@ -103,7 +97,7 @@ export default function DecisionListWithDetail({
                         />
                       </span>
                     </td>
-                    <td className="px-3 py-2 font-mono text-xs text-black dark:text-zinc-100">
+                    <td className={style.listErrorCell}>
                       {item.decision.absError.toFixed(3)}
                     </td>
                   </tr>

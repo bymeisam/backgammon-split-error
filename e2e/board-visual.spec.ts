@@ -154,6 +154,13 @@ const boardPanel = (page: Page) => page.getByTestId("board-panel");
 // guard, the same way the board conversion already did.
 const mistakeRowList = (page: Page) => page.getByTestId("mistake-row-list");
 const mistakesSection = (page: Page) => page.getByTestId("mistakes-section");
+// Added for batch 2 (DecisionCard.tsx's conversion) — its outer wrapper
+// includes BoardPanel itself (the same element board-panel already
+// screenshots), so this inherits the same GPU-jitter risk profile as the
+// existing board tests; that's an accepted tradeoff of testid placement on
+// the existing outer wrapper (no new element added), not a new noise
+// source of its own.
+const decisionCard = (page: Page) => page.getByTestId("decision-card");
 
 // Both /matches/[matchId] and /galaxy/matches/[matchId] fetch their 3
 // mocked games one at a time, re-rendering after each arrives — clicking a
@@ -289,6 +296,24 @@ test.describe("Shared markup visual regression", () => {
     // exact best-label text (not tracked in DECISIONS above).
     await moveDelta.locator("> span").nth(1).click();
     await expect(moveDelta).toHaveScreenshot("move-delta-best-active.png");
+  });
+
+  // DecisionCard's own chrome (badge row + "View match" link) is entirely
+  // independent of moveTab — it's passed straight through to BoardPanel and
+  // used nowhere else in DecisionCard's own JSX — so there's no second
+  // "toggle switched" state that changes anything outside BoardPanel's own
+  // already-covered rendering. One screenshot (default state) is enough;
+  // BoardPanel's own active/inactive button styling inside this same
+  // element is already exercised by the 4 existing /mistakes board tests'
+  // click-to-select flow.
+  test("decision-card on /mistakes", async ({ page }) => {
+    const { classification, category, severity } = MULTI_ROW_DECISION.mistakesFilter;
+    await page.goto(
+      `/mistakes?classification=${classification}&category=${category}&severity=${severity}`
+    );
+    await page.getByText(MULTI_ROW_DECISION.myLabel, { exact: true }).first().click();
+    await expect(boardPanel(page)).toContainText(MULTI_ROW_DECISION.myLabel);
+    await expect(decisionCard(page)).toHaveScreenshot("decision-card.png");
   });
 
   test("mistakes-section on /matches/[matchId]", async ({ page }) => {

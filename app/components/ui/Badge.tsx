@@ -1,3 +1,5 @@
+import { style } from "./Badge.styles";
+
 // Generic compact badge — plain HTML `title` for the tooltip, no JS library.
 // No knowledge of "severity" or "classification" baked in; those live in
 // lib/badges.ts's config maps and the typed wrapper components built on
@@ -10,12 +12,7 @@ export type BadgeConfig = {
 
 export default function Badge({ config, className = "" }: { config: BadgeConfig; className?: string }) {
   return (
-    <span
-      title={config.label}
-      className={`inline-flex items-center justify-center rounded border border-current px-1 py-0.5 font-mono text-[10px] font-semibold leading-none ${
-        config.color ?? "text-zinc-500 dark:text-zinc-400"
-      } ${className}`}
-    >
+    <span title={config.label} className={style.badge(config.color, className)}>
       {config.code}
     </span>
   );
