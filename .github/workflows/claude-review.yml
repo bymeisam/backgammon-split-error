@@ -1,0 +1,229 @@
+name: Claude PR Review
+
+# opened + ready_for_review only, deliberately not `synchronize` or
+# `reopened` — this runs once per PR (when it's first opened non-draft, or
+# when it leaves draft state), not on every push to it; re-review after a
+# fix is the separate @claude-mention workflow (claude.yml), triggered on
+# demand instead of automatically on every commit. `pull_request` is the
+# only trigger here (never `pull_request_target`, never `push`) — a direct
+# commit to master fires neither `pull_request` nor `pull_request_target`
+# events at all, so this workflow structurally cannot run from one.
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+# One run per PR at a time; a fast-follow push (or a near-simultaneous
+# opened+ready_for_review pair, e.g. a PR opened directly out of draft)
+# cancels whatever's already running for that PR number rather than
+# queuing behind it.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Minimal set, matching the worked review-workflow example at
+# code.claude.com/docs/en/github-actions (fetched 2026-09-29) exactly:
+# contents/pull-requests/issues all read-only, id-token:write for the
+# action's GitHub-App OIDC auth (it posts comments as the Claude GitHub App
+# via its own separately-scoped token, not this workflow's GITHUB_TOKEN —
+# that's why pull-requests:write is NOT needed here even though the job
+# posts PR comments). Note: this is narrower than one of the action repo's
+# own example workflows (examples/pr-review-comprehensive.yml), which grants
+# pull-requests:write — chose the docs page's version deliberately since
+# it's what this task named as authoritative and it's the more minimal of
+# the two ("nothing broader" per the task).
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+
+jobs:
+  review:
+    # `opened` alone doesn't guarantee non-draft (a PR can be opened
+    # directly as a draft); `ready_for_review` always implies draft:false
+    # by definition. This guard is what actually skips drafts for the
+    # `opened` case.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Same-repo PR head only (no pull_request_target, no fork-secrets
+      # exposure) — on a public repo, GitHub withholds secrets from runs
+      # triggered by fork PRs entirely, so a fork PR's review step fails
+      # closed (no API key available) rather than running with elevated
+      # privilege against untrusted code. fetch-depth:1 — Claude inspects
+      # the diff itself via `gh pr diff`, not a local git history walk.
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      # Pinned to the commit the `v1` tag currently resolves to, verified
+      # against the real repo (not guessed) via two independent lookups on
+      # 2026-09-29: `git ls-remote --tags` and the GitHub API's tag-object
+      # resolution both agree this is also exactly what the `v1.0.236`
+      # release tag points to (published 2026-09-28, the latest release at
+      # verification time). Re-verify before bumping — `v1` is a moving
+      # tag, this SHA is not.
+      - name: Claude review
+        id: claude-review
+        uses: anthropics/claude-code-action@8ce9314fa9a404564fa7e954cd84f25bcba2b829 # v1.0.236 (tag "v1" at 2026-09-29)
+        with:
+          # Workload identity federation, not a static API key — these
+          # three are identifiers (an OIDC federation rule, an Anthropic
+          # organization UUID, a service account ID), not secrets, so they
+          # commit as plain values rather than ${{ secrets.… }}. The
+          # federation rule + issuer are already registered on the
+          # Anthropic side (Claude Console → Settings → Workload identity);
+          # id-token: write above (already present for this exact reason)
+          # is what lets this workflow's GitHub OIDC token get exchanged
+          # for Claude API access. No anthropic_api_key/claude_code_oauth_token
+          # anywhere in this file — either one present alongside these
+          # federation inputs takes precedence and silently disables
+          # federation, so it must be absent, not just commented out.
+          anthropic_federation_rule_id: fdrl_01Fu4dfq5XbmAzpz9s2oV38i
+          anthropic_organization_id: 012aa2d3-36cf-46ba-aec7-585d919e8331
+          anthropic_service_account_id: svac_01NdfXhijCba7BmwXmtWLBj9
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request. Get the full diff with `gh pr diff`
+            and inspect any changed file's full content with Read when the
+            diff alone doesn't give enough context (e.g. to see whether a
+            surrounding null-check already exists).
+
+            This is a Next.js 16 / Prisma 7 / MySQL app (backgammon match
+            analysis, synced from a third-party API called "Galaxy") being
+            prepared for a read-only Vercel deployment. Beyond general code
+            quality, specifically check for these known failure classes —
+            each has a typical severity, decided here so severity isn't
+            left to case-by-case judgment:
+
+            - **Secrets or credentials in the diff** (API keys, bearer
+              tokens, passwords, real DB connection strings) — always
+              HIGH severity. Confidence HIGH whenever the pattern is
+              unambiguous (a literal high-entropy string assigned to
+              something named token/password/key/secret, or a real value
+              that belongs only in a gitignored .env file appearing in
+              tracked, non-example code).
+            - **Galaxy-payload assumptions**: treating a field from the
+              Galaxy API as always present/non-null without a guard —
+              especially `metadata.scores` (null for money games),
+              `metadata.timestamp`, `count_as_decision`, or conflating
+              `source_position` with `destination_position` — or handling
+              `analysed_event` with a binary move/cube split instead of an
+              exhaustive per-shape mapping (this project has a documented
+              history of exactly this bug class crashing real ingestion).
+              HIGH if it could crash ingest/sync or silently miscount a
+              graded decision (PR/mistake stats depend on this); MEDIUM if
+              it's a defensive-coding gap unlikely to be hit given
+              currently-observed data shapes.
+            - **Unindexed `Decision` queries**: a new query filtering or
+              sorting on the `Decision` table (1M+ rows) without an index
+              covering the added predicate. MEDIUM by default; HIGH if it's
+              the same access pattern (plyNumber / countAsDecision /
+              classification / errorSeverity / kind) this project has
+              already measured as a full-table-scan at its current scale
+              (documented: 10+ seconds locally, 1-2+ seconds on the
+              production DB, before the existing index fix).
+            - **Credential-scoping violations**: using the read-write
+              Prisma client where the read-only one would suffice, or any
+              change that could weaken the Galaxy-gate's fail-closed
+              guarantee (lib/galaxyGate.ts's isGalaxyEnabled() must require
+              BOTH DATABASE_URL present AND ENABLE_WRITE_MODE === "true" —
+              flag an `&&` weakened to `||`, a default-to-enabled fallback,
+              or a check that only tests one condition). Always HIGH — this
+              app is specifically designed to deploy as a read-only,
+              gated viewer, and this class of bug undermines that directly.
+            - **Missing collation pin**: a new column storing an
+              externally-sourced string identifier (a Galaxy user/match/
+              event ID or similar) added without hand-editing the migration
+              SQL to add `COLLATE utf8mb4_bin` (Prisma's schema DSL can't
+              express this — see docs/field-mapping.md). HIGH — silent,
+              hard-to-detect-later data integrity bug (case-insensitive
+              collisions on what should be exact-match identifiers).
+            - **Inline Tailwind literals**: a `className="..."` string
+              literal or hand-rolled template literal on a component that
+              already has a `.styles.ts` file (see
+              .claude/skills/styling-conventions/SKILL.md), instead of
+              extending it. LOW — a style-convention gap, not a functional
+              bug; this project's own convention explicitly allows gradual,
+              not-all-at-once adoption, so don't flag components that have
+              never been touched under the convention at all.
+            - **Unexplained visual-baseline changes**: a file under
+              `e2e/board-visual.spec.ts-snapshots/` changed with nothing in
+              the PR (diff or description) explaining what rendering change
+              caused it. MEDIUM by default (could be a legitimate,
+              intentional UI change); raise to HIGH only if the diff shows
+              no plausible rendering-affecting code change anywhere in the
+              same PR that would explain a pixel difference at all.
+            - **Server-only imports leaking into a client bundle**: a file
+              marked `"use client"` (or something it imports) pulling in
+              lib/prisma.ts, lib/ingest.ts, lib/sync.ts, lib/galaxy-client.ts,
+              or any other server-only/`node:*`-using module. HIGH — this
+              either breaks the build or leaks server-side code/credentials
+              into a bundle actually shipped to the browser.
+
+            For confidence: HIGH means you can point to the exact
+            file/line and explain precisely why it's wrong. MEDIUM means a
+            plausible concern you can't fully verify from what's visible in
+            the diff alone (e.g. you can't see a guard defined elsewhere in
+            the same file). LOW means a speculative, pattern-matched
+            concern flagged just in case, not a confirmed problem.
+
+            Post your findings as PR comments: use the inline-comment tool
+            for each specific issue, on the exact line it applies to, and
+            one top-level comment summarizing the review (including a
+            short note if you found nothing). For every finding, the
+            `possible_solution` you give — both in the comment and in the
+            structured output below — must describe the fix in words. Never
+            write or paste an actual code diff, patch, or replacement
+            snippet; you're suggesting a direction, not authoring the fix.
+
+            Finally, return the full list of findings as structured output
+            matching the schema below — every issue you commented on, with
+            the same reason/severity/confidence/possible_solution, so a
+            separate step can apply a pass/fail threshold. Return an empty
+            findings array if you found nothing.
+          claude_args: |
+            --max-turns 30
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --json-schema '{"type":"object","properties":{"findings":{"type":"array","items":{"type":"object","properties":{"reason":{"type":"string","description":"What the problem is and why it matters, referencing the specific file/line/pattern"},"severity":{"type":"string","enum":["low","medium","high"]},"confidence":{"type":"string","enum":["low","medium","high"]},"possible_solution":{"type":"string","description":"A description of how to fix it in words — never a code diff or patch"}},"required":["reason","severity","confidence","possible_solution"]}}},"required":["findings"]}'
+
+      # The actual pass/fail decision — real parsing logic below, not "the
+      # AI decides". Rule: fail only when at least one finding has
+      # severity == "high" AND confidence != "low". Every other case
+      # (low/medium severity regardless of confidence, or any severity at
+      # low confidence) already got posted as a PR comment above by
+      # Claude itself and just passes here.
+      - name: Enforce severity gate
+        env:
+          STRUCTURED_OUTPUT: ${{ steps.claude-review.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${STRUCTURED_OUTPUT:-}" ]; then
+            echo "::error::No structured_output from the Claude review step — the review likely errored or was skipped. Treating as a failure rather than silently passing unreviewed code."
+            exit 1
+          fi
+
+          if ! echo "$STRUCTURED_OUTPUT" | jq -e '.findings | type == "array"' > /dev/null 2>&1; then
+            echo "::error::structured_output didn't match the expected shape (missing/invalid \"findings\" array). Raw output:"
+            echo "$STRUCTURED_OUTPUT"
+            exit 1
+          fi
+
+          echo "All findings:"
+          echo "$STRUCTURED_OUTPUT" | jq '.findings'
+
+          BLOCKING=$(echo "$STRUCTURED_OUTPUT" | jq '[.findings[] | select(.severity == "high" and .confidence != "low")]')
+          BLOCKING_COUNT=$(echo "$BLOCKING" | jq 'length')
+
+          if [ "$BLOCKING_COUNT" -gt 0 ]; then
+            echo "::error::$BLOCKING_COUNT blocking finding(s): severity=high with confidence != low."
+            echo "$BLOCKING" | jq -c '.[]'
+            exit 1
+          fi
+
+          echo "No blocking findings (nothing at severity=high with confidence!=low). Any lower-severity or low-confidence findings were posted as comments only; job passes."

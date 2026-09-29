@@ -185,3 +185,44 @@ If that's not acceptable, you need one of:
 
 Neither is set up as part of this task (Vercel-settings changes were
 explicitly out of scope) — this is flagged for you to decide and configure.
+
+## Making the Claude PR review actually block merges (manual, GitHub settings)
+
+**Authentication**: both `claude-review.yml` and `claude.yml` authenticate
+via workload identity federation, not a repository secret — there's no
+`ANTHROPIC_API_KEY` (or any other secret) to add. The GitHub Actions
+federation issuer and this repo's rule are already registered in the
+Claude Console (Settings → Workload identity). The three values committed
+in each workflow (`anthropic_federation_rule_id`, `anthropic_organization_id`,
+`anthropic_service_account_id`) are identifiers, not credentials — safe to
+commit as plain YAML values, visible in a public diff, exactly as they
+appear in the workflow files.
+
+`.github/workflows/claude-review.yml` runs an automated review on every
+pull request and fails its job when it finds a `high`-severity finding at
+more than low confidence (see that file's own comments for the exact
+parsing logic). **A failing job by itself does not block a merge** — GitHub
+only prevents merging on a failing check when that check is explicitly
+marked *required* in the repository's branch protection settings, and that
+can't be set from a workflow file; it's a one-time manual step:
+
+1. GitHub → this repo → **Settings → Branches**.
+2. Add (or edit) a branch protection rule for `master`.
+3. Enable **"Require status checks to pass before merging"**.
+4. In the status-check search box, add **`review`** — the job name from
+   `claude-review.yml` (GitHub only offers a job as a searchable status
+   check after it's run at least once, so open one real PR first if the
+   job doesn't appear in the list yet).
+5. Save.
+
+Without this step, `claude-review.yml` still runs and still posts its
+review comments and inline findings on every PR — the review itself is
+fully functional either way — but a `high`-severity finding only shows as
+a red ✗ next to the PR's checks, not as an actual merge block, until this
+setting is turned on.
+
+`claude.yml` (the `@claude`-mention on-demand re-review) is **not** meant to
+be added as a required check here — it doesn't run automatically on every
+PR (only when someone mentions `@claude`), so requiring it would block
+every PR that never gets mentioned. Only `claude-review.yml`'s `review` job
+should be marked required.
