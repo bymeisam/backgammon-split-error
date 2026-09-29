@@ -9,16 +9,22 @@ only you can do (env vars, Oracle firewall, verifying the deploy).
 
 ## Required environment variables (production + preview)
 
-Set **only** these two on Vercel (Project Settings → Environment Variables),
+Set **only** this one on Vercel (Project Settings → Environment Variables),
 for both the Production and Preview environments:
 
 | Variable                | Value                                            |
 | ------------------------ | ------------------------------------------------ |
 | `DATABASE_URL_READONLY`  | `mysql://bg_readonly:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
-| `READ_ONLY_MODE`         | `true`                                            |
 
-**Never set `DATABASE_URL` on Vercel.** Its absence is what makes this a
-read-only deployment in the first place:
+**Never set `DATABASE_URL` on Vercel**, and **don't set `ENABLE_WRITE_MODE`
+on Vercel either — leave it unset.** The convention this app uses: unset is
+the safe default everywhere, and only an environment that's actually meant
+to write (local dev) sets `ENABLE_WRITE_MODE=true` explicitly. Vercel never
+should, so it simply doesn't appear there at all — no `ENABLE_WRITE_MODE=false`
+needed, since absence already means disabled.
+
+`DATABASE_URL` being absent is what makes this a read-only deployment in the
+first place:
 
 - `lib/prisma.ts`'s write client (`prisma`, used by ingest/sync code) is
   lazy — importing the module never throws, but the moment anything tries to
@@ -28,7 +34,8 @@ read-only deployment in the first place:
   something to paper over with a dummy `DATABASE_URL`.
 - `isGalaxyEnabled()` (`lib/galaxyGate.ts`) requires `DATABASE_URL` to be
   present as its *first* condition — so leaving it unset is also what keeps
-  the Galaxy gate closed (see "Lifting the Galaxy gate" below).
+  the Galaxy gate closed (see "Lifting the Galaxy gate" below), independent
+  of whatever `ENABLE_WRITE_MODE` is or isn't set to.
 
 `GALAXY_TOKEN` is never read by the deployed app either (only by the local
 sync scripts) — don't set it on Vercel.
@@ -85,13 +92,16 @@ behind `isGalaxyEnabled()` (`lib/galaxyGate.ts`):
 
 ```ts
 export function isGalaxyEnabled(): boolean {
-  return Boolean(process.env.DATABASE_URL) && process.env.READ_ONLY_MODE !== "true";
+  return Boolean(process.env.DATABASE_URL) && process.env.ENABLE_WRITE_MODE === "true";
 }
 ```
 
-It fails closed — either `DATABASE_URL` being absent (the normal production
-state above) or `READ_ONLY_MODE` being `"true"` is enough to disable Galaxy
-access; a forgotten/misconfigured flag can never accidentally turn it *on*.
+It fails closed by construction — disabled is the *default* with zero env
+vars set, and enabling it requires two independent things to both be true:
+`DATABASE_URL` present, and `ENABLE_WRITE_MODE` set to exactly `"true"`.
+Either one being absent/wrong (a forgotten `ENABLE_WRITE_MODE`, or a stray
+`DATABASE_URL` in an environment that was never meant to have one) is
+enough to keep Galaxy access off — the flag alone is never sufficient.
 
 This is the single source of truth, read in exactly two places:
 
@@ -117,8 +127,9 @@ required**, because both call sites above already read `isGalaxyEnabled()`
 as their only source of truth:
 
 1. Set `DATABASE_URL` on Vercel again (a real read-write credential).
-2. Remove the `READ_ONLY_MODE` env var (or set it to anything other than
-   `"true"`).
+2. Set `ENABLE_WRITE_MODE=true` on Vercel too — with the new default-off
+   polarity, both are required; setting `DATABASE_URL` alone still leaves
+   the gate shut.
 
 `isGalaxyEnabled()` starts returning `true` on the next request after that
 env change takes effect, and `proxy.ts`/`app/page.tsx` both pick it up
@@ -131,8 +142,8 @@ around the Galaxy link in `app/page.tsx`.
 
 1. **Link the repo** to a new Vercel project (`vercel link`, or via the
    Vercel dashboard's "Import Project").
-2. **Set the env vars** above (`DATABASE_URL_READONLY`, `READ_ONLY_MODE=true`)
-   for both Production and Preview.
+2. **Set the env var** above (`DATABASE_URL_READONLY`) for both Production
+   and Preview — leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset on both.
 3. **Decide the Oracle port-3306 ingress.** Oracle HeatWave's firewall is
    currently scoped to your home IP only. Vercel Hobby functions don't have
    a fixed, allowlist-able outbound IP range (static outbound IPs / Secure
