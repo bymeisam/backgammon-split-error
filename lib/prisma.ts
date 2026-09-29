@@ -36,6 +36,19 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
     database: parsed.pathname.replace(/^\//, ""),
   };
 
+  // Serverless instances multiply connections (each warm Lambda instance
+  // holds its own pool), and Oracle HeatWave's Always Free tier caps total
+  // concurrent connections low. mariadb's own default (10 per pool, see
+  // node_modules/mariadb/lib/config/pool-options.js) was never overridden
+  // here, so each of this file's two pools (prisma, prismaReadOnly) — times
+  // however many concurrent serverless instances Vercel spins up — could
+  // multiply into the dozens/hundreds. A small fixed cap keeps any single
+  // instance's footprint tiny; the mariadb driver queues excess concurrent
+  // queries against a full pool rather than failing them, so this is a
+  // throughput/latency tradeoff, not a correctness one, and safe even for
+  // /status's own 5-way Promise.all.
+  config.connectionLimit = 3;
+
   if (parsed.searchParams.get("ssl") === "true") {
     config.ssl = {
       ca: fs.readFileSync(ORACLE_CA_PATH),
@@ -83,19 +96,48 @@ const globalForPrisma = globalThis as unknown as {
   prismaReadOnly?: PrismaClient;
 };
 
-function createClient(url: string | undefined, envVarName: string): PrismaClient {
-  if (!url) {
-    throw new Error(`${envVarName} is not set — see .env.example.`);
+// Lazy on purpose: this module is imported by anything that touches either
+// client, including files that only ever use prismaReadOnly (e.g.
+// lib/local-client.ts, app/status/page.tsx, app/api/player-identities). ES
+// module evaluation runs every top-level statement in a file regardless of
+// which export the importer actually uses, so an eager `new PrismaClient(...)`
+// here for `prisma` would throw the instant DATABASE_URL is unset — which is
+// the normal, expected state in production/preview (only DATABASE_URL_READONLY
+// is set there; see docs/deploy.md) and in CI (no real DB credentials at all,
+// see .github/workflows/ci.yml). A Proxy defers both the env-var check and
+// the actual PrismaClient/pool construction until the first real property
+// access (e.g. `prisma.match.findMany`), so importing this module — or even
+// importing `prisma` without ever calling a method on it — never throws.
+// Real usage of an unconfigured client still throws immediately and loudly,
+// with the same message as before; nothing about the write client actually
+// being used without DATABASE_URL is silently tolerated.
+function createLazyClient(url: string | undefined, envVarName: string): PrismaClient {
+  let client: PrismaClient | undefined;
+  function get(): PrismaClient {
+    if (!client) {
+      if (!url) {
+        throw new Error(`${envVarName} is not set — see .env.example.`);
+      }
+      client = new PrismaClient({ adapter: new PrismaMariaDb(buildConnectionConfig(url)) });
+    }
+    return client;
   }
-  return new PrismaClient({ adapter: new PrismaMariaDb(buildConnectionConfig(url)) });
+  // No `receiver` passed to Reflect.get — forwards `this` as the real client,
+  // not the proxy, so internal getter-based APIs (Prisma's model delegates,
+  // $transaction, etc.) see the object shape they expect.
+  return new Proxy({} as PrismaClient, {
+    get(_target, prop) {
+      return Reflect.get(get(), prop);
+    },
+  });
 }
 
 export const prisma =
-  globalForPrisma.prisma ?? createClient(process.env.DATABASE_URL, "DATABASE_URL");
+  globalForPrisma.prisma ?? createLazyClient(process.env.DATABASE_URL, "DATABASE_URL");
 
 export const prismaReadOnly =
   globalForPrisma.prismaReadOnly ??
-  createClient(process.env.DATABASE_URL_READONLY, "DATABASE_URL_READONLY");
+  createLazyClient(process.env.DATABASE_URL_READONLY, "DATABASE_URL_READONLY");
 
 // Standard Next.js dev singleton: without this, hot reload creates new
 // PrismaClients (and connection pools) on every edit.

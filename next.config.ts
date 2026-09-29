@@ -9,6 +9,27 @@ const nextConfig: NextConfig = {
   // context (normal dev, `next build`, Vercel), so this changes nothing
   // about normal behavior.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+
+  // lib/prisma.ts's buildConnectionConfig() reads certs/oracle-mysql-ca.pem
+  // off disk at runtime (fs.readFileSync(path.join(process.cwd(), "certs",
+  // "oracle-mysql-ca.pem"))) — every route that touches Oracle needs it
+  // physically present in its deployed function bundle, or every DB query
+  // against Oracle fails. Verified this already traces correctly on its own
+  // (Next's file tracer resolves that path.join(process.cwd(), ...) call
+  // statically — confirmed by inspecting .next/server/app/**/*.nft.json
+  // after a real build: certs/oracle-mysql-ca.pem is present in every route
+  // that imports lib/prisma.ts, and absent from the client-shell pages that
+  // don't). Declared explicitly anyway rather than relying solely on that
+  // inference holding forever — a future refactor of buildConnectionConfig
+  // that makes the path even slightly less static (a helper function, an
+  // extra indirection) could silently break the heuristic with no build-time
+  // error, and the failure mode is total (nothing works against Oracle
+  // without this file). One small (~1.1KB) cert, applied to every route
+  // rather than hand-maintaining a per-route list that drifts as routes are
+  // added.
+  outputFileTracingIncludes: {
+    "/*": ["./certs/oracle-mysql-ca.pem"],
+  },
 };
 
 export default nextConfig;

@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { style } from "./home.styles";
 
 export default function Home() {
+  const galaxyEnabled = isGalaxyEnabled();
+
   return (
     <div className={style.pageContainer}>
       <main className={style.main}>
@@ -16,9 +19,11 @@ export default function Home() {
           <Link href="/matches" className={style.primaryButton}>
             Open tool
           </Link>
-          <Link href="/galaxy/matches" className={style.secondaryButton}>
-            Fetch live from Galaxy
-          </Link>
+          {galaxyEnabled && (
+            <Link href="/galaxy/matches" className={style.secondaryButton}>
+              Fetch live from Galaxy
+            </Link>
+          )}
         </div>
         <Link href="/status" className={style.statusLink}>
           Status

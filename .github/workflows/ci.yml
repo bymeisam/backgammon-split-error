@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Deliberately no DATABASE_URL / DATABASE_URL_READONLY here, not even a
+    # dummy value. lib/prisma.ts's clients are lazy (see the comment there) —
+    # importing the module, and running a full `next build`, must succeed
+    # with zero DB env vars set at all (confirmed locally in the same
+    # session this workflow was added: a clean checkout with no .env file
+    # and no DB env vars present built cleanly). Leaving this genuinely
+    # unset, rather than papering over it with a fake value, makes this
+    # workflow itself the regression test for that property — if a future
+    # change reintroduces an eager, import-time DB requirement, this build
+    # step fails loudly instead of silently passing on a masked dummy value.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npx tsc --noEmit
+
+      - run: npm test
+
+      - run: npm run build
+
+      # npm run test:visual (the Playwright visual-regression suite) is
+      # intentionally NOT run here — it needs a seeded local MySQL schema
+      # (bg_test, see .env.test/e2e/README.md) that doesn't exist in this
+      # runner, and its own GPU-rasterization jitter (documented in
+      # playwright.config.ts/e2e/README.md, mitigated locally by retries)
+      # makes it a poor fit for CI. It stays a local-only check.
