@@ -146,6 +146,11 @@ export default async function StatusPage() {
             ))}
           </ul>
         </section>
+
+        <p className="text-xs text-zinc-400 dark:text-zinc-600">
+          This page has no client-side JavaScript — every value above is
+          rendered server-side on each request.
+        </p>
       </main>
     </div>
   );
