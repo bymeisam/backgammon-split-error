@@ -30,6 +30,27 @@ jobs:
 
       - run: npm run lint
 
+      # app/layout.tsx (and any other route using typed-route helpers like
+      # LayoutProps<...>) depends on ambient types Next writes to
+      # .next/types/** as a side effect of `next build`/`next dev` — they
+      # don't exist on a fresh checkout until one of those has run. Without
+      # this, `npx tsc --noEmit` below fails with "Cannot find name
+      # 'LayoutProps'" even though the code is correct — reproduced directly
+      # against master before fixing, not guessed. `next typegen` generates
+      # exactly those types (nothing else — no bundling, no static
+      # generation) in well under a second, so this runs before the
+      # standalone typecheck instead of a full `npm run build` (which would
+      # also unblock it, just ~2 orders of magnitude slower for a step whose
+      # only job here is making a type available).
+      - run: npx next typegen
+
+      # Kept as its own step even though the later `npm run build` also runs
+      # a full internal typecheck: Next's build-time check only covers files
+      # actually reachable from a route/page's import graph, so a `.ts` file
+      # nothing imports yet (e.g. a new lib/ helper added ahead of wiring it
+      # up) would silently skip Next's check but still get caught here,
+      # since tsconfig.json's `include` covers the whole project regardless
+      # of what's wired into a route.
       - run: npx tsc --noEmit
 
       - run: npm test
