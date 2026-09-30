@@ -84,10 +84,14 @@ export default async function GameReplayPage({
   const nextGameIndex =
     gamePosition < allGames.length - 1 ? allGames[gamePosition + 1].gameIndex : null;
 
-  // Every Decision row for this game, in play order — no countAsDecision or
-  // rawError filter (unlike /mistakes' DecisionListSection), since a replay
-  // reconstructs the game exactly as played, forced moves and
-  // countAsDecision:false cube-checks included.
+  // Every Decision row for this game, in play order — fetched unfiltered
+  // (no countAsDecision or rawError condition on the query itself) because
+  // buildRollLookup needs the countAsDecision:false cube-check rows too:
+  // each one carries the dice_rolled event a checker decision's own roll is
+  // looked up from (see lib/decisionFromRow.ts's own comment on
+  // buildRollLookup) — dropping them from the query would silently blank
+  // out every checker decision's dice display, not just hide the cube
+  // checks themselves.
   const rows = await prisma.decision.findMany({
     where: { gameId: game.id },
     orderBy: { eventId: "asc" },
@@ -98,6 +102,7 @@ export default async function GameReplayPage({
       userId: true,
       color: true,
       kind: true,
+      countAsDecision: true,
       rawError: true,
       errorSeverity: true,
       raw: true,
@@ -106,7 +111,20 @@ export default async function GameReplayPage({
   });
 
   const rollLookup = buildRollLookup(rows);
+
+  // countAsDecision: false rows are Galaxy's background per-roll "not close
+  // enough to double" cube checks, not real moments in the game — filtered
+  // out of the *stepped sequence* here, same scoping MistakeStat/
+  // RepeatedPosition already use (prisma/schema.prisma's own recompute
+  // queries), not on rawError/errorSeverity. A cube decision Galaxy did
+  // grade (countAsDecision: true — doubled, passed, took, or a real
+  // declined-double) still comes through below exactly as before,
+  // regardless of whether it happens to be ungraded (rawError: null) —
+  // decisionFromRowForReplay's own null-tolerance (see its comment) is
+  // unchanged, so this doesn't reintroduce the "silently drops ungraded-
+  // but-real decisions" bug the replay was already built to avoid.
   const decisions = rows
+    .filter((row) => row.countAsDecision)
     .map((row) => decisionFromRowForReplay(row, rollLookup))
     .filter((d): d is Decision => d !== null);
 
