@@ -1,23 +1,36 @@
 name: Claude PR Review
 
-# opened + ready_for_review only, deliberately not `synchronize` or
-# `reopened` — this runs once per PR (when it's first opened non-draft, or
-# when it leaves draft state), not on every push to it; re-review after a
-# fix is the separate @claude-mention workflow (claude.yml), triggered on
-# demand instead of automatically on every commit. `pull_request` is the
-# only trigger here (never `pull_request_target`, never `push`) — a direct
-# commit to master fires neither `pull_request` nor `pull_request_target`
-# events at all, so this workflow structurally cannot run from one.
+# Gated on CI (ci.yml, name: "CI" — must match exactly) having already
+# succeeded, so review cost is never spent on a PR that doesn't even pass
+# the free, deterministic checks. workflow_run fires once ci.yml finishes,
+# regardless of conclusion — the actual pass/fail gate is the job-level
+# `if:` below, not the trigger itself.
+#
+# IMPORTANT, verified via GitHub's own docs (not assumed): "This trigger
+# only receives events when the workflow file is on the default branch" —
+# this file's workflow_run trigger is inert on any branch other than
+# master. Pushing this to a feature branch changes nothing until it's
+# merged; only master's copy of this file is ever consulted to decide
+# whether to fire.
+#
+# `pull_request`/`pull_request_target` both fire on direct pushes to
+# master via ci.yml's OWN `push: branches: [master]` trigger too, but that
+# run's `github.event.workflow_run.event` will be "push", not
+# "pull_request" — the job-level `if:` below excludes it, so a direct
+# commit to master still can't cause a review to run (verified logically:
+# the only way `event == 'pull_request'` is true is if ci.yml itself was
+# triggered by a pull_request event).
 on:
-  pull_request:
-    types: [opened, ready_for_review]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
-# One run per PR at a time; a fast-follow push (or a near-simultaneous
-# opened+ready_for_review pair, e.g. a PR opened directly out of draft)
-# cancels whatever's already running for that PR number rather than
-# queuing behind it.
+# One run per PR at a time. Keyed off the PR number resolved from the
+# workflow_run payload (see the job-level `if:` below for why this can be
+# empty/null for some events — concurrency.group tolerates that; an empty
+# group name here is harmless since the job itself won't run in that case).
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.workflow_run.pull_requests[0].number }}
   cancel-in-progress: true
 
 # Minimal set, matching the worked review-workflow example at
@@ -39,23 +52,54 @@ permissions:
 
 jobs:
   review:
-    # `opened` alone doesn't guarantee non-draft (a PR can be opened
-    # directly as a draft); `ready_for_review` always implies draft:false
-    # by definition. This guard is what actually skips drafts for the
-    # `opened` case.
-    if: github.event.pull_request.draft == false
+    # Four independent conditions, all required:
+    #
+    # 1. conclusion == 'success' — ci.yml (lint/tsc/test/build) actually
+    #    passed. This is the whole point of the change: no review spend on
+    #    a PR that doesn't even pass the free, deterministic checks.
+    # 2. event == 'pull_request' — ci.yml was triggered by a PR, not by
+    #    ci.yml's own `push: branches: [master]` trigger firing on a direct
+    #    commit to master. (workflow_run's payload has no
+    #    github.event.pull_request the way a plain pull_request trigger
+    #    does — github.event.workflow_run.event is what carries this.)
+    # 3. pull_requests[0] != null — GitHub's own documented caveat: the
+    #    workflow_run payload's `pull_requests` array is empty for a PR
+    #    from a forked repository (and for an already-merged PR). Without
+    #    this guard, PR NUMBER below would silently resolve to nothing.
+    # 4. head_repository == repository — same-repo-only, the actual
+    #    security-critical guard. workflow_run (unlike plain pull_request)
+    #    always runs with this repo's real secrets/OIDC federation
+    #    available, REGARDLESS of whether the underlying PR came from a
+    #    fork — GitHub does not withhold anything here the way it does for
+    #    a fork's own pull_request-triggered run. Checking out an
+    #    arbitrary fork's head_sha under a privileged, secret-bearing
+    #    context is the textbook "pwn request" pattern (same class of risk
+    #    pull_request_target has, and exactly what the original design of
+    #    this file avoided by using plain pull_request in the first
+    #    place). This repo is public (confirmed via the GitHub API), so
+    #    this isn't a hypothetical — this condition is what keeps a fork
+    #    PR from ever reaching the checkout step below at all.
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0] != null &&
+      github.event.workflow_run.head_repository.full_name == github.event.workflow_run.repository.full_name
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # Same-repo PR head only (no pull_request_target, no fork-secrets
-      # exposure) — on a public repo, GitHub withholds secrets from runs
-      # triggered by fork PRs entirely, so a fork PR's review step fails
-      # closed (no API key available) rather than running with elevated
-      # privilege against untrusted code. fetch-depth:1 — Claude inspects
-      # the diff itself via `gh pr diff`, not a local git history walk.
+      # workflow_run has no direct PR checkout context the way pull_request
+      # does — `ref` must be set explicitly. head_sha (not
+      # pull_requests[0].head.sha) is the documented field for this: it's a
+      # required, always-populated top-level field on the workflow_run
+      # object (unlike pull_requests, which can be null/empty), and it's
+      # exactly the commit ci.yml validated. Safe to check out here
+      # specifically because the job-level `if:` above already confirmed
+      # head_repository == repository (same-repo only) before this step
+      # ever runs — see that comment for the full reasoning.
       - name: Checkout PR head
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
       # Pinned to the commit the `v1` tag currently resolves to, verified
@@ -86,7 +130,7 @@ jobs:
           anthropic_service_account_id: svac_01NdfXhijCba7BmwXmtWLBj9
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
 
             Review this pull request. Get the full diff with `gh pr diff`
             and inspect any changed file's full content with Read when the
