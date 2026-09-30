@@ -236,25 +236,26 @@ jobs:
             the same file). LOW means a speculative, pattern-matched
             concern flagged just in case, not a confirmed problem.
 
-            Post one top-level PR comment summarizing the review, via `gh
-            pr comment PR_NUMBER --body "..."` — a short note ("N issues
-            found, see the inline comments below" or "no issues found").
-            Don't try to post inline/line-level comments yourself; a
-            separate step after this one posts those directly from your
-            structured output below, so every finding needs an accurate
-            `file` (repo-relative path) and `line` (the line number on the
-            new/changed side of the diff) in addition to its reason. For
-            every finding, the `possible_solution` you give must describe
-            the fix in words. Never write or paste an actual code diff,
-            patch, or replacement snippet; you're suggesting a direction,
-            not authoring the fix.
+            You do not post inline comments yourself — a separate workflow
+            step does that afterward, using your structured findings
+            output below. Your job is exactly two things:
 
-            Finally, return the full list of findings as structured output
-            matching the schema below — every issue from your summary
-            comment, with the same file/line/reason/severity/confidence/
-            possible_solution, so later steps can post inline comments and
-            apply a pass/fail threshold. Return an empty findings array if
-            you found nothing.
+            1. Post one short top-level PR comment summarizing the review,
+               via `gh pr comment PR_NUMBER --body "..."` — a count of
+               issues found by severity (e.g. "2 high, 1 medium, 0 low" or
+               "No issues found"), not a full restatement of each finding.
+            2. Return the structured findings output matching the schema
+               below, accurately and completely — every finding needs a
+               `file` (repo-relative path) and `line` (the line number on
+               the new/changed side of the diff) in addition to its
+               reason/severity/confidence/possible_solution, since the
+               separate inline-comment step has nothing else to work from.
+
+            For every finding, the `possible_solution` you give must
+            describe the fix in words. Never write or paste an actual code
+            diff, patch, or replacement snippet; you're suggesting a
+            direction, not authoring the fix. Return an empty findings
+            array if you found nothing.
           claude_args: |
             --max-turns 30
             --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
