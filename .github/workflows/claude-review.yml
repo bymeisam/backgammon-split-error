@@ -35,29 +35,32 @@ concurrency:
 
 # Base set matches the worked review-workflow example at
 # code.claude.com/docs/en/github-actions (fetched 2026-09-29): contents/
-# pull-requests/issues all read-only, id-token:write for the action's
-# GitHub-App OIDC auth (it posts comments as the Claude GitHub App via its
-# own separately-scoped token, not this workflow's GITHUB_TOKEN — that's
-# why pull-requests:write is NOT needed here even though the job posts PR
-# comments). Narrower than one of the action repo's own example workflows
-# (examples/pr-review-comprehensive.yml, which grants pull-requests:write)
-# — chose the docs page's version deliberately, the more minimal of the two.
+# pull-requests/issues, id-token:write for the action's GitHub-App OIDC
+# auth (it posts its own summary comment as the Claude GitHub App via its
+# own separately-scoped token, not this workflow's GITHUB_TOKEN).
 #
-# checks:write is the one addition beyond that example, required for the
-# "Report check status on the PR" step below. workflow_run-triggered jobs
-# don't automatically appear as a status check on the PR that (indirectly)
-# triggered them — confirmed directly against a real run: the job executed
-# and completed, but the PR's own check-runs list only ever showed `build`
-# (ci.yml) and Vercel's own integration, never this workflow, unlike the
-# old direct pull_request trigger (where the job auto-appeared as a check
-# named after the job id). Without checks:write and that explicit report,
-# this job would run — and could even fail — completely invisibly to
-# anyone looking at the PR, and could never be added as a required branch-
-# protection check at all (those are selected from checks that have
-# actually appeared on a PR).
+# pull-requests:write (upgraded from :read) is REQUIRED, not optional: the
+# "Post inline review comments" step below calls the GitHub REST API's
+# create-review-comment endpoint directly via `gh api`, authenticated with
+# this workflow's own GITHUB_TOKEN (github.token) — unlike the Claude
+# summary comment (posted through the Claude GitHub App's own identity),
+# this call has no separate elevated identity to fall back on, so the
+# workflow token itself needs real write access to pull request comments.
+#
+# checks:write is required for the "Report check status on the PR" step.
+# workflow_run-triggered jobs don't automatically appear as a status check
+# on the PR that (indirectly) triggered them — confirmed directly against
+# a real run: the job executed and completed, but the PR's own check-runs
+# list only ever showed `build` (ci.yml) and Vercel's own integration,
+# never this workflow, unlike the old direct pull_request trigger (where
+# the job auto-appeared as a check named after the job id). Without
+# checks:write and that explicit report, this job would run — and could
+# even fail — completely invisibly to anyone looking at the PR, and could
+# never be added as a required branch-protection check at all (those are
+# selected from checks that have actually appeared on a PR).
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
   issues: read
   checks: write
   id-token: write
@@ -233,24 +236,122 @@ jobs:
             the same file). LOW means a speculative, pattern-matched
             concern flagged just in case, not a confirmed problem.
 
-            Post your findings as PR comments: use the inline-comment tool
-            for each specific issue, on the exact line it applies to, and
-            one top-level comment summarizing the review (including a
-            short note if you found nothing). For every finding, the
-            `possible_solution` you give — both in the comment and in the
-            structured output below — must describe the fix in words. Never
-            write or paste an actual code diff, patch, or replacement
-            snippet; you're suggesting a direction, not authoring the fix.
+            Post one top-level PR comment summarizing the review, via `gh
+            pr comment PR_NUMBER --body "..."` — a short note ("N issues
+            found, see the inline comments below" or "no issues found").
+            Don't try to post inline/line-level comments yourself; a
+            separate step after this one posts those directly from your
+            structured output below, so every finding needs an accurate
+            `file` (repo-relative path) and `line` (the line number on the
+            new/changed side of the diff) in addition to its reason. For
+            every finding, the `possible_solution` you give must describe
+            the fix in words. Never write or paste an actual code diff,
+            patch, or replacement snippet; you're suggesting a direction,
+            not authoring the fix.
 
             Finally, return the full list of findings as structured output
-            matching the schema below — every issue you commented on, with
-            the same reason/severity/confidence/possible_solution, so a
-            separate step can apply a pass/fail threshold. Return an empty
-            findings array if you found nothing.
+            matching the schema below — every issue from your summary
+            comment, with the same file/line/reason/severity/confidence/
+            possible_solution, so later steps can post inline comments and
+            apply a pass/fail threshold. Return an empty findings array if
+            you found nothing.
           claude_args: |
             --max-turns 30
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
-            --json-schema '{"type":"object","properties":{"findings":{"type":"array","items":{"type":"object","properties":{"reason":{"type":"string","description":"What the problem is and why it matters, referencing the specific file/line/pattern"},"severity":{"type":"string","enum":["low","medium","high"]},"confidence":{"type":"string","enum":["low","medium","high"]},"possible_solution":{"type":"string","description":"A description of how to fix it in words — never a code diff or patch"}},"required":["reason","severity","confidence","possible_solution"]}}},"required":["findings"]}'
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --json-schema '{"type":"object","properties":{"findings":{"type":"array","items":{"type":"object","properties":{"file":{"type":"string","description":"Repo-relative path to the file the finding applies to"},"line":{"type":"integer","description":"The line number on the new/changed (RIGHT) side of the diff the finding applies to"},"reason":{"type":"string","description":"What the problem is and why it matters, referencing the specific file/line/pattern"},"severity":{"type":"string","enum":["low","medium","high"]},"confidence":{"type":"string","enum":["low","medium","high"]},"possible_solution":{"type":"string","description":"A description of how to fix it in words — never a code diff or patch"}},"required":["file","line","reason","severity","confidence","possible_solution"]}}},"required":["findings"]}'
+
+      # Posts each finding as a genuine inline PR review comment, via the
+      # REST API's "create a review comment" endpoint directly (POST
+      # /repos/{owner}/{repo}/pulls/{pull_number}/comments) — deliberately
+      # not the mcp__github_inline_comment tool the prompt used to use: as
+      # established in this project's own history, that tool's MCP server
+      # is only installed for "entity context" events (issues/PRs/PR
+      # comments), and workflow_run is explicitly excluded from that
+      # category in the action's own source (src/github/context.ts) —
+      # confirmed by reading the code directly, not the bot's paraphrase of
+      # an error. It's a hard exclusion, not something fixable by passing
+      # more context, so this step replaces it with a direct API call this
+      # workflow fully controls.
+      #
+      # Runs even if the Claude review step had trouble (if: always()), but
+      # exits cleanly (not a failure) when there's no usable
+      # structured_output — "Enforce severity gate" right after this is the
+      # one place that decides whether missing/malformed output should fail
+      # the job, so this step doesn't duplicate that judgment.
+      - name: Post inline review comments
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STRUCTURED_OUTPUT: ${{ steps.claude-review.outputs.structured_output }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${STRUCTURED_OUTPUT:-}" ] || ! echo "$STRUCTURED_OUTPUT" | jq -e '.findings | type == "array"' > /dev/null 2>&1; then
+            echo "No usable structured_output — nothing to post. The next step (Enforce severity gate) will decide whether that's itself a failure."
+            exit 0
+          fi
+
+          COUNT=$(echo "$STRUCTURED_OUTPUT" | jq '.findings | length')
+          echo "Posting $COUNT finding(s)..."
+          INLINE_OK=0
+          FALLBACK_OK=0
+
+          # Process substitution, not a pipe, so INLINE_OK/FALLBACK_OK
+          # increments below survive outside the loop — piping into `while
+          # read` runs the loop in a subshell, which a first version of
+          # this script did, silently losing the counts.
+          while IFS= read -r finding; do
+            FILE=$(echo "$finding" | jq -r '.file')
+            LINE=$(echo "$finding" | jq -r '.line')
+            REASON=$(echo "$finding" | jq -r '.reason')
+            SEVERITY=$(echo "$finding" | jq -r '.severity')
+            CONFIDENCE=$(echo "$finding" | jq -r '.confidence')
+            SOLUTION=$(echo "$finding" | jq -r '.possible_solution')
+            SEVERITY_UPPER=$(echo "$SEVERITY" | tr '[:lower:]' '[:upper:]')
+
+            BODY=$(printf '**%s (confidence: %s)**\n\n%s\n\n**Possible fix:** %s' \
+              "$SEVERITY_UPPER" "$CONFIDENCE" "$REASON" "$SOLUTION")
+
+            PAYLOAD=$(jq -n \
+              --arg body "$BODY" \
+              --arg commit_id "$HEAD_SHA" \
+              --arg path "$FILE" \
+              --argjson line "$LINE" \
+              '{body: $body, commit_id: $commit_id, path: $path, line: $line, side: "RIGHT"}')
+
+            if echo "$PAYLOAD" | gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --method POST --input - > /dev/null 2> /tmp/inline-error.log; then
+              echo "Posted inline comment: $FILE:$LINE"
+              INLINE_OK=$((INLINE_OK + 1))
+            else
+              # The documented failure mode for this endpoint (per GitHub's
+              # REST docs) is a 422 when `line` isn't part of the diff —
+              # expected for e.g. a finding on unchanged context lines
+              # Claude read for surrounding context, not the diff itself.
+              # Rather than losing the finding, fall back to a regular
+              # top-level PR comment carrying the same content plus the
+              # file:line reference as text, so nothing silently vanishes
+              # just because it can't be anchored inline.
+              echo "::warning::Inline comment failed for $FILE:$LINE (likely not part of the diff) — falling back to a regular PR comment. API response:"
+              cat /tmp/inline-error.log
+
+              FALLBACK_BODY=$(printf '**%s (confidence: %s)** — %s line %s\n\n%s\n\n**Possible fix:** %s\n\n_(Posted as a regular comment, not inline — that line is not part of the diff for this PR.)_' \
+                "$SEVERITY_UPPER" "$CONFIDENCE" "$FILE" "$LINE" "$REASON" "$SOLUTION")
+
+              if jq -n --arg body "$FALLBACK_BODY" '{body: $body}' \
+                | gh api "repos/$REPO/issues/$PR_NUMBER/comments" --method POST --input - > /dev/null 2>/tmp/fallback-error.log; then
+                echo "Posted fallback (non-inline) comment for: $FILE:$LINE"
+                FALLBACK_OK=$((FALLBACK_OK + 1))
+              else
+                echo "::error::Fallback comment ALSO failed for $FILE:$LINE — this finding wasn't posted anywhere but is still in the workflow run's own log above and in the severity gate step below."
+                cat /tmp/fallback-error.log
+              fi
+            fi
+          done < <(echo "$STRUCTURED_OUTPUT" | jq -c '.findings[]')
+
+          echo "Done: $INLINE_OK inline, $FALLBACK_OK fallback (of $COUNT total)."
 
       # The actual pass/fail decision — real parsing logic below, not "the
       # AI decides". Rule: fail only when at least one finding has
