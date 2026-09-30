@@ -33,21 +33,33 @@ concurrency:
   group: claude-review-${{ github.event.workflow_run.pull_requests[0].number }}
   cancel-in-progress: true
 
-# Minimal set, matching the worked review-workflow example at
-# code.claude.com/docs/en/github-actions (fetched 2026-09-29) exactly:
-# contents/pull-requests/issues all read-only, id-token:write for the
-# action's GitHub-App OIDC auth (it posts comments as the Claude GitHub App
-# via its own separately-scoped token, not this workflow's GITHUB_TOKEN —
-# that's why pull-requests:write is NOT needed here even though the job
-# posts PR comments). Note: this is narrower than one of the action repo's
-# own example workflows (examples/pr-review-comprehensive.yml), which grants
-# pull-requests:write — chose the docs page's version deliberately since
-# it's what this task named as authoritative and it's the more minimal of
-# the two ("nothing broader" per the task).
+# Base set matches the worked review-workflow example at
+# code.claude.com/docs/en/github-actions (fetched 2026-09-29): contents/
+# pull-requests/issues all read-only, id-token:write for the action's
+# GitHub-App OIDC auth (it posts comments as the Claude GitHub App via its
+# own separately-scoped token, not this workflow's GITHUB_TOKEN — that's
+# why pull-requests:write is NOT needed here even though the job posts PR
+# comments). Narrower than one of the action repo's own example workflows
+# (examples/pr-review-comprehensive.yml, which grants pull-requests:write)
+# — chose the docs page's version deliberately, the more minimal of the two.
+#
+# checks:write is the one addition beyond that example, required for the
+# "Report check status on the PR" step below. workflow_run-triggered jobs
+# don't automatically appear as a status check on the PR that (indirectly)
+# triggered them — confirmed directly against a real run: the job executed
+# and completed, but the PR's own check-runs list only ever showed `build`
+# (ci.yml) and Vercel's own integration, never this workflow, unlike the
+# old direct pull_request trigger (where the job auto-appeared as a check
+# named after the job id). Without checks:write and that explicit report,
+# this job would run — and could even fail — completely invisibly to
+# anyone looking at the PR, and could never be added as a required branch-
+# protection check at all (those are selected from checks that have
+# actually appeared on a PR).
 permissions:
   contents: read
   pull-requests: read
   issues: read
+  checks: write
   id-token: write
 
 jobs:
@@ -132,10 +144,15 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
 
-            Review this pull request. Get the full diff with `gh pr diff`
-            and inspect any changed file's full content with Read when the
-            diff alone doesn't give enough context (e.g. to see whether a
-            surrounding null-check already exists).
+            Review this pull request. This checkout is a detached HEAD (a
+            bare commit, not a branch), so `gh` cannot auto-detect which PR
+            it belongs to — always pass PR NUMBER explicitly to every `gh
+            pr` subcommand, e.g. `gh pr diff PR_NUMBER`, `gh pr view
+            PR_NUMBER`, `gh pr comment PR_NUMBER --body "..."`. Get the
+            full diff with `gh pr diff PR_NUMBER` and inspect any changed
+            file's full content with Read when the diff alone doesn't give
+            enough context (e.g. to see whether a surrounding null-check
+            already exists).
 
             This is a Next.js 16 / Prisma 7 / MySQL app (backgammon match
             analysis, synced from a third-party API called "Galaxy") being
@@ -242,6 +259,7 @@ jobs:
       # low confidence) already got posted as a PR comment above by
       # Claude itself and just passes here.
       - name: Enforce severity gate
+        id: severity-gate
         env:
           STRUCTURED_OUTPUT: ${{ steps.claude-review.outputs.structured_output }}
         run: |
@@ -271,3 +289,59 @@ jobs:
           fi
 
           echo "No blocking findings (nothing at severity=high with confidence!=low). Any lower-severity or low-confidence findings were posted as comments only; job passes."
+
+      # workflow_run-triggered jobs don't automatically show up as a check
+      # on the PR that (indirectly) triggered them — confirmed directly:
+      # a real run of this job executed and completed, but the PR's own
+      # check-runs list never showed it, only `build` (ci.yml) and Vercel's
+      # own integration. This step is what makes the job's result visible
+      # on the PR at all, and it's what a future required-branch-protection
+      # check would actually point at (name: "Claude PR Review", matching
+      # this workflow's own `name:` — not the job id "review", to avoid
+      # confusion with any check GitHub itself might label similarly).
+      #
+      # if: always() — this must run whether the prior steps succeeded or
+      # not, or a genuine failure (e.g. the Claude review step erroring
+      # out) would leave no check at all rather than a failed one, which is
+      # worse: a missing check can silently not block a merge depending on
+      # how branch protection is configured, where an explicit failure
+      # can't be missed.
+      - name: Report check status on the PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CLAUDE_OUTCOME: ${{ steps.claude-review.outcome }}
+          GATE_OUTCOME: ${{ steps.severity-gate.outcome }}
+        run: |
+          set -euo pipefail
+
+          if [ "$CLAUDE_OUTCOME" = "success" ] && [ "$GATE_OUTCOME" = "success" ]; then
+            CONCLUSION="success"
+            TITLE="No blocking findings"
+            SUMMARY="Review completed with no severity=high, confidence!=low findings. See this workflow run for the full findings list, and the PR's own comments for the human-readable review."
+          elif [ "$GATE_OUTCOME" = "failure" ]; then
+            CONCLUSION="failure"
+            TITLE="Blocking finding(s)"
+            SUMMARY="At least one severity=high, confidence!=low finding — see this workflow run's \"Enforce severity gate\" step for the exact list, and the PR's inline comments for the human-readable review."
+          else
+            CONCLUSION="failure"
+            TITLE="Review step failed"
+            SUMMARY="The Claude review step itself did not complete successfully (outcome: $CLAUDE_OUTCOME) — no findings were produced. See this workflow run's \"Claude review\" step for the error."
+          fi
+
+          # jq -n builds the JSON body (not a hand-interpolated heredoc
+          # template) specifically so TITLE/SUMMARY's own double quotes
+          # (used above for "Enforce severity gate") get escaped correctly
+          # instead of prematurely closing a JSON string — verified this
+          # matters: a heredoc version of this with raw `"$SUMMARY"`
+          # interpolation produced invalid JSON with exactly this content,
+          # caught before ever pushing it.
+          jq -n \
+            --arg name "Claude PR Review" \
+            --arg head_sha "$HEAD_SHA" \
+            --arg conclusion "$CONCLUSION" \
+            --arg title "$TITLE" \
+            --arg summary "$SUMMARY" \
+            '{name: $name, head_sha: $head_sha, status: "completed", conclusion: $conclusion, output: {title: $title, summary: $summary}}' \
+          | gh api "repos/${{ github.repository }}/check-runs" --method POST --input -

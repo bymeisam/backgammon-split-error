@@ -45,9 +45,34 @@ jobs:
       issues: read
       id-token: write
     steps:
+      # Resolve the PR's actual head commit explicitly rather than relying
+      # on actions/checkout's default ref, which is wrong for at least one
+      # of the three trigger events here: `pull_request_review_comment`/
+      # `pull_request_review` payloads include a full `pull_request` object
+      # (so github.sha would happen to resolve correctly for those), but
+      # `issue_comment` doesn't carry PR head info in its payload at all —
+      # github.sha defaults to the default branch's HEAD (master) for that
+      # event, meaning an unpatched checkout here would silently review
+      # the wrong commit entirely for an @claude mention left as a plain
+      # PR-conversation comment, the single most common way this workflow
+      # actually gets triggered. `gh pr view --json headRefOid` is the one
+      # mechanism that works identically for all three event types, so
+      # it's used unconditionally instead of branching per event_name.
+      - name: Resolve PR head SHA
+        id: resolve-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
+          HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json headRefOid -q .headRefOid)
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Checkout PR head
         uses: actions/checkout@v6
         with:
+          ref: ${{ steps.resolve-pr.outputs.head_sha }}
           fetch-depth: 1
 
       # Same pin as claude-review.yml — see that file's comment for how it
@@ -68,15 +93,21 @@ jobs:
           anthropic_service_account_id: svac_01NdfXhijCba7BmwXmtWLBj9
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+            PR NUMBER: ${{ steps.resolve-pr.outputs.pr_number }}
 
             You were mentioned with @claude on this pull request, most
             likely to re-review after a fix was pushed for earlier
             feedback. Re-run the same structured review claude-review.yml
-            runs automatically on open — get the current diff with
-            `gh pr diff` and, if you can determine what changed since the
-            last review (e.g. from the PR's existing comments), focus on
-            those changes; otherwise review the PR as it stands now.
+            runs automatically on open. This checkout is a detached HEAD (a
+            bare commit, not a branch), so `gh` cannot auto-detect which PR
+            it belongs to — always pass PR NUMBER explicitly to every `gh
+            pr` subcommand, e.g. `gh pr diff PR_NUMBER`, `gh pr view
+            PR_NUMBER`, `gh pr comment PR_NUMBER --body "..."`. Get the
+            current diff with `gh pr diff PR_NUMBER` and, if you can
+            determine what changed since the last review (e.g. from the
+            PR's existing comments, via `gh pr view PR_NUMBER --comments`),
+            focus on those changes; otherwise review the PR as it stands
+            now.
 
             This is a Next.js 16 / Prisma 7 / MySQL app (backgammon match
             analysis, synced from a third-party API called "Galaxy") being
