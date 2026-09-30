@@ -31,6 +31,12 @@ export const style = {
   tableCell: "px-3 py-2 font-mono text-xs text-black dark:text-zinc-100",
   // Opponent name is the one body cell without font-mono/text-xs.
   opponentCell: "px-3 py-2 text-black dark:text-zinc-100",
+  // The Replay link's own cell — a click target inside a clickable row, so
+  // it stops propagation before the row's own onClick (match navigation)
+  // fires, same pattern MoveDelta.tsx already uses for the same problem.
+  replayCell: "px-3 py-2",
+  replayLink:
+    "text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
   paginationRow: "flex items-center justify-between",
   // Shared by both Prev and Next — identical static string, the
   // enabled/disabled look comes entirely from the HTML `disabled`

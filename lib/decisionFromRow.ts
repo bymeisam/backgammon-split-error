@@ -23,7 +23,9 @@ import {
   type Severity,
 } from "@/lib/mistakes";
 
-const KIND_MAP: Record<PrismaDecisionKind, DecisionKind> = {
+// Exported for lib/decisionFromRow.ts's own decisionFromRowForReplay below
+// to reuse verbatim, rather than re-declaring the same mapping twice.
+export const KIND_MAP: Record<PrismaDecisionKind, DecisionKind> = {
   CHECKER: "checker",
   CUBE: "cube",
   RESIGNATION: "resignation",
@@ -37,7 +39,8 @@ const KIND_MAP: Record<PrismaDecisionKind, DecisionKind> = {
 // existing bucket ("error") rather than extending that type. NONE means no
 // real mistake, mapped to null to match lib/mistakes.ts's own convention
 // for a clean decision.
-function severityFor(severity: PrismaErrorSeverity): Severity | null {
+// Exported for the same reason as KIND_MAP above.
+export function severityFor(severity: PrismaErrorSeverity): Severity | null {
   switch (severity) {
     case "BLUNDER":
       return "blunder";
@@ -110,6 +113,54 @@ export function decisionFromRow(row: DecisionRow, rollLookup?: Map<string, numbe
   const { mine, best } = actionLabels(review);
   const { mine: myMoveNotation, best: bestMoveNotation } = moveNotations(review);
   const absError = Math.abs(row.rawError);
+
+  return {
+    id: String(row.id),
+    gameIndex: row.game.gameIndex,
+    userId: row.userId,
+    color: row.color,
+    kind: KIND_MAP[row.kind],
+    absError,
+    isMistake: absError > 0,
+    severity: severityFor(row.errorSeverity),
+    detail:
+      review.result.analysed_event === "move"
+        ? `played ${mine} → best ${best}`
+        : `${mine} → best: ${best}`,
+    myLabel: mine,
+    bestLabel: best,
+    roll: rollLookup?.get(`${row.gameId}:${row.eventId}`) ?? event.rolled_dice ?? [],
+    sourcePositionId: review.source_position?.formatted_value ?? null,
+    myMoveNotation,
+    bestMoveNotation,
+  };
+}
+
+// Same as decisionFromRow above, but for a full-game replay
+// (app/matches/[matchId]/replay/[gameIndex]): does NOT skip a row with
+// rawError === null. Every ingested Decision row already has a non-null
+// error_analysis (lib/ingest.ts skips outcome-logging events with no real
+// decision at all before a row is ever created — see its
+// EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS handling), but a stored row's
+// error_analysis.raw_error can still itself be null for a partial/low-
+// confidence analysis, and countAsDecision is always false for a cube-check
+// dice-roll analysis or a forced single-legal-move — decisionFromRow (and
+// every current caller of it) intentionally treats both as "not a gradeable
+// mistake, skip" for their own mistake-focused views. A replay shows the
+// game exactly as played instead, so nothing here is filtered on either
+// count_as_decision or a null raw_error — only a row with no review data at
+// all (shouldn't happen for anything actually ingested) returns null.
+export function decisionFromRowForReplay(
+  row: DecisionRow,
+  rollLookup?: Map<string, number[]>
+): Decision | null {
+  const event = row.raw as unknown as GameEvent;
+  const review = event.reviews?.[0];
+  if (!review) return null;
+
+  const { mine, best } = actionLabels(review);
+  const { mine: myMoveNotation, best: bestMoveNotation } = moveNotations(review);
+  const absError = row.rawError === null ? 0 : Math.abs(row.rawError);
 
   return {
     id: String(row.id),

@@ -85,6 +85,7 @@ export default function MatchesPage() {
                     <th className={style.tableHeadCell}>Score</th>
                     <th className={style.tableHeadCell}>Your error</th>
                     <th className={style.tableHeadCell}>Opponent error</th>
+                    <th className={style.tableHeadCell}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -112,6 +113,15 @@ export default function MatchesPage() {
                       </td>
                       <td className={style.tableCell}>
                         {m.opponentError.toFixed(3)}
+                      </td>
+                      <td className={style.replayCell}>
+                        <Link
+                          href={`/matches/${m.matchId}/replay/1`}
+                          onClick={(e) => e.stopPropagation()}
+                          className={style.replayLink}
+                        >
+                          Replay
+                        </Link>
                       </td>
                     </tr>
                   ))}

@@ -10,4 +10,9 @@ export const style = {
     "rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300",
   notIngestedBox:
     "rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-zinc-600 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400",
+
+  replayRow: "flex flex-wrap items-center gap-2",
+  replayLabel: "text-sm text-zinc-500 dark:text-zinc-400",
+  replayLink:
+    "inline-flex h-8 items-center justify-center rounded-full border border-black/10 px-3 text-xs font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
 } as const;

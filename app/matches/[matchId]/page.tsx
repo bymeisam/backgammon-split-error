@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import MistakesSection from "@/app/components/match-analysis/MistakesSection";
 import { style } from "./matchDetail.styles";
@@ -79,6 +80,21 @@ export default function MatchAnalysisPage() {
             <p className={style.notIngestedBox}>This match hasn&apos;t been fully ingested yet.</p>
           )}
         </div>
+
+        {games.length > 0 && (
+          <div className={style.replayRow}>
+            <span className={style.replayLabel}>Replay:</span>
+            {games.map((g) => (
+              <Link
+                key={g.gameIndex}
+                href={`/matches/${matchId}/replay/${g.gameIndex}`}
+                className={style.replayLink}
+              >
+                Game {g.gameIndex}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {!notIngested && <MistakesSection games={games} />}
       </main>
