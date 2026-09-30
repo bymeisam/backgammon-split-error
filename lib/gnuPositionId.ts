@@ -87,3 +87,33 @@ export function decodeGnuPositionId(id: string): DecodedPosition {
 
   return { mine, opponent, mineBar, opponentBar, mineOff, opponentOff };
 }
+
+// For a fixed-perspective board view (app/matches/[matchId]/replay): when
+// the decision on screen belongs to the opponent (relative to some fixed
+// "my" color), decodeGnuPositionId's own output already has mine/opponent
+// swapped from what a fixed viewer wants — "mine" is always "whoever's on
+// roll", not a stable color. Re-mirroring the finished output the exact
+// same way the decoder already mirrors its own two raw board arrays
+// internally (board[0][24 - point]) swaps it back: mine/opponent trade
+// places, and each 24-point array is index-reversed so a checker on
+// physical point N under one frame is correctly read from physical point
+// (25 - N) under the other. Pure and decoder-independent — no change to
+// decodeGnuPositionId itself, and calling it twice (flip of a flip) is
+// exactly the identity transform, same as mirroring any coordinate twice.
+export function flipPerspective(decoded: DecodedPosition): DecodedPosition {
+  const mine = new Array(24).fill(0);
+  const opponent = new Array(24).fill(0);
+  for (let point = 1; point <= 24; point++) {
+    mine[point - 1] = decoded.opponent[24 - point];
+    opponent[point - 1] = decoded.mine[24 - point];
+  }
+
+  return {
+    mine,
+    opponent,
+    mineBar: decoded.opponentBar,
+    opponentBar: decoded.mineBar,
+    mineOff: decoded.opponentOff,
+    opponentOff: decoded.mineOff,
+  };
+}

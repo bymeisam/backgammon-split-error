@@ -5,7 +5,7 @@
 // fetched and used earlier this session, for the /mistakes dice-roll work)
 // — see the "real match data" describe block below.
 import { describe, expect, it } from "vitest";
-import { decodeGnuPositionId } from "@/lib/gnuPositionId";
+import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
 
 describe("decodeGnuPositionId", () => {
   // The standard backgammon starting position — a fixed, universally known
@@ -90,5 +90,60 @@ describe("decodeGnuPositionId", () => {
         opponentOff: 0,
       });
     });
+  });
+});
+
+describe("flipPerspective", () => {
+  // Same relationship decodeGnuPositionId already relies on internally
+  // (board[0][24 - point]) applied once more to its own finished output:
+  // mine/opponent trade roles, and each 24-array is index-reversed (point N
+  // <-> physical point 25-N). For a plain 0-indexed 24-array, "index i reads
+  // from 23-i of the other array" is exactly array.reverse() — asserted
+  // directly against the real decoded arrays rather than hand-typing a
+  // second 24-element fixture that could itself have a transcription bug.
+  it("swaps mine/opponent and index-reverses both 24-point arrays", () => {
+    const decoded = decodeGnuPositionId("4PPCATDgc/ABMA"); // real match 46576635 data, see above
+    const flipped = flipPerspective(decoded);
+
+    expect(flipped.mine).toEqual([...decoded.opponent].reverse());
+    expect(flipped.opponent).toEqual([...decoded.mine].reverse());
+  });
+
+  it("swaps bar and off counts", () => {
+    // Any position with distinct, nonzero bar/off counts on both sides
+    // exercises this precisely — the starting position (all zero) wouldn't.
+    const decoded = {
+      mine: new Array(24).fill(0),
+      opponent: new Array(24).fill(0),
+      mineBar: 2,
+      opponentBar: 1,
+      mineOff: 3,
+      opponentOff: 4,
+    };
+    const flipped = flipPerspective(decoded);
+
+    expect(flipped.mineBar).toBe(1);
+    expect(flipped.opponentBar).toBe(2);
+    expect(flipped.mineOff).toBe(4);
+    expect(flipped.opponentOff).toBe(3);
+  });
+
+  it("is its own inverse (flipping twice returns the original)", () => {
+    for (const id of ["4HPwATDgc/ABMA", "4PPCATDgc/ABMA", "sNsmARTYzuABMA"]) {
+      const decoded = decodeGnuPositionId(id);
+      expect(flipPerspective(flipPerspective(decoded))).toEqual(decoded);
+    }
+  });
+
+  it("still accounts for exactly 15 checkers per side after flipping", () => {
+    for (const id of ["4HPwATDgc/ABMA", "4PPCATDgc/ABMA", "sNsmARTYzuABMA"]) {
+      const flipped = flipPerspective(decodeGnuPositionId(id));
+      const mineTotal =
+        flipped.mine.reduce((a, b) => a + b, 0) + flipped.mineBar + flipped.mineOff;
+      const opponentTotal =
+        flipped.opponent.reduce((a, b) => a + b, 0) + flipped.opponentBar + flipped.opponentOff;
+      expect(mineTotal).toBe(15);
+      expect(opponentTotal).toBe(15);
+    }
   });
 });

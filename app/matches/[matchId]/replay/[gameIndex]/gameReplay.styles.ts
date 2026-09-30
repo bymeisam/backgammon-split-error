@@ -19,6 +19,9 @@ export const style = {
   boardColumn: "flex flex-1 flex-col gap-3 lg:min-w-0",
   emptyState: "text-sm text-zinc-500 dark:text-zinc-400",
 
+  perspectiveToggle:
+    "flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400",
+
   navRow: "flex items-center justify-between gap-3",
   // Shared by Previous/Next — identical static string, same
   // disabled:opacity-40-driven look as app/matches/matches.styles.ts's own

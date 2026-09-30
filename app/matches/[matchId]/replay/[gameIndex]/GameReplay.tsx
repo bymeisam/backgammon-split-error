@@ -22,20 +22,37 @@ export default function GameReplay({
   prevGameIndex,
   nextGameIndex,
   initialIndex,
+  myColor,
 }: {
   matchId: string;
   decisions: Decision[];
   prevGameIndex: number | null;
   nextGameIndex: number | null;
   initialIndex: number;
+  // Resolved server-side (page.tsx) from PlayerIdentity.isMe cross-
+  // referenced against this game's own decisions — null when no isMe
+  // identity exists, or it never appears in this game, in which case the
+  // fixed-perspective toggle below has nothing reliable to compare a
+  // decision's color against and is hidden rather than offered broken.
+  myColor: string | null;
 }) {
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const [moveTab, setMoveTab] = useState<"my" | "best">("my");
+  // Opt-in, default off: today's always-on-roll-perspective stays the
+  // default (still what /mistakes' own BoardPanel usage effectively is,
+  // and preferred there) — this only ever applies to this page's own
+  // BoardPanel call, via the `flipped` prop below.
+  const [fixedPerspective, setFixedPerspective] = useState(false);
 
   const selected = decisions[selectedIndex] ?? null;
   const atStart = selectedIndex <= 0;
   const atEnd = selectedIndex >= decisions.length - 1;
+  // A decision "belongs to the opponent" (relative to the fixed color)
+  // whenever its own resolved color differs from myColor — flip only then,
+  // so "my" decisions keep rendering exactly as the always-on-roll view
+  // already does (mine is already on the bottom/dark for my own turn).
+  const flipped = fixedPerspective && selected !== null && selected.color !== myColor;
 
   function selectRow(index: number, tab: "my" | "best" = "my") {
     setSelectedIndex(index);
@@ -82,7 +99,18 @@ export default function GameReplay({
   return (
     <div className={style.layout}>
       <div className={style.boardColumn}>
-        <BoardPanel selected={selected} moveTab={moveTab} onSelectTab={setMoveTab} />
+        <BoardPanel selected={selected} moveTab={moveTab} onSelectTab={setMoveTab} flipped={flipped} />
+
+        {myColor !== null && (
+          <label className={style.perspectiveToggle}>
+            <input
+              type="checkbox"
+              checked={fixedPerspective}
+              onChange={(e) => setFixedPerspective(e.target.checked)}
+            />
+            Fixed perspective (keep my checkers on the same side)
+          </label>
+        )}
 
         <div className={style.navRow}>
           <button

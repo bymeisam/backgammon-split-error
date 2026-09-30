@@ -112,6 +112,31 @@ export default async function GameReplayPage({
 
   const rollLookup = buildRollLookup(rows);
 
+  // Decision.color is unreliable read directly off a row — confirmed
+  // against real data, not assumed: most CUBE decisions (including at
+  // least one genuine countAsDecision:true one seen in practice) store it
+  // as an empty string, while Decision.userId is always populated.
+  // Building a userId -> color map from every row that DOES have a
+  // populated color (checked across 40 real games: every userId in every
+  // game has at least one such row, and a given userId's color never
+  // alternates within a game) is the only reliable way to know "whose
+  // decision is this" — needed for the fixed-perspective toggle below, and
+  // applied to fix up each displayed decision's own `color` field too,
+  // rather than trusting the raw (possibly blank) value.
+  const colorByUserId = new Map<string, string>();
+  for (const row of rows) {
+    if (row.color && !colorByUserId.has(row.userId)) {
+      colorByUserId.set(row.userId, row.color);
+    }
+  }
+
+  const meIdentity = await prisma.playerIdentity.findFirst({ where: { isMe: true } });
+  const myUserId =
+    meIdentity && rows.some((row) => row.userId === meIdentity.sourceUserId)
+      ? meIdentity.sourceUserId
+      : null;
+  const myColor = myUserId ? colorByUserId.get(myUserId) ?? null : null;
+
   // countAsDecision: false rows are Galaxy's background per-roll "not close
   // enough to double" cube checks, not real moments in the game — filtered
   // out of the *stepped sequence* here, same scoping MistakeStat/
@@ -126,7 +151,12 @@ export default async function GameReplayPage({
   const decisions = rows
     .filter((row) => row.countAsDecision)
     .map((row) => decisionFromRowForReplay(row, rollLookup))
-    .filter((d): d is Decision => d !== null);
+    .filter((d): d is Decision => d !== null)
+    // Overwrite with the resolved color (see colorByUserId above) rather
+    // than decisionFromRowForReplay's own row.color passthrough, so every
+    // decision's color is reliable regardless of whether that specific row
+    // happened to have it populated.
+    .map((d) => ({ ...d, color: colorByUserId.get(d.userId) ?? d.color }));
 
   const initialIndex = position === "last" ? Math.max(0, decisions.length - 1) : 0;
 
@@ -151,6 +181,7 @@ export default async function GameReplayPage({
             prevGameIndex={prevGameIndex}
             nextGameIndex={nextGameIndex}
             initialIndex={initialIndex}
+            myColor={myColor}
           />
         )}
       </main>

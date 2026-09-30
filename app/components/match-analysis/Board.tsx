@@ -253,11 +253,24 @@ export default function Board({
   subMoves = [],
   arrowColor = "#dc2626",
   roll = [],
+  flipped = false,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
   arrowColor?: string;
   roll?: number[];
+  // Checker positions and arrow anchoring both come from `decoded`/
+  // `subMoves` as given — BoardPanel.tsx is responsible for applying
+  // flipPerspective/mirrorSubMoves to them *before* they arrive here when a
+  // fixed-perspective view is active (see that file's own comment). This
+  // prop's only direct effect in this file is the printed point-number
+  // label, which isn't derived from `decoded` at all (it's the fixed
+  // physical loop index below) and so can't be corrected by a data-only
+  // transform upstream — and it flips which color the dice render in,
+  // since a flipped board is, by definition, showing the opponent's turn.
+  // Default false — every existing call site (MistakesSection.tsx via
+  // BoardPanel) omits this prop entirely, so their rendering is untouched.
+  flipped?: boolean;
 }) {
   return (
     <svg
@@ -353,7 +366,7 @@ export default function Board({
               fontSize={9}
               fill="#57534e"
             >
-              {point}
+              {flipped ? 25 - point : point}
             </text>
           </g>
         );
@@ -439,7 +452,7 @@ export default function Board({
       {roll.length > 0 && (
         <foreignObject x={DICE_X} y={DICE_Y} width={DICE_BOX_W} height={DICE_BOX_H}>
           <div className={style.diceWrapper}>
-            <DiceRoll roll={roll} size={28} color="mine" />
+            <DiceRoll roll={roll} size={28} color={flipped ? "opponent" : "mine"} />
           </div>
         </foreignObject>
       )}

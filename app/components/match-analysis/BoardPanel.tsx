@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import type { Decision } from "@/lib/mistakes";
-import { decodeGnuPositionId } from "@/lib/gnuPositionId";
-import { parseNotation } from "@/lib/backgammonNotation";
+import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
+import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
 import Board from "./Board";
 import { style } from "./BoardPanel.styles";
 
@@ -15,6 +15,7 @@ export default function BoardPanel({
   selected,
   moveTab,
   onSelectTab,
+  flipped,
 }: {
   selected: Decision | null;
   moveTab: "my" | "best";
@@ -24,15 +25,25 @@ export default function BoardPanel({
   // removed as redundant with this). Left undefined, this renders exactly
   // as before — MistakesSection.tsx's usage is untouched.
   onSelectTab?: (tab: "my" | "best") => void;
+  // Optional, default false/undefined: for the replay's fixed-perspective
+  // toggle (app/matches/[matchId]/replay) only — every other call site
+  // (MistakesSection.tsx, DecisionCard.tsx) omits this entirely, so
+  // `decoded`/`subMoves` pass straight through unmodified below, exactly as
+  // before this prop existed. When true, both get mirrored here — once,
+  // in one place — before Board ever sees them, rather than duplicating
+  // the flip logic at each of the two callers that will eventually pass
+  // this prop.
+  flipped?: boolean;
 }) {
   const decoded = useMemo(() => {
     if (!selected?.sourcePositionId) return null;
     try {
-      return decodeGnuPositionId(selected.sourcePositionId);
+      const raw = decodeGnuPositionId(selected.sourcePositionId);
+      return flipped ? flipPerspective(raw) : raw;
     } catch {
       return null;
     }
-  }, [selected]);
+  }, [selected, flipped]);
 
   const notation =
     selected?.kind === "checker"
@@ -41,7 +52,10 @@ export default function BoardPanel({
         : selected.bestMoveNotation
       : null;
 
-  const subMoves = useMemo(() => (notation ? parseNotation(notation) : []), [notation]);
+  const subMoves = useMemo(() => {
+    const parsed = notation ? parseNotation(notation) : [];
+    return flipped ? mirrorSubMoves(parsed) : parsed;
+  }, [notation, flipped]);
 
   const arrowColor =
     moveTab === "best"
@@ -56,7 +70,13 @@ export default function BoardPanel({
         {!selected ? (
           <p className={style.emptyState}>No mistakes in this scope to show on the board.</p>
         ) : decoded ? (
-          <Board decoded={decoded} subMoves={subMoves} arrowColor={arrowColor} roll={selected.roll} />
+          <Board
+            decoded={decoded}
+            subMoves={subMoves}
+            arrowColor={arrowColor}
+            roll={selected.roll}
+            flipped={flipped}
+          />
         ) : (
           <p className={style.emptyState}>No position data for this decision.</p>
         )}
