@@ -108,8 +108,8 @@ const globalForPrisma = globalThis as unknown as {
 // the actual PrismaClient/pool construction until the first real property
 // access (e.g. `prisma.match.findMany`), so importing this module — or even
 // importing `prisma` without ever calling a method on it — never throws.
-// Real usage of an unconfigured client still throws immediately and loudly,
-// with the same message as before; nothing about the write client actually
+// Real usage of an unconfigured client still throws immediately and loudly;
+// nothing about the write client actually
 // being used without DATABASE_URL is silently tolerated.
 function createLazyClient(url: string | undefined, envVarName: string): PrismaClient {
   let client: PrismaClient | undefined;

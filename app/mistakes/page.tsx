@@ -103,8 +103,8 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   const category = categoryFromParam(categoryParam);
   const errorSeverity = severityFromParam(severityParam);
 
-  // countAsDecision: true matches the ask exactly; rawError not null is
-  // required too — a null rawError is an ungraded/partial analysis (see
+  // Only decisions Galaxy counts (countAsDecision: true); rawError not null
+  // is required too — a null rawError is an ungraded/partial analysis (see
   // docs/field-mapping.md), and decisionFromRow can't build a board card
   // from one (no absError to show), same exclusion lib/mistakes.ts's own
   // extractDecisions already applies.

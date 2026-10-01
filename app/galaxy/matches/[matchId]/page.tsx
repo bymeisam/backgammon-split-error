@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useGameStatsAuth } from "@/app/GameStatsProvider";
+import { useGameStatsAuth } from "@/app/providers/GameStatsAuthProvider";
 import { galaxyPost } from "@/lib/galaxyPost";
 import { galaxyGamesError, galaxyGamesStatus } from "@/lib/sequentialGames";
 import { useSequentialGames } from "@/app/hooks/useSequentialGames";

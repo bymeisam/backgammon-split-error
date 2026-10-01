@@ -2,7 +2,8 @@ import clsx from "clsx";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
 // used by /matches/[matchId], /galaxy/matches/[matchId] (via
-// MistakesSection.tsx), and /mistakes (via DecisionCard.tsx). Covers both
+// MistakesSection.tsx), /mistakes and /repeated-positions (via
+// DecisionCard.tsx), and the game replay (GameReplay.tsx). Covers both
 // BoardPanel.tsx and Board.tsx, its own subcomponent (exclusively used by
 // BoardPanel, same folder). Dice.tsx is NOT covered here — it's also used
 // independently by MistakesSection.tsx, so it isn't exclusively

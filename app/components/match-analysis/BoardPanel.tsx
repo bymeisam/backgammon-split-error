@@ -19,20 +19,13 @@ export default function BoardPanel({
 }: {
   selected: Decision | null;
   moveTab: "my" | "best";
-  // Optional: when provided, the my-move/best-move boxes below the board
-  // become the click target for switching tabs (used by
-  // app/mistakes/DecisionCard.tsx, whose own separate toggle buttons were
-  // removed as redundant with this). Left undefined, this renders exactly
-  // as before — MistakesSection.tsx's usage is untouched.
+  // Optional: when given, the my-move/best-move boxes below the board are
+  // buttons that switch tabs (DecisionCard, GameReplay); without it they're
+  // static labels (MistakesSection, which switches tabs from its tables).
   onSelectTab?: (tab: "my" | "best") => void;
-  // Optional, default false/undefined: for the replay's fixed-perspective
-  // toggle (app/matches/[matchId]/replay) only — every other call site
-  // (MistakesSection.tsx, DecisionCard.tsx) omits this entirely, so
-  // `decoded`/`subMoves` pass straight through unmodified below, exactly as
-  // before this prop existed. When true, both get mirrored here — once,
-  // in one place — before Board ever sees them, rather than duplicating
-  // the flip logic at each of the two callers that will eventually pass
-  // this prop.
+  // Fixed-perspective view (GameReplay's toggle only; default false): when
+  // true, `decoded`/`subMoves` are mirrored here — flipPerspective/
+  // mirrorSubMoves, once, in one place — before Board sees them.
   flipped?: boolean;
 }) {
   const decoded = useMemo(() => {

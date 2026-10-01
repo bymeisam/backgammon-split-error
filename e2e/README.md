@@ -20,8 +20,8 @@ The "Shared markup visual regression" tests below (4 more, added
 2026-09-28) close part of that gap specifically for the components an
 inventory found still had inline Tailwind classes and no coverage at all:
 `MistakesSection.tsx` (its own chrome, excluding `BoardPanel`),
-`MoveDelta` (exported from `MistakesSection.tsx`, reused by
-`DecisionListWithDetail.tsx`), and `DecisionListWithDetail.tsx`'s own list
+`MoveDelta` (now its own `MoveDelta.tsx`, shared by `MistakesSection.tsx`,
+`DecisionListWithDetail.tsx` and `GameReplay.tsx`), and `DecisionListWithDetail.tsx`'s own list
 region. This is deliberately *not* full coverage of every unconverted
 file (see PROGRESS.md's inventory entry) — just enough to make converting
 *this specific markup* to `.styles.ts` files safe, since that's the next

@@ -1,5 +1,5 @@
-// Builds a lib/mistakes.ts `Decision` (the exact shape BoardPanel already
-// consumes, reused unmodified) directly from one already-ingested Decision
+// Builds a lib/mistakes.ts `Decision` (the shape BoardPanel consumes)
+// directly from one already-ingested Decision
 // DB row — no live Galaxy call, no surrounding game context needed. Each
 // row is self-contained: its own `raw` JSON column holds the full original
 // event (including reviews[0]), so the same label-derivation logic
@@ -34,7 +34,7 @@ export const KIND_MAP: Record<PrismaDecisionKind, DecisionKind> = {
 // DOUBTFUL is Galaxy's mildest graded-mistake tier. lib/mistakes.ts's own
 // Severity type only has "error" | "blunder" (it computes severity from a
 // threshold on absError, not from Galaxy's own classification at all) — and
-// BoardPanel (reused exactly as-is here) only branches on
+// BoardPanel only branches on
 // `=== "blunder"` vs anything else, so DOUBTFUL maps to the closest
 // existing bucket ("error") rather than extending that type. NONE means no
 // real mistake, mapped to null to match lib/mistakes.ts's own convention
@@ -102,7 +102,7 @@ export function buildRollLookup(
 // lib/mistakes.ts's own extractDecisions gives a null rawError, rather than
 // crashing or faking a zero. `rollLookup` is optional so callers that don't
 // care about dice (or haven't fetched the sibling rows) can omit it and get
-// an empty roll, same as before.
+// an empty roll.
 export function decisionFromRow(row: DecisionRow, rollLookup?: Map<string, number[]>): Decision | null {
   if (row.rawError === null) return null;
 

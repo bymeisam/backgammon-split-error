@@ -10,9 +10,9 @@ import MoveDelta from "@/app/components/match-analysis/MoveDelta";
 import { DiceRoll } from "@/app/components/match-analysis/Dice";
 import { style } from "./gameReplay.styles";
 
-// List + single-detail split, same interaction pattern
-// DecisionListWithDetail.tsx already proved on /mistakes — client-side
-// useState selection, board panel and list laid out side-by-side via
+// List + single-detail split, same interaction pattern as
+// DecisionListWithDetail.tsx on /mistakes — client-side selection
+// (useListSelection), board panel and list laid out side-by-side via
 // lg:flex-row — applied here to a complete, unfiltered, in-order sequence
 // instead of a filtered/ranked set of flagged mistakes. Next/Previous
 // (buttons + arrow keys) step through that same selection one at a time;

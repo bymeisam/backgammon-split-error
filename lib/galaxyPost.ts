@@ -1,6 +1,6 @@
 // Client-side calls to this app's own Galaxy-proxying API routes
 // (/api/galaxy/...). Every one is a JSON POST carrying the in-memory Galaxy
-// token as `authorization` (see app/GameStatsProvider.tsx), plus any
+// token as `authorization` (see app/providers/GameStatsAuthProvider.tsx), plus any
 // route-specific fields.
 export function galaxyPost(
   path: string,

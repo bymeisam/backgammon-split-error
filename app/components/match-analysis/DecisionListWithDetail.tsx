@@ -9,15 +9,12 @@ import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import type { DecisionListItem } from "@/lib/decisionFromRow";
 import { style } from "./DecisionListWithDetail.styles";
 
-// List + single-detail split, matching the exact pattern MistakesSection.tsx
-// already uses on /matches/[matchId] and /galaxy/matches/[matchId]:
-// client-side useState selection (not a sub-route), defaulting to the first
-// item, board panel and list laid out side-by-side via lg:flex-row. The
-// list row itself reuses MistakesSection's own MoveDelta component/styling
-// directly (color-coded my-move/best-move notation, red for blunder/amber
-// otherwise, green for best — matching its exact existing convention),
-// plus a compact SeverityBadge inline with it and (only when no
-// classification filter is applied) a ClassificationBadge — the match link
+// List + single-detail split for /mistakes and /repeated-positions, same
+// pattern as MistakesSection on the match pages: client-side selection
+// (useListSelection, not a sub-route), defaulting to the first item, board
+// panel and list side by side via lg:flex-row. Each row shows MoveDelta's
+// color-coded my-move/best-move notation, a compact SeverityBadge and
+// (only when no classification filter is applied) a ClassificationBadge — the match link
 // deliberately doesn't appear here; that lives only in the single selected
 // DecisionCard, not duplicated per row. Only the *selected* decision ever
 // gets a BoardPanel/board SVG rendered.

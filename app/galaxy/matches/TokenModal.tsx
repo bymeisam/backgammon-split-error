@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { parseAuthorizationFromCurl } from "@/lib/parseCurl";
-import { useGameStatsAuth } from "@/app/GameStatsProvider";
+import { useGameStatsAuth } from "@/app/providers/GameStatsAuthProvider";
 import { style } from "./galaxyMatches.styles";
 
 export default function TokenModal() {

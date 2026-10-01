@@ -8,8 +8,8 @@ export const style = {
 
   // BreakdownTable — reused unchanged for both the classification and
   // category sections (see the page's own guard: getClassificationLabel is
-  // only applied when paramName === "classification", not a styling
-  // concern, untouched by this conversion).
+  // only applied when paramName === "classification" — not a styling
+  // concern).
   tableWrapper: "overflow-x-auto rounded-lg border border-black/10 dark:border-white/15",
   table: "w-full border-collapse text-left text-sm",
   tableHeadRow:

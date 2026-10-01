@@ -14,7 +14,7 @@ interface GameStatsAuthValue {
 
 const GameStatsAuthContext = createContext<GameStatsAuthValue | undefined>(undefined);
 
-export function GameStatsProvider({ children }: { children: ReactNode }) {
+export function GameStatsAuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
   return (
@@ -27,7 +27,7 @@ export function GameStatsProvider({ children }: { children: ReactNode }) {
 export function useGameStatsAuth(): GameStatsAuthValue {
   const ctx = useContext(GameStatsAuthContext);
   if (!ctx) {
-    throw new Error("useGameStatsAuth must be used within a GameStatsProvider.");
+    throw new Error("useGameStatsAuth must be used within a GameStatsAuthProvider.");
   }
   return ctx;
 }

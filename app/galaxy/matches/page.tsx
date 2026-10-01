@@ -2,19 +2,23 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useGameStatsAuth } from "@/app/GameStatsProvider";
+import { useGameStatsAuth } from "@/app/providers/GameStatsAuthProvider";
 import type { AnalysesListResponse, MatchAnalysis } from "@/lib/analysesTypes";
 import { galaxyPost, jsonOrThrow } from "@/lib/galaxyPost";
+import {
+  interpretSyncResponse,
+  resolveSyncState,
+  sortNewestFirst,
+  type SyncState,
+} from "@/lib/galaxyMatchList";
 import Pager from "@/app/components/ui/Pager";
 import { style } from "./galaxyMatches.styles";
+import JsonDumpPanel, { useJsonDump } from "./JsonDumpPanel";
 import TokenModal from "./TokenModal";
 
-type SyncState =
-  | { status: "syncing" }
-  | { status: "synced" }
-  | { status: "error"; message: string };
+const NO_DONE_IDS: ReadonlySet<string> = new Set();
 
-export default function MatchesPage() {
+export default function GalaxyMatchesPage() {
   const router = useRouter();
   const { token } = useGameStatsAuth();
 
@@ -26,16 +30,13 @@ export default function MatchesPage() {
   // sourceMatchIds (as strings, matching the DB column) already fully
   // ingested (ingestStatus: DONE), for the currently-displayed page only —
   // refetched fresh whenever `data` changes, not accumulated across pages.
-  const [doneMatchIds, setDoneMatchIds] = useState<Set<string>>(new Set());
+  // Stored with the `data` it was checked for, so a result for a previous
+  // page (or none yet) reads as empty rather than needing a reset.
+  const [doneCheck, setDoneCheck] = useState<{ for: AnalysesListResponse; ids: Set<string> } | null>(null);
+  const doneMatchIds = doneCheck && doneCheck.for === data ? doneCheck.ids : NO_DONE_IDS;
   const [jumpToMatchId, setJumpToMatchId] = useState("");
   const [jsonGameIndex, setJsonGameIndex] = useState("1");
-  const [jsonDump, setJsonDump] = useState<
-    | { status: "loading" }
-    | { status: "data"; text: string }
-    | { status: "error"; message: string }
-    | null
-  >(null);
-  const [copied, setCopied] = useState(false);
+  const jsonDump = useJsonDump(token);
 
   useEffect(() => {
     if (!token) return;
@@ -68,27 +69,23 @@ export default function MatchesPage() {
   // being briefly unreachable) can't block the match list itself from
   // rendering; worst case every row just falls back to showing "Sync".
   useEffect(() => {
-    if (!data || data.analyses.length === 0) {
-      setDoneMatchIds(new Set());
-      return;
-    }
+    if (!data || data.analyses.length === 0) return;
 
     let cancelled = false;
 
-    async function run() {
+    async function run(data: AnalysesListResponse) {
       try {
-        const matchIds = data!.analyses.map((m) => m.matchId).join(",");
+        const matchIds = data.analyses.map((m) => m.matchId).join(",");
         const res = await fetch(`/api/matches/check-existence?matchIds=${matchIds}`);
         if (!res.ok) throw new Error(`Request failed (${res.status}).`);
         const json = await res.json();
-        if (!cancelled) setDoneMatchIds(new Set(json.done as string[]));
+        if (!cancelled) setDoneCheck({ for: data, ids: new Set(json.done as string[]) });
       } catch (e) {
         console.error("Failed to check existing matches:", e);
-        if (!cancelled) setDoneMatchIds(new Set());
       }
     }
 
-    run();
+    run(data);
 
     return () => {
       cancelled = true;
@@ -101,7 +98,9 @@ export default function MatchesPage() {
   async function onSyncMatch(match: MatchAnalysis) {
     if (!token) return;
 
-    setSyncStates((prev) => ({ ...prev, [match.matchId]: { status: "syncing" } }));
+    const setSyncState = (state: SyncState) =>
+      setSyncStates((prev) => ({ ...prev, [match.matchId]: state }));
+    setSyncState({ status: "syncing" });
 
     try {
       const res = await galaxyPost(`/api/galaxy/matches/${match.matchId}/sync`, token, {
@@ -116,32 +115,10 @@ export default function MatchesPage() {
           userScore: match.userScore,
         },
       });
-      const json = (await jsonOrThrow(res)) as { gamesIngested: number; errors?: string[] };
-
-      // A 200 here just means the sync ran — if it ingested nothing and has
-      // errors, that's a real failure (e.g. a bad/expired token), not a
-      // success with an empty match.
-      if (json.gamesIngested === 0 && json.errors && json.errors.length > 0) {
-        throw new Error(json.errors[0]);
-      }
-
-      setSyncStates((prev) => ({ ...prev, [match.matchId]: { status: "synced" } }));
+      setSyncState(interpretSyncResponse(await jsonOrThrow(res)));
     } catch (e) {
-      setSyncStates((prev) => ({
-        ...prev,
-        [match.matchId]: {
-          status: "error",
-          message: e instanceof Error ? e.message : "Sync failed.",
-        },
-      }));
+      setSyncState({ status: "error", message: e instanceof Error ? e.message : "Sync failed." });
     }
-  }
-
-  async function onCopyJson() {
-    if (jsonDump?.status !== "data") return;
-    await navigator.clipboard.writeText(jsonDump.text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   function onJumpToMatch(e: FormEvent) {
@@ -149,31 +126,6 @@ export default function MatchesPage() {
     const trimmed = jumpToMatchId.trim();
     if (!trimmed) return;
     router.push(`/galaxy/matches/${trimmed}`);
-  }
-
-  // Debug tool: raw game_reviews JSON for a matchId/gameIndex, reusing the
-  // same route the detail page's client-side loop already calls — no new
-  // fetch path. Not meant to replace the PR/mistakes/board view, just a
-  // quick way to inspect an event's real shape without leaving the browser.
-  async function onShowJsonDump() {
-    const trimmedMatchId = jumpToMatchId.trim();
-    const trimmedGameIndex = jsonGameIndex.trim();
-    if (!trimmedMatchId || !trimmedGameIndex || !token) return;
-
-    setJsonDump({ status: "loading" });
-    setCopied(false);
-
-    try {
-      const json = await jsonOrThrow(
-        await galaxyPost(`/api/galaxy/matches/${trimmedMatchId}/${trimmedGameIndex}`, token)
-      );
-      setJsonDump({ status: "data", text: JSON.stringify(json, null, 2) });
-    } catch (e) {
-      setJsonDump({
-        status: "error",
-        message: e instanceof Error ? e.message : "Something went wrong.",
-      });
-    }
   }
 
   return (
@@ -210,7 +162,7 @@ export default function MatchesPage() {
               />
               <button
                 type="button"
-                onClick={onShowJsonDump}
+                onClick={() => jsonDump.show(jumpToMatchId, jsonGameIndex)}
                 className={style.pillButton}
               >
                 Show JSON
@@ -219,45 +171,15 @@ export default function MatchesPage() {
           )}
         </div>
 
-        {jsonDump && (
-          <div className={style.jsonBox}>
-            <div className={style.jsonBoxHeader}>
-              <span className={style.jsonBoxLabel}>
-                Raw JSON — match {jumpToMatchId || "?"} game {jsonGameIndex || "?"}
-              </span>
-              <div className={style.jsonBoxActions}>
-                {jsonDump.status === "data" && (
-                  <button
-                    type="button"
-                    onClick={onCopyJson}
-                    className={style.jsonLinkButton}
-                  >
-                    {copied ? "Copied!" : "Copy"}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setJsonDump(null)}
-                  className={style.jsonLinkButton}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-            {jsonDump.status === "loading" && (
-              <p className={style.mutedText}>Loading…</p>
-            )}
-            {jsonDump.status === "error" && (
-              <p className={style.errorBox}>
-                {jsonDump.message}
-              </p>
-            )}
-            {jsonDump.status === "data" && (
-              <pre className={style.jsonPre}>
-                {jsonDump.text}
-              </pre>
-            )}
-          </div>
+        {jsonDump.dump && (
+          <JsonDumpPanel
+            dump={jsonDump.dump}
+            copied={jsonDump.copied}
+            onCopy={jsonDump.copy}
+            onClose={jsonDump.close}
+            matchId={jumpToMatchId}
+            gameIndex={jsonGameIndex}
+          />
         )}
 
         {!token ? (
@@ -288,25 +210,8 @@ export default function MatchesPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Galaxy's analyses/list returns each page sorted
-                          ascending by matchId (oldest-in-page first), and
-                          the response has no play-timestamp field to sort by
-                          instead — matchId descending is the best available
-                          proxy for "most recent first" within a page. */}
-                      {[...data.analyses]
-                        .sort((a, b) => b.matchId - a.matchId)
-                        .map((m) => {
-                        // Session-local state (this click, this page load)
-                        // takes priority; otherwise fall back to the DB
-                        // existence check — a match already fully ingested
-                        // (in an earlier session, or via a sync script) gets
-                        // the same "✓ Synced" treatment without requiring
-                        // the user to have clicked Sync just now.
-                        const syncState =
-                          syncStates[m.matchId] ??
-                          (doneMatchIds.has(String(m.matchId))
-                            ? ({ status: "synced" } satisfies SyncState)
-                            : undefined);
+                      {sortNewestFirst(data.analyses).map((m) => {
+                        const syncState = resolveSyncState(syncStates, doneMatchIds, m.matchId);
                         return (
                           <tr
                             key={m.matchId}

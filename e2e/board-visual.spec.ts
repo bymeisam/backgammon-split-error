@@ -194,7 +194,7 @@ test.describe("BoardPanel visual regression", () => {
     }) => {
       await mockGameFetches(page);
 
-      // Token is in-memory React context state (app/GameStatsProvider.tsx)
+      // Token is in-memory React context state (app/providers/GameStatsAuthProvider.tsx)
       // — a fresh page.goto() to /galaxy/matches/[matchId] directly would
       // always see it as null and redirect away. Go through the real
       // connect flow, then a client-side navigation (the "jump to match"

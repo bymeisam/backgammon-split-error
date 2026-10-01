@@ -9,16 +9,11 @@ import { style } from "./DecisionListWithDetail.styles";
 
 // The board-detail panel for app/mistakes's selected decision — wraps
 // BoardPanel plus the context (classification, severity, error size, link
-// back to the match) BoardPanel itself doesn't render. No separate
-// my-move/best-move toggle here — that was redundant with two other
-// clickable places that already switch the same moveTab: the list panel's
-// row labels (DecisionListWithDetail, via reused MoveDelta) and, now,
-// BoardPanel's own my-move/best-move boxes below the board (passed
-// onSelectTab, which BoardPanel only turns into buttons when given one —
-// MistakesSection's usage elsewhere doesn't pass it, so stays unchanged).
-// moveTab is a controlled prop, not internal state, so all three inputs
-// stay in sync. Only ever rendered once (for the current selection), never
-// per list row.
+// back to the match) BoardPanel itself doesn't render. No my-move/best-move
+// toggle of its own: the tab is switched from the list rows' MoveDelta
+// labels or BoardPanel's own move boxes (via onSelectTab). moveTab is a
+// controlled prop, not internal state, so every input stays in sync. Only
+// ever rendered once (for the current selection), never per list row.
 export default function DecisionCard({
   decision,
   classification,

@@ -177,7 +177,7 @@ function PositionListFallback() {
 
 // One selected position's individual Decision occurrences — same
 // list+detail board view app/mistakes/page.tsx's DecisionListSection
-// uses (DecisionListWithDetail, reused unmodified), just scoped to one
+// uses (DecisionListWithDetail), just scoped to one
 // exact position instead of a classification/severity filter (the query
 // itself, and why it's shaped the way it is, is
 // lib/decisionQueries.ts's findPositionOccurrences). Operates on one already-resolved

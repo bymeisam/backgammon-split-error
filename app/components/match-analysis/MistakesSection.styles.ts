@@ -1,12 +1,9 @@
 import clsx from "clsx";
 
 // Page-local to this shared component (see .claude/skills/styling-conventions)
-// — covers MistakesSection.tsx's own markup and its exclusive subcomponent
-// MistakeTable (same file, used nowhere else). MoveDelta is NOT covered
-// here — it's used independently by DecisionListWithDetail.tsx too, so it
-// isn't exclusively MistakesSection's subcomponent and gets its own
-// MoveDelta.styles.ts instead, same reasoning Dice.styles.ts already
-// established.
+// — covers MistakesSection.tsx's own markup and its exclusive
+// subcomponents MistakeTable and PRCard (same file, used nowhere else).
+// MoveDelta and Dice are shared leaves with their own styles files.
 export const style = {
   // MistakeTable subcomponent.
   mistakeTableWrapper: "flex flex-col gap-2",

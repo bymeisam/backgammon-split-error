@@ -108,8 +108,8 @@ export interface IngestSummary {
   gamesIngested: number;
   decisionsIngested: number;
   // Events with a real reviews[0] whose metadata.count_as_decision is
-  // false — still upserted as a Decision row exactly as before (this step
-  // doesn't change that), so this is a visibility-only counter, not an
+  // false — still upserted as a Decision row, so this is a visibility-only
+  // counter, not an
   // exclusive bucket: an event counted here may also be counted in
   // decisionsIngested above.
   decisionsSkippedNotCounted: number;
@@ -359,8 +359,8 @@ export async function ingestMatch(
         const errorAnalysis = review.result.result.error_analysis;
         const probabilities = review.result.result.probabilities;
 
-        // Visibility only — still upserted below exactly as before regardless
-        // of this flag (filtering by it happens at read time, per
+        // Visibility only — the row is upserted below regardless of this
+        // flag (filtering by it happens at read time, per
         // docs/field-mapping.md), so this doesn't gate anything.
         if (!metadata.count_as_decision) {
           decisionsSkippedNotCounted++;

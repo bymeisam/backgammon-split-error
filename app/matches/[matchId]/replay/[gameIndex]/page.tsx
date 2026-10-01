@@ -145,11 +145,9 @@ export default async function GameReplayPage({
   // RepeatedPosition already use (prisma/schema.prisma's own recompute
   // queries), not on rawError/errorSeverity. A cube decision Galaxy did
   // grade (countAsDecision: true — doubled, passed, took, or a real
-  // declined-double) still comes through below exactly as before,
-  // regardless of whether it happens to be ungraded (rawError: null) —
-  // decisionFromRowForReplay's own null-tolerance (see its comment) is
-  // unchanged, so this doesn't reintroduce the "silently drops ungraded-
-  // but-real decisions" bug the replay was already built to avoid.
+  // declined-double) comes through even when ungraded (rawError: null) —
+  // decisionFromRowForReplay tolerates that (see its comment), so real
+  // decisions are never silently dropped from the replay.
   const decisions = rows
     .filter((row) => row.countAsDecision)
     .map((row) => decisionFromRowForReplay(row, rollLookup))

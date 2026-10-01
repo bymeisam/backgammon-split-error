@@ -21,7 +21,7 @@ export function severityKey(severity: ErrorSeverity): SeverityKey {
   return severity.toLowerCase() as SeverityKey;
 }
 
-// Reuses MistakesSection.tsx's existing two-tone my-move/best-move palette
+// Reuses MoveDelta.styles.ts's two-tone my-move/best-move palette
 // exactly (red for blunder, amber for anything else) rather than inventing
 // a third color for "doubtful" — DOUBTFUL already collapses into the amber
 // "error" bucket everywhere else in this codebase (see

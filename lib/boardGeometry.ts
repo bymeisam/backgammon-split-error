@@ -143,7 +143,7 @@ export function offColumnGeometry(topY: number, bottomY: number, badgeAtBottom: 
 
 // Whether off-tray slot `i` (0 = top) is drawn filled for `count` borne-off
 // checkers — fills from the end farthest from the badge. Shared by the
-// OffColumn render and moveAnchor's "next empty slot".
+// OffTray render (Board.tsx) and moveAnchor's "next empty slot".
 export function isOffSlotFilled(i: number, count: number, badgeAtBottom: boolean): boolean {
   return badgeAtBottom ? i < count : i >= OFF_SLOTS - count;
 }
