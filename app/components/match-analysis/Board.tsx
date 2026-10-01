@@ -39,6 +39,13 @@ const BOARD_H = Y1 + MARGIN;
 // arrow-anchor math so a "bear off" arrow always ends at the real next slot.
 const MINE_OFF_TOP_Y = Y0 + ROW_H + 6;
 const MINE_OFF_BOTTOM_Y = Y1 - 9;
+// Opponent's off-tray section bounds (top half of the board) — same purpose
+// as the MINE_ pair above, needed by moveAnchor so a flipped-perspective
+// bear-off arrow anchors in the half of the board the checker is actually
+// drawn in (see the opponent OffColumn call below, which used these same
+// literal values inline before this constant existed).
+const OPP_OFF_TOP_Y = Y0 + 3;
+const OPP_OFF_BOTTOM_Y = Y0 + ROW_H - 9;
 
 // Dice sit in the "right field" (points 1-6/19-24 — the columns between the
 // bar and the off-tray), centered on the board's own horizontal dividing
@@ -219,29 +226,59 @@ function Stack({
 // the checker involved, not a generic per-point anchor. `isOrigin` picks the
 // top-of-stack (checker about to move) vs. the next open slot (where it will
 // land), both read from the *pre-move* `decoded` counts.
+//
+// `flipped` must match the same flag Board itself renders with: subMoves and
+// decoded arriving here have already been through mirrorSubMoves/
+// flipPerspective upstream (BoardPanel.tsx), which swaps mine<->opponent
+// entirely so "my" checkers stay on the same visual side across decisions —
+// so post-flip, the mover's own checkers live in decoded.opponent, not
+// decoded.mine, and (for bar/off) in the opponent's own top-half geometry,
+// not mine's bottom-half. Reading the mine-side unconditionally here (as
+// this used to) anchored ordinary-point arrows at the wrong stack height and
+// bar/off-tray arrows in the wrong half of the board entirely whenever an
+// opponent decision was rendered with the fixed-perspective toggle on.
 function moveAnchor(
   ref: PointRef,
   decoded: DecodedPosition,
-  isOrigin: boolean
+  isOrigin: boolean,
+  flipped: boolean
 ): { x: number; y: number } {
   if (ref === "bar") {
     const cx = colCenterX(BAR_COL);
-    const baseY = Y1 - R - 3;
-    const dir = -1;
-    const index = isOrigin ? decoded.mineBar - 1 : decoded.mineBar;
+    // Matches the bar-checkers render block above: mine's bar sits at the
+    // bottom (dir -1), opponent's at the top (dir 1).
+    const baseY = flipped ? Y0 + R + 3 : Y1 - R - 3;
+    const dir: 1 | -1 = flipped ? 1 : -1;
+    const barCount = flipped ? decoded.opponentBar : decoded.mineBar;
+    const index = isOrigin ? barCount - 1 : barCount;
     const visualIndex = Math.min(Math.max(index, 0), MAX_STACK - 1);
     return { x: cx, y: baseY + dir * visualIndex * STACK_GAP };
   }
 
   if (ref === "off") {
-    const { trackTop, slotSpan } = offColumnGeometry(MINE_OFF_TOP_Y, MINE_OFF_BOTTOM_Y, false);
-    const nextIndex = Math.min(Math.max(OFF_SLOTS - decoded.mineOff - 1, 0), OFF_SLOTS - 1);
+    const topY = flipped ? OPP_OFF_TOP_Y : MINE_OFF_TOP_Y;
+    const bottomY = flipped ? OPP_OFF_BOTTOM_Y : MINE_OFF_BOTTOM_Y;
+    // Matches each side's own OffColumn call above: opponent badges at the
+    // top of its range (badgeAtBottom true), mine at the bottom (false) —
+    // which end checkers fill from, and so which end the *next* slot is at,
+    // flips accordingly.
+    const badgeAtBottom = flipped;
+    const offCount = flipped ? decoded.opponentOff : decoded.mineOff;
+    const { trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
+    const nextIndex = badgeAtBottom
+      ? Math.min(Math.max(offCount, 0), OFF_SLOTS - 1)
+      : Math.min(Math.max(OFF_SLOTS - offCount - 1, 0), OFF_SLOTS - 1);
     const x = colX(OFF_COL) + 6 + (OFF_W - 12) / 2;
     const y = trackTop + nextIndex * slotSpan + slotSpan / 2;
     return { x, y };
   }
 
-  const count = decoded.mine[ref - 1];
+  // stackBase(ref)'s own baseY/dir depend only on the physical point row
+  // (top/bottom half), which both sides already share at a given point (see
+  // the point-checkers render block below) — only the count/array to read
+  // needs to switch on `flipped`, not the point geometry itself.
+  const side = flipped ? decoded.opponent : decoded.mine;
+  const count = side[ref - 1];
   const index = isOrigin ? count - 1 : count;
   const visualIndex = Math.min(Math.max(index, 0), MAX_STACK - 1);
   const { cx, baseY, dir } = stackBase(ref);
@@ -312,8 +349,8 @@ export default function Board({
       <OffColumn
         x={colX(OFF_COL) + 6}
         width={OFF_W - 12}
-        topY={Y0 + 3}
-        bottomY={Y0 + ROW_H - 9}
+        topY={OPP_OFF_TOP_Y}
+        bottomY={OPP_OFF_BOTTOM_Y}
         badgeAtBottom
         count={decoded.opponentOff}
         fill={OPP_FILL}
@@ -401,8 +438,8 @@ export default function Board({
         </marker>
       </defs>
       {subMoves.map((move, i) => {
-        const from = moveAnchor(move.from, decoded, true);
-        const to = moveAnchor(move.to, decoded, false);
+        const from = moveAnchor(move.from, decoded, true, flipped);
+        const to = moveAnchor(move.to, decoded, false, flipped);
         const midX = (from.x + to.x) / 2;
         const midY = (from.y + to.y) / 2;
 
