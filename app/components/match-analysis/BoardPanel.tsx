@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { Decision } from "@/lib/mistakes";
 import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
 import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
+import { flipCubeState } from "@/lib/cubeState";
 import Board from "./Board";
 import { style } from "./BoardPanel.styles";
 
@@ -57,6 +58,11 @@ export default function BoardPanel({
         ? BLUNDER_COLOR
         : ERROR_COLOR;
 
+  // Mirrors the decoded/subMoves flip above — applied once, here, before
+  // Board ever sees it, same as the other two.
+  const cubeState =
+    selected?.cubeState && flipped ? flipCubeState(selected.cubeState) : (selected?.cubeState ?? null);
+
   return (
     <div className={style.panelStack}>
       <div data-testid="board-panel" className={style.panel}>
@@ -69,6 +75,7 @@ export default function BoardPanel({
             arrowColor={arrowColor}
             roll={selected.roll}
             flipped={flipped}
+            cubeState={cubeState}
           />
         ) : (
           <p className={style.emptyState}>No position data for this decision.</p>

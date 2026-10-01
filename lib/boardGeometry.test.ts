@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   BAR_COL,
+  CUBE_COL_W,
+  MARGIN,
   MAX_STACK,
   OFF_COL,
   OFF_SLOTS,
   ROW_H,
   Y0,
+  Y1,
   barStackBase,
   colCenterX,
+  colX,
+  cubeBadgeCenter,
   isOffSlotFilled,
   moveAnchor,
   nextOffSlotIndex,
@@ -286,5 +291,44 @@ describe("moveAnchor — flipped (mover's checkers in decoded.opponent)", () => 
     const off = moveAnchor("off", flipped, false, true);
     expect(off.y).toBeLessThan(CENTER_Y);
     expect(offSlotAt(off.y, "opponent")).toBe(nextOffSlotIndex(raw.mineOff, true));
+  });
+});
+
+describe("cube gutter / cubeBadgeCenter", () => {
+  it("shifts the whole existing grid right by CUBE_COL_W, leaving relative column spacing untouched", () => {
+    const unshiftedBarX = MARGIN + 6 * 48; // 6 point columns (POINT_W=48) before the bar, pre-gutter
+    expect(colX(BAR_COL)).toBe(unshiftedBarX + CUBE_COL_W);
+  });
+
+  it("centers the cube on the board's own dividing line when owner is center", () => {
+    const { y } = cubeBadgeCenter("center");
+    expect(y).toBe(CENTER_Y);
+  });
+
+  it("positions the cube in the opponent's half (near the top edge) when owner is opponent", () => {
+    const { y } = cubeBadgeCenter("opponent");
+    expect(y).toBeGreaterThan(Y0);
+    expect(y).toBeLessThan(CENTER_Y);
+  });
+
+  it("positions the cube in mine's half (near the bottom edge) when owner is mine", () => {
+    const { y } = cubeBadgeCenter("mine");
+    expect(y).toBeGreaterThan(CENTER_Y);
+    expect(y).toBeLessThan(Y1);
+  });
+
+  it("keeps the same x regardless of owner — only y (the side) moves", () => {
+    const { x: xCenter } = cubeBadgeCenter("center");
+    const { x: xMine } = cubeBadgeCenter("mine");
+    const { x: xOpponent } = cubeBadgeCenter("opponent");
+    expect(xMine).toBe(xCenter);
+    expect(xOpponent).toBe(xCenter);
+  });
+
+  it("sits left of the main grid, inside the new gutter", () => {
+    const { x } = cubeBadgeCenter("center");
+    expect(x).toBeGreaterThan(MARGIN);
+    expect(x).toBeLessThan(MARGIN + CUBE_COL_W);
+    expect(x).toBeLessThan(colX(0));
   });
 });

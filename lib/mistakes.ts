@@ -1,4 +1,5 @@
 import type { GameEvent, GameReviewsResponse, Review } from "@/lib/gameReviewsTypes";
+import { computeCubeStates, type CubeState } from "@/lib/cubeState";
 
 export const BLUNDER_THRESHOLD = 0.08;
 
@@ -26,6 +27,10 @@ export interface Decision {
   sourcePositionId: string | null;
   myMoveNotation: string | null;
   bestMoveNotation: string | null;
+  // Cumulative doubling-cube state entering this decision — see
+  // lib/cubeState.ts. Null only when this decision's own game had no
+  // events to walk (shouldn't happen in practice; defensive default).
+  cubeState: CubeState | null;
 }
 
 export interface PlayerOption {
@@ -123,6 +128,11 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
 
   for (const game of games) {
     const events = game.data?.data?.events ?? [];
+    // Walked once per game, over the full unfiltered event list — a cube
+    // action with a null raw_error or countAsDecision: false would still
+    // be a real take/double that must count toward the walk, even though
+    // it's excluded from the `decisions` list itself below.
+    const cubeStates = computeCubeStates(events);
 
     for (let index = 0; index < events.length; index++) {
       const event = events[index];
@@ -172,6 +182,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         sourcePositionId: review.source_position?.formatted_value ?? null,
         myMoveNotation: mine,
         bestMoveNotation: best,
+        cubeState: cubeStates.get(event.id) ?? null,
       });
     }
   }

@@ -5,6 +5,7 @@
 import type { ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import {
+  buildCubeStateLookup,
   buildRollLookup,
   toDecisionListItems,
   type DecisionListItem,
@@ -32,7 +33,10 @@ export const DECISION_LIST_SELECT = {
 // queries only select countAsDecision: true rows, so they never see those
 // siblings; fetch every row for just the games actually in `rows` (cheap —
 // a handful of games, not the whole table) and build a "gameId:eventId" ->
-// roll lookup from them.
+// roll lookup from them. The same unfiltered per-game rows also drive the
+// cumulative cube-state lookup (lib/cubeState.ts) — same reasoning: a cube
+// action that resolved the game's cube need not itself be one of the
+// countAsDecision: true rows `rows` is scoped to.
 export async function loadDecisionItems(rows: DecisionListRow[]): Promise<DecisionListItem[]> {
   const gameIds = [...new Set(rows.map((row) => row.gameId))];
   const gameRows =
@@ -42,7 +46,7 @@ export async function loadDecisionItems(rows: DecisionListRow[]): Promise<Decisi
           select: { gameId: true, eventId: true, raw: true },
         })
       : [];
-  return toDecisionListItems(rows, buildRollLookup(gameRows));
+  return toDecisionListItems(rows, buildRollLookup(gameRows), buildCubeStateLookup(gameRows));
 }
 
 // Every individual Decision that faced one RepeatedPosition's exact

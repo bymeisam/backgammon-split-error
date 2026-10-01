@@ -8,3 +8,9 @@ export const CHECKER_PALETTE: Record<Side, { fill: string; contrast: string }> =
   mine: { fill: "#1f2937", contrast: "#f8fafc" },
   opponent: { fill: "#f8fafc", contrast: "#1f2937" },
 };
+
+// The doubling cube's own colors — unlike a checker, the physical cube
+// doesn't change color when it changes hands, only position, so this is a
+// single neutral pair, not a per-side record.
+export const CUBE_FILL = "#f8fafc";
+export const CUBE_CONTRAST = "#1f2937";

@@ -2,11 +2,13 @@
 
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { ParsedSubMove } from "@/lib/backgammonNotation";
+import type { CubeState } from "@/lib/cubeState";
 import {
   BAR_COL,
   BOARD_H,
   BOARD_W,
   COL_WIDTHS,
+  CUBE_BADGE_R,
   DICE_BOX_H,
   DICE_BOX_W,
   DICE_X,
@@ -24,6 +26,7 @@ import {
   Y1,
   barStackBase,
   colX,
+  cubeBadgeCenter,
   isOffSlotFilled,
   moveAnchor,
   offColumnGeometry,
@@ -35,7 +38,7 @@ import {
   type Side,
   type StackBase,
 } from "@/lib/boardGeometry";
-import { CHECKER_PALETTE } from "@/lib/checkerPalette";
+import { CHECKER_PALETTE, CUBE_CONTRAST, CUBE_FILL } from "@/lib/checkerPalette";
 import { DiceRoll } from "./Dice";
 import { style } from "./BoardPanel.styles";
 
@@ -120,12 +123,41 @@ function Stack({ base, count, side }: { base: StackBase; count: number; side: Si
   );
 }
 
+// Rounded-square badge, deliberately not a circle — reads as a distinct
+// shape from checkers and off-tray count badges. Neutral coloring (not
+// CHECKER_PALETTE's mine/opponent split): the physical cube doesn't change
+// color when it changes hands, only position does. Renders nothing when
+// `state` is null (no data available) or not `confident` (see
+// lib/cubeState.ts) — a possibly-wrong number is worse than no number.
+function Cube({ state }: { state: CubeState | null }) {
+  if (!state || !state.confident) return null;
+  const { x, y } = cubeBadgeCenter(state.owner);
+  return (
+    <g>
+      <rect
+        x={x - CUBE_BADGE_R}
+        y={y - CUBE_BADGE_R}
+        width={CUBE_BADGE_R * 2}
+        height={CUBE_BADGE_R * 2}
+        rx={4}
+        fill={CUBE_FILL}
+        stroke={CUBE_CONTRAST}
+        strokeWidth={1.5}
+      />
+      <text x={x} y={y + 4} textAnchor="middle" fontSize={13} fontWeight="bold" fill={CUBE_CONTRAST}>
+        {state.value}
+      </text>
+    </g>
+  );
+}
+
 export default function Board({
   decoded,
   subMoves = [],
   arrowColor = "#dc2626",
   roll = [],
   flipped = false,
+  cubeState = null,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
@@ -141,6 +173,10 @@ export default function Board({
   // opponent's turn), and telling moveAnchor which side's data is the
   // mover's. Default false — only the replay's BoardPanel ever sets it.
   flipped?: boolean;
+  // Already relativized and flipped (if applicable) by BoardPanel.tsx — see
+  // lib/cubeState.ts. Default null renders no cube at all (e.g. no
+  // selected decision yet), not a centered one.
+  cubeState?: CubeState | null;
 }) {
   return (
     <svg
@@ -172,6 +208,9 @@ export default function Board({
       {/* off tray halves */}
       <OffTray side="opponent" count={decoded.opponentOff} />
       <OffTray side="mine" count={decoded.mineOff} />
+
+      {/* doubling cube */}
+      <Cube state={cubeState} />
 
       {/* point checkers */}
       {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {

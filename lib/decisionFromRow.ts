@@ -22,6 +22,7 @@ import {
   type DecisionKind,
   type Severity,
 } from "@/lib/mistakes";
+import { computeCubeStates, type CubeState } from "@/lib/cubeState";
 
 // Exported for lib/decisionFromRow.ts's own decisionFromRowForReplay below
 // to reuse verbatim, rather than re-declaring the same mapping twice.
@@ -97,13 +98,46 @@ export function buildRollLookup(
   return lookup;
 }
 
+// Same shape as buildRollLookup above (same input, same "gameId:eventId"
+// key), for the cumulative cube state (lib/cubeState.ts) instead of dice
+// rolls — the caller must fetch every Decision row for a game (not just
+// the countAsDecision: true ones a mistake-focused query normally selects)
+// for computeCubeStates to walk correctly, same requirement as the roll
+// lookup.
+export function buildCubeStateLookup(
+  gameRows: { gameId: number; eventId: bigint; raw: unknown }[]
+): Map<string, CubeState> {
+  const byGame = new Map<number, { eventId: bigint; event: GameEvent }[]>();
+  for (const row of gameRows) {
+    const list = byGame.get(row.gameId) ?? [];
+    list.push({ eventId: row.eventId, event: row.raw as unknown as GameEvent });
+    byGame.set(row.gameId, list);
+  }
+
+  const lookup = new Map<string, CubeState>();
+  for (const [gameId, rows] of byGame) {
+    rows.sort((a, b) => (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0));
+    const events = rows.map((r) => r.event);
+    const cubeStates = computeCubeStates(events);
+    for (const r of rows) {
+      const state = cubeStates.get(r.event.id);
+      if (state) lookup.set(`${gameId}:${r.eventId}`, state);
+    }
+  }
+  return lookup;
+}
+
 // Returns null for a row with no usable data (rawError null, or somehow no
 // reviews[0] in its own raw JSON) — same "ungraded, skip it" treatment
 // lib/mistakes.ts's own extractDecisions gives a null rawError, rather than
-// crashing or faking a zero. `rollLookup` is optional so callers that don't
-// care about dice (or haven't fetched the sibling rows) can omit it and get
-// an empty roll.
-export function decisionFromRow(row: DecisionRow, rollLookup?: Map<string, number[]>): Decision | null {
+// crashing or faking a zero. `rollLookup`/`cubeStateLookup` are optional so
+// callers that don't need them (or haven't fetched the sibling rows) can
+// omit them and get an empty roll / null cube state.
+export function decisionFromRow(
+  row: DecisionRow,
+  rollLookup?: Map<string, number[]>,
+  cubeStateLookup?: Map<string, CubeState>
+): Decision | null {
   if (row.rawError === null) return null;
 
   const event = row.raw as unknown as GameEvent;
@@ -133,6 +167,7 @@ export function decisionFromRow(row: DecisionRow, rollLookup?: Map<string, numbe
     sourcePositionId: review.source_position?.formatted_value ?? null,
     myMoveNotation,
     bestMoveNotation,
+    cubeState: cubeStateLookup?.get(`${row.gameId}:${row.eventId}`) ?? null,
   };
 }
 
@@ -152,7 +187,8 @@ export function decisionFromRow(row: DecisionRow, rollLookup?: Map<string, numbe
 // all (shouldn't happen for anything actually ingested) returns null.
 export function decisionFromRowForReplay(
   row: DecisionRow,
-  rollLookup?: Map<string, number[]>
+  rollLookup?: Map<string, number[]>,
+  cubeStateLookup?: Map<string, CubeState>
 ): Decision | null {
   const event = row.raw as unknown as GameEvent;
   const review = event.reviews?.[0];
@@ -181,6 +217,7 @@ export function decisionFromRowForReplay(
     sourcePositionId: review.source_position?.formatted_value ?? null,
     myMoveNotation,
     bestMoveNotation,
+    cubeState: cubeStateLookup?.get(`${row.gameId}:${row.eventId}`) ?? null,
   };
 }
 
@@ -203,11 +240,12 @@ export interface DecisionListRow extends DecisionRow {
 // `rollLookup` is built from — is lib/decisionQueries.ts's loadDecisionItems.
 export function toDecisionListItems(
   rows: DecisionListRow[],
-  rollLookup: Map<string, number[]>
+  rollLookup: Map<string, number[]>,
+  cubeStateLookup?: Map<string, CubeState>
 ): DecisionListItem[] {
   const items: DecisionListItem[] = [];
   for (const row of rows) {
-    const decision = decisionFromRow(row, rollLookup);
+    const decision = decisionFromRow(row, rollLookup, cubeStateLookup);
     if (!decision) continue;
     items.push({
       decision,

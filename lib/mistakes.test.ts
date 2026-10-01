@@ -24,6 +24,7 @@ function d(id: string, overrides: Partial<Decision> = {}): Decision {
     sourcePositionId: null,
     myMoveNotation: null,
     bestMoveNotation: null,
+    cubeState: null,
     ...overrides,
   };
 }

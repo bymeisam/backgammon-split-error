@@ -28,8 +28,15 @@ export const COL_WIDTHS = [
 export const BAR_COL = 6;
 export const OFF_COL = 13;
 
+// A slim gutter on the board's left edge for the doubling cube badge —
+// mirrors the off-tray's role on the right. Kept as a shift of the whole
+// existing grid's origin (not a prepended COL_WIDTHS entry) so BAR_COL/
+// OFF_COL and every point<->column formula below are untouched.
+export const CUBE_COL_W = 32;
+const GRID_X0 = MARGIN + CUBE_COL_W;
+
 export function colX(col: number): number {
-  let x = MARGIN;
+  let x = GRID_X0;
   for (let i = 0; i < col; i++) x += COL_WIDTHS[i];
   return x;
 }
@@ -59,6 +66,10 @@ export const DICE_Y = Y0 + ROW_H - DICE_BOX_H / 2;
 // doesn't move these — it swaps which player's data fills each side
 // (flipPerspective, upstream in BoardPanel.tsx).
 export type Side = "mine" | "opponent";
+
+// The doubling cube's holder: either side, same framing as checkers, or
+// "center" before any double has been taken this game.
+export type CubeOwner = Side | "center";
 
 export type PointRef = number | "bar" | "off";
 
@@ -193,4 +204,20 @@ export function moveAnchor(
   const count = (flipped ? decoded.opponent : decoded.mine)[ref - 1];
   const base = stackBase(ref);
   return { x: base.cx, y: stackSlotY(base, isOrigin ? count - 1 : count) };
+}
+
+// Size of the cube's rounded-square badge — deliberately not R (the
+// checker radius), so it reads as a visually distinct shape, not another
+// checker-sized circle.
+export const CUBE_BADGE_R = 16;
+
+// Center of the cube badge in the left gutter (see CUBE_COL_W): on the
+// board's own dividing line when centered/undoubled, or inset into the
+// owning side's half otherwise — mirrors how bar checkers sit close to
+// (not at) the board's top/bottom edge.
+export function cubeBadgeCenter(owner: CubeOwner): { x: number; y: number } {
+  const x = MARGIN + CUBE_COL_W / 2;
+  if (owner === "center") return { x, y: Y0 + ROW_H };
+  const y = owner === "mine" ? Y1 - CUBE_BADGE_R - 6 : Y0 + CUBE_BADGE_R + 6;
+  return { x, y };
 }

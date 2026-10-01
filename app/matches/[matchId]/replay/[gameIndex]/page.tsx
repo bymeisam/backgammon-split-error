@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
-import { decisionFromRowForReplay, buildRollLookup } from "@/lib/decisionFromRow";
+import { decisionFromRowForReplay, buildRollLookup, buildCubeStateLookup } from "@/lib/decisionFromRow";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
 import GameReplay from "./GameReplay";
@@ -112,6 +112,7 @@ export default async function GameReplayPage({
   });
 
   const rollLookup = buildRollLookup(rows);
+  const cubeStateLookup = buildCubeStateLookup(rows);
 
   // Decision.color is unreliable read directly off a row — confirmed
   // against real data, not assumed: most CUBE decisions (including at
@@ -150,7 +151,7 @@ export default async function GameReplayPage({
   // decisions are never silently dropped from the replay.
   const decisions = rows
     .filter((row) => row.countAsDecision)
-    .map((row) => decisionFromRowForReplay(row, rollLookup))
+    .map((row) => decisionFromRowForReplay(row, rollLookup, cubeStateLookup))
     .filter((d): d is Decision => d !== null)
     // Overwrite with the resolved color (see colorByUserId above) rather
     // than decisionFromRowForReplay's own row.color passthrough, so every
