@@ -23,6 +23,7 @@ import type { GameEvent } from "@/lib/gameReviewsTypes";
 import {
   actionLabels,
   findPrecedingRoll,
+  severityFromErrorSeverity,
   type Decision,
   type DecisionKind,
   type Severity,
@@ -37,25 +38,16 @@ export const KIND_MAP: Record<PrismaDecisionKind, DecisionKind> = {
   RESIGNATION: "resignation",
 };
 
-// DOUBTFUL is Galaxy's mildest graded-mistake tier. lib/mistakes.ts's own
-// Severity type only has "error" | "blunder" (it computes severity from a
-// threshold on absError, not from Galaxy's own classification at all) — and
-// BoardPanel only branches on
-// `=== "blunder"` vs anything else, so DOUBTFUL maps to the closest
-// existing bucket ("error") rather than extending that type. NONE means no
-// real mistake, mapped to null to match lib/mistakes.ts's own convention
-// for a clean decision.
-// Exported for the same reason as KIND_MAP above.
+// Thin adapter from the Prisma-generated (UPPERCASE) enum to
+// lib/mistakes.ts's severityFromErrorSeverity, which takes the raw JSON's
+// own (lowercase) ErrorSeverity — the one mapping both the DB-row path
+// (this file) and the live-fetch path (lib/mistakes.ts's extractDecisions)
+// now share, after an audit found they used to compute severity two
+// different ways and could disagree (see severityFromErrorSeverity's own
+// comment for the real example that proved it). Exported for the same
+// reason as KIND_MAP above.
 export function severityFor(severity: PrismaErrorSeverity): Severity | null {
-  switch (severity) {
-    case "BLUNDER":
-      return "blunder";
-    case "ERROR":
-    case "DOUBTFUL":
-      return "error";
-    case "NONE":
-      return null;
-  }
+  return severityFromErrorSeverity(severity.toLowerCase() as "none" | "doubtful" | "error" | "blunder");
 }
 
 export interface DecisionRow {

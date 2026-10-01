@@ -1,7 +1,10 @@
-import type { GameEvent, GameReviewsResponse, Review } from "@/lib/gameReviewsTypes";
+import type {
+  ErrorSeverity as RawErrorSeverity,
+  GameEvent,
+  GameReviewsResponse,
+  Review,
+} from "@/lib/gameReviewsTypes";
 import { computeCubeStates, type CubeState } from "@/lib/cubeState";
-
-export const BLUNDER_THRESHOLD = 0.08;
 
 export interface FetchedGame {
   gameIndex: number;
@@ -10,6 +13,34 @@ export interface FetchedGame {
 
 export type DecisionKind = "checker" | "cube" | "resignation";
 export type Severity = "error" | "blunder";
+
+// The single mapping from Galaxy's own error_analysis.error_severity to
+// this app's Severity — both extractDecisions (live-fetch: /matches,
+// /galaxy/matches) and lib/decisionFromRow.ts's severityFor (DB-row:
+// replay, /mistakes, reading the errorSeverity column ingest already
+// populates from this exact raw field) now go through this one function,
+// after an audit found they'd been computing severity two different ways:
+// this path re-derived it from a local absError >= 0.08 threshold instead
+// of reading Galaxy's own classification, and could disagree with it —
+// confirmed against real data, e.g. decision id 7315: absError 0.0799
+// (just under 0.08, so the old threshold said "error") while Galaxy's own
+// error_severity is "blunder" (see lib/__fixtures__/galaxy-payloads/
+// blunder-below-0.08-threshold.json, reports/2026-10-01-decision-raw-
+// field-audit.md finding #1). DOUBTFUL maps to the same "error" bucket
+// ERROR does — lib/mistakes.ts's own Severity type only has "error"/
+// "blunder" (no separate mild-mistake tier), and nothing downstream
+// branches on DOUBTFUL vs ERROR specifically.
+export function severityFromErrorSeverity(severity: RawErrorSeverity): Severity | null {
+  switch (severity) {
+    case "blunder":
+      return "blunder";
+    case "error":
+    case "doubtful":
+      return "error";
+    case "none":
+      return null;
+  }
+}
 
 export interface Decision {
   id: string;
@@ -172,7 +203,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         kind,
         absError,
         isMistake,
-        severity: isMistake ? (absError >= BLUNDER_THRESHOLD ? "blunder" : "error") : null,
+        severity: severityFromErrorSeverity(review.result.result.error_analysis.error_severity),
         detail: buildDetail(review),
         myLabel: labels.mine,
         bestLabel: labels.best,
