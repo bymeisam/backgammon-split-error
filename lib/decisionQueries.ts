@@ -23,6 +23,8 @@ export const DECISION_LIST_SELECT = {
   rawError: true,
   errorSeverity: true,
   classification: true,
+  notationPlayed: true,
+  notationBest: true,
   raw: true,
   game: { select: { gameIndex: true, match: { select: { sourceMatchId: true } } } },
 } satisfies Prisma.DecisionSelect;

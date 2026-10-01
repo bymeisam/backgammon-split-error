@@ -4,7 +4,13 @@
 // row is self-contained: its own `raw` JSON column holds the full original
 // event (including reviews[0]), so the same label-derivation logic
 // lib/mistakes.ts already uses for a live game_reviews fetch applies here
-// unchanged, just reused via its exported actionLabels/moveNotations.
+// unchanged for myLabel/bestLabel (via actionLabels) — but myMoveNotation/
+// bestMoveNotation read the row's own notationPlayed/notationBest columns
+// directly rather than re-parsing raw via moveNotations(), since ingest
+// already stores exactly this (confirmed byte-identical against 2,700 real
+// rows, 2026-10-01 — see PROGRESS.md). The live-fetch path in
+// lib/mistakes.ts has no DB row to read a column from, so it still calls
+// moveNotations() itself; that's unchanged.
 //
 // Server-only (imports the Prisma-generated enum types) — never import this
 // from a "use client" file; pass the resulting plain Decision objects down
@@ -17,7 +23,6 @@ import type { GameEvent } from "@/lib/gameReviewsTypes";
 import {
   actionLabels,
   findPrecedingRoll,
-  moveNotations,
   type Decision,
   type DecisionKind,
   type Severity,
@@ -62,6 +67,13 @@ export interface DecisionRow {
   kind: PrismaDecisionKind;
   rawError: number | null;
   errorSeverity: PrismaErrorSeverity;
+  // Populated at ingest (lib/ingest.ts) from the same raw JSON this file
+  // used to re-parse on every read via moveNotations() — confirmed
+  // byte-identical against 2,700 real rows across all 3 kinds (2026-10-01)
+  // before switching. Null for non-CHECKER kinds, same as moveNotations()
+  // already returned.
+  notationPlayed: string | null;
+  notationBest: string | null;
   raw: unknown;
   game: { gameIndex: number };
 }
@@ -145,7 +157,8 @@ export function decisionFromRow(
   if (!review) return null;
 
   const { mine, best } = actionLabels(review);
-  const { mine: myMoveNotation, best: bestMoveNotation } = moveNotations(review);
+  const myMoveNotation = row.notationPlayed;
+  const bestMoveNotation = row.notationBest;
   const absError = Math.abs(row.rawError);
 
   return {
@@ -195,7 +208,8 @@ export function decisionFromRowForReplay(
   if (!review) return null;
 
   const { mine, best } = actionLabels(review);
-  const { mine: myMoveNotation, best: bestMoveNotation } = moveNotations(review);
+  const myMoveNotation = row.notationPlayed;
+  const bestMoveNotation = row.notationBest;
   const absError = row.rawError === null ? 0 : Math.abs(row.rawError);
 
   return {
