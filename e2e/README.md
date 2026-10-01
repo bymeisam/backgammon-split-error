@@ -16,8 +16,8 @@ changed how the board looks or where it sits" before that work starts.
 list rows, filter controls, badges, and PR summaries render on the pages
 these tests visit but are entirely outside the screenshot's clipped
 region — invisible to this suite even though the page itself is "tested."
-The "Shared markup visual regression" tests below (4 more, added
-2026-09-28) close part of that gap specifically for the components an
+The "Shared markup visual regression" tests below (4 added 2026-09-28,
+a 5th added 2026-10-01) close part of that gap specifically for the components an
 inventory found still had inline Tailwind classes and no coverage at all:
 `MistakesSection.tsx` (its own chrome, excluding `BoardPanel`),
 `MoveDelta` (now its own `MoveDelta.tsx`, shared by `MistakesSection.tsx`,
@@ -29,16 +29,27 @@ planned work.
 
 ## What it does
 
-`board-visual.spec.ts` picks 4 representative real decisions from match
+`board-visual.spec.ts` picks 5 representative real decisions from match
 46576635 (the same match the Vitest `gnuPositionId` regression tests use):
 
 - **bar-checkers** — a mistake played with a checker still on the bar
 - **near-bearoff** — a mistake in the bear-off phase
 - **normal-midgame** — an unremarkable midgame mistake
 - **both-arrows** — a two-submove move, drawing two arrows on the board at once
+- **clean-move** — no error (played move equals the best move), so
+  `MoveDelta` collapses its usual my-label/best-label pair into one label
+  (added 2026-10-01, alongside that collapse behavior itself — see
+  PROGRESS.md's entry for that date)
 
-Each one is screenshotted in all three page contexts (12 screenshots
-total), scoped to just the `[data-testid="board-panel"]` element — never a
+The first four are screenshotted in all three page contexts; **clean-move
+only on `/mistakes`** — `MistakesSection.tsx`'s own tables
+(`/matches`/`/galaxy/matches`) only ever list `isMistake: true` decisions
+(`lib/mistakes.ts`'s `partitionMistakes`), so a decision with no error can
+never appear there, and `board-visual.spec.ts` uses a separate
+`MISTAKE_DECISIONS` (the first four only) for those two contexts' own
+loops rather than forcing all five through a uniform grid. 13 board
+screenshots total (4×2 + 5), each scoped to just the
+`[data-testid="board-panel"]` element — never a
 full-page screenshot. `/matches/[matchId]` and `/galaxy/matches/[matchId]`
 are client components that fetch game data over the network; their fetches
 are mocked (`page.route()`) to serve the exact same fixture JSON
@@ -55,23 +66,24 @@ whatever the real `.env` has configured. Reached via `/mistakes`'s own
 classification/category/severity filters (real query params, the same UI
 a visitor uses), then a click by exact move-label text — the same
 selection technique as the other two contexts, not a special-cased deep
-link. `bg_test` is small enough (8 rows) that this needs no shortcut: two
-of the four decisions do share one filter combo, but the click-by-label
+link. `bg_test` is small enough (10 rows) that this needs no shortcut: two
+of the five decisions do share one filter combo, but the click-by-label
 step already disambiguates them, same as it does for the much larger real
-mistake lists on `/matches`/`/galaxy/matches`. All 12 screenshots are now
+mistake lists on `/matches`/`/galaxy/matches`. All 13 board screenshots are now
 fully deterministic, independent of the real dev DB's live state — the
 *only* variable across all three contexts is the surrounding page.
 
-## Shared markup coverage (4 tests, added 2026-09-28)
+## Shared markup coverage (5 tests, added 2026-09-28 + 2026-10-01)
 
-All four reuse the exact same mocked/seeded page visits as the 12 tests
-above — no new fixtures, no new live-data dependency:
+All reuse the exact same mocked/seeded page visits as the board tests
+above — no new fixtures beyond the one `clean-move` decision (see "What it
+does" above), no other new live-data dependency:
 
 - **`mistake-row-list` on `/mistakes`** — screenshots
   `[data-testid="mistake-row-list"]` (added to `DecisionListWithDetail.tsx`'s
   own list wrapper) after filtering to the `bar-checkers`/`normal-midgame`
-  combo (`middle_game`/`checker`/`error` — the one filter shared by two of
-  the four representative decisions, see `DECISIONS`' own comment), so the
+  combo (`middle_game`/`checker`/`error` — one filter shared by two of
+  the representative decisions, see `DECISIONS`' own comment), so the
   list has 2+ rows and exercises both the selected-row highlight and an
   unselected row's resting style, not just a single row.
 - **`move-delta` — active/inactive tab states on `/mistakes`** — same page
@@ -83,6 +95,13 @@ above — no new fixtures, no new live-data dependency:
   "best" label — covering both branches of `MoveDelta`'s conditional
   underline styling without needing to hardcode the exact best-move
   notation text.
+- **`move-delta` — collapsed (no error) on `/mistakes`** (added 2026-10-01)
+  — the third `MoveDelta` branch: when the played move has no error
+  (`Decision.isMistake === false`), my-label/best-label collapse into one
+  green label instead of a redundant identical pair. Uses the `clean-move`
+  decision specifically (the one `DECISIONS` entry with `isMistake: false`).
+  Asserts the element has exactly one child `<span>` (a structural check a
+  screenshot diff alone can't make) before screenshotting it.
 - **`mistakes-section` on `/matches/[matchId]` and `/galaxy/matches/[matchId]`**
   — screenshots `[data-testid="mistakes-section"]`, a new wrapper `<div>`
   around `MistakesSection.tsx`'s "You"/Game filters and the 3 PR summary
@@ -90,7 +109,7 @@ above — no new fixtures, no new live-data dependency:
   attribute to an existing element: there was no single existing element
   spanning exactly "filters + PR summary" without also including the board
   (screenshotting the board here would reintroduce the GPU-jitter flake
-  documented below, for a region already covered by the 12 tests above).
+  documented below, for a region already covered by the 13 tests above).
   The wrapper's own `className="flex flex-col gap-6"` exactly reproduces
   the outer container's spacing — verified to introduce zero visual change
   via this same suite (16/16 passing against the pre-existing baselines,
@@ -99,8 +118,8 @@ above — no new fixtures, no new live-data dependency:
 **`/repeated-positions` is not covered** — it renders the same
 `DecisionListWithDetail`/`MoveDelta`, but `bg_test` (see "Setup" below)
 only seeds `Match`/`Game`/`Decision`, no `RepeatedPosition` rows, and none
-of the 4 representative decisions are necessarily a *repeated* position in
-this 8-row dataset. Adding coverage there would mean extending the seed
+of the 5 representative decisions are necessarily a *repeated* position in
+this 10-row dataset. Adding coverage there would mean extending the seed
 script and the recompute step, not reusing an existing page visit —
 skipped as not cheap, per the instruction that introduced this section.
 
@@ -185,13 +204,15 @@ Failures that survive all retries (see below) are real — check for a
 `-retry2` (or `-retryN`) suffix in the failing test's trace/output path to
 tell a genuine failure apart from noise that just hadn't been retried yet.
 
-- All 12 fail together → the bug is in `BoardPanel.tsx` or `Board.tsx`
+- All 13 fail together → the bug is in `BoardPanel.tsx` or `Board.tsx`
   themselves (shared by all three).
-- Only the 4 `/mistakes` tests fail → the bug is specific to `/mistakes`'s
-  own integration (`DecisionCard.tsx`, `lib/decisionFromRow.ts`) — real,
-  verified: swapping `myMoveNotation`/`bestMoveNotation` in
+- Only the `/mistakes` tests fail (5, since `clean-move` has no
+  `/matches`/`/galaxy/matches` counterpart — see "What it does" above) →
+  the bug is specific to `/mistakes`'s own integration (`DecisionCard.tsx`,
+  `lib/decisionFromRow.ts`) — real, verified at the time there were 4
+  representative decisions: swapping `myMoveNotation`/`bestMoveNotation` in
   `lib/decisionFromRow.ts` (used only by `/mistakes`) failed exactly those
-  4 tests and left the other 8 green.
+  4 `/mistakes` tests and left the other 8 green.
 - Only the `/matches`/`/galaxy/matches` tests fail → the bug is in
   `MistakesSection.tsx` (shared by those two, not `/mistakes`) or one of
   those two page files specifically.
@@ -247,7 +268,7 @@ suspect test with `--grep` before assuming a real regression.
 strings, no names/ratings — same shape already used elsewhere in this
 codebase, e.g. `lib/local-client.ts`'s reconstruction). `player-identities.json`
 is a small hand-written stand-in for `/api/player-identities`, marking one
-`user_id` (the one all 4 representative decisions belong to) as `isMe`, so
+`user_id` (the one all 5 representative decisions belong to) as `isMe`, so
 `MistakesSection.tsx`'s player-scoping logic resolves deterministically
 regardless of what's actually in the real `PlayerIdentity` table.
 

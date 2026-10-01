@@ -25,4 +25,14 @@ export const style = {
       "ml-1.5 cursor-pointer font-semibold text-green-600 dark:text-green-400",
       isActive ? "underline" : "hover:underline"
     ),
+
+  // Same green styling as bestLabel, minus its ml-1.5 — used instead of
+  // myLabel+bestLabel together when the two would be identical (see
+  // MoveDelta.tsx), where this is the only label shown, not the second of
+  // a pair.
+  collapsedLabel: (isActive: boolean): string =>
+    clsx(
+      "cursor-pointer font-semibold text-green-600 dark:text-green-400",
+      isActive ? "underline" : "hover:underline"
+    ),
 } as const;

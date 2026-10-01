@@ -413,6 +413,389 @@
       "gameIndex": 5
     },
     {
+      "id": 1205329,
+      "gameId": 15002,
+      "eventId": "6999761874",
+      "userId": "62febc99a2eb070024ace099",
+      "color": "",
+      "kind": "CUBE",
+      "analysedEvent": "cube_double",
+      "countAsDecision": false,
+      "rawError": 0,
+      "errorSeverity": "NONE",
+      "isBlunder": false,
+      "luck": 0,
+      "luckMwc": null,
+      "equity": -0.7039,
+      "mwc": 0.374,
+      "classification": "middle_game",
+      "matchScoreBlack": 3,
+      "matchScoreWhite": 2,
+      "crawfordState": "none",
+      "cubeOwnerUserId": null,
+      "notationPlayed": null,
+      "notationBest": null,
+      "cubeDetail": "did not double \u2014 best: roll",
+      "resignError": null,
+      "shouldResign": null,
+      "resignationType": null,
+      "equityBefore": null,
+      "equityAfter": null,
+      "timestamp": "2026-09-18T03:00:13.710Z",
+      "myTag": null,
+      "raw": {
+        "id": 6999761874,
+        "color": "",
+        "moves": [],
+        "reviews": [
+          {
+            "id": 1896219587,
+            "take": null,
+            "level": 1,
+            "double": false,
+            "result": {
+              "result": {
+                "equity": -0.7039,
+                "metadata": {
+                  "scores": {
+                    "black": 3,
+                    "white": 2
+                  },
+                  "max_move": null,
+                  "timestamp": "2026-09-18T03:00:13.710557Z",
+                  "request_id": null,
+                  "match_length": 7,
+                  "analysis_level": 1,
+                  "crawford_state": "none",
+                  "analysis_time_ms": 0,
+                  "count_as_decision": false
+                },
+                "cube_analysis": {
+                  "optimal": -0.7039,
+                  "cubeless": -0.4551,
+                  "no_double": -0.7039,
+                  "cube_level": 1,
+                  "double_pass": 1,
+                  "double_take": -1.4202,
+                  "diff_no_double": 0,
+                  "diff_double_pass": 1.7039,
+                  "diff_double_take": -0.7163,
+                  "too_good_meaningful": false,
+                  "doublers_best_action": "roll",
+                  "receivers_best_action": "take",
+                  "cube_decision_meaningful": false,
+                  "receiver_diff_double_pass": -2.4202,
+                  "receiver_diff_double_take": 0
+                },
+                "probabilities": {
+                  "mwc": 0.374,
+                  "win": 0.3636,
+                  "lose": 0.6364000000000001,
+                  "volatility": 1.594365,
+                  "win_gammon": 0.0916,
+                  "lose_gammon": 0.2,
+                  "mwc_context": "optimal",
+                  "win_backgammon": 0.0032,
+                  "lose_backgammon": 0.0123,
+                  "market_losing_probability": 0.264288,
+                  "market_gaining_probability": 0.735712
+                },
+                "error_analysis": {
+                  "luck": 0,
+                  "is_error": false,
+                  "luck_mwc": null,
+                  "mwc_error": null,
+                  "raw_error": 0,
+                  "is_blunder": false,
+                  "equity_error": null,
+                  "error_severity": "none"
+                }
+              },
+              "version": "1.0.0",
+              "analysed_event": "cube_double"
+            },
+            "second": 1,
+            "threshold": null,
+            "source_match": {
+              "id": 1896216819,
+              "formatted_value": "cAngADAAEAAE"
+            },
+            "resigned_points": null,
+            "source_position": {
+              "id": 2789113731,
+              "classification": "middle_game",
+              "formatted_value": "bGaWARjBc+QBGA"
+            },
+            "destination_position": null
+          }
+        ],
+        "user_id": "62febc99a2eb070024ace099",
+        "event_type": "dice_rolled",
+        "rolled_dice": [
+          5,
+          4
+        ]
+      },
+      "gameIndex": 5
+    },
+    {
+      "id": 1205330,
+      "gameId": 15002,
+      "eventId": "6999762390",
+      "userId": "62febc99a2eb070024ace099",
+      "color": "black",
+      "kind": "CHECKER",
+      "analysedEvent": "move",
+      "countAsDecision": true,
+      "rawError": 0,
+      "errorSeverity": "NONE",
+      "isBlunder": false,
+      "luck": -0.092328,
+      "luckMwc": -0.00683,
+      "equity": -0.5373,
+      "mwc": 0.3863,
+      "classification": "middle_game",
+      "matchScoreBlack": 3,
+      "matchScoreWhite": 2,
+      "crawfordState": "none",
+      "cubeOwnerUserId": null,
+      "notationPlayed": "23/14*",
+      "notationBest": "23/14*",
+      "cubeDetail": null,
+      "resignError": null,
+      "shouldResign": null,
+      "resignationType": null,
+      "equityBefore": null,
+      "equityAfter": null,
+      "timestamp": "2026-09-18T03:00:19.766Z",
+      "myTag": null,
+      "raw": {
+        "id": 6999762390,
+        "color": "black",
+        "moves": [
+          23,
+          18,
+          18,
+          14
+        ],
+        "reviews": [
+          {
+            "id": 1896220057,
+            "take": null,
+            "level": 1,
+            "double": null,
+            "result": {
+              "result": {
+                "moves": [
+                  {
+                    "rank": 1,
+                    "final": {
+                      "xgid": "XGID=aAb---D-C--AbDAb-b-b-bbA--:0:0:1:00:3:2:0:7:1",
+                      "gnubgid": "bGbGAEzBc+QFEA:cAngACAAGAAE"
+                    },
+                    "level": 1,
+                    "equity": -0.7972,
+                    "notation": "23/14*",
+                    "move_played": true,
+                    "equity_error": 0,
+                    "probabilities": {
+                      "mwc": 0.3863,
+                      "win": 0.3813,
+                      "lose": 0.6187,
+                      "volatility": null,
+                      "win_gammon": 0.0925,
+                      "lose_gammon": 0.2863,
+                      "mwc_context": "cubeless",
+                      "win_backgammon": 0.0038,
+                      "lose_backgammon": 0.0182,
+                      "market_losing_probability": null,
+                      "market_gaining_probability": null
+                    },
+                    "error_analysis": {
+                      "luck": 0,
+                      "is_error": false,
+                      "luck_mwc": null,
+                      "mwc_error": null,
+                      "raw_error": 0,
+                      "is_blunder": false,
+                      "equity_error": null,
+                      "error_severity": "none"
+                    }
+                  },
+                  {
+                    "rank": 2,
+                    "final": {
+                      "xgid": "XGID=-Bb---C-CA-AbCab-b-b-bbB--:0:0:1:00:3:2:0:7:1",
+                      "gnubgid": "bGaWARiDc8kBGA:cAngACAAGAAE"
+                    },
+                    "level": 1,
+                    "equity": -0.811,
+                    "notation": "13/9 6/1",
+                    "move_played": false,
+                    "equity_error": -0.013800000000000034,
+                    "probabilities": {
+                      "mwc": 0.3889,
+                      "win": 0.3406,
+                      "lose": 0.6594,
+                      "volatility": null,
+                      "win_gammon": 0.0922,
+                      "lose_gammon": 0.2016,
+                      "mwc_context": "cubeless",
+                      "win_backgammon": 0.0026,
+                      "lose_backgammon": 0.0111,
+                      "market_losing_probability": null,
+                      "market_gaining_probability": null
+                    },
+                    "error_analysis": {
+                      "luck": 0,
+                      "is_error": false,
+                      "luck_mwc": null,
+                      "mwc_error": null,
+                      "raw_error": -0.013800000000000034,
+                      "is_blunder": false,
+                      "equity_error": null,
+                      "error_severity": "doubtful"
+                    }
+                  },
+                  {
+                    "rank": 3,
+                    "final": {
+                      "xgid": "XGID=-Ab---E-CA--bCab-b-b-bbB--:0:0:1:00:3:2:0:7:1",
+                      "gnubgid": "bGaWARjB58IBGA:cAngACAAGAAE"
+                    },
+                    "level": 0,
+                    "equity": -1,
+                    "notation": "13/9 11/6",
+                    "move_played": false,
+                    "equity_error": -0.2028,
+                    "probabilities": {
+                      "mwc": 0.3832,
+                      "win": 0.3115,
+                      "lose": 0.6885,
+                      "volatility": null,
+                      "win_gammon": 0.075,
+                      "lose_gammon": 0.2003,
+                      "mwc_context": "cubeless",
+                      "win_backgammon": 0.0028,
+                      "lose_backgammon": 0.0139,
+                      "market_losing_probability": null,
+                      "market_gaining_probability": null
+                    },
+                    "error_analysis": {
+                      "luck": 0,
+                      "is_error": true,
+                      "luck_mwc": null,
+                      "mwc_error": null,
+                      "raw_error": -0.2028,
+                      "is_blunder": true,
+                      "equity_error": null,
+                      "error_severity": "blunder"
+                    }
+                  },
+                  {
+                    "rank": 4,
+                    "final": {
+                      "xgid": "XGID=-Bb---CAC---bDab-b-b-bbB--:0:0:1:00:3:2:0:7:1",
+                      "gnubgid": "bGaWARiD6+ABGA:cAngACAAGAAE"
+                    },
+                    "level": 0,
+                    "equity": -1,
+                    "notation": "11/7 6/1",
+                    "move_played": false,
+                    "equity_error": -0.2028,
+                    "probabilities": {
+                      "mwc": 0.3821,
+                      "win": 0.3146,
+                      "lose": 0.6854,
+                      "volatility": null,
+                      "win_gammon": 0.0763,
+                      "lose_gammon": 0.2179,
+                      "mwc_context": "cubeless",
+                      "win_backgammon": 0.0017,
+                      "lose_backgammon": 0.013,
+                      "market_losing_probability": null,
+                      "market_gaining_probability": null
+                    },
+                    "error_analysis": {
+                      "luck": 0,
+                      "is_error": true,
+                      "luck_mwc": null,
+                      "mwc_error": null,
+                      "raw_error": -0.2028,
+                      "is_blunder": true,
+                      "equity_error": null,
+                      "error_severity": "blunder"
+                    }
+                  }
+                ],
+                "equity": -0.5373,
+                "metadata": {
+                  "scores": {
+                    "black": 3,
+                    "white": 2
+                  },
+                  "max_move": null,
+                  "timestamp": "2026-09-18T03:00:19.766360Z",
+                  "request_id": null,
+                  "match_length": 7,
+                  "analysis_level": 1,
+                  "crawford_state": "none",
+                  "analysis_time_ms": 0,
+                  "count_as_decision": true
+                },
+                "probabilities": {
+                  "mwc": 0.3863,
+                  "win": 0.3813,
+                  "lose": 0.6187,
+                  "volatility": null,
+                  "win_gammon": 0.0925,
+                  "lose_gammon": 0.2863,
+                  "mwc_context": "cubeless",
+                  "win_backgammon": 0.0038,
+                  "lose_backgammon": 0.0182,
+                  "market_losing_probability": null,
+                  "market_gaining_probability": null
+                },
+                "error_analysis": {
+                  "luck": -0.092328,
+                  "is_error": false,
+                  "luck_mwc": -0.00683,
+                  "mwc_error": 0,
+                  "raw_error": 0,
+                  "is_blunder": false,
+                  "equity_error": null,
+                  "error_severity": "none"
+                }
+              },
+              "version": "1.0.0",
+              "analysed_event": "move"
+            },
+            "second": 1,
+            "threshold": null,
+            "source_match": {
+              "id": 1896220113,
+              "formatted_value": "cInyADAAEAAE"
+            },
+            "resigned_points": null,
+            "source_position": {
+              "id": 2789113731,
+              "classification": "middle_game",
+              "formatted_value": "bGaWARjBc+QBGA"
+            },
+            "destination_position": {
+              "id": 2789114417,
+              "classification": "middle_game",
+              "formatted_value": "bGbGAEzBc+QFEA"
+            }
+          }
+        ],
+        "user_id": "62febc99a2eb070024ace099",
+        "event_type": "move_commited",
+        "rolled_dice": []
+      },
+      "gameIndex": 5
+    },
+    {
       "id": 1205409,
       "gameId": 15003,
       "eventId": "6999784019",

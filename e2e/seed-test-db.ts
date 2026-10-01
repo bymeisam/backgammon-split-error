@@ -1,11 +1,11 @@
 // Seeds the local `bg_test` MySQL schema (see e2e/README.md) with exactly
 // the rows the /mistakes visual-regression tests need: 1 Match, 3 Games,
-// and 8 Decisions — the 4 representative decisions already used in
+// and 10 Decisions — the 5 representative decisions already used in
 // board-visual.spec.ts, plus each one's immediately preceding dice_rolled
 // sibling row (without those, /mistakes can't find a roll for a checker
 // decision — see lib/decisionFromRow.ts's buildRollLookup; a checker
 // decision's own event never carries its own roll). Deliberately not a
-// full match/account replica, just what these 4 tests actually render.
+// full match/account replica, just what these 5 tests actually render.
 //
 // Source data: e2e/fixtures/seed-data.json — a real, one-time snapshot of
 // these exact rows (opponent name anonymized), not re-derived or

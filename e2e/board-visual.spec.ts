@@ -10,10 +10,16 @@
 // (they're clipped to board-panel's own element) — see e2e/README.md's
 // "Shared markup coverage" section for what it does and doesn't cover.
 //
-// Same 4 representative decisions, same underlying real data (match
-// 46576635, games 5/6/7 — the same match used by the Vitest suite's
-// gnuPositionId regression tests), rendered in all three contexts. All 12
-// tests run against one dedicated dev server (playwright.config.ts's
+// Same underlying real data (match 46576635, games 5/6/7 — the same match
+// used by the Vitest suite's gnuPositionId regression tests), rendered
+// across its three real call sites. Not quite a uniform "N decisions x 3
+// contexts" grid: /matches/[matchId] and /galaxy/matches/[matchId] go
+// through MistakesSection.tsx's own tables, which only ever list
+// isMistake: true decisions (lib/mistakes.ts's partitionMistakes) — so
+// those two contexts use MISTAKE_DECISIONS (4), while /mistakes has no such
+// restriction and uses the full DECISIONS (5, including clean-move, the one
+// isMistake: false representative). 13 board screenshots total (4x2 + 5),
+// all run against one dedicated dev server (playwright.config.ts's
 // webServer, port 3100 — never the real dev server on :3000, and never
 // affected by whatever the real .env currently points at):
 //   - /matches/[matchId] and /galaxy/matches/[matchId]: client components
@@ -29,8 +35,8 @@
 //     Reached via /mistakes's own classification/category/severity filters
 //     (same UI a real visitor uses), then a click by exact move-label text
 //     — the same selection technique as the other two contexts. bg_test is
-//     small enough (8 rows) that this needs no special-cased deep link:
-//     two of the four decisions share a filter combo (both middle_game/
+//     small enough (10 rows) that this needs no special-cased deep link:
+//     two of the five decisions share a filter combo (both middle_game/
 //     CHECKER/ERROR), so that filter alone isn't unique, but the
 //     click-by-label step already disambiguates it, same as /matches and
 //     /galaxy/matches do for their much larger mistake lists.
@@ -100,7 +106,22 @@ const DECISIONS: RepresentativeDecision[] = [
     mistakesFilter: { classification: "opening_game", category: "checker", severity: "doubtful" },
     myLabel: "24/23 13/11",
   },
+  {
+    name: "clean-move",
+    description: "no error — the played move equals the best move, so MoveDelta collapses to one label",
+    mistakesFilter: { classification: "middle_game", category: "checker", severity: "none" },
+    myLabel: "23/14*",
+  },
 ];
+
+// MistakesSection.tsx's own tables (lib/mistakes.ts's partitionMistakes)
+// only ever list isMistake: true decisions — clean-move never appears
+// there by design, so it's excluded from the /matches and
+// /galaxy/matches loops below (clicking for it there would just time out).
+// /mistakes has no such restriction (its default/unfiltered view includes
+// clean decisions too — see lib/decisionQueries.ts/app/mistakes/page.tsx),
+// so it alone uses the full DECISIONS list.
+const MISTAKE_DECISIONS = DECISIONS.filter((d) => d.name !== "clean-move");
 
 function gameIndexFromUrl(url: string): number | null {
   const segments = new URL(url).pathname.split("/").filter(Boolean);
@@ -177,7 +198,7 @@ async function waitForAllGamesLoaded(page: Page) {
 }
 
 test.describe("BoardPanel visual regression", () => {
-  for (const decision of DECISIONS) {
+  for (const decision of MISTAKE_DECISIONS) {
     test(`/matches/[matchId] board — ${decision.name} (${decision.description})`, async ({
       page,
     }) => {
@@ -214,7 +235,9 @@ test.describe("BoardPanel visual regression", () => {
       await expect(boardPanel(page)).toBeVisible();
       await expect(boardPanel(page)).toHaveScreenshot(`galaxy-matches-${decision.name}.png`);
     });
+  }
 
+  for (const decision of DECISIONS) {
     test(`/mistakes board — ${decision.name} (${decision.description})`, async ({ page }) => {
       // Server component reading Prisma directly — no route to mock.
       // Resolves against the dedicated bg_test-backed server (baseURL, see
@@ -296,6 +319,28 @@ test.describe("Shared markup visual regression", () => {
     // exact best-label text (not tracked in DECISIONS above).
     await moveDelta.locator("> span").nth(1).click();
     await expect(moveDelta).toHaveScreenshot("move-delta-best-active.png");
+  });
+
+  // Third MoveDelta branch, not covered by the two-tab test above: when the
+  // played move has no error, MoveDelta collapses my-label+best-label into
+  // one green label instead of showing both (redundant when identical) —
+  // uses the clean-move decision specifically, the one DECISIONS entry with
+  // isMistake: false.
+  test("move-delta — collapsed (no error) on /mistakes", async ({ page }) => {
+    const CLEAN_MOVE_DECISION = DECISIONS.find((d) => d.name === "clean-move")!;
+    const { classification, category, severity } = CLEAN_MOVE_DECISION.mistakesFilter;
+    await page.goto(
+      `/mistakes?classification=${classification}&category=${category}&severity=${severity}`
+    );
+    const row = page.locator("tr", { hasText: CLEAN_MOVE_DECISION.myLabel });
+    const moveDelta = row.getByTestId("move-delta");
+    await row.getByText(CLEAN_MOVE_DECISION.myLabel, { exact: true }).click();
+    await expect(boardPanel(page)).toContainText(CLEAN_MOVE_DECISION.myLabel);
+    // Exactly one child span, not two — the structural assertion a
+    // screenshot alone can't make (two identically-sized/colored spans
+    // could look like one in a diff).
+    await expect(moveDelta.locator("> span")).toHaveCount(1);
+    await expect(moveDelta).toHaveScreenshot("move-delta-collapsed.png");
   });
 
   // DecisionCard's own chrome (badge row + "View match" link) is entirely
