@@ -6,14 +6,8 @@ import DecisionCard from "./DecisionCard";
 import { MoveDelta } from "./MistakesSection";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
-import type { Decision } from "@/lib/mistakes";
+import type { DecisionListItem } from "@/lib/decisionFromRow";
 import { style } from "./DecisionListWithDetail.styles";
-
-export interface DecisionListItem {
-  decision: Decision;
-  classification: string;
-  matchHref: string;
-}
 
 // List + single-detail split, matching the exact pattern MistakesSection.tsx
 // already uses on /matches/[matchId] and /galaxy/matches/[matchId]:

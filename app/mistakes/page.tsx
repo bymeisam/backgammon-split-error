@@ -1,13 +1,22 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { DECISION_LIST_SELECT, loadDecisionItems } from "@/lib/decisionQueries";
 import {
-  DecisionKind as PrismaDecisionKind,
-  ErrorSeverity as PrismaErrorSeverity,
-} from "@/lib/generated/prisma/client";
-import { decisionFromRow, buildRollLookup } from "@/lib/decisionFromRow";
+  PAGE_SIZE_OPTIONS,
+  categoryFromParam,
+  describeFilters,
+  lowercaseOptions,
+  lowercaseParam,
+  parseListParams,
+  severityFromParam,
+  totalPagesFor,
+  type SearchParams,
+} from "@/lib/listParams";
 import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
-import { phaseOptionsFor, resolvePhaseWhere, getPhaseLabel } from "@/lib/classificationLabels";
+import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
+import PaginationLinks from "@/app/components/ui/PaginationLinks";
+import { phaseOptionsFor, resolvePhaseWhere } from "@/lib/classificationLabels";
 import { style } from "./mistakes.styles";
 
 // Server component, queried fresh on every request (no caching) — same
@@ -15,30 +24,7 @@ import { style } from "./mistakes.styles";
 // throughout: pure read feature, no writes.
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 const DEFAULT_PAGE_SIZE = 10;
-
-const SEVERITY_PARAM_MAP: Record<string, PrismaErrorSeverity> = {
-  blunder: PrismaErrorSeverity.BLUNDER,
-  error: PrismaErrorSeverity.ERROR,
-  doubtful: PrismaErrorSeverity.DOUBTFUL,
-  none: PrismaErrorSeverity.NONE,
-};
-
-const CATEGORY_PARAM_MAP: Record<string, PrismaDecisionKind> = {
-  checker: PrismaDecisionKind.CHECKER,
-  cube: PrismaDecisionKind.CUBE,
-  resignation: PrismaDecisionKind.RESIGNATION,
-};
-
-function buildQueryString(params: Record<string, string | undefined>): string {
-  const sp = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value) sp.set(key, value);
-  }
-  const s = sp.toString();
-  return s ? `?${s}` : "";
-}
 
 // All three dropdowns' options come from MistakeStat, not Decision —
 // MistakeStat already has classification/category/errorSeverity as columns
@@ -60,27 +46,6 @@ async function getFilterOptions() {
   };
 }
 
-function FilterSelect({
-  name,
-  current,
-  options,
-}: {
-  name: string;
-  current: string | undefined;
-  options: string[];
-}) {
-  return (
-    <select name={name} defaultValue={current ?? ""} className={style.filterSelect}>
-      <option value="">All</option>
-      {options.map((value) => (
-        <option key={value} value={value.toLowerCase()}>
-          {value.toLowerCase()}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 async function FilterSelects({
   phase,
   categoryParam,
@@ -91,44 +56,30 @@ async function FilterSelects({
   severityParam: string | undefined;
 }) {
   const { classifications, categories, severities } = await getFilterOptions();
-  const phaseOptions = phaseOptionsFor(classifications);
 
   return (
     <>
-      <label className={style.filterLabel}>
-        Phase
-        <select name="phase" defaultValue={phase ?? ""} className={style.filterSelect}>
-          <option value="">Any</option>
-          {phaseOptions.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className={style.filterLabel}>
-        Category
-        <FilterSelect name="category" current={categoryParam} options={categories} />
-      </label>
-      <label className={style.filterLabel}>
-        Severity
-        <FilterSelect name="severity" current={severityParam} options={severities} />
-      </label>
-    </>
-  );
-}
-
-function FilterSelectsFallback() {
-  return (
-    <>
-      {["Phase", "Category", "Severity"].map((label) => (
-        <label key={label} className={style.filterLabel}>
-          {label}
-          <select disabled className={style.filterSelectDisabled}>
-            <option>Loading…</option>
-          </select>
-        </label>
-      ))}
+      <FilterSelect
+        label="Phase"
+        name="phase"
+        defaultValue={phase ?? ""}
+        options={phaseOptionsFor(classifications)}
+        emptyLabel="Any"
+      />
+      <FilterSelect
+        label="Category"
+        name="category"
+        defaultValue={categoryParam ?? ""}
+        options={lowercaseOptions(categories)}
+        emptyLabel="All"
+      />
+      <FilterSelect
+        label="Severity"
+        name="severity"
+        defaultValue={severityParam ?? ""}
+        options={lowercaseOptions(severities)}
+        emptyLabel="All"
+      />
     </>
   );
 }
@@ -149,8 +100,8 @@ interface Filters {
 // ever renders at a time there, not once per row.
 async function DecisionListSection({ filters }: { filters: Filters }) {
   const { phase, categoryParam, severityParam, pageSize, page } = filters;
-  const category = categoryParam ? CATEGORY_PARAM_MAP[categoryParam] : undefined;
-  const errorSeverity = severityParam ? SEVERITY_PARAM_MAP[severityParam] : undefined;
+  const category = categoryFromParam(categoryParam);
+  const errorSeverity = severityFromParam(severityParam);
 
   // countAsDecision: true matches the ask exactly; rawError not null is
   // required too — a null rawError is an ungraded/partial analysis (see
@@ -172,93 +123,27 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
       orderBy: { eventId: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      select: {
-        id: true,
-        gameId: true,
-        eventId: true,
-        userId: true,
-        color: true,
-        kind: true,
-        rawError: true,
-        errorSeverity: true,
-        classification: true,
-        raw: true,
-        game: { select: { gameIndex: true, match: { select: { sourceMatchId: true } } } },
-      },
+      select: DECISION_LIST_SELECT,
     }),
   ]);
 
-  // A checker decision's own move_commited event never carries its roll —
-  // the preceding dice_rolled event does, stored as its own sibling
-  // Decision row (kind: CUBE, often countAsDecision: false) in the same
-  // game. The page's main query above only selects countAsDecision: true
-  // rows, so it never sees those siblings; fetch every row for just the
-  // games actually on this page (cheap — a handful of games, not the whole
-  // table) and build a "gameId:eventId" -> roll lookup from them.
-  const gameIds = [...new Set(rows.map((row) => row.gameId))];
-  const gameRows =
-    gameIds.length > 0
-      ? await prisma.decision.findMany({
-          where: { gameId: { in: gameIds } },
-          select: { gameId: true, eventId: true, raw: true },
-        })
-      : [];
-  const rollLookup = buildRollLookup(gameRows);
-
-  const items = rows
-    .map((row) => {
-      const decision = decisionFromRow(row, rollLookup);
-      if (!decision) return null;
-      return {
-        decision,
-        classification: row.classification,
-        matchHref: `/matches/${row.game.match.sourceMatchId}`,
-      };
-    })
-    .filter((c) => c !== null);
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const baseParams = {
-    phase,
-    category: categoryParam,
-    severity: severityParam,
-    pageSize: String(pageSize),
-  };
-  const filterDescription =
-    [phase ? getPhaseLabel(phase) : undefined, categoryParam, severityParam].filter(Boolean).join(" ") ||
-    "all";
+  const items = await loadDecisionItems(rows);
 
   return (
     <>
       <p className={style.mutedText}>
-        {total.toLocaleString()} {filterDescription} decision{total === 1 ? "" : "s"}.
+        {total.toLocaleString()} {describeFilters(phase, categoryParam, severityParam)} decision
+        {total === 1 ? "" : "s"}.
       </p>
 
       <DecisionListWithDetail items={items} showClassification={!phase} />
 
-      <div className={style.paginationRow}>
-        <Link
-          href={
-            page > 1 ? `/mistakes${buildQueryString({ ...baseParams, page: String(page - 1) })}` : "#"
-          }
-          className={style.paginationLink(page <= 1)}
-        >
-          Prev
-        </Link>
-        <span className={style.mutedText}>
-          Page {page} of {totalPages}
-        </span>
-        <Link
-          href={
-            page < totalPages
-              ? `/mistakes${buildQueryString({ ...baseParams, page: String(page + 1) })}`
-              : "#"
-          }
-          className={style.paginationLink(page >= totalPages)}
-        >
-          Next
-        </Link>
-      </div>
+      <PaginationLinks
+        basePath="/mistakes"
+        params={{ phase, category: categoryParam, severity: severityParam, pageSize: String(pageSize) }}
+        page={page}
+        totalPages={totalPagesFor(total, pageSize)}
+      />
     </>
   );
 }
@@ -275,30 +160,13 @@ function DecisionListFallback() {
 export default async function MistakesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  // ?phase= is the current param; ?classification= is accepted as an alias
-  // for it (only when phase itself isn't present) so old drill-down links
-  // from /matches/analysis (?classification=<value>&severity=<severity>)
-  // keep working unchanged — a raw classification value is already a valid
-  // Phase value (resolvePhaseWhere falls back to treating anything that
-  // isn't one of the 5 fixed Phase options as a plain classification match,
-  // exactly how the old ?classification= param behaved on its own).
-  const phase =
-    typeof sp.phase === "string"
-      ? sp.phase
-      : typeof sp.classification === "string"
-        ? sp.classification
-        : undefined;
-  const categoryParam = typeof sp.category === "string" ? sp.category.toLowerCase() : undefined;
-  const severityParam = typeof sp.severity === "string" ? sp.severity.toLowerCase() : undefined;
-  const pageParam = typeof sp.page === "string" ? Number(sp.page) : 1;
-  const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
-  const pageSizeParam = typeof sp.pageSize === "string" ? Number(sp.pageSize) : DEFAULT_PAGE_SIZE;
-  const pageSize = (PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSizeParam)
-    ? pageSizeParam
-    : DEFAULT_PAGE_SIZE;
+  const { phase, severityParam, page, pageSize } = parseListParams(sp, {
+    defaultPageSize: DEFAULT_PAGE_SIZE,
+  });
+  const categoryParam = lowercaseParam(sp, "category");
 
   const hasFilter = Boolean(phase || categoryParam || severityParam);
 
@@ -316,19 +184,15 @@ export default async function MistakesPage({
         </div>
 
         <form method="get" className={style.form}>
-          <Suspense fallback={<FilterSelectsFallback />}>
+          <Suspense fallback={<FilterSelectFallback labels={["Phase", "Category", "Severity"]} />}>
             <FilterSelects phase={phase} categoryParam={categoryParam} severityParam={severityParam} />
           </Suspense>
-          <label className={style.filterLabel}>
-            Per page
-            <select name="pageSize" defaultValue={String(pageSize)} className={style.filterSelect}>
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterSelect
+            label="Per page"
+            name="pageSize"
+            defaultValue={String(pageSize)}
+            options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+          />
           <button type="submit" className={style.applyButton}>
             Apply
           </button>

@@ -183,3 +183,37 @@ export function decisionFromRowForReplay(
     bestMoveNotation,
   };
 }
+
+// One row of the list + detail view (app/components/match-analysis/
+// DecisionListWithDetail.tsx) on /mistakes and /repeated-positions.
+export interface DecisionListItem {
+  decision: Decision;
+  classification: string;
+  matchHref: string;
+}
+
+// A DecisionRow plus the two extra fields a list item needs.
+export interface DecisionListRow extends DecisionRow {
+  classification: string;
+  game: { gameIndex: number; match: { sourceMatchId: string } };
+}
+
+// Rows (in display order) -> list items, dropping any row decisionFromRow
+// can't build a board card from. The DB side — fetching the sibling rows
+// `rollLookup` is built from — is lib/decisionQueries.ts's loadDecisionItems.
+export function toDecisionListItems(
+  rows: DecisionListRow[],
+  rollLookup: Map<string, number[]>
+): DecisionListItem[] {
+  const items: DecisionListItem[] = [];
+  for (const row of rows) {
+    const decision = decisionFromRow(row, rollLookup);
+    if (!decision) continue;
+    items.push({
+      decision,
+      classification: row.classification,
+      matchHref: `/matches/${row.game.match.sourceMatchId}`,
+    });
+  }
+  return items;
+}

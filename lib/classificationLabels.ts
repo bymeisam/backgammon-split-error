@@ -33,9 +33,13 @@ export const CLASSIFICATION_LABELS_BY_RAW_VALUE: Record<string, string> = {
 // Falls back to the raw value itself rather than throwing — classification
 // values live in Galaxy's data, not this codebase, so a value outside the
 // 17 mapped above is possible if Galaxy ever adds one (same defensive
-// stance ClassificationBadge already takes for its own lookup).
+// stance ClassificationBadge already takes for its own lookup). Own-property
+// lookup, so a value like "toString" (reachable from a URL via getPhaseLabel)
+// can't resolve to an inherited Object.prototype member.
 export function getClassificationLabel(value: string): string {
-  return CLASSIFICATION_LABELS_BY_RAW_VALUE[value] ?? value;
+  return Object.hasOwn(CLASSIFICATION_LABELS_BY_RAW_VALUE, value)
+    ? CLASSIFICATION_LABELS_BY_RAW_VALUE[value]
+    : value;
 }
 
 // "Phase" dropdown: the single merged filter /mistakes and /repeated-positions
