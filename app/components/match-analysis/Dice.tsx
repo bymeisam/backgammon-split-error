@@ -26,8 +26,16 @@ const COLORS: Record<DiceColor, { face: string; pip: string; stroke: string }> =
   },
 };
 
+// Pip positions for a die value; none for anything outside 1-6. Values come
+// from Galaxy's JSON (rolled_dice) unvalidated, so this is an own-property
+// lookup — a plain PIPS[value] would resolve e.g. "toString" to an
+// inherited function and crash on .map.
+export function pipsFor(value: number): [number, number][] {
+  return Object.hasOwn(PIPS, value) ? PIPS[value] : [];
+}
+
 function Die({ value, size = 20, color = "opponent" }: { value: number; size?: number; color?: DiceColor }) {
-  const pips = PIPS[value] ?? [];
+  const pips = pipsFor(value);
   const { face, pip, stroke } = COLORS[color];
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={`Die: ${value}`}>

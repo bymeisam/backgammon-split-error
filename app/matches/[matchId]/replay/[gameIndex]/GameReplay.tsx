@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { Decision } from "@/lib/mistakes";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
-import { MoveDelta } from "@/app/components/match-analysis/MistakesSection";
+import MoveDelta from "@/app/components/match-analysis/MoveDelta";
 import { DiceRoll } from "@/app/components/match-analysis/Dice";
 import { style } from "./gameReplay.styles";
 

@@ -1,10 +1,8 @@
 import clsx from "clsx";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
-// MoveDelta is defined in MistakesSection.tsx but used independently by
-// MistakesSection.tsx itself and by DecisionListWithDetail.tsx, so it
-// isn't exclusively either one's subcomponent and gets its own file, same
-// reasoning as Dice.styles.ts.
+// covers MoveDelta.tsx, used independently by MistakesSection.tsx,
+// DecisionListWithDetail.tsx and GameReplay.tsx.
 export const style = {
   wrapper: "whitespace-nowrap",
 

@@ -3,7 +3,7 @@
 import { resolveSelected } from "@/lib/listSelection";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import DecisionCard from "./DecisionCard";
-import { MoveDelta } from "./MistakesSection";
+import MoveDelta from "./MoveDelta";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import type { DecisionListItem } from "@/lib/decisionFromRow";

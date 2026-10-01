@@ -230,3 +230,46 @@ export function combinePR(a: PRResult, b: PRResult): number | null {
   const denom = a.effectiveDecisions + b.effectiveDecisions;
   return denom > 0 ? (loss / denom) * 500 : null;
 }
+
+// One player's decisions, optionally narrowed to a single game ("all" =
+// every game). Null userId (no player resolved) matches nothing.
+export function scopeDecisions(
+  decisions: Decision[],
+  userId: string | null,
+  game: "all" | number
+): Decision[] {
+  return decisions.filter(
+    (d) => d.userId === userId && (game === "all" || d.gameIndex === game)
+  );
+}
+
+export interface PartitionedDecisions {
+  checkerDecisions: Decision[];
+  cubeDecisions: Decision[];
+  // Mistakes only, each sorted by absError descending.
+  checkerMistakes: Decision[];
+  cubeMistakes: Decision[];
+  // Both kinds merged, absError descending (ties: checker before cube).
+  allMistakes: Decision[];
+}
+
+// Splits decisions into checker / cube (resignations belong to neither —
+// they don't count toward either PR), and each side's mistakes worst-first.
+export function partitionMistakes(decisions: Decision[]): PartitionedDecisions {
+  const byErrorDesc = (a: Decision, b: Decision) => b.absError - a.absError;
+  const checkerDecisions = decisions.filter((d) => d.kind === "checker");
+  const cubeDecisions = decisions.filter((d) => d.kind === "cube");
+  const checkerMistakes = checkerDecisions.filter((d) => d.isMistake).sort(byErrorDesc);
+  const cubeMistakes = cubeDecisions.filter((d) => d.isMistake).sort(byErrorDesc);
+  return {
+    checkerDecisions,
+    cubeDecisions,
+    checkerMistakes,
+    cubeMistakes,
+    allMistakes: [...checkerMistakes, ...cubeMistakes].sort(byErrorDesc),
+  };
+}
+
+export function formatPR(pr: number | null): string {
+  return pr === null ? "—" : pr.toFixed(2);
+}
