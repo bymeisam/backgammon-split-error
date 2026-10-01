@@ -86,6 +86,14 @@ export default defineConfig({
     url: "http://localhost:3100",
     reuseExistingServer: true,
     timeout: 120_000,
-    env: { ...testDbEnv, NEXT_DIST_DIR: ".next-test" },
+    // DISABLE_DEV_INDICATOR (read by next.config.ts) turns off Next's
+    // bottom-left dev-tools overlay for this server only — it was
+    // intermittently landing inside a BoardPanel screenshot's clipped
+    // region and failing the pixel-diff (see PROGRESS.md), unrelated to
+    // any real content change. The normal :3000 dev server never sets
+    // this, so the overlay stays on there — it's a genuinely useful
+    // indicator for actual local development, just noise for a
+    // screenshot-diffing test server.
+    env: { ...testDbEnv, NEXT_DIST_DIR: ".next-test", DISABLE_DEV_INDICATOR: "1" },
   },
 });

@@ -30,6 +30,15 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": ["./certs/oracle-mysql-ca.pem"],
   },
+
+  // Only set by playwright.config.ts's webServer (the dedicated :3100 test
+  // server) — hides Next's bottom-left dev-tools overlay there, since it was
+  // intermittently landing inside a BoardPanel screenshot's clipped region
+  // and failing the visual-regression suite's pixel-diff (see PROGRESS.md),
+  // unrelated to any real content change. Unset for the normal :3000 dev
+  // server, where the overlay stays on — it's a genuinely useful indicator
+  // for actual local development, not something to suppress there.
+  ...(process.env.DISABLE_DEV_INDICATOR ? { devIndicators: false } : {}),
 };
 
 export default nextConfig;
