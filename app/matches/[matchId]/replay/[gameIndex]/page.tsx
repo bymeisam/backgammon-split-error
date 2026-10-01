@@ -131,13 +131,12 @@ export default async function GameReplayPage({
     }
   }
 
-  // Same "who is me" rule MistakesSection uses (lib/playerIdentity.ts).
-  const meIdentity = await prisma.playerIdentity.findFirst({ where: { isMe: true } });
+  // Same "who is me" rule MistakesSection uses (lib/playerIdentity.ts):
+  // every isMe identity is a candidate, not just the first, so both call
+  // sites resolve identically.
+  const myIdentities = await prisma.playerIdentity.findMany({ where: { isMe: true } });
   const myUserId =
-    resolveMyIdentity(
-      meIdentity ? [meIdentity] : [],
-      rows.map((row) => row.userId)
-    )?.sourceUserId ?? null;
+    resolveMyIdentity(myIdentities, rows.map((row) => row.userId))?.sourceUserId ?? null;
   const myColor = myUserId ? colorByUserId.get(myUserId) ?? null : null;
 
   // countAsDecision: false rows are Galaxy's background per-roll "not close

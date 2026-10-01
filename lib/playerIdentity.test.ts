@@ -38,6 +38,19 @@ describe("resolveMyIdentity", () => {
     expect(resolveMyIdentity([me], ["u1", "u1", "u2"])).toBe(me);
   });
 
+  // The replay page used to fetch only findFirst({ isMe: true }) and check
+  // that one row; it now passes every isMe row. With a single isMe identity
+  // (the real DB's state when this changed) the two must agree exactly.
+  it("matches the old first-isMe-only replay rule when there's one isMe identity", () => {
+    const oldReplayRule = (first: PlayerIdentity | null, userIds: string[]) =>
+      first && userIds.some((u) => u === first.sourceUserId) ? first.sourceUserId : null;
+    const me = identity("u1", true);
+    const all = [identity("u2", false), me, identity("u3", false)];
+    for (const userIds of [["u1", "u2"], ["u2", "u3"], [], ["u1"]]) {
+      expect(resolveMyIdentity(all, userIds)?.sourceUserId ?? null).toBe(oldReplayRule(me, userIds));
+    }
+  });
+
   it("matches user ids case-sensitively", () => {
     // Galaxy ids are pinned to utf8mb4_bin (docs/field-mapping.md) — the
     // resolver must not be looser than the DB.

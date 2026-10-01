@@ -4,7 +4,14 @@
 // entry, which ClassificationBadge/SeverityBadge would otherwise have to
 // paper over at render time).
 import { describe, expect, it } from "vitest";
-import { classificationBadges, severityBadges } from "@/lib/badges";
+import {
+  badgeForClassification,
+  badgeForSeverity,
+  classificationBadges,
+  severityBadges,
+  severityKey,
+  type SeverityKey,
+} from "@/lib/badges";
 import { ErrorSeverity } from "@/lib/generated/prisma/client";
 
 // The 17 real classification values, confirmed live against /mistakes's
@@ -74,5 +81,44 @@ describe("severityBadges", () => {
     expect(severityBadges.blunder.color).toContain("red");
     expect(severityBadges.error.color).toContain("amber");
     expect(severityBadges.doubtful.color).toContain("amber");
+  });
+});
+
+describe("severityKey", () => {
+  it("maps every ErrorSeverity enum value to its lowercase badge key", () => {
+    for (const value of Object.values(ErrorSeverity)) {
+      expect(severityKey(value)).toBe(value.toLowerCase());
+      expect(severityBadges).toHaveProperty(severityKey(value));
+    }
+  });
+});
+
+describe("badgeForSeverity", () => {
+  it("returns the mapped config for every known key", () => {
+    for (const key of Object.keys(severityBadges) as SeverityKey[]) {
+      expect(badgeForSeverity(key)).toBe(severityBadges[key]);
+    }
+  });
+
+  it("falls back to the raw value instead of undefined for an unmapped key", () => {
+    // Only reachable by bypassing the type (a cast or untyped JSON) — this
+    // used to return undefined and make Badge throw on config.label.
+    expect(badgeForSeverity("bogus" as SeverityKey)).toEqual({ code: "bogus", label: "bogus" });
+  });
+});
+
+describe("badgeForClassification", () => {
+  it("returns the mapped config for every real classification value", () => {
+    for (const value of REAL_CLASSIFICATION_VALUES) {
+      expect(badgeForClassification(value)).toBe(classificationBadges[value]);
+    }
+  });
+
+  it("falls back to the raw value for a classification Galaxy adds later", () => {
+    expect(badgeForClassification("new_phase")).toEqual({ code: "new_phase", label: "new_phase" });
+  });
+
+  it("doesn't resolve inherited object properties as configs", () => {
+    expect(badgeForClassification("toString")).toEqual({ code: "toString", label: "toString" });
   });
 });

@@ -2,215 +2,113 @@
 
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { ParsedSubMove } from "@/lib/backgammonNotation";
+import {
+  BAR_COL,
+  BOARD_H,
+  BOARD_W,
+  COL_WIDTHS,
+  DICE_BOX_H,
+  DICE_BOX_W,
+  DICE_X,
+  DICE_Y,
+  MARGIN,
+  MAX_STACK,
+  OFF_COL,
+  OFF_SLOTS,
+  OFF_TRACK_W,
+  OFF_TRACK_X,
+  OFF_W,
+  R,
+  ROW_H,
+  Y0,
+  Y1,
+  barStackBase,
+  colX,
+  isOffSlotFilled,
+  moveAnchor,
+  offColumnGeometry,
+  offTrayBounds,
+  pointRow,
+  stackBase,
+  stackSlotY,
+  trianglePoints,
+  type Side,
+  type StackBase,
+} from "@/lib/boardGeometry";
+import { CHECKER_PALETTE } from "@/lib/checkerPalette";
 import { DiceRoll } from "./Dice";
 import { style } from "./BoardPanel.styles";
 
-const MARGIN = 16;
-const POINT_W = 48;
-const BAR_W = 32;
-const OFF_W = 44;
-const ROW_H = 185;
-const TRI_H = 165;
-const R = 14;
-const STACK_GAP = 24;
-const MAX_STACK = 5;
+// Background panel behind each side's off-tray half.
+const OFF_TRAY_PANEL: Record<Side, { y: number; fill: string }> = {
+  opponent: { y: Y0, fill: "#ffffff55" },
+  mine: { y: Y0 + ROW_H + 3, fill: "#00000022" },
+};
 
-// Column order left-to-right for BOTH rows (bar-aligned): 6 points, bar, 6 points, off-tray.
-const COL_WIDTHS = [
-  POINT_W, POINT_W, POINT_W, POINT_W, POINT_W, POINT_W,
-  BAR_W,
-  POINT_W, POINT_W, POINT_W, POINT_W, POINT_W, POINT_W,
-  OFF_W,
-];
-const BAR_COL = 6;
-const OFF_COL = 13;
-
-function colX(col: number): number {
-  let x = MARGIN;
-  for (let i = 0; i < col; i++) x += COL_WIDTHS[i];
-  return x;
-}
-const BOARD_W = colX(COL_WIDTHS.length) + MARGIN;
-const Y0 = MARGIN;
-const Y1 = MARGIN + 2 * ROW_H;
-const BOARD_H = Y1 + MARGIN;
-
-// Mine's off-tray section bounds, shared by the OffColumn render and the
-// arrow-anchor math so a "bear off" arrow always ends at the real next slot.
-const MINE_OFF_TOP_Y = Y0 + ROW_H + 6;
-const MINE_OFF_BOTTOM_Y = Y1 - 9;
-// Opponent's off-tray section bounds (top half of the board) — same purpose
-// as the MINE_ pair above, needed by moveAnchor so a flipped-perspective
-// bear-off arrow anchors in the half of the board the checker is actually
-// drawn in (see the opponent OffColumn call below, which used these same
-// literal values inline before this constant existed).
-const OPP_OFF_TOP_Y = Y0 + 3;
-const OPP_OFF_BOTTOM_Y = Y0 + ROW_H - 9;
-
-// Dice sit in the "right field" (points 1-6/19-24 — the columns between the
-// bar and the off-tray), centered on the board's own horizontal dividing
-// line, per request — embedded in the board SVG itself (via foreignObject,
-// since DiceRoll/Die are HTML+CSS, not SVG), not floating in a separate row
-// above it.
-const DICE_AREA_LEFT = colX(BAR_COL + 1);
-const DICE_AREA_RIGHT = colX(OFF_COL);
-const DICE_BOX_W = 100;
-const DICE_BOX_H = 36;
-const DICE_X = (DICE_AREA_LEFT + DICE_AREA_RIGHT) / 2 - DICE_BOX_W / 2;
-const DICE_Y = Y0 + ROW_H - DICE_BOX_H / 2;
-
-function colCenterX(col: number): number {
-  return colX(col) + COL_WIDTHS[col] / 2;
-}
-
-// Bottom row = points 1-12 (right-to-left: 6..1 next to bar, 12..7 on the outside).
-// Top row = points 13-24 (left-to-right: 13..18 on the outside, 19..24 next to bar).
-function pointColumn(point: number): number {
-  if (point >= 1 && point <= 6) return 13 - point;
-  if (point >= 7 && point <= 12) return 12 - point;
-  if (point >= 13 && point <= 18) return point - 13;
-  return point - 12;
-}
-function pointRow(point: number): "bottom" | "top" {
-  return point <= 12 ? "bottom" : "top";
-}
-
-function trianglePoints(point: number): string {
-  const col = pointColumn(point);
-  const cx = colCenterX(col);
-  const halfW = COL_WIDTHS[col] / 2 - 2;
-  const row = pointRow(point);
-  if (row === "bottom") {
-    return `${cx - halfW},${Y1} ${cx + halfW},${Y1} ${cx},${Y1 - TRI_H}`;
-  }
-  return `${cx - halfW},${Y0} ${cx + halfW},${Y0} ${cx},${Y0 + TRI_H}`;
-}
-
-function stackBase(point: number): { cx: number; baseY: number; dir: 1 | -1 } {
-  const col = pointColumn(point);
-  const cx = colCenterX(col);
-  const row = pointRow(point);
-  return row === "bottom"
-    ? { cx, baseY: Y1 - R - 3, dir: -1 }
-    : { cx, baseY: Y0 + R + 3, dir: 1 };
-}
-
-type PointRef = number | "bar" | "off";
-
-const MINE_FILL = "#1f2937";
-const MINE_STROKE = "#f8fafc";
-const OPP_FILL = "#f8fafc";
-const OPP_STROKE = "#1f2937";
-
-const OFF_SLOTS = 15;
-
-// Badge always sits at the "near" end of the range (topY when badgeAtBottom
-// is false, bottomY when true); checkers fill starting at the far end and
-// grow toward the badge. Mine and opponent use opposite badgeAtBottom values
-// so the two columns are true mirrors of each other across the center line.
-// Shared by the OffColumn renderer and the arrow-anchor math so the "next
-// empty slot" an arrow points at always matches what's actually drawn.
-function offColumnGeometry(topY: number, bottomY: number, badgeAtBottom: boolean) {
-  const badgeR = 11;
-  const badgeCy = badgeAtBottom ? bottomY - badgeR - 3 : topY + badgeR + 3;
-  const trackTop = badgeAtBottom ? topY : badgeCy + badgeR + 6;
-  const trackBottom = badgeAtBottom ? badgeCy - badgeR - 6 : bottomY;
-  const slotSpan = (trackBottom - trackTop) / OFF_SLOTS;
-  return { badgeR, badgeCy, trackTop, trackBottom, slotSpan };
-}
-
-function OffColumn({
-  x,
-  width,
-  topY,
-  bottomY,
-  badgeAtBottom,
-  count,
-  fill,
-  stroke,
-  badgeFill,
-  badgeStroke,
-  badgeTextColor,
-}: {
-  x: number;
-  width: number;
-  topY: number;
-  bottomY: number;
-  badgeAtBottom: boolean;
-  count: number;
-  fill: string;
-  stroke: string;
-  badgeFill: string;
-  badgeStroke: string;
-  badgeTextColor: string;
-}) {
-  const cx = x + width / 2;
+function OffTray({ side, count }: { side: Side; count: number }) {
+  const { fill, contrast } = CHECKER_PALETTE[side];
+  const { topY, bottomY, badgeAtBottom } = offTrayBounds(side);
   const { badgeR, badgeCy, trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
   const slotH = Math.max(slotSpan - 1.5, 2);
+  const cx = OFF_TRACK_X + OFF_TRACK_W / 2;
+  const panel = OFF_TRAY_PANEL[side];
 
   return (
     <>
+      <rect
+        x={colX(OFF_COL) + 3}
+        y={panel.y}
+        width={OFF_W - 6}
+        height={ROW_H - 6}
+        rx={4}
+        fill={panel.fill}
+        stroke="#00000033"
+      />
       {Array.from({ length: OFF_SLOTS }).map((_, i) => {
-        const y = trackTop + i * slotSpan;
-        // Fill from the end farthest from the badge, growing toward it.
-        const filled = badgeAtBottom ? i < count : i >= OFF_SLOTS - count;
+        const filled = isOffSlotFilled(i, count, badgeAtBottom);
         return (
           <rect
             key={i}
-            x={x}
-            y={y}
-            width={width}
+            x={OFF_TRACK_X}
+            y={trackTop + i * slotSpan}
+            width={OFF_TRACK_W}
             height={slotH}
             rx={1}
             fill={filled ? fill : "transparent"}
-            stroke={filled ? stroke : "#00000022"}
+            stroke={filled ? contrast : "#00000022"}
             strokeWidth={1}
           />
         );
       })}
-      <circle cx={cx} cy={badgeCy} r={badgeR} fill={badgeFill} stroke={badgeStroke} strokeWidth={1.5} />
-      <text x={cx} y={badgeCy + 4} textAnchor="middle" fontSize={11} fontWeight="bold" fill={badgeTextColor}>
+      <circle cx={cx} cy={badgeCy} r={badgeR} fill={fill} stroke={contrast} strokeWidth={1.5} />
+      <text x={cx} y={badgeCy + 4} textAnchor="middle" fontSize={11} fontWeight="bold" fill={contrast}>
         {count}
       </text>
     </>
   );
 }
 
-function Stack({
-  cx,
-  baseY,
-  dir,
-  count,
-  fill,
-  stroke,
-}: {
-  cx: number;
-  baseY: number;
-  dir: 1 | -1;
-  count: number;
-  fill: string;
-  stroke: string;
-}) {
+function Stack({ base, count, side }: { base: StackBase; count: number; side: Side }) {
   if (count <= 0) return null;
   const shown = Math.min(count, MAX_STACK);
-  const labelColor = fill === MINE_FILL ? "#f8fafc" : "#1f2937";
+  const { fill, contrast } = CHECKER_PALETTE[side];
 
   return (
     <>
       {Array.from({ length: shown }).map((_, i) => {
-        const cy = baseY + dir * i * STACK_GAP;
+        const cy = stackSlotY(base, i);
         const isOverflow = count > MAX_STACK && i === shown - 1;
         return (
           <g key={i}>
-            <circle cx={cx} cy={cy} r={R} fill={fill} stroke={stroke} strokeWidth={1.5} />
+            <circle cx={base.cx} cy={cy} r={R} fill={fill} stroke={contrast} strokeWidth={1.5} />
             {isOverflow && (
               <text
-                x={cx}
+                x={base.cx}
                 y={cy + 4}
                 textAnchor="middle"
                 fontSize={11}
                 fontWeight="bold"
-                fill={labelColor}
+                fill={contrast}
               >
                 +{count - shown + 1}
               </text>
@@ -220,69 +118,6 @@ function Stack({
       })}
     </>
   );
-}
-
-// Stack-aware anchor for a move arrow endpoint: the exact visual position of
-// the checker involved, not a generic per-point anchor. `isOrigin` picks the
-// top-of-stack (checker about to move) vs. the next open slot (where it will
-// land), both read from the *pre-move* `decoded` counts.
-//
-// `flipped` must match the same flag Board itself renders with: subMoves and
-// decoded arriving here have already been through mirrorSubMoves/
-// flipPerspective upstream (BoardPanel.tsx), which swaps mine<->opponent
-// entirely so "my" checkers stay on the same visual side across decisions —
-// so post-flip, the mover's own checkers live in decoded.opponent, not
-// decoded.mine, and (for bar/off) in the opponent's own top-half geometry,
-// not mine's bottom-half. Reading the mine-side unconditionally here (as
-// this used to) anchored ordinary-point arrows at the wrong stack height and
-// bar/off-tray arrows in the wrong half of the board entirely whenever an
-// opponent decision was rendered with the fixed-perspective toggle on.
-function moveAnchor(
-  ref: PointRef,
-  decoded: DecodedPosition,
-  isOrigin: boolean,
-  flipped: boolean
-): { x: number; y: number } {
-  if (ref === "bar") {
-    const cx = colCenterX(BAR_COL);
-    // Matches the bar-checkers render block above: mine's bar sits at the
-    // bottom (dir -1), opponent's at the top (dir 1).
-    const baseY = flipped ? Y0 + R + 3 : Y1 - R - 3;
-    const dir: 1 | -1 = flipped ? 1 : -1;
-    const barCount = flipped ? decoded.opponentBar : decoded.mineBar;
-    const index = isOrigin ? barCount - 1 : barCount;
-    const visualIndex = Math.min(Math.max(index, 0), MAX_STACK - 1);
-    return { x: cx, y: baseY + dir * visualIndex * STACK_GAP };
-  }
-
-  if (ref === "off") {
-    const topY = flipped ? OPP_OFF_TOP_Y : MINE_OFF_TOP_Y;
-    const bottomY = flipped ? OPP_OFF_BOTTOM_Y : MINE_OFF_BOTTOM_Y;
-    // Matches each side's own OffColumn call above: opponent badges at the
-    // top of its range (badgeAtBottom true), mine at the bottom (false) —
-    // which end checkers fill from, and so which end the *next* slot is at,
-    // flips accordingly.
-    const badgeAtBottom = flipped;
-    const offCount = flipped ? decoded.opponentOff : decoded.mineOff;
-    const { trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
-    const nextIndex = badgeAtBottom
-      ? Math.min(Math.max(offCount, 0), OFF_SLOTS - 1)
-      : Math.min(Math.max(OFF_SLOTS - offCount - 1, 0), OFF_SLOTS - 1);
-    const x = colX(OFF_COL) + 6 + (OFF_W - 12) / 2;
-    const y = trackTop + nextIndex * slotSpan + slotSpan / 2;
-    return { x, y };
-  }
-
-  // stackBase(ref)'s own baseY/dir depend only on the physical point row
-  // (top/bottom half), which both sides already share at a given point (see
-  // the point-checkers render block below) — only the count/array to read
-  // needs to switch on `flipped`, not the point geometry itself.
-  const side = flipped ? decoded.opponent : decoded.mine;
-  const count = side[ref - 1];
-  const index = isOrigin ? count - 1 : count;
-  const visualIndex = Math.min(Math.max(index, 0), MAX_STACK - 1);
-  const { cx, baseY, dir } = stackBase(ref);
-  return { x: cx, y: baseY + dir * visualIndex * STACK_GAP };
 }
 
 export default function Board({
@@ -297,16 +132,14 @@ export default function Board({
   arrowColor?: string;
   roll?: number[];
   // Checker positions and arrow anchoring both come from `decoded`/
-  // `subMoves` as given — BoardPanel.tsx is responsible for applying
-  // flipPerspective/mirrorSubMoves to them *before* they arrive here when a
-  // fixed-perspective view is active (see that file's own comment). This
-  // prop's only direct effect in this file is the printed point-number
-  // label, which isn't derived from `decoded` at all (it's the fixed
-  // physical loop index below) and so can't be corrected by a data-only
-  // transform upstream — and it flips which color the dice render in,
-  // since a flipped board is, by definition, showing the opponent's turn.
-  // Default false — every existing call site (MistakesSection.tsx via
-  // BoardPanel) omits this prop entirely, so their rendering is untouched.
+  // `subMoves` as given — BoardPanel.tsx applies flipPerspective/
+  // mirrorSubMoves to them *before* they arrive here when a
+  // fixed-perspective view is active. This prop's direct effects here are
+  // the printed point-number label (the fixed physical loop index below,
+  // not derived from `decoded`, so a data-only transform upstream can't
+  // correct it), the dice color (a flipped board is showing the
+  // opponent's turn), and telling moveAnchor which side's data is the
+  // mover's. Default false — only the replay's BoardPanel ever sets it.
   flipped?: boolean;
 }) {
   return (
@@ -337,67 +170,20 @@ export default function Board({
       ))}
 
       {/* off tray halves */}
-      <rect
-        x={colX(OFF_COL) + 3}
-        y={Y0}
-        width={OFF_W - 6}
-        height={ROW_H - 6}
-        rx={4}
-        fill="#ffffff55"
-        stroke="#00000033"
-      />
-      <OffColumn
-        x={colX(OFF_COL) + 6}
-        width={OFF_W - 12}
-        topY={OPP_OFF_TOP_Y}
-        bottomY={OPP_OFF_BOTTOM_Y}
-        badgeAtBottom
-        count={decoded.opponentOff}
-        fill={OPP_FILL}
-        stroke={OPP_STROKE}
-        badgeFill={OPP_FILL}
-        badgeStroke={OPP_STROKE}
-        badgeTextColor={OPP_STROKE}
-      />
-
-      <rect
-        x={colX(OFF_COL) + 3}
-        y={Y0 + ROW_H + 3}
-        width={OFF_W - 6}
-        height={ROW_H - 6}
-        rx={4}
-        fill="#00000022"
-        stroke="#00000033"
-      />
-      <OffColumn
-        x={colX(OFF_COL) + 6}
-        width={OFF_W - 12}
-        topY={MINE_OFF_TOP_Y}
-        bottomY={MINE_OFF_BOTTOM_Y}
-        badgeAtBottom={false}
-        count={decoded.mineOff}
-        fill={MINE_FILL}
-        stroke={MINE_STROKE}
-        badgeFill={MINE_FILL}
-        badgeStroke={MINE_STROKE}
-        badgeTextColor={MINE_STROKE}
-      />
+      <OffTray side="opponent" count={decoded.opponentOff} />
+      <OffTray side="mine" count={decoded.mineOff} />
 
       {/* point checkers */}
       {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
         const mineCount = decoded.mine[point - 1];
         const oppCount = decoded.opponent[point - 1];
-        const { cx, baseY, dir } = stackBase(point);
+        const base = stackBase(point);
         return (
           <g key={point}>
-            {mineCount > 0 && (
-              <Stack cx={cx} baseY={baseY} dir={dir} count={mineCount} fill={MINE_FILL} stroke={MINE_STROKE} />
-            )}
-            {oppCount > 0 && (
-              <Stack cx={cx} baseY={baseY} dir={dir} count={oppCount} fill={OPP_FILL} stroke={OPP_STROKE} />
-            )}
+            {mineCount > 0 && <Stack base={base} count={mineCount} side="mine" />}
+            {oppCount > 0 && <Stack base={base} count={oppCount} side="opponent" />}
             <text
-              x={cx}
+              x={base.cx}
               y={pointRow(point) === "bottom" ? Y1 + 12 : Y0 - 4}
               textAnchor="middle"
               fontSize={9}
@@ -410,25 +196,9 @@ export default function Board({
       })}
 
       {/* bar checkers */}
-      {decoded.mineBar > 0 && (
-        <Stack
-          cx={colCenterX(BAR_COL)}
-          baseY={Y1 - R - 3}
-          dir={-1}
-          count={decoded.mineBar}
-          fill={MINE_FILL}
-          stroke={MINE_STROKE}
-        />
-      )}
+      {decoded.mineBar > 0 && <Stack base={barStackBase("mine")} count={decoded.mineBar} side="mine" />}
       {decoded.opponentBar > 0 && (
-        <Stack
-          cx={colCenterX(BAR_COL)}
-          baseY={Y0 + R + 3}
-          dir={1}
-          count={decoded.opponentBar}
-          fill={OPP_FILL}
-          stroke={OPP_STROKE}
-        />
+        <Stack base={barStackBase("opponent")} count={decoded.opponentBar} side="opponent" />
       )}
 
       {/* move arrows */}

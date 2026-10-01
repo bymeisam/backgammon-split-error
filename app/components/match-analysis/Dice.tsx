@@ -1,5 +1,7 @@
 "use client";
 
+import type { Side } from "@/lib/boardGeometry";
+import { CHECKER_PALETTE } from "@/lib/checkerPalette";
 import { style } from "./Dice.styles";
 
 const PIPS: Record<number, [number, number][]> = {
@@ -11,12 +13,17 @@ const PIPS: Record<number, [number, number][]> = {
   6: [[25, 25], [75, 25], [25, 50], [75, 50], [25, 75], [75, 75]],
 };
 
-type DiceColor = "mine" | "opponent";
+type DiceColor = Side;
 
-// Mirrors Board.tsx's MINE_FILL/MINE_STROKE/OPP_FILL/OPP_STROKE palette.
+// Face/pip come from the board's own checker palette, so a die always
+// matches its player's checkers; only the die outline is dice-specific.
 const COLORS: Record<DiceColor, { face: string; pip: string; stroke: string }> = {
-  mine: { face: "#1f2937", pip: "#f8fafc", stroke: "#00000055" },
-  opponent: { face: "#f8fafc", pip: "#1f2937", stroke: "#00000033" },
+  mine: { face: CHECKER_PALETTE.mine.fill, pip: CHECKER_PALETTE.mine.contrast, stroke: "#00000055" },
+  opponent: {
+    face: CHECKER_PALETTE.opponent.fill,
+    pip: CHECKER_PALETTE.opponent.contrast,
+    stroke: "#00000033",
+  },
 };
 
 function Die({ value, size = 20, color = "opponent" }: { value: number; size?: number; color?: DiceColor }) {

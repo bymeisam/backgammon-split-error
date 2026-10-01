@@ -1,6 +1,6 @@
 import Badge from "./Badge";
-import { severityBadges } from "@/lib/badges";
+import { badgeForSeverity, type SeverityKey } from "@/lib/badges";
 
-export default function SeverityBadge({ type }: { type: keyof typeof severityBadges }) {
-  return <Badge config={severityBadges[type]} />;
+export default function SeverityBadge({ type }: { type: SeverityKey }) {
+  return <Badge config={badgeForSeverity(type)} />;
 }

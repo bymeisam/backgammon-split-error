@@ -6,7 +6,6 @@ import DecisionCard from "./DecisionCard";
 import { MoveDelta } from "./MistakesSection";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
-import type { severityBadges, classificationBadges } from "@/lib/badges";
 import type { Decision } from "@/lib/mistakes";
 import { style } from "./DecisionListWithDetail.styles";
 
@@ -79,12 +78,10 @@ export default function DecisionListWithDetail({
                     <td className={style.listDetailCell}>
                       <span className={style.listBadgeGroup}>
                         {item.decision.severity && (
-                          <SeverityBadge type={item.decision.severity as keyof typeof severityBadges} />
+                          <SeverityBadge type={item.decision.severity} />
                         )}
                         {showClassification && (
-                          <ClassificationBadge
-                            type={item.classification as keyof typeof classificationBadges}
-                          />
+                          <ClassificationBadge type={item.classification} />
                         )}
                         <MoveDelta
                           decision={item.decision}

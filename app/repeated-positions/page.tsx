@@ -6,7 +6,7 @@ import { decisionFromRow, buildRollLookup } from "@/lib/decisionFromRow";
 import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
-import type { severityBadges, classificationBadges } from "@/lib/badges";
+import { severityKey } from "@/lib/badges";
 import { getClassificationLabel, phaseOptionsFor, resolvePhaseWhere, getPhaseLabel } from "@/lib/classificationLabels";
 import { style } from "./repeatedPositions.styles";
 
@@ -175,12 +175,10 @@ async function PositionListSection({ filters }: { filters: Filters }) {
               {positions.map((p) => (
                 <tr key={p.id} className={style.positionRow}>
                   <td className={style.positionBadgeCell}>
-                    <ClassificationBadge type={p.classification as keyof typeof classificationBadges} />
+                    <ClassificationBadge type={p.classification} />
                   </td>
                   <td className={style.positionBadgeCell}>
-                    <SeverityBadge
-                      type={p.errorSeverity.toLowerCase() as keyof typeof severityBadges}
-                    />
+                    <SeverityBadge type={severityKey(p.errorSeverity)} />
                   </td>
                   <td className={style.positionCell}>
                     <span className={style.positionIdText}>{p.sourcePositionId}</span>

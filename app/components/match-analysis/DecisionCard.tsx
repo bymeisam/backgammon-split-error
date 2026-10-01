@@ -4,7 +4,6 @@ import Link from "next/link";
 import BoardPanel from "./BoardPanel";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
-import type { severityBadges, classificationBadges } from "@/lib/badges";
 import type { Decision } from "@/lib/mistakes";
 import { style } from "./DecisionListWithDetail.styles";
 
@@ -37,8 +36,8 @@ export default function DecisionCard({
     <div data-testid="decision-card" className={style.card}>
       <div className={style.cardHeader}>
         <div className={style.cardBadgeGroup}>
-          <ClassificationBadge type={classification as keyof typeof classificationBadges} />
-          <SeverityBadge type={(decision.severity ?? "none") as keyof typeof severityBadges} />
+          <ClassificationBadge type={classification} />
+          <SeverityBadge type={decision.severity ?? "none"} />
           <span className={style.cardErrorText}>
             |error| {decision.absError.toFixed(3)}
           </span>
