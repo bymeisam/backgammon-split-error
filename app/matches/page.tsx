@@ -4,20 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AnalysesListResponse } from "@/lib/analysesTypes";
+import { formatMatchDate } from "@/lib/formatDate";
+import { jsonOrThrow } from "@/lib/galaxyPost";
+import Pager from "@/app/components/ui/Pager";
 import { style } from "./matches.styles";
-
-// Fixed abbreviations rather than Intl.DateTimeFormat: browsers/Node disagree
-// on locale output for "short month" (e.g. Node gives "Sept", not "Sep"), so
-// this keeps the "22 Sep 2026" format deterministic across environments.
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-function formatMatchDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-}
 
 export default function MatchesPage() {
   const router = useRouter();
@@ -35,9 +25,7 @@ export default function MatchesPage() {
       setError(null);
 
       try {
-        const res = await fetch(`/api/matches/list/${page}`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status}).`);
+        const json = await jsonOrThrow(await fetch(`/api/matches/list/${page}`));
         if (!cancelled) setData(json as AnalysesListResponse);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -129,27 +117,7 @@ export default function MatchesPage() {
               </table>
             </div>
 
-            <div className={style.paginationRow}>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className={style.paginationButton}
-              >
-                Prev
-              </button>
-              <span className={style.mutedText}>
-                Page {data.page} of {data.totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
-                disabled={page >= data.totalPages}
-                className={style.paginationButton}
-              >
-                Next
-              </button>
-            </div>
+            <Pager page={page} shownPage={data.page} totalPages={data.totalPages} setPage={setPage} />
           </>
         )}
       </main>

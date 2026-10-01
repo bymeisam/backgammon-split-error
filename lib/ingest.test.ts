@@ -38,7 +38,9 @@ const {
     id: 1,
     ...create,
   })),
-  matchUpsert: vi.fn(async () => ({ id: 1 })),
+  matchUpsert: vi.fn<
+    (args: { where: unknown; create: Record<string, unknown>; update: Record<string, unknown> }) => Promise<{ id: number }>
+  >(async () => ({ id: 1 })),
   matchUpdate: vi.fn<(args: { where: unknown; data: Record<string, unknown> }) => Promise<object>>(
     async () => ({})
   ),
@@ -62,7 +64,7 @@ vi.mock("@/lib/galaxy-client", () => ({
   createGalaxyClient: () => ({ listMatches: vi.fn(), getGameReviews }),
 }));
 
-import { ingestMatch } from "@/lib/ingest";
+import { ingestMatch, parseMatchIndexData } from "@/lib/ingest";
 
 const indexData: MatchIndexData = {
   opponentName: "Test Opponent",
@@ -304,5 +306,84 @@ describe("ingestMatch", () => {
     expect(summary.decisionsIngested).toBe(0);
     expect(decisionUpsert).not.toHaveBeenCalled();
     expect(summary.eventsSkippedNoReview).toBe(2);
+  });
+});
+
+// POST /api/galaxy/matches/[matchId]/sync passes its client-supplied
+// indexData into ingestMatch. Before the allow-list, ingestMatch spread it
+// straight into the Match upsert, so any extra key landed on the row.
+describe("Match index fields (mass-assignment guard)", () => {
+  const hostile = {
+    ...indexData,
+    id: 1,
+    source: "evil",
+    sourceMatchId: "123",
+    ingestStatus: "DONE",
+    ingestError: "x",
+    matchLength: 99,
+    playedAt: new Date(0),
+    createdAt: new Date(0),
+  };
+
+  it("writes only the 8 index fields to Match, ignoring extra keys", async () => {
+    serveSingleGame(forcedMoveNotCounted as unknown as GameReviewsResponse);
+
+    await ingestMatch(90000010, hostile as unknown as MatchIndexData, "token");
+
+    const { create, update } = matchUpsert.mock.calls[0][0];
+    expect(update).toEqual(indexData);
+    expect(create).toEqual({ source: "galaxy", sourceMatchId: "90000010", ...indexData });
+  });
+
+  it("still writes all 8 legitimate fields with their values", async () => {
+    serveSingleGame(forcedMoveNotCounted as unknown as GameReviewsResponse);
+
+    await ingestMatch(90000011, indexData, "token");
+
+    const { update } = matchUpsert.mock.calls[0][0];
+    expect(Object.keys(update).sort()).toEqual(
+      [
+        "opponentCountry",
+        "opponentError",
+        "opponentName",
+        "opponentRating",
+        "opponentScore",
+        "userError",
+        "userRating",
+        "userScore",
+      ]
+    );
+    expect(update).toEqual(indexData);
+  });
+});
+
+describe("parseMatchIndexData", () => {
+  it("accepts a well-formed payload and returns exactly the 8 fields", () => {
+    expect(parseMatchIndexData({ ...indexData, ingestStatus: "DONE", id: 1 })).toEqual(indexData);
+  });
+
+  it("accepts an empty-string country (column is non-null, not non-empty)", () => {
+    expect(parseMatchIndexData({ ...indexData, opponentCountry: "" })?.opponentCountry).toBe("");
+  });
+
+  it("rejects a missing field", () => {
+    const missing: Record<string, unknown> = { ...indexData };
+    delete missing.userScore;
+    expect(parseMatchIndexData(missing)).toBeNull();
+  });
+
+  it("rejects wrong types", () => {
+    expect(parseMatchIndexData({ ...indexData, opponentRating: "1500" })).toBeNull();
+    expect(parseMatchIndexData({ ...indexData, opponentName: 7 })).toBeNull();
+    expect(parseMatchIndexData({ ...indexData, userError: null })).toBeNull();
+  });
+
+  it("rejects non-objects", () => {
+    for (const v of [undefined, null, "x", 3, [indexData]]) expect(parseMatchIndexData(v)).toBeNull();
+  });
+
+  it("doesn't count inherited properties as present", () => {
+    const viaProto = Object.create({ ...indexData });
+    expect(parseMatchIndexData(viaProto)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ingestMatch, type MatchIndexData } from "@/lib/ingest";
+import { ingestMatch, parseMatchIndexData } from "@/lib/ingest";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ export async function POST(
     return jsonError("Invalid matchId.", 400);
   }
 
-  let body: { authorization?: string; indexData?: MatchIndexData };
+  let body: { authorization?: string; indexData?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -25,12 +25,15 @@ export async function POST(
   if (!authorization) {
     return jsonError("Missing authorization.", 400);
   }
-  if (!body.indexData) {
-    return jsonError("Missing indexData.", 400);
+  // Only the 8 MatchIndexData fields survive this — anything else in the
+  // client's indexData (id, ingestStatus, …) is dropped, never written.
+  const indexData = parseMatchIndexData(body.indexData);
+  if (!indexData) {
+    return jsonError("Missing or malformed indexData.", 400);
   }
 
   try {
-    const summary = await ingestMatch(matchId, body.indexData, authorization);
+    const summary = await ingestMatch(matchId, indexData, authorization);
     return NextResponse.json(summary);
   } catch (e) {
     return jsonError(e instanceof Error ? e.message : "Something went wrong.", 502);

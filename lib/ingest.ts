@@ -50,6 +50,11 @@ const EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS = new Set([
   "double_accepted",
 ]);
 
+// The Match columns a caller supplies from Galaxy's analyses/list entry —
+// the only fields the /api/galaxy/matches/[matchId]/sync route accepts from
+// its request body. Everything else on Match (id, source, sourceMatchId,
+// ingestStatus, ingestError, matchLength, playedAt, createdAt) is set by
+// the server alone.
 export interface MatchIndexData {
   opponentName: string;
   opponentCountry: string;
@@ -59,6 +64,43 @@ export interface MatchIndexData {
   userError: number;
   userRating: number;
   userScore: number;
+}
+
+// Allow-list copy: exactly the 8 MatchIndexData fields, nothing else. The
+// sync route's body is client-supplied JSON cast to MatchIndexData, so the
+// static type alone guarantees nothing at runtime — spreading it into the
+// Match upsert let a caller set any column (id, ingestStatus, …). Written
+// out field by field (not a key list) so the compiler rejects a missing
+// field, and an object literal can't pick up an extra one.
+export function pickMatchIndexData(d: MatchIndexData): MatchIndexData {
+  return {
+    opponentName: d.opponentName,
+    opponentCountry: d.opponentCountry,
+    opponentRating: d.opponentRating,
+    opponentError: d.opponentError,
+    opponentScore: d.opponentScore,
+    userError: d.userError,
+    userRating: d.userRating,
+    userScore: d.userScore,
+  };
+}
+
+// Validates an untrusted value (a request body's indexData) as
+// MatchIndexData: an object with all 8 fields, strings as strings and
+// numbers as finite numbers. Returns only those 8 (extra keys dropped), or
+// null if any is missing or the wrong type. No stricter than the Match
+// columns themselves — Prisma would reject the same bad values later, just
+// as an opaque 502 instead of a 400.
+export function parseMatchIndexData(input: unknown): MatchIndexData | null {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) return null;
+  const o = input as Record<string, unknown>;
+  const isStr = (k: string) => Object.hasOwn(o, k) && typeof o[k] === "string";
+  const isNum = (k: string) => Object.hasOwn(o, k) && typeof o[k] === "number" && Number.isFinite(o[k]);
+  if (!isStr("opponentName") || !isStr("opponentCountry")) return null;
+  for (const k of ["opponentRating", "opponentError", "opponentScore", "userError", "userRating", "userScore"]) {
+    if (!isNum(k)) return null;
+  }
+  return pickMatchIndexData(o as unknown as MatchIndexData);
 }
 
 export interface IngestSummary {
@@ -221,10 +263,13 @@ export async function ingestMatch(
   // now an internal auto-increment key, resolved via the (source,
   // sourceMatchId) compound unique instead of being the primary key itself.
   const sourceMatchId = String(matchId);
+  // pickMatchIndexData, not a spread of indexData itself: callers can pass
+  // a runtime object carrying more than the type says (see its comment).
+  const indexFields = pickMatchIndexData(indexData);
   const match = await prisma.match.upsert({
     where: { source_sourceMatchId: { source: SOURCE, sourceMatchId } },
-    create: { source: SOURCE, sourceMatchId, ...indexData },
-    update: { ...indexData },
+    create: { source: SOURCE, sourceMatchId, ...indexFields },
+    update: indexFields,
   });
 
   // Opponent identity resolution: a match is 1v1, so any user_id seen in

@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStatsAuth } from "@/app/GameStatsProvider";
 import type { AnalysesListResponse, MatchAnalysis } from "@/lib/analysesTypes";
+import { galaxyPost, jsonOrThrow } from "@/lib/galaxyPost";
+import Pager from "@/app/components/ui/Pager";
 import { style } from "./galaxyMatches.styles";
 import TokenModal from "./TokenModal";
 
@@ -40,18 +42,12 @@ export default function MatchesPage() {
 
     let cancelled = false;
 
-    async function run() {
+    async function run(token: string) {
       setLoading(true);
       setError(null);
 
       try {
-        const res = await fetch(`/api/galaxy/matches/list/${page}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ authorization: token }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status}).`);
+        const json = await jsonOrThrow(await galaxyPost(`/api/galaxy/matches/list/${page}`, token));
         if (!cancelled) setData(json as AnalysesListResponse);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -60,7 +56,7 @@ export default function MatchesPage() {
       }
     }
 
-    run();
+    run(token);
 
     return () => {
       cancelled = true;
@@ -108,30 +104,24 @@ export default function MatchesPage() {
     setSyncStates((prev) => ({ ...prev, [match.matchId]: { status: "syncing" } }));
 
     try {
-      const res = await fetch(`/api/galaxy/matches/${match.matchId}/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          authorization: token,
-          indexData: {
-            opponentName: match.opponentName,
-            opponentCountry: match.opponentCountry,
-            opponentRating: match.opponentRating,
-            opponentError: match.opponentError,
-            opponentScore: match.opponentScore,
-            userError: match.userError,
-            userRating: match.userRating,
-            userScore: match.userScore,
-          },
-        }),
+      const res = await galaxyPost(`/api/galaxy/matches/${match.matchId}/sync`, token, {
+        indexData: {
+          opponentName: match.opponentName,
+          opponentCountry: match.opponentCountry,
+          opponentRating: match.opponentRating,
+          opponentError: match.opponentError,
+          opponentScore: match.opponentScore,
+          userError: match.userError,
+          userRating: match.userRating,
+          userScore: match.userScore,
+        },
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status}).`);
+      const json = (await jsonOrThrow(res)) as { gamesIngested: number; errors?: string[] };
 
       // A 200 here just means the sync ran — if it ingested nothing and has
       // errors, that's a real failure (e.g. a bad/expired token), not a
       // success with an empty match.
-      if (json.gamesIngested === 0 && json.errors?.length > 0) {
+      if (json.gamesIngested === 0 && json.errors && json.errors.length > 0) {
         throw new Error(json.errors[0]);
       }
 
@@ -174,13 +164,9 @@ export default function MatchesPage() {
     setCopied(false);
 
     try {
-      const res = await fetch(`/api/galaxy/matches/${trimmedMatchId}/${trimmedGameIndex}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authorization: token }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? `Request failed (${res.status}).`);
+      const json = await jsonOrThrow(
+        await galaxyPost(`/api/galaxy/matches/${trimmedMatchId}/${trimmedGameIndex}`, token)
+      );
       setJsonDump({ status: "data", text: JSON.stringify(json, null, 2) });
     } catch (e) {
       setJsonDump({
@@ -374,27 +360,7 @@ export default function MatchesPage() {
                   </table>
                 </div>
 
-                <div className={style.paginationRow}>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className={style.paginationButton}
-                  >
-                    Prev
-                  </button>
-                  <span className={style.mutedText}>
-                    Page {data.page} of {data.totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
-                    disabled={page >= data.totalPages}
-                    className={style.paginationButton}
-                  >
-                    Next
-                  </button>
-                </div>
+                <Pager page={page} shownPage={data.page} totalPages={data.totalPages} setPage={setPage} />
               </>
             )}
           </>

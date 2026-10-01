@@ -1,73 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
+import { localGamesError } from "@/lib/sequentialGames";
+import { useSequentialGames } from "@/app/hooks/useSequentialGames";
 import MistakesSection from "@/app/components/match-analysis/MistakesSection";
 import { style } from "./matchDetail.styles";
-
-const MAX_GAMES = 20;
-
-type Game = {
-  gameIndex: number;
-  data: GameReviewsResponse;
-};
 
 export default function MatchAnalysisPage() {
   const { matchId } = useParams<{ matchId: string }>();
 
-  const [loading, setLoading] = useState(false);
-  const [notIngested, setNotIngested] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [games, setGames] = useState<Game[]>([]);
-
-  useEffect(() => {
-    if (!matchId) return;
-
-    let cancelled = false;
-
-    async function run() {
-      setError(null);
-      setNotIngested(false);
-      setGames([]);
-      setLoading(true);
-
-      const collected: Game[] = [];
-
-      for (let gameIndex = 1; gameIndex <= MAX_GAMES; gameIndex++) {
-        let res: Response;
-        try {
-          res = await fetch(`/api/matches/${matchId}/${gameIndex}`);
-        } catch {
-          if (!cancelled) setError("Network error reading from the database.");
-          break;
-        }
-
-        if (res.status === 404) {
-          if (gameIndex === 1 && !cancelled) setNotIngested(true);
-          break;
-        }
-
-        if (!res.ok) {
-          if (!cancelled) setError(`Request failed (${res.status}).`);
-          break;
-        }
-
-        const data = (await res.json()) as GameReviewsResponse;
-        collected.push({ gameIndex, data });
-        if (!cancelled) setGames([...collected]);
-      }
-
-      if (!cancelled) setLoading(false);
-    }
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [matchId]);
+  const fetchGame = useMemo(
+    () => (matchId ? (gameIndex: number) => fetch(`/api/matches/${matchId}/${gameIndex}`) : null),
+    [matchId]
+  );
+  const { games, loading, stop } = useSequentialGames(fetchGame);
+  const error = localGamesError(stop);
+  const notIngested = stop?.kind === "missing";
 
   return (
     <div className={style.pageContainer}>

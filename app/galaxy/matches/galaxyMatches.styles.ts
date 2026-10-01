@@ -28,8 +28,8 @@ export const style = {
   // Shared by the "Copy"/"Close" json-box buttons.
   jsonLinkButton:
     "text-xs text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
-  // Shared by the json-box "Loading…" text, the list "Loading…" text, and
-  // the "Page N of M" pagination indicator.
+  // Shared by the json-box "Loading…" text and the list "Loading…" text.
+  // (The "Page N of M" indicator is the shared Pager's.)
   mutedText: "text-sm text-zinc-600 dark:text-zinc-400",
   jsonPre:
     "max-h-[60vh] overflow-auto rounded-lg bg-zinc-50 p-3 text-xs text-black dark:bg-black dark:text-zinc-100",
@@ -50,12 +50,6 @@ export const style = {
   syncedLabel: "text-xs font-medium text-green-600 dark:text-green-400",
   syncButton:
     "rounded-full border border-black/10 px-3 py-1 text-xs font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
-  paginationRow: "flex items-center justify-between",
-  // Static string — the disabled look comes entirely from the
-  // `disabled:opacity-40` Tailwind variant plus the HTML `disabled`
-  // attribute, never a JS-computed className. Shared by Prev and Next.
-  paginationButton:
-    "inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
 
   // --- TokenModal.tsx ---
   modalOverlay: "fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6",

@@ -11,9 +11,7 @@ export const style = {
   title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
   analysisLink:
     "text-sm text-zinc-600 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
-  // Shared by the "Loading…" text and the "Page N of M" indicator — same
-  // muted-text treatment, same reasoning mistakes.styles.ts's own mutedText
-  // already established.
+  // The "Loading…" text. (The "Page N of M" indicator is the shared Pager's.)
   mutedText: "text-sm text-zinc-600 dark:text-zinc-400",
   errorBox:
     "rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300",
@@ -37,10 +35,4 @@ export const style = {
   replayCell: "px-3 py-2",
   replayLink:
     "text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
-  paginationRow: "flex items-center justify-between",
-  // Shared by both Prev and Next — identical static string, the
-  // enabled/disabled look comes entirely from the HTML `disabled`
-  // attribute plus this same string's own `disabled:opacity-40` variant.
-  paginationButton:
-    "inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
 } as const;
