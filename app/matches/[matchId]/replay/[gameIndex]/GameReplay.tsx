@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Decision } from "@/lib/mistakes";
+import { useListSelection } from "@/app/hooks/useListSelection";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
 import { MoveDelta } from "@/app/components/match-analysis/MistakesSection";
 import { DiceRoll } from "@/app/components/match-analysis/Dice";
@@ -37,8 +38,11 @@ export default function GameReplay({
   myColor: string | null;
 }) {
   const router = useRouter();
-  const [selectedIndex, setSelectedIndex] = useState(initialIndex);
-  const [moveTab, setMoveTab] = useState<"my" | "best">("my");
+  // Positional (index) selection, not id-based like the mistakes lists —
+  // initialIndex can be the last decision (?position=last), and there's no
+  // "fall back to first" case, so resolveSelected doesn't apply here.
+  const { selectedKey: selectedIndex, moveTab, selectRow, setMoveTab } =
+    useListSelection(initialIndex);
   // Opt-in, default off: today's always-on-roll-perspective stays the
   // default (still what /mistakes' own BoardPanel usage effectively is,
   // and preferred there) — this only ever applies to this page's own
@@ -53,11 +57,6 @@ export default function GameReplay({
   // so "my" decisions keep rendering exactly as the always-on-roll view
   // already does (mine is already on the bottom/dark for my own turn).
   const flipped = fixedPerspective && selected !== null && selected.color !== myColor;
-
-  function selectRow(index: number, tab: "my" | "best" = "my") {
-    setSelectedIndex(index);
-    setMoveTab(tab);
-  }
 
   // At a game boundary with an adjacent game available, Previous/Next cross
   // straight into it (landing on its last/first decision respectively) —

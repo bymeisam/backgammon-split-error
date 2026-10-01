@@ -10,17 +10,13 @@ import {
   type Decision,
   type FetchedGame,
 } from "@/lib/mistakes";
+import { resolveMyIdentity, type PlayerIdentity } from "@/lib/playerIdentity";
+import { resolveSelected } from "@/lib/listSelection";
+import { useListSelection } from "@/app/hooks/useListSelection";
 import BoardPanel from "./BoardPanel";
 import { DiceRoll } from "./Dice";
 import { style } from "./MistakesSection.styles";
 import { style as moveDeltaStyle } from "./MoveDelta.styles";
-
-interface PlayerIdentity {
-  source: string;
-  sourceUserId: string;
-  displayName: string;
-  isMe: boolean;
-}
 
 function formatPR(pr: number | null): string {
   return pr === null ? "—" : pr.toFixed(2);
@@ -167,8 +163,11 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
   const [identities, setIdentities] = useState<PlayerIdentity[]>([]);
   const [selectedGame, setSelectedGame] = useState<"all" | number>("all");
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
-  const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
-  const [moveTab, setMoveTab] = useState<"my" | "best">("my");
+  const {
+    selectedKey: selectedDecisionId,
+    moveTab,
+    selectRow,
+  } = useListSelection<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,12 +184,13 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
     };
   }, []);
 
-  // Resolve "which player is you" from PlayerIdentity instead of asking —
-  // match a userId actually present in this match's decisions against a
-  // known "isMe" identity, falling back to whichever userId shows up first
-  // (never a hardcoded id) when there's no identity data to resolve against.
-  const meIdentity = identities.find(
-    (i) => i.isMe && playerOptions.some((p) => p.userId === i.sourceUserId)
+  // Resolve "which player is you" from PlayerIdentity instead of asking
+  // (same rule as the replay page — see lib/playerIdentity.ts), falling
+  // back to whichever userId shows up first (never a hardcoded id) when
+  // there's no identity data to resolve against.
+  const meIdentity = resolveMyIdentity(
+    identities,
+    playerOptions.map((p) => p.userId)
   );
   const effectiveUserId = meIdentity?.sourceUserId ?? playerOptions[0]?.userId ?? null;
 
@@ -231,13 +231,7 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
   const allMistakes = [...checkerMistakes, ...cubeMistakes].sort(
     (a, b) => b.absError - a.absError
   );
-  const selected =
-    allMistakes.find((m) => m.id === selectedDecisionId) ?? allMistakes[0] ?? null;
-
-  function selectRow(id: string, tab: "my" | "best" = "my") {
-    setSelectedDecisionId(id);
-    setMoveTab(tab);
-  }
+  const selected = resolveSelected(allMistakes, selectedDecisionId, (m) => m.id);
 
   if (games.length === 0) return null;
 

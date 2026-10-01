@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { decisionFromRowForReplay, buildRollLookup } from "@/lib/decisionFromRow";
 import type { Decision } from "@/lib/mistakes";
+import { resolveMyIdentity } from "@/lib/playerIdentity";
 import GameReplay from "./GameReplay";
 import { style } from "./gameReplay.styles";
 
@@ -130,11 +131,13 @@ export default async function GameReplayPage({
     }
   }
 
+  // Same "who is me" rule MistakesSection uses (lib/playerIdentity.ts).
   const meIdentity = await prisma.playerIdentity.findFirst({ where: { isMe: true } });
   const myUserId =
-    meIdentity && rows.some((row) => row.userId === meIdentity.sourceUserId)
-      ? meIdentity.sourceUserId
-      : null;
+    resolveMyIdentity(
+      meIdentity ? [meIdentity] : [],
+      rows.map((row) => row.userId)
+    )?.sourceUserId ?? null;
   const myColor = myUserId ? colorByUserId.get(myUserId) ?? null : null;
 
   // countAsDecision: false rows are Galaxy's background per-roll "not close

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { resolveSelected } from "@/lib/listSelection";
+import { useListSelection } from "@/app/hooks/useListSelection";
 import DecisionCard from "./DecisionCard";
 import { MoveDelta } from "./MistakesSection";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
@@ -34,14 +35,9 @@ export default function DecisionListWithDetail({
   items: DecisionListItem[];
   showClassification: boolean;
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [moveTab, setMoveTab] = useState<"my" | "best">("my");
-  const selected = items.find((i) => i.decision.id === selectedId) ?? items[0] ?? null;
-
-  function selectRow(id: string, tab: "my" | "best" = "my") {
-    setSelectedId(id);
-    setMoveTab(tab);
-  }
+  const { selectedKey: selectedId, moveTab, selectRow, setMoveTab } =
+    useListSelection<string | null>(null);
+  const selected = resolveSelected(items, selectedId, (i) => i.decision.id);
 
   if (items.length === 0) {
     return <p className={style.emptyStateText}>No decisions match this filter.</p>;
