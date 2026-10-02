@@ -28,6 +28,10 @@ function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
     // equivalence this project verified directly before switching, 2026-10-01).
     notationPlayed: "24/18",
     notationBest: "24/18",
+    // Real value for this fixture's own event (reviews[0].source_position.
+    // formatted_value) — same "column, not re-parsed raw" equivalence
+    // confirmed for notationPlayed/notationBest above.
+    sourcePositionId: "4HPwATDgc/ABMA",
     raw: event,
     classification: "opening_game",
     game: { gameIndex: 3, match: { sourceMatchId: "46576635" } },
@@ -50,6 +54,7 @@ function baseRow(overrides: Partial<DecisionRow> = {}): DecisionRow {
     errorSeverity: "BLUNDER",
     notationPlayed: "24/18",
     notationBest: "24/18",
+    sourcePositionId: "4HPwATDgc/ABMA",
     raw: event,
     game: { gameIndex: 3 },
     ...overrides,

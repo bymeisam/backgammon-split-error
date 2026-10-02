@@ -117,6 +117,20 @@ model Decision {
   // number" section for the full reasoning.
   plyNumber       Int?
   cubeOwnerUserId String?       @db.VarChar(191)
+  // GNU Position ID (review.source_position.formatted_value) of the board
+  // position this decision was made at. Populated at ingest going forward;
+  // backfilled for pre-existing rows by scripts/backfill-source-position-id.ts.
+  // Nullable only for migration sequencing (can't backfill 1.2M+ rows inside
+  // the same ADD COLUMN) — real coverage is 100%, same as plyNumber's own
+  // nullable-but-always-computable precedent. Collation pinned to
+  // utf8mb4_bin: externally-sourced identifier, same reasoning as
+  // RepeatedPosition.sourcePositionId (prisma/migrations/
+  // 20260926153758_add_repeated_position) — see docs/field-mapping.md.
+  // Replaces two previously unindexed JSON_EXTRACT call sites (lib/
+  // decisionQueries.ts's findPositionOccurrences, lib/recompute-repeated-
+  // positions.ts) — see reports/2026-10-02-step3-sourcepositionid-column-
+  // design.md for the full index-design reasoning.
+  sourcePositionId String?      @db.VarChar(191)
   notationPlayed  String?
   notationBest    String?
   cubeDetail      String?
@@ -160,6 +174,20 @@ model Decision {
   // filtered. See docs/field-mapping.md's "Ply number" section for the
   // full before/after measurements.
   @@index([plyNumber, countAsDecision, eventId])
+  // Serves findPositionOccurrences (lib/decisionQueries.ts) — equality on
+  // both columns narrows ~1.26M rows to an average of ~2 and a measured
+  // worst case of 10,923 (vs. the ~494k-row scans the FORCE INDEX hint this
+  // replaces had to fall back on). Same column order as
+  // RepeatedPosition.sourcePositionId's own unique index — same logical key
+  // (sourcePositionId, errorSeverity), just not unique here since many
+  // Decision rows legitimately share one. kind/countAsDecision/rawError
+  // deliberately excluded: once this pair narrows to its worst-known 10,923
+  // rows, applying them as residual filters costs nothing, same reasoning
+  // the plyNumber index above uses for rawError. Does not help lib/
+  // recompute-repeated-positions.ts's own query (filters on kind/
+  // countAsDecision/rawError, not this pair) — see reports/2026-10-02-
+  // step3-sourcepositionid-column-design.md.
+  @@index([sourcePositionId, errorSeverity])
 }
 
 // Precomputed decision-level mistake-pattern breakdown, recomputed in full

@@ -9,22 +9,28 @@
 // comparable "same board, multiple candidate moves" framing (confirmed
 // during investigation), so they're excluded from this table entirely.
 //
-// sourcePositionId isn't a real Decision column — it lives inside the raw
-// JSON blob (reviews[0].source_position.formatted_value; NOT
-// moves[].final.gnubgid, which is a per-candidate *destination* position,
-// confirmed by direct inspection during investigation), so it can't be
-// grouped via Prisma's groupBy() the way MistakeStat's classification/kind/
-// errorSeverity can (those are real indexed columns).
+// sourcePositionId is now a real, indexed Decision column
+// (Decision_sourcePositionId_errorSeverity_idx — see
+// reports/2026-10-02-step3-sourcepositionid-column-design.md), but that
+// index doesn't help *this* query: its WHERE clause filters on
+// kind/countAsDecision/rawError, none of which share a prefix with
+// (sourcePositionId, errorSeverity), so grouping by that pair still can't
+// be satisfied by an index scan — it would still need a temp table +
+// filesort over the matched rows either way.
 //
 // Deliberately NOT a grouped SQL query (e.g. GROUP BY ... with
-// COUNT(DISTINCT JSON_EXTRACT(...))) — measured that shape at 341 seconds
-// for just 4 groups (errorSeverity), because MySQL has no index on the
-// JSON-extracted expression and re-scans/re-sorts per group. Measured
-// instead that a single UNAGGREGATED extraction — no GROUP BY, no DISTINCT,
-// just SELECT the three fields for every matching row — returns all
-// ~502k rows in about 2 seconds; grouping/counting then happens in JS
-// (a plain Map), which is fast at this row count. One full-table pass
-// instead of a per-group scan is the whole difference.
+// COUNT(DISTINCT sourcePositionId)) for exactly that reason — measured that
+// shape at 341 seconds for just 4 groups (errorSeverity) back when
+// sourcePositionId was an unindexed JSON_EXTRACT expression, and the
+// column doesn't change the fundamental mismatch between this query's
+// filter columns and its grouping columns. Measured instead that a single
+// UNAGGREGATED extraction — no GROUP BY, no DISTINCT, just SELECT the three
+// fields for every matching row — returns all ~502k rows in about 2
+// seconds; grouping/counting then happens in JS (a plain Map), which is
+// fast at this row count. One full-table pass instead of a per-group scan
+// is the whole difference. The column's actual win here is a cheaper
+// per-row projection (a plain column read instead of a JSON_EXTRACT/
+// JSON_UNQUOTE call, ~502k times) — not a different query shape.
 import { prisma } from "@/lib/prisma";
 import { ErrorSeverity } from "@/lib/generated/prisma/client";
 
@@ -42,15 +48,10 @@ interface RawRow {
 }
 
 export async function recomputeRepeatedPositions(): Promise<void> {
-  const rows = await prisma.$queryRaw<RawRow[]>`
-    SELECT
-      JSON_UNQUOTE(JSON_EXTRACT(raw, '$.reviews[0].source_position.formatted_value')) AS sourcePositionId,
-      classification,
-      errorSeverity,
-      plyNumber
-    FROM Decision
-    WHERE kind = 'CHECKER' AND countAsDecision = 1 AND rawError IS NOT NULL
-  `;
+  const rows: RawRow[] = await prisma.decision.findMany({
+    where: { kind: "CHECKER", countAsDecision: true, rawError: { not: null } },
+    select: { sourcePositionId: true, classification: true, errorSeverity: true, plyNumber: true },
+  });
 
   const groups = new Map<
     string,

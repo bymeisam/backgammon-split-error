@@ -108,6 +108,7 @@ export default async function GameReplayPage({
       errorSeverity: true,
       notationPlayed: true,
       notationBest: true,
+      sourcePositionId: true,
       raw: true,
       game: { select: { gameIndex: true } },
     },

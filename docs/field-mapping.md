@@ -21,7 +21,7 @@ to a false match under a case-insensitive collation.
 
 Columns currently pinned this way: `Match.sourceMatchId`,
 `PlayerIdentity.sourceUserId`, `Decision.userId`, `Decision.cubeOwnerUserId`,
-`RepeatedPosition.sourcePositionId`.
+`RepeatedPosition.sourcePositionId`, `Decision.sourcePositionId`.
 
 `Decision.eventId` is also an externally-sourced identifier (Galaxy's own
 event ID), but it does not need a collation pin — collation only governs
@@ -31,7 +31,7 @@ its absence from the collation-pinned column list above isn't mistaken for
 an oversight.
 
 **Note on implementation:** Prisma's schema DSL does not expose a collation
-attribute for MySQL (only for SQL Server via `@db.Collation`). These four
+attribute for MySQL (only for SQL Server via `@db.Collation`). These five
 columns are pinned to `utf8mb4_bin` by hand-editing the generated migration
 SQL directly (adding `COLLATE utf8mb4_bin` to each column's definition) —
 this is not visible in `schema.prisma` itself, only in the migration file.
@@ -224,6 +224,7 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `equity` | `result.result.equity` (the decision-level equity, not a per-candidate-move one). |
 | `mwc` | `probabilities.mwc`, but only when `probabilities.mwc_context` is non-null — forced to `null` otherwise. |
 | `classification` | **`review.source_position.classification` only — never `destination_position`.** The analysis is about the quality of a decision made *at* a position, so the phase that matters is the board state before the move (source), not after (destination); falling back to destination would silently mislabel the decision's phase. If `source_position`/`.classification` is ever actually missing, ingest throws for that one decision (caught, recorded in the ingest summary's `errors`) rather than silently substituting destination. |
+| `sourcePositionId` | `review.source_position.formatted_value` (the GNU Position ID of the board *before* this decision — same source object `classification` reads from, just not hard-failing if missing). Added as a real column (previously re-parsed from `raw` on every read) specifically to replace two unindexed `JSON_EXTRACT` call sites — see `findPositionOccurrences` (`lib/decisionQueries.ts`) and "Collation for externally-sourced identifiers" above, and `reports/2026-10-02-step3-sourcepositionid-column-design.md` for the full before/after measurements (unforced ~28.4s / `FORCE INDEX`-forced ~21.2s / new column+index ~0.3s, same real worst-case literal). Confirmed 100% real-data coverage; nullable only for migration-sequencing reasons, same as `plyNumber`. |
 | `plyNumber` | Not in the payload directly — computed at ingest from `eventId` order alone (see "Ply number" below). `1`-`4` for a game's first four `CHECKER` decisions (by `eventId` ascending), `null` beyond that and always `null` for `CUBE`/`RESIGNATION` kind. |
 | `matchScoreBlack` | `metadata.scores?.black`, nullable. `metadata.scores` is `null` for money-game-type matches (confirmed against a real match: `scores: null` *and* `match_length: null` together, consistently across every decision in the match) — there's no running match score to report for a match that isn't played to a fixed length. Not a data quality issue, a real category of match the original schema didn't account for. |
 | `matchScoreWhite` | `metadata.scores?.white`, nullable — same reasoning as `matchScoreBlack`. |

@@ -415,6 +415,14 @@ export async function ingestMatch(
           equity: review.result.result.equity,
           mwc: probabilities.mwc_context !== null ? probabilities.mwc : null,
           classification,
+          // Same source_position object classification is read from above;
+          // GNU Position ID of the board before this decision. Confirmed
+          // 100% real-data coverage (reports/2026-10-02-step3-
+          // sourcepositionid-column-design.md), but read with the same
+          // optional-chaining defensiveness as classification's own raw
+          // access, just without the hard-fail — a column, not a required
+          // domain fact ingest refuses to proceed without.
+          sourcePositionId: review.source_position?.formatted_value ?? null,
           plyNumber: plyByEventId.get(event.id) ?? null,
           matchScoreBlack: metadata.scores?.black ?? null,
           matchScoreWhite: metadata.scores?.white ?? null,

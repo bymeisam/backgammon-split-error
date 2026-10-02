@@ -5,12 +5,13 @@
 // event (including reviews[0]), so the same label-derivation logic
 // lib/mistakes.ts already uses for a live game_reviews fetch applies here
 // unchanged for myLabel/bestLabel (via actionLabels) — but myMoveNotation/
-// bestMoveNotation read the row's own notationPlayed/notationBest columns
-// directly rather than re-parsing raw via moveNotations(), since ingest
-// already stores exactly this (confirmed byte-identical against 2,700 real
-// rows, 2026-10-01 — see PROGRESS.md). The live-fetch path in
-// lib/mistakes.ts has no DB row to read a column from, so it still calls
-// moveNotations() itself; that's unchanged.
+// bestMoveNotation/sourcePositionId read the row's own notationPlayed/
+// notationBest/sourcePositionId columns directly rather than re-parsing raw,
+// since ingest already stores exactly this (notation: confirmed
+// byte-identical against 2,700 real rows, 2026-10-01 — see PROGRESS.md;
+// sourcePositionId: see reports/2026-10-02-step3-sourcepositionid-column-
+// design.md). The live-fetch path in lib/mistakes.ts has no DB row to read
+// a column from, so it still re-parses raw for both; that's unchanged.
 //
 // Server-only (imports the Prisma-generated enum types) — never import this
 // from a "use client" file; pass the resulting plain Decision objects down
@@ -66,6 +67,11 @@ export interface DecisionRow {
   // already returned.
   notationPlayed: string | null;
   notationBest: string | null;
+  // Populated at ingest from review.source_position.formatted_value — same
+  // value this file used to re-read from raw on every call via
+  // review.source_position?.formatted_value, now a plain indexed column
+  // (see reports/2026-10-02-step3-sourcepositionid-column-design.md).
+  sourcePositionId: string | null;
   raw: unknown;
   game: { gameIndex: number };
 }
@@ -169,7 +175,7 @@ export function decisionFromRow(
     myLabel: mine,
     bestLabel: best,
     roll: rollLookup?.get(`${row.gameId}:${row.eventId}`) ?? event.rolled_dice ?? [],
-    sourcePositionId: review.source_position?.formatted_value ?? null,
+    sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
     cubeState: cubeStateLookup?.get(`${row.gameId}:${row.eventId}`) ?? null,
@@ -220,7 +226,7 @@ export function decisionFromRowForReplay(
     myLabel: mine,
     bestLabel: best,
     roll: rollLookup?.get(`${row.gameId}:${row.eventId}`) ?? event.rolled_dice ?? [],
-    sourcePositionId: review.source_position?.formatted_value ?? null,
+    sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
     cubeState: cubeStateLookup?.get(`${row.gameId}:${row.eventId}`) ?? null,

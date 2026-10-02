@@ -264,6 +264,16 @@ describe("ingestMatch", () => {
     expect(create.equityAfter).toBe(-1);
   });
 
+  it("populates sourcePositionId from source_position.formatted_value", async () => {
+    serveSingleGame(gameReviewsResponse([moveEvent(1)]));
+
+    const summary = await ingestMatch(90000008, indexData, "token");
+
+    expect(summary.decisionsIngested).toBe(1);
+    const create = decisionUpsert.mock.calls[0][0].create;
+    expect(create.sourcePositionId).toBe("pos");
+  });
+
   it("assigns plyNumber 1-4 by eventId ascending regardless of array order, null beyond ply 4, and skips ineligible events", async () => {
     // Deliberately shuffled and with a gap: eventIds 50/10/90/20/30/40/70/60,
     // one of which (30) has a null error_analysis and must not consume a ply

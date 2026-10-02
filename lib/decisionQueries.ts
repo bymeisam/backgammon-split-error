@@ -25,6 +25,7 @@ export const DECISION_LIST_SELECT = {
   classification: true,
   notationPlayed: true,
   notationBest: true,
+  sourcePositionId: true,
   raw: true,
   game: { select: { gameIndex: true, match: { select: { sourceMatchId: true } } } },
 } satisfies Prisma.DecisionSelect;
@@ -52,33 +53,27 @@ export async function loadDecisionItems(rows: DecisionListRow[]): Promise<Decisi
 }
 
 // Every individual Decision that faced one RepeatedPosition's exact
-// position. Narrows by the same indexed columns
-// lib/recompute-repeated-positions.ts's own query uses
-// (kind/countAsDecision/rawError/errorSeverity) before the unindexed JSON
-// match — cheap once narrowed, not a full-table scan.
-//
-// FORCE INDEX: measured MySQL's optimizer picking
-// Decision_kind_classification_idx here instead (kind-only, ~513k rows to
-// then filter/JSON-extract one by one) over the composite index that also
-// covers countAsDecision/rawError/errorSeverity — 11.4s vs. 1.2s for the
-// exact same query, forced. The composite index's name is a fixed literal
-// from the schema/migration, not user input, so it's safe to inline
-// directly rather than bind as a parameter (FORCE INDEX takes an
-// identifier, not a value, and can't be parameterized anyway).
+// position. sourcePositionId/errorSeverity equality (the
+// Decision_sourcePositionId_errorSeverity_idx index) narrows ~1.26M rows to
+// a measured average of ~2 and a worst-known case of 10,923 before
+// kind/countAsDecision/rawError are even applied — three to five orders of
+// magnitude narrower than the ~494k-513k row scans the old
+// JSON_EXTRACT-plus-FORCE-INDEX version had to fall back on (see
+// reports/2026-10-02-step3-sourcepositionid-column-design.md). Now a plain
+// Prisma query: sourcePositionId is a real indexed column, not an unindexed
+// JSON path, so there's no optimizer-steering or raw SQL needed anymore.
 export async function findPositionOccurrences(position: {
   errorSeverity: ErrorSeverity;
   sourcePositionId: string;
 }): Promise<DecisionListRow[]> {
-  const matchingIds = await prisma.$queryRaw<{ id: number }[]>`
-    SELECT id FROM Decision
-    FORCE INDEX (Decision_countAsDecision_rawError_kind_classification_errorS_idx)
-    WHERE kind = 'CHECKER' AND countAsDecision = 1 AND rawError IS NOT NULL
-      AND errorSeverity = ${position.errorSeverity}
-      AND JSON_UNQUOTE(JSON_EXTRACT(raw, '$.reviews[0].source_position.formatted_value')) = ${position.sourcePositionId}
-  `;
-
   return prisma.decision.findMany({
-    where: { id: { in: matchingIds.map((r) => r.id) } },
+    where: {
+      kind: "CHECKER",
+      countAsDecision: true,
+      rawError: { not: null },
+      errorSeverity: position.errorSeverity,
+      sourcePositionId: position.sourcePositionId,
+    },
     select: DECISION_LIST_SELECT,
   });
 }
