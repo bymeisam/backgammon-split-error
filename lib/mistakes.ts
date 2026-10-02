@@ -154,6 +154,46 @@ export function findPrecedingRoll(events: GameEvent[], index: number): number[] 
   return [];
 }
 
+// Decodes the roll used for a move directly from the event's own `moves`
+// field — a flat [from1, to1, from2, to2, ...] array Galaxy sends on every
+// move_commited event, one [from, to] pair per die used (never previously
+// read anywhere in this codebase before this function was added). Each
+// pair's pip distance IS the die face used, UNLESS the move involves
+// bear-off (a die larger than the exact pips needed can still legally bear
+// a checker off, so distance-to-"off" doesn't always equal the die face)
+// or bar-entry (a different point-numbering convention) — confirmed via a
+// 5,000-row sample against already-known rolls elsewhere in the table:
+// ~6% mismatch, entirely concentrated in those two cases. **Reliable only
+// for a genuine point-to-point move with no bear-off/bar-entry involved**
+// — which a game's very first move always is (fresh starting position,
+// structurally can't have a checker on the bar or in bear-off range).
+// NOT a general-purpose roll-reconstruction function — callers must scope
+// its use accordingly (see scripts/backfill-first-move-roll.ts, the one
+// current caller, which restricts itself to exactly that scope).
+//
+// Verified against real Galaxy-site data, not just code logic: decision id
+// 1207111's `moves` ([24,18,18,13]) decodes to [6,5], exactly matching the
+// roll independently confirmed on Galaxy's own site for that same decision
+// ([5,6] — order-independent, same roll). See reports/2026-10-02-step4-
+// dice-roll-column-design.md's correction for the full story.
+//
+// Returns null for anything not cleanly decodable: fewer than 2 complete
+// hops (a genuinely single-die turn — real, but this function can't
+// recover the unplayed die's value either) or a malformed/odd-length
+// array (shouldn't happen for a real CHECKER move, but defensive rather
+// than guessing).
+export function decodeRollFromMoves(moves: number[]): number[] | null {
+  if (moves.length < 4 || moves.length % 2 !== 0) return null;
+
+  const distances: number[] = [];
+  for (let i = 0; i < moves.length; i += 2) {
+    distances.push(Math.abs(moves[i] - moves[i + 1]));
+  }
+
+  const distinct = [...new Set(distances)];
+  return distinct.length === 1 ? [distances[0], distances[0]] : distances.slice(0, 2);
+}
+
 export function extractDecisions(games: FetchedGame[]): Decision[] {
   const decisions: Decision[] = [];
 

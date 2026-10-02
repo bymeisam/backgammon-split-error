@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computePR,
+  decodeRollFromMoves,
   extractDecisions,
   formatPR,
   partitionMistakes,
@@ -100,6 +101,34 @@ describe("severityFromErrorSeverity", () => {
     expect(severityFromErrorSeverity("error")).toBe("error");
     expect(severityFromErrorSeverity("doubtful")).toBe("error");
     expect(severityFromErrorSeverity("none")).toBeNull();
+  });
+});
+
+describe("decodeRollFromMoves", () => {
+  it("real example: decision id 1207111's moves decode to [6,5], matching the roll independently confirmed on Galaxy's own site ([5,6], order-independent)", () => {
+    expect(decodeRollFromMoves([24, 18, 18, 13])).toEqual([6, 5]);
+  });
+
+  it("two different checkers, non-double: each pair's own pip distance is a die face", () => {
+    // "24/18 13/9" (distances 6, 4) — real shape, different point numbers
+    // than the single-checker chain case above but same pairwise decoding.
+    expect(decodeRollFromMoves([13, 9, 24, 18])).toEqual([4, 6]);
+  });
+
+  it("a double (all hops the same distance): returns [d, d], not every repeated hop", () => {
+    // "14/4(2)" — 4 hops of 5 pips each (double 5s), 3-of-4 and 2-of-4
+    // partial-double cases collapse the same way.
+    expect(decodeRollFromMoves([14, 9, 14, 9, 9, 4, 9, 4])).toEqual([5, 5]);
+    expect(decodeRollFromMoves([3, 0, 3, 0, 3, 0])).toEqual([3, 3]); // 3-of-4 used
+  });
+
+  it("returns null for a genuinely single-die turn (only 1 hop) — the other die's value isn't recoverable from moves either", () => {
+    expect(decodeRollFromMoves([10, 5])).toBeNull();
+  });
+
+  it("returns null for a malformed/odd-length array rather than guessing", () => {
+    expect(decodeRollFromMoves([])).toBeNull();
+    expect(decodeRollFromMoves([1, 2, 3])).toBeNull();
   });
 });
 
