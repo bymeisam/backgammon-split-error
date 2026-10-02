@@ -72,11 +72,34 @@ model PlayerIdentity {
 }
 
 model Game {
-  id        Int       @id @default(autoincrement())
-  matchId   Int
-  match     Match     @relation(fields: [matchId], references: [id])
-  gameIndex Int
-  playedAt  DateTime?
+  id            Int       @id @default(autoincrement())
+  matchId       Int
+  match         Match     @relation(fields: [matchId], references: [id])
+  gameIndex     Int
+  playedAt      DateTime?
+  // Score entering this specific game (not the match's current/final score
+  // — that's Match.userScore/opponentScore, from a separate endpoint).
+  // Actor-relative at the source (metadata.scores.black/.white mean
+  // "whoever made that event"/"their opponent", not a literal board
+  // color — confirmed against real data, see reports/2026-10-02-raw-field-
+  // reverification.md), resolved here against PlayerIdentity.isMe so these
+  // columns are unambiguous regardless of which color "you" played as.
+  // Sourced from the game's first event (by eventId) whose metadata.scores
+  // is non-null, not literally the first event — some events in a game
+  // (confirmed: a subset of move_commited events) unreliably report
+  // scores/match_length as null while sibling events in the same game
+  // report the real value; see lib/ingest.ts's gameScoreByEventId. Null for
+  // a genuine money game (metadata.scores is null for every event in the
+  // game, a confirmed real category, not a data gap) or until detail-
+  // ingested.
+  userScore     Int?
+  opponentScore Int?
+  // metadata.crawford_state from the same resolved event as userScore/
+  // opponentScore above (not judged independently — crawfordState alone
+  // can't distinguish "a real non-crawford game" from "this event's scores
+  // happen to be unreliable", both report "none"). Defaults to "none" for a
+  // money game, same as every individual event already does.
+  crawfordState String?
 
   decisions Decision[]
 
@@ -104,9 +127,14 @@ model Decision {
   equity           Float?
   mwc              Float?
   classification   String
-  matchScoreBlack  Int?
-  matchScoreWhite  Int?
-  crawfordState    String
+  // matchScoreBlack/matchScoreWhite/crawfordState were dropped 2026-10-02
+  // (reports/2026-10-02-raw-field-reverification.md) — confirmed write-only
+  // (never read anywhere) and, worse, confirmed unreliable at this
+  // per-decision granularity (a subset of events in a game report
+  // metadata.scores as null while sibling events in the same game report
+  // the real value). Replaced by Game.userScore/opponentScore/
+  // crawfordState: one resolved, actor-relative value per game instead of
+  // an unreliable value per decision.
   // Ordinal position among this game's own CHECKER decisions, ordered by
   // eventId ascending: 1 for the first, 2 for the second, etc., up to 4 —
   // null beyond that (deeper plies aren't a useful filter dimension). Always

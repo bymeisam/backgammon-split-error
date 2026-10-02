@@ -18,7 +18,12 @@
 // fact (2026-10-02) once those became real columns (or, for
 // movePlayed/moveBest, renamed from notationPlayed/notationBest, same
 // date): computed directly from each row's own raw/sibling context, not
-// hand-typed either.
+// hand-typed either. Games' userScore/opponentScore/crawfordState (also
+// 2026-10-02, replacing the old per-Decision matchScoreBlack/matchScoreWhite/
+// crawfordState columns) were resolved the same way — each game's own first
+// decision by eventId, actor-relative-corrected against which user made
+// that decision (confirmed here via cross-check against the match's own
+// final userScore/opponentScore, not assumed).
 //
 // Standalone by design: builds its own MySQL connection directly from
 // .env.test rather than importing lib/prisma.ts (which throws at import
@@ -58,7 +63,13 @@ interface SeedData {
     playedAt: string | null;
     ingestStatus: string;
   };
-  games: { gameIndex: number; playedAt: string | null }[];
+  games: {
+    gameIndex: number;
+    playedAt: string | null;
+    userScore: number | null;
+    opponentScore: number | null;
+    crawfordState: string | null;
+  }[];
   decisions: SeedDecision[];
 }
 
@@ -98,10 +109,16 @@ async function main() {
 
   const gameIdByIndex = new Map<number, number>();
   for (const g of seed.games) {
+    const gameData = {
+      playedAt: g.playedAt ? new Date(g.playedAt) : null,
+      userScore: g.userScore,
+      opponentScore: g.opponentScore,
+      crawfordState: g.crawfordState,
+    };
     const game = await prisma.game.upsert({
       where: { matchId_gameIndex: { matchId: match.id, gameIndex: g.gameIndex } },
-      create: { matchId: match.id, gameIndex: g.gameIndex, playedAt: g.playedAt ? new Date(g.playedAt) : null },
-      update: { playedAt: g.playedAt ? new Date(g.playedAt) : null },
+      create: { matchId: match.id, gameIndex: g.gameIndex, ...gameData },
+      update: gameData,
     });
     gameIdByIndex.set(g.gameIndex, game.id);
   }

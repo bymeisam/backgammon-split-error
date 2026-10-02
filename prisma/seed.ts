@@ -423,6 +423,20 @@ async function main() {
     const [scoreStartUser, scoreStartOpp, scoreEndUser, scoreEndOpp] =
       gameScoreWindows[gameIndex - 1];
 
+    // Score/crawford entering this game — same "first decision wins" rule
+    // real ingest uses (lib/ingest.ts's gameScoreByEventId), simplified here
+    // since every synthetic decision already carries non-null scores (no
+    // unreliable-event filtering needed): the first decision's own values
+    // are exactly scoreStartUser/scoreStartOpp/DECISION_RECIPES[0].crawfordState.
+    await prisma.game.update({
+      where: { id: game.id },
+      data: {
+        userScore: scoreStartUser,
+        opponentScore: scoreStartOpp,
+        crawfordState: DECISION_RECIPES[0].crawfordState,
+      },
+    });
+
     const decisions: Prisma.DecisionCreateManyInput[] = DECISION_RECIPES.map(
       (recipe, i) => {
         const timestamp = new Date(gamePlayedAt.getTime() + i * 30_000);
@@ -454,10 +468,6 @@ async function main() {
           equity: recipe.rawError === 0 ? 0.5 : 0.5 - recipe.rawError,
           mwc: 0.5,
           classification: recipe.classification,
-          // "black" is the user's side in this seeded match.
-          matchScoreBlack,
-          matchScoreWhite,
-          crawfordState: recipe.crawfordState,
           cubeOwnerUserId: recipe.kind === DecisionKind.CUBE ? YOU_USER_ID : null,
           movePlayed: recipe.notationPlayed,
           moveBest: recipe.notationBest,

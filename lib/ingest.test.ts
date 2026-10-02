@@ -46,8 +46,10 @@ const {
     async () => ({})
   ),
   gameUpsert: vi.fn(async () => ({ id: 1 })),
-  gameUpdate: vi.fn(async () => ({})),
-  playerIdentityFindFirst: vi.fn(async () => null),
+  gameUpdate: vi.fn<(args: { where: unknown; data: Record<string, unknown> }) => Promise<object>>(
+    async () => ({})
+  ),
+  playerIdentityFindFirst: vi.fn<() => Promise<{ sourceUserId: string } | null>>(async () => null),
   playerIdentityUpsert: vi.fn(async () => ({})),
   getGameReviews: vi.fn(),
 }));
@@ -116,7 +118,20 @@ const ERROR_ANALYSIS_NONE = {
 // multi-event fixtures inline (for the plyNumber test below) rather than a
 // full JSON fixture file, since only eventId/event_type/analysed_event/
 // error_analysis actually vary across cases.
-function moveEvent(id: number, opts: { errorAnalysisNull?: boolean; userId?: string } = {}): GameEvent {
+function moveEvent(
+  id: number,
+  opts: {
+    errorAnalysisNull?: boolean;
+    userId?: string;
+    // Mirrors the real, confirmed-unreliable shape: a subset of
+    // move_commited events report both scores and match_length as null
+    // while sibling events in the same game report the real value (see
+    // reports/2026-10-02-raw-field-reverification.md) — scores/match_length
+    // are 100% correlated, so this flag nulls both together, never just one.
+    scoresNull?: boolean;
+    scores?: { black: number; white: number };
+  } = {}
+): GameEvent {
   return {
     id,
     color: "white",
@@ -146,8 +161,8 @@ function moveEvent(id: number, opts: { errorAnalysisNull?: boolean; userId?: str
               analysis_level: 2,
               analysis_time_ms: 5,
               crawford_state: "none",
-              match_length: 7,
-              scores: { black: 0, white: 0 },
+              match_length: opts.scoresNull ? null : 7,
+              scores: opts.scoresNull ? null : opts.scores ?? { black: 0, white: 0 },
               count_as_decision: true,
               request_id: null,
               max_move: null,
@@ -377,7 +392,7 @@ describe("ingestMatch", () => {
     expect(create.kind).toBe("CUBE");
   });
 
-  it("handles a money-game match (scores: null, match_length: null) without erroring, storing null score fields", async () => {
+  it("handles a money-game match (scores: null, match_length: null) without erroring, leaving Game's score/crawford fields unset", async () => {
     serveSingleGame(moneyGameMove as unknown as GameReviewsResponse);
 
     const summary = await ingestMatch(90000004, indexData, "token");
@@ -385,8 +400,16 @@ describe("ingestMatch", () => {
     expect(summary.errors).toHaveLength(0);
     expect(summary.decisionsIngested).toBe(1);
     const create = decisionUpsert.mock.calls[0][0].create;
-    expect(create.matchScoreBlack).toBeNull();
-    expect(create.matchScoreWhite).toBeNull();
+    expect(create).not.toHaveProperty("matchScoreBlack");
+    expect(create).not.toHaveProperty("matchScoreWhite");
+    expect(create).not.toHaveProperty("crawfordState");
+
+    // A money game never resolves a userScore/opponentScore/crawfordState —
+    // gameUpdate is only ever called once, for playedAt (no second call for
+    // score/crawford, since gameScoreByEventId stays empty throughout).
+    expect(gameUpdate).toHaveBeenCalledTimes(1);
+    expect(gameUpdate.mock.calls[0][0].data).toHaveProperty("playedAt");
+    expect(gameUpdate.mock.calls[0][0].data).not.toHaveProperty("userScore");
 
     // matchLength stays null throughout a money game — the match-level
     // update should never set it (playedAt still gets set independently).
@@ -394,6 +417,31 @@ describe("ingestMatch", () => {
     const matchUpdateData = matchUpdate.mock.calls[0][0].data;
     expect(matchUpdateData).not.toHaveProperty("matchLength");
     expect(matchUpdateData).toHaveProperty("playedAt");
+  });
+
+  it("Game.userScore/opponentScore/crawfordState resolve from the first event with non-null scores, not literally the first event", async () => {
+    playerIdentityFindFirst.mockResolvedValueOnce({ sourceUserId: "user_me" });
+    serveSingleGame(
+      gameReviewsResponse([
+        moveEvent(10, { scoresNull: true }),
+        moveEvent(20, { scores: { black: 5, white: 3 } }),
+      ])
+    );
+
+    await ingestMatch(90000011, indexData, "token");
+
+    const scoreUpdateCall = gameUpdate.mock.calls.find((call) => "userScore" in call[0].data);
+    expect(scoreUpdateCall).toBeDefined();
+    expect(scoreUpdateCall![0].data).toMatchObject({
+      userScore: 5,
+      opponentScore: 3,
+      crawfordState: "none",
+    });
+
+    // The match's own matchLength follows the same resolved event, not the
+    // (unreliable) literal first one.
+    expect(matchUpdate).toHaveBeenCalledTimes(1);
+    expect(matchUpdate.mock.calls[0][0].data).toMatchObject({ matchLength: 7 });
   });
 
   it("stores a RESIGNATION decision with the resign-specific fields populated", async () => {

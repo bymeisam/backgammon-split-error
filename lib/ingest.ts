@@ -272,8 +272,15 @@ export async function ingestMatch(
   let decisionsIngested = 0;
   let decisionsSkippedNotCounted = 0;
   let eventsSkippedNoReview = 0;
-  let matchLength: number | null = null;
   const gamePlayedAts: Date[] = [];
+  // Match.matchLength = the resolved matchLength of the match's first game
+  // (lowest gameIndex) that has one — same "first game wins" shape as
+  // gamePlayedAts/Match.playedAt below, not "whichever event is processed
+  // last" (the old, confirmed-buggy behavior: metadata.match_length is
+  // unreliably null on a subset of events even within a real match-play
+  // game, so a plain last-write-wins assignment could regress a real value
+  // back to null depending on event-processing order).
+  const gameMatchLengths: number[] = [];
 
   // matchId here is the Galaxy match ID (what the URL/UI use) — Match.id is
   // now an internal auto-increment key, resolved via the (source,
@@ -337,6 +344,26 @@ export async function ingestMatch(
     // happened for this app's original 2026-09 backfill (see
     // scripts/backfill-played-at.ts for the one-time consequence of that).
     const decisionTimestampsByEventId: { eventId: number; timestamp: Date }[] = [];
+    // Game.userScore/opponentScore/crawfordState (and, via gameMatchLengths
+    // above, Match.matchLength) all resolve from this same game's first
+    // event (by eventId) whose metadata.scores is non-null — not literally
+    // the first event. Confirmed table-wide (reports/2026-10-02-raw-field-
+    // reverification.md): metadata.scores being null and metadata.match_length
+    // being null are 100% correlated (0 exceptions either direction across
+    // 1,257,534 rows), so both travel together; crawfordState can't be
+    // judged independently (it reports "none" both for a genuine non-
+    // crawford game and for an event whose scores happen to be unreliable),
+    // so it's read from this same resolved event rather than its own value.
+    // Stays empty for a genuine money game (metadata.scores is null for
+    // every event in the game), correctly leaving userScore/opponentScore/
+    // crawfordState/matchLength all null.
+    const gameScoreByEventId: {
+      eventId: number;
+      userScore: number;
+      opponentScore: number;
+      crawfordState: string;
+      matchLength: number;
+    }[] = [];
     const plyByEventId = checkerPlyByEventId(response.data.events);
     const rollByEvent = rollByEventId(response.data.events);
     // Value/confident only — cubeOwnerUserId keeps its own separate
@@ -439,7 +466,16 @@ export async function ingestMatch(
         const resignation = buildResignationDetail(review);
         const timestamp = new Date(metadata.timestamp);
         decisionTimestampsByEventId.push({ eventId: event.id, timestamp });
-        matchLength = metadata.match_length;
+        if (me && metadata.scores) {
+          const isMe = event.user_id === me.sourceUserId;
+          gameScoreByEventId.push({
+            eventId: event.id,
+            userScore: isMe ? metadata.scores.black : metadata.scores.white,
+            opponentScore: isMe ? metadata.scores.white : metadata.scores.black,
+            crawfordState: metadata.crawford_state,
+            matchLength: metadata.match_length,
+          });
+        }
 
         const decisionData = {
           userId: event.user_id,
@@ -468,9 +504,6 @@ export async function ingestMatch(
           // nullable column on this model, which isn't Json-typed.
           roll: rollByEvent.get(event.id) ?? Prisma.DbNull,
           plyNumber: plyByEventId.get(event.id) ?? null,
-          matchScoreBlack: metadata.scores?.black ?? null,
-          matchScoreWhite: metadata.scores?.white ?? null,
-          crawfordState: metadata.crawford_state,
           cubeOwnerUserId,
           cubeValue,
           cubeConfident,
@@ -510,11 +543,29 @@ export async function ingestMatch(
       gamePlayedAts.push(first.timestamp);
     }
 
+    if (gameScoreByEventId.length > 0) {
+      const first = gameScoreByEventId.reduce((a, b) => (a.eventId < b.eventId ? a : b));
+      await prisma.game.update({
+        where: { id: game.id },
+        data: {
+          userScore: first.userScore,
+          opponentScore: first.opponentScore,
+          crawfordState: first.crawfordState,
+        },
+      });
+      gameMatchLengths.push(first.matchLength);
+    }
+
     gamesIngested++;
   }
 
   const matchUpdate: { matchLength?: number; playedAt?: Date } = {};
-  if (matchLength !== null) matchUpdate.matchLength = matchLength;
+  // gameMatchLengths is built in ascending gameIndex order (only pushed for
+  // a game that resolved one), so its first element is exactly the lowest-
+  // gameIndex match that has a real value — same "first game wins" rule as
+  // Match.playedAt below, not a money-game's every-event-null case being
+  // mistaken for "no game resolved one yet".
+  if (gameMatchLengths.length > 0) matchUpdate.matchLength = gameMatchLengths[0];
   // Match.playedAt = the Game.playedAt of the match's first game (lowest
   // gameIndex), not the earliest across all games — gamePlayedAts is built
   // in ascending gameIndex order by the loop above (only pushed for a game
