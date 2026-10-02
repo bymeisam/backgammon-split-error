@@ -11,6 +11,7 @@ import { ingestMatch, type MatchIndexData } from "@/lib/ingest";
 import { appendSyncErrorLog } from "@/lib/errorLog";
 import { recomputeMistakeStats } from "@/lib/recompute-mistake-stats";
 import { recomputeRepeatedPositions } from "@/lib/recompute-repeated-positions";
+import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
 
 const SOURCE = "galaxy";
 
@@ -73,9 +74,32 @@ export async function runSync({
   type,
   maxMatchesToProcess,
 }: SyncRunOptions): Promise<SyncRunResult> {
-  const syncRun = await prisma.syncRun.create({
-    data: { type, startedAt: new Date() },
-  });
+  // Deliberately the very first DB call in this function, and deliberately
+  // wrapped: if Oracle's pinned CA has rotated (lib/oracleCertCheck.ts —
+  // the exact failure this project hit 2026-10-02), EVERY DB call below
+  // would fail the same way, one ~10s pool-timeout at a time, through
+  // every single pending match in the detail-ingest loop further down —
+  // slow, and each one would look like an unrelated per-match failure
+  // rather than one root cause. Failing immediately here, with a clear
+  // message, avoids both problems. If this throws for any OTHER reason,
+  // it propagates exactly as any other unexpected top-level failure in
+  // this function already does (scripts/runSyncCli.ts's own .catch, or
+  // app/api/sync/incremental/route.ts's try/catch -> 502) — no change
+  // there.
+  let syncRun;
+  try {
+    syncRun = await prisma.syncRun.create({
+      data: { type, startedAt: new Date() },
+    });
+  } catch (error) {
+    if (isCertVerificationError(error)) {
+      console.error(`[sync] ${ORACLE_CERT_FAILURE_HINT}`);
+      throw new Error(
+        `${ORACLE_CERT_FAILURE_HINT} (failed on the very first DB call of this sync run, before any match was attempted.)`
+      );
+    }
+    throw error;
+  }
 
   const client = createGalaxyClient(token);
   const errors: SyncRunError[] = [];

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { buildConnectionConfig } from "@/lib/prisma";
+import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
 import { STATUS_NOTES } from "./notes";
 import { style } from "./status.styles";
 
@@ -61,10 +62,22 @@ async function getDbStatus(): Promise<DbStatus> {
       },
     };
   } catch (error) {
+    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    // isCertVerificationError catches exactly the failure mode that broke
+    // this app's real Oracle connection 2026-10-02 (a HeatWave CA rotation)
+    // — Prisma's own raw message for that case is a generic, misleading
+    // "pool timeout", so the clear hint is prepended rather than left for
+    // someone to re-diagnose from scratch (see lib/oracleCertCheck.ts).
+    // Row renders this as a single flowing line (no whitespace-pre-line
+    // anywhere in status.styles.ts), so this stays one sentence rather than
+    // relying on a line break that wouldn't actually render.
+    const displayMessage = isCertVerificationError(error)
+      ? `${ORACLE_CERT_FAILURE_HINT} Raw error: ${rawMessage}`
+      : rawMessage;
     return {
       engine,
       connected: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: displayMessage,
       latestMigration: null,
       counts: null,
     };

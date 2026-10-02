@@ -1,0 +1,38 @@
+name: Check Oracle TLS cert
+
+# Catches Oracle HeatWave rotating its MySQL endpoint's self-signed CA (the
+# failure this project hit 2026-10-02 — see lib/prisma.ts's comment above
+# ORACLE_CA_PATH, and scripts/check-oracle-cert.ts's own header comment for
+# how this check works) before it breaks a real sync/deploy, not after. A
+# failing scheduled run shows as a red X and GitHub emails repo owners by
+# default — no separate notification setup needed.
+#
+# Needs the ORACLE_DB_HOST repository secret (Settings -> Secrets and
+# variables -> Actions) set to the real Oracle host — not committed
+# anywhere in this repo (same as DATABASE_URL's real value, which only
+# ever lives in the gitignored .env). This check needs no DB credentials at
+# all, only the bare host — see the script's own header comment for why.
+
+on:
+  schedule:
+    # Daily, off the hour to avoid GitHub's documented top-of-hour queueing
+    # delays for scheduled workflows.
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx tsx scripts/check-oracle-cert.ts
+        env:
+          ORACLE_DB_HOST: ${{ secrets.ORACLE_DB_HOST }}

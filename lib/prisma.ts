@@ -2,6 +2,7 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import fs from "node:fs";
 import path from "node:path";
+import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
 
 // @prisma/adapter-mariadb bundles its own copy of the `mariadb` package
 // (distinct from the top-level one), so its PoolConfig type must come from
@@ -17,7 +18,19 @@ type MariaDbConnectionConfig = ConstructorParameters<typeof PrismaMariaDb>[0];
 // verification. Fetched directly from the server's TLS handshake
 // (`openssl s_client -starttls mysql`) — safe to commit, it's a public cert.
 // SHA256 fingerprint (cross-check against the Oracle console if in doubt):
-// DE:41:47:94:76:AE:E0:B9:0A:F1:8F:C2:03:8B:57:1F:BB:D0:71:6A:D2:25:DF:34:CB:B9:CB:2D:E6:29:C3:AA
+// C3:BD:54:50:F7:AD:34:0A:13:AF:B9:99:FE:D5:C1:BB:5C:BF:80:48:D8:2C:9E:D7:61:FC:90:E9:A9:0E:3A:59
+//
+// HeatWave rotates this CA periodically (confirmed 2026-10-02: the
+// previously-pinned CA, issued 2026-09-22, stopped verifying — the live
+// endpoint had rotated to a new self-signed CA issued 2026-09-29, one week
+// later — causing every real Oracle connection to fail with
+// CERT_SIGNATURE_FAILURE until this file was refreshed to match). If this
+// starts failing again, re-fetch and re-pin the same way: `openssl s_client
+// -connect <host>:3306 -starttls mysql -showcerts` against the real
+// endpoint, take the self-signed (`issuer == subject`) cert from the chain
+// (index 1, not the leaf server cert at index 0), and verify it offline
+// first with `openssl verify -CAfile <new-cert> <new-cert>` before
+// replacing this file — don't disable TLS verification as a workaround.
 const ORACLE_CA_PATH = path.join(process.cwd(), "certs", "oracle-mysql-ca.pem");
 
 // PrismaMariaDb's `ssl=true` query param alone maps to boolean `ssl: true`,
@@ -71,6 +84,35 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
   return config as MariaDbConnectionConfig;
 }
 
+// Wraps every query made through a client with this extension in a
+// diagnostic check: if the failure looks like a TLS chain-of-trust failure
+// against the pinned Oracle CA (see lib/oracleCertCheck.ts — this is the
+// one signal Prisma's own `.code` can't tell you, since it surfaces as a
+// generic "pool timeout" with the real cause buried deep in `.meta`),
+// log a clear, actionable hint before rethrowing the original error
+// unchanged. Purely additive — no caller's existing catch/retry behavior
+// changes, this only adds a console line pointing at the real cause.
+// Applied to both `prisma`/`prismaReadOnly` below, so it covers everything
+// that goes through either shared client (ingest, sync, every page/route
+// that reads/writes via them) — not just the few call sites that happen to
+// check for this explicitly (app/status/page.tsx, lib/sync.ts).
+function withOracleCertCheck(client: PrismaClient): PrismaClient {
+  return client.$extends({
+    query: {
+      async $allOperations({ args, query }) {
+        try {
+          return await query(args);
+        } catch (error) {
+          if (isCertVerificationError(error)) {
+            console.error(`[prisma] ${ORACLE_CERT_FAILURE_HINT}`);
+          }
+          throw error;
+        }
+      },
+    },
+  }) as unknown as PrismaClient;
+}
+
 // Two separate clients, each scoped to the minimum privilege its callers
 // actually need — see docs/field-mapping.md's "Credential scoping" section
 // for the full call-site list and rationale.
@@ -118,7 +160,9 @@ function createLazyClient(url: string | undefined, envVarName: string): PrismaCl
       if (!url) {
         throw new Error(`${envVarName} is not set — see .env.example.`);
       }
-      client = new PrismaClient({ adapter: new PrismaMariaDb(buildConnectionConfig(url)) });
+      client = withOracleCertCheck(
+        new PrismaClient({ adapter: new PrismaMariaDb(buildConnectionConfig(url)) })
+      );
     }
     return client;
   }
