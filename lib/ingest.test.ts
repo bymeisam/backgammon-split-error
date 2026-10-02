@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GameEvent, GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import type { MatchIndexData } from "@/lib/ingest";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 import forcedMoveNotCounted from "./__fixtures__/galaxy-payloads/forced-move-not-counted.json";
 import doubleRejectedNullAnalysis from "./__fixtures__/galaxy-payloads/double-rejected-null-analysis.json";
@@ -115,11 +116,11 @@ const ERROR_ANALYSIS_NONE = {
 // multi-event fixtures inline (for the plyNumber test below) rather than a
 // full JSON fixture file, since only eventId/event_type/analysed_event/
 // error_analysis actually vary across cases.
-function moveEvent(id: number, opts: { errorAnalysisNull?: boolean } = {}): GameEvent {
+function moveEvent(id: number, opts: { errorAnalysisNull?: boolean; userId?: string } = {}): GameEvent {
   return {
     id,
     color: "white",
-    user_id: "user_me",
+    user_id: opts.userId ?? "user_me",
     moves: [],
     event_type: "move_commited",
     rolled_dice: [],
@@ -174,6 +175,152 @@ function moveEvent(id: number, opts: { errorAnalysisNull?: boolean } = {}): Game
 
 function gameReviewsResponse(events: GameEvent[]): GameReviewsResponse {
   return { data: { events, match_id: 1, game_index: 1 }, type: "game_events" };
+}
+
+// Minimal dice_rolled event, reviewed as its own cube-check ("should you
+// have doubled before this roll") — the real shape that becomes its own
+// CUBE-kind Decision row (see Decision.roll's own schema comment / the
+// Step 4 design report for why this row's backward scan looks PAST its own
+// roll by design, not AT it).
+function diceRolledEvent(id: number, rolledDice: number[]): GameEvent {
+  return {
+    id,
+    color: "white",
+    user_id: "user_me",
+    moves: [],
+    event_type: "dice_rolled",
+    rolled_dice: rolledDice,
+    reviews: [
+      {
+        id: id + 1_000_000,
+        second: 1,
+        take: null,
+        level: 2,
+        double: false,
+        threshold: null,
+        source_match: null,
+        resigned_points: null,
+        source_position: { id: 1, classification: "opening_game", formatted_value: "pos" },
+        destination_position: null,
+        result: {
+          version: "1.0",
+          analysed_event: "cube_double",
+          result: {
+            equity: 0,
+            metadata: {
+              timestamp: "2026-09-18T02:49:15.400013Z",
+              analysis_level: 2,
+              analysis_time_ms: 5,
+              crawford_state: "none",
+              match_length: 7,
+              scores: { black: 0, white: 0 },
+              count_as_decision: false,
+              request_id: null,
+              max_move: null,
+            },
+            probabilities: PROBABILITIES,
+            error_analysis: ERROR_ANALYSIS_NONE,
+            cube_analysis: { doublers_best_action: "no_double", receivers_best_action: "pass" },
+          },
+        },
+      },
+    ],
+  } as unknown as GameEvent;
+}
+
+// A real double offer (review.double: true) — as opposed to diceRolledEvent
+// above's routine "did not double" check.
+function doubleEvent(id: number, userId: string): GameEvent {
+  return {
+    id,
+    color: "white",
+    user_id: userId,
+    moves: [],
+    event_type: "double_requested",
+    rolled_dice: [],
+    reviews: [
+      {
+        id: id + 1_000_000,
+        second: 1,
+        take: null,
+        level: 2,
+        double: true,
+        threshold: null,
+        source_match: null,
+        resigned_points: null,
+        source_position: { id: 1, classification: "opening_game", formatted_value: "pos" },
+        destination_position: null,
+        result: {
+          version: "1.0",
+          analysed_event: "cube_double",
+          result: {
+            equity: 0,
+            metadata: {
+              timestamp: "2026-09-18T02:49:15.400013Z",
+              analysis_level: 2,
+              analysis_time_ms: 5,
+              crawford_state: "none",
+              match_length: 7,
+              scores: { black: 0, white: 0 },
+              count_as_decision: true,
+              request_id: null,
+              max_move: null,
+            },
+            probabilities: PROBABILITIES,
+            error_analysis: ERROR_ANALYSIS_NONE,
+            cube_analysis: { doublers_best_action: "double", receivers_best_action: "take" },
+          },
+        },
+      },
+    ],
+  } as unknown as GameEvent;
+}
+
+// The receiver's take/pass response to a double offer.
+function cubePassEvent(id: number, userId: string, taken: boolean): GameEvent {
+  return {
+    id,
+    color: "white",
+    user_id: userId,
+    moves: [],
+    event_type: taken ? "double_accepted" : "double_rejected",
+    rolled_dice: [],
+    reviews: [
+      {
+        id: id + 1_000_000,
+        second: 1,
+        take: taken,
+        level: 2,
+        double: null,
+        threshold: null,
+        source_match: null,
+        resigned_points: null,
+        source_position: { id: 1, classification: "opening_game", formatted_value: "pos" },
+        destination_position: null,
+        result: {
+          version: "1.0",
+          analysed_event: "cube_pass",
+          result: {
+            equity: 0,
+            metadata: {
+              timestamp: "2026-09-18T02:49:15.400013Z",
+              analysis_level: 2,
+              analysis_time_ms: 5,
+              crawford_state: "none",
+              match_length: 7,
+              scores: { black: 0, white: 0 },
+              count_as_decision: true,
+              request_id: null,
+              max_move: null,
+            },
+            probabilities: PROBABILITIES,
+            error_analysis: ERROR_ANALYSIS_NONE,
+            cube_analysis: { doublers_best_action: "double", receivers_best_action: "take" },
+          },
+        },
+      },
+    ],
+  } as unknown as GameEvent;
 }
 
 beforeEach(() => {
@@ -272,6 +419,93 @@ describe("ingestMatch", () => {
     expect(summary.decisionsIngested).toBe(1);
     const create = decisionUpsert.mock.calls[0][0].create;
     expect(create.sourcePositionId).toBe("pos");
+  });
+
+  it("roll: null for a game's genuinely first stored decision (no roll precedes it at all)", async () => {
+    serveSingleGame(gameReviewsResponse([moveEvent(1)]));
+
+    await ingestMatch(90000009, indexData, "token");
+
+    expect(decisionUpsert.mock.calls[0][0].create.roll).toBe(Prisma.DbNull);
+  });
+
+  it("roll: the preceding dice_rolled event's own roll, for a CHECKER move", async () => {
+    serveSingleGame(gameReviewsResponse([diceRolledEvent(10, [3, 4]), moveEvent(20)]));
+
+    await ingestMatch(90000010, indexData, "token");
+
+    const rollByEventId = new Map(
+      decisionUpsert.mock.calls.map(([{ create }]) => [Number(create.eventId), create.roll])
+    );
+    expect(rollByEventId.get(20)).toEqual([3, 4]);
+  });
+
+  it("roll: null for a dice_rolled event's own cube-check row — the backward scan looks PAST its own roll by design, faithfully replicated here rather than fixed", async () => {
+    serveSingleGame(gameReviewsResponse([diceRolledEvent(10, [3, 4])]));
+
+    await ingestMatch(90000011, indexData, "token");
+
+    // Nothing precedes event 10 at all, so its own roll ([3,4]) is never
+    // surfaced — same as today's real DB-row read paths (see Decision.roll's
+    // schema comment / reports/2026-10-02-step4-dice-roll-column-design.md).
+    expect(decisionUpsert.mock.calls[0][0].create.roll).toBe(Prisma.DbNull);
+  });
+
+  it("roll: a LATER dice_rolled event resolves to the PRECEDING roll, not its own — confirms the backward-scan-past-itself quirk, not just a null case", async () => {
+    serveSingleGame(
+      gameReviewsResponse([diceRolledEvent(10, [3, 4]), moveEvent(20), diceRolledEvent(30, [5, 2])])
+    );
+
+    await ingestMatch(90000012, indexData, "token");
+
+    const rollByEventId = new Map(
+      decisionUpsert.mock.calls.map(([{ create }]) => [Number(create.eventId), create.roll])
+    );
+    expect(rollByEventId.get(30)).toEqual([3, 4]);
+  });
+
+  it("cube: value doubles and owner transfers to the taker on a real double->take, widened to every kind (not just CUBE)", async () => {
+    serveSingleGame(
+      gameReviewsResponse([
+        moveEvent(10, { userId: "user_a" }), // centered, value 1
+        doubleEvent(20, "user_a"), // user_a doubles
+        cubePassEvent(30, "user_b", true), // user_b takes -> cube at value 2, owned by user_b
+        moveEvent(40, { userId: "user_b" }), // user_b's own next decision: should see value 2, owner user_b
+      ])
+    );
+
+    await ingestMatch(90000013, indexData, "token");
+
+    const byEventId = new Map(
+      decisionUpsert.mock.calls.map(([{ create }]) => [
+        Number(create.eventId),
+        { value: create.cubeValue, owner: create.cubeOwnerUserId, confident: create.cubeConfident },
+      ])
+    );
+    expect(byEventId.get(10)).toEqual({ value: 1, owner: null, confident: true });
+    expect(byEventId.get(20)).toEqual({ value: 1, owner: null, confident: true });
+    expect(byEventId.get(30)).toEqual({ value: 1, owner: null, confident: true });
+    // Entering event 40 (a CHECKER decision — confirms the owner/value
+    // population is no longer gated to CUBE kind): the double has been
+    // applied, cube at value 2, owned by user_b.
+    expect(byEventId.get(40)).toEqual({ value: 2, owner: "user_b", confident: true });
+  });
+
+  it("cube: confident flips false for the rest of the game when a decision occurs while a double is unresolved", async () => {
+    serveSingleGame(
+      gameReviewsResponse([
+        doubleEvent(10, "user_a"), // user_a doubles
+        moveEvent(20, { userId: "user_b" }), // the resolving cube_pass is missing — play continues anyway
+      ])
+    );
+
+    await ingestMatch(90000014, indexData, "token");
+
+    const confidentByEventId = new Map(
+      decisionUpsert.mock.calls.map(([{ create }]) => [Number(create.eventId), create.cubeConfident])
+    );
+    expect(confidentByEventId.get(10)).toBe(true);
+    expect(confidentByEventId.get(20)).toBe(false);
   });
 
   it("assigns plyNumber 1-4 by eventId ascending regardless of array order, null beyond ply 4, and skips ineligible events", async () => {

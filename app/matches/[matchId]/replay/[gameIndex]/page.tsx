@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
-import { decisionFromRowForReplay, buildRollLookup, buildCubeStateLookup } from "@/lib/decisionFromRow";
+import { decisionFromRowForReplay } from "@/lib/decisionFromRow";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
 import GameReplay from "./GameReplay";
@@ -87,12 +87,13 @@ export default async function GameReplayPage({
 
   // Every Decision row for this game, in play order — fetched unfiltered
   // (no countAsDecision or rawError condition on the query itself) because
-  // buildRollLookup needs the countAsDecision:false cube-check rows too:
-  // each one carries the dice_rolled event a checker decision's own roll is
-  // looked up from (see lib/decisionFromRow.ts's own comment on
-  // buildRollLookup) — dropping them from the query would silently blank
-  // out every checker decision's dice display, not just hide the cube
-  // checks themselves.
+  // colorByUserId/myUserId below need to scan every row (including
+  // countAsDecision:false ones) to reliably find each player's color —
+  // roll and cube state are both plain columns now and no longer need the
+  // unfiltered superset themselves (see reports/2026-10-02-step4-dice-
+  // roll-column-design.md and reports/2026-10-02-step5-cube-value-
+  // confident-design.md), but this fetch still has to stay unfiltered for
+  // the color-resolution reason below.
   const rows = await prisma.decision.findMany({
     where: { gameId: game.id },
     orderBy: { eventId: "asc" },
@@ -109,13 +110,14 @@ export default async function GameReplayPage({
       notationPlayed: true,
       notationBest: true,
       sourcePositionId: true,
+      roll: true,
+      cubeOwnerUserId: true,
+      cubeValue: true,
+      cubeConfident: true,
       raw: true,
       game: { select: { gameIndex: true } },
     },
   });
-
-  const rollLookup = buildRollLookup(rows);
-  const cubeStateLookup = buildCubeStateLookup(rows);
 
   // Decision.color is unreliable read directly off a row — confirmed
   // against real data, not assumed: most CUBE decisions (including at
@@ -154,7 +156,7 @@ export default async function GameReplayPage({
   // decisions are never silently dropped from the replay.
   const decisions = rows
     .filter((row) => row.countAsDecision)
-    .map((row) => decisionFromRowForReplay(row, rollLookup, cubeStateLookup))
+    .map((row) => decisionFromRowForReplay(row))
     .filter((d): d is Decision => d !== null)
     // Overwrite with the resolved color (see colorByUserId above) rather
     // than decisionFromRowForReplay's own row.color passthrough, so every

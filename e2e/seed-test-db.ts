@@ -2,15 +2,21 @@
 // the rows the /mistakes visual-regression tests need: 1 Match, 3 Games,
 // and 10 Decisions — the 5 representative decisions already used in
 // board-visual.spec.ts, plus each one's immediately preceding dice_rolled
-// sibling row (without those, /mistakes can't find a roll for a checker
-// decision — see lib/decisionFromRow.ts's buildRollLookup; a checker
-// decision's own event never carries its own roll). Deliberately not a
-// full match/account replica, just what these 5 tests actually render.
+// sibling row. Those siblings are kept for historical/snapshot fidelity
+// (this is a real one-time capture, not hand-assembled), but nothing reads
+// them as siblings anymore — roll, cubeOwnerUserId, cubeValue, and
+// cubeConfident are all plain columns on each row directly now (see
+// reports/2026-10-02-step4-dice-roll-column-design.md and reports/2026-10-
+// 02-step5-cube-value-confident-design.md). Deliberately not a full
+// match/account replica, just what these 5 tests actually render.
 //
 // Source data: e2e/fixtures/seed-data.json — a real, one-time snapshot of
 // these exact rows (opponent name anonymized), not re-derived or
 // hand-typed, so field values match what the app itself would have
-// produced via lib/ingest.ts.
+// produced via lib/ingest.ts — except sourcePositionId/roll/cubeOwnerUserId/
+// cubeValue/cubeConfident, added after the fact (2026-10-02) once those
+// became real columns: computed directly from each row's own raw/sibling
+// context, not hand-typed either.
 //
 // Standalone by design: builds its own MySQL connection directly from
 // .env.test rather than importing lib/prisma.ts (which throws at import

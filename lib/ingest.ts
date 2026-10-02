@@ -6,8 +6,10 @@
 // matchIds is just a caller-side change).
 import { prisma } from "@/lib/prisma";
 import { createGalaxyClient } from "@/lib/galaxy-client";
-import { DecisionKind, ErrorSeverity } from "@/lib/generated/prisma/client";
+import { DecisionKind, ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
 import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
+import { findPrecedingRoll } from "@/lib/mistakes";
+import { computeCubeStates } from "@/lib/cubeState";
 
 // How many of a game's own CHECKER decisions get a plyNumber at all —
 // deeper plies aren't a useful filter dimension (see Decision.plyNumber's
@@ -245,6 +247,37 @@ function checkerPlyByEventId(events: GameEvent[]): Map<number, number> {
   return plyByEventId;
 }
 
+// Precomputes Decision.roll for every event in the game, using the exact
+// same findPrecedingRoll backward scan lib/mistakes.ts's extractDecisions/
+// lib/decisionFromRow.ts's (now-removed) buildRollLookup already used at
+// read time — see reports/2026-10-02-step4-dice-roll-column-design.md for
+// the full equivalence verification, including a confirmed-dead fallback
+// branch in the old read-time code that this intentionally does NOT
+// replicate (it was never actually live, so replicating it would be a
+// behavior change, not a faithful relocation).
+//
+// Applied unconditionally for every kind (not gated to CHECKER) — matches
+// the DB-row read paths' real current behavior, not extractDecisions' own
+// kind === "checker" gating (a separate, pre-existing divergence between
+// the two paths, not addressed here).
+//
+// Operates on the full in-memory events array (same one passed to
+// checkerPlyByEventId above) — includes game_started/game_over/
+// turn_forfeited events even though they're never stored as their own
+// Decision row, so a first move whose roll came from game_started.
+// rolled_dice (confirmed possible — see
+// lib/__fixtures__/galaxy-payloads/game-started-game-over.json) is
+// captured correctly here, unlike scripts/backfill-decision-roll.ts, which
+// can only see what's already stored.
+function rollByEventId(events: GameEvent[]): Map<number, number[] | null> {
+  const result = new Map<number, number[] | null>();
+  events.forEach((event, index) => {
+    const roll = findPrecedingRoll(events, index);
+    result.set(event.id, roll.length > 0 ? roll : null);
+  });
+  return result;
+}
+
 export async function ingestMatch(
   matchId: number,
   indexData: MatchIndexData,
@@ -322,6 +355,15 @@ export async function ingestMatch(
     // scripts/backfill-played-at.ts for the one-time consequence of that).
     const decisionTimestampsByEventId: { eventId: number; timestamp: Date }[] = [];
     const plyByEventId = checkerPlyByEventId(response.data.events);
+    const rollByEvent = rollByEventId(response.data.events);
+    // Value/confident only — cubeOwnerUserId keeps its own separate
+    // absolute-owner walk below (cubeOwner), not this function's own
+    // relativized owner. Verified the two never disagree (see Decision.
+    // cubeValue's schema comment / the Step 5 design report) rather than
+    // widening computeCubeStates' public CubeState shape to expose an
+    // absolute owner too, which would've broken every exhaustive
+    // lib/cubeState.test.ts assertion for no real benefit.
+    const cubeStatesByEvent = computeCubeStates(response.data.events);
 
     for (const event of response.data.events) {
       if (me && opponentUserId === null && event.user_id && event.user_id !== me.sourceUserId) {
@@ -389,11 +431,17 @@ export async function ingestMatch(
           throw new Error("missing source_position.classification");
         }
 
-        // Owner entering this decision, before applying its own outcome.
-        const cubeOwnerUserId = kind === DecisionKind.CUBE ? cubeOwner : null;
+        // Owner entering this decision, before applying its own outcome —
+        // every kind now (2026-10-02), not just CUBE: a CHECKER/RESIGNATION
+        // decision has a real cube owner too, just not its own decision
+        // about it. See Decision.cubeOwnerUserId's schema comment.
+        const cubeOwnerUserId = cubeOwner;
         if (kind === DecisionKind.CUBE && analysedEvent === "cube_pass" && review.take === true) {
           cubeOwner = event.user_id;
         }
+        const cubeState = cubeStatesByEvent.get(event.id);
+        const cubeValue = cubeState?.value ?? null;
+        const cubeConfident = cubeState?.confident ?? null;
 
         const { played, best } = moveNotations(review);
         const resignation = buildResignationDetail(review);
@@ -423,11 +471,18 @@ export async function ingestMatch(
           // access, just without the hard-fail — a column, not a required
           // domain fact ingest refuses to proceed without.
           sourcePositionId: review.source_position?.formatted_value ?? null,
+          // Prisma's Json input type needs Prisma.DbNull, not a plain
+          // `null`, to mean "set this column to SQL NULL" rather than
+          // storing the JSON literal null value — unlike every other
+          // nullable column on this model, which isn't Json-typed.
+          roll: rollByEvent.get(event.id) ?? Prisma.DbNull,
           plyNumber: plyByEventId.get(event.id) ?? null,
           matchScoreBlack: metadata.scores?.black ?? null,
           matchScoreWhite: metadata.scores?.white ?? null,
           crawfordState: metadata.crawford_state,
           cubeOwnerUserId,
+          cubeValue,
+          cubeConfident,
           notationPlayed: played,
           notationBest: best,
           cubeDetail: buildCubeDetail(review),

@@ -52,7 +52,7 @@
       "cubeOwnerUserId": null,
       "notationPlayed": null,
       "notationBest": null,
-      "cubeDetail": "did not double \u2014 best: roll",
+      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -153,7 +153,11 @@
           1
         ]
       },
-      "gameIndex": 5
+      "gameIndex": 5,
+      "sourcePositionId": "4HPkASjgc/ABMA",
+      "roll": null,
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205322,
@@ -410,7 +414,14 @@
         "event_type": "move_commited",
         "rolled_dice": []
       },
-      "gameIndex": 5
+      "gameIndex": 5,
+      "sourcePositionId": "4HPkASjgc/ABMA",
+      "roll": [
+        2,
+        1
+      ],
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205329,
@@ -435,7 +446,7 @@
       "cubeOwnerUserId": null,
       "notationPlayed": null,
       "notationBest": null,
-      "cubeDetail": "did not double \u2014 best: roll",
+      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -536,7 +547,14 @@
           4
         ]
       },
-      "gameIndex": 5
+      "gameIndex": 5,
+      "sourcePositionId": "bGaWARjBc+QBGA",
+      "roll": [
+        2,
+        1
+      ],
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205330,
@@ -793,7 +811,14 @@
         "event_type": "move_commited",
         "rolled_dice": []
       },
-      "gameIndex": 5
+      "gameIndex": 5,
+      "sourcePositionId": "bGaWARjBc+QBGA",
+      "roll": [
+        5,
+        4
+      ],
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205409,
@@ -818,7 +843,7 @@
       "cubeOwnerUserId": null,
       "notationPlayed": null,
       "notationBest": null,
-      "cubeDetail": "did not double \u2014 best: roll",
+      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -919,7 +944,11 @@
           3
         ]
       },
-      "gameIndex": 6
+      "gameIndex": 6,
+      "sourcePositionId": "4NuRASjg88gBSA",
+      "roll": null,
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205410,
@@ -1180,7 +1209,14 @@
         "event_type": "move_commited",
         "rolled_dice": []
       },
-      "gameIndex": 6
+      "gameIndex": 6,
+      "sourcePositionId": "4NuRASjg88gBSA",
+      "roll": [
+        3,
+        3
+      ],
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205437,
@@ -1205,7 +1241,7 @@
       "cubeOwnerUserId": null,
       "notationPlayed": null,
       "notationBest": null,
-      "cubeDetail": "did not double \u2014 best: double",
+      "cubeDetail": "did not double — best: double",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -1306,7 +1342,14 @@
           4
         ]
       },
-      "gameIndex": 6
+      "gameIndex": 6,
+      "sourcePositionId": "Y7YzABhwzxkIAw",
+      "roll": [
+        3,
+        3
+      ],
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205438,
@@ -1563,7 +1606,14 @@
         "event_type": "move_commited",
         "rolled_dice": []
       },
-      "gameIndex": 6
+      "gameIndex": 6,
+      "sourcePositionId": "Y7YzABhwzxkIAw",
+      "roll": [
+        6,
+        4
+      ],
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205571,
@@ -1588,7 +1638,7 @@
       "cubeOwnerUserId": null,
       "notationPlayed": null,
       "notationBest": null,
-      "cubeDetail": "did not double \u2014 best: roll",
+      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -1689,7 +1739,11 @@
           2
         ]
       },
-      "gameIndex": 7
+      "gameIndex": 7,
+      "sourcePositionId": "7wAAAGbvAAAAAA",
+      "roll": null,
+      "cubeValue": 1,
+      "cubeConfident": true
     },
     {
       "id": 1205572,
@@ -1946,7 +2000,14 @@
         "event_type": "move_commited",
         "rolled_dice": []
       },
-      "gameIndex": 7
+      "gameIndex": 7,
+      "sourcePositionId": "7wAAAGbvAAAAAA",
+      "roll": [
+        3,
+        2
+      ],
+      "cubeValue": 1,
+      "cubeConfident": true
     }
   ]
 }

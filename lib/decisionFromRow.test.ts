@@ -32,6 +32,10 @@ function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
     // formatted_value) — same "column, not re-parsed raw" equivalence
     // confirmed for notationPlayed/notationBest above.
     sourcePositionId: "4HPwATDgc/ABMA",
+    roll: [6, 2],
+    cubeOwnerUserId: null,
+    cubeValue: 1,
+    cubeConfident: true,
     raw: event,
     classification: "opening_game",
     game: { gameIndex: 3, match: { sourceMatchId: "46576635" } },
@@ -55,6 +59,10 @@ function baseRow(overrides: Partial<DecisionRow> = {}): DecisionRow {
     notationPlayed: "24/18",
     notationBest: "24/18",
     sourcePositionId: "4HPwATDgc/ABMA",
+    roll: [6, 2],
+    cubeOwnerUserId: null,
+    cubeValue: 1,
+    cubeConfident: true,
     raw: event,
     game: { gameIndex: 3 },
     ...overrides,
@@ -124,9 +132,55 @@ describe("decisionFromRow / decisionFromRowForReplay — notation from the colum
   });
 });
 
+describe("decisionFromRow / decisionFromRowForReplay — roll from the column, not re-scanned", () => {
+  it("decisionFromRow returns the row's own roll column verbatim", () => {
+    const decision = decisionFromRow(baseRow({ roll: [3, 1] }));
+    expect(decision?.roll).toEqual([3, 1]);
+  });
+
+  it("decisionFromRowForReplay returns the row's own roll column verbatim", () => {
+    const decision = decisionFromRowForReplay(baseRow({ roll: [3, 1] }));
+    expect(decision?.roll).toEqual([3, 1]);
+  });
+
+  it("null roll (the genuine first-move/no-roll-applies case) becomes an empty array, not null", () => {
+    expect(decisionFromRow(baseRow({ roll: null }))?.roll).toEqual([]);
+    expect(decisionFromRowForReplay(baseRow({ roll: null }))?.roll).toEqual([]);
+  });
+});
+
+describe("decisionFromRow / decisionFromRowForReplay — cube state from the column, not re-walked", () => {
+  it("converts absolute cubeOwnerUserId to relative owner: center when null", () => {
+    const decision = decisionFromRow(
+      baseRow({ cubeOwnerUserId: null, cubeValue: 1, cubeConfident: true })
+    );
+    expect(decision?.cubeState).toEqual({ value: 1, owner: "center", confident: true });
+  });
+
+  it("'mine' when cubeOwnerUserId matches the row's own userId", () => {
+    const decision = decisionFromRow(
+      baseRow({ userId: "user_me", cubeOwnerUserId: "user_me", cubeValue: 2, cubeConfident: true })
+    );
+    expect(decision?.cubeState).toEqual({ value: 2, owner: "mine", confident: true });
+  });
+
+  it("'opponent' when cubeOwnerUserId differs from the row's own userId", () => {
+    const decision = decisionFromRow(
+      baseRow({ userId: "user_me", cubeOwnerUserId: "user_opponent", cubeValue: 4, cubeConfident: false })
+    );
+    expect(decision?.cubeState).toEqual({ value: 4, owner: "opponent", confident: false });
+  });
+
+  it("null cubeValue or cubeConfident (migration-sequencing gap, not yet backfilled) means null cubeState, not a crash", () => {
+    expect(decisionFromRow(baseRow({ cubeValue: null }))?.cubeState).toBeNull();
+    expect(decisionFromRow(baseRow({ cubeConfident: null }))?.cubeState).toBeNull();
+    expect(decisionFromRowForReplay(baseRow({ cubeValue: null }))?.cubeState).toBeNull();
+  });
+});
+
 describe("toDecisionListItems", () => {
   it("builds an item per row with its classification and match link", () => {
-    const [item] = toDecisionListItems([row()], new Map());
+    const [item] = toDecisionListItems([row()]);
     expect(item.classification).toBe("opening_game");
     expect(item.matchHref).toBe("/matches/46576635");
     expect(item.decision.id).toBe("1");
@@ -136,20 +190,22 @@ describe("toDecisionListItems", () => {
     expect(item.decision.sourcePositionId).toBe("4HPwATDgc/ABMA");
   });
 
-  it("takes the roll from the lookup, keyed by gameId:eventId", () => {
-    const lookup = new Map([[`10:${event.id}`, [6, 2]]]);
-    expect(toDecisionListItems([row()], lookup)[0].decision.roll).toEqual([6, 2]);
+  it("reads roll from the row's own column, not a lookup — null becomes []", () => {
+    expect(toDecisionListItems([row({ roll: [5, 4] })])[0].decision.roll).toEqual([5, 4]);
+    expect(toDecisionListItems([row({ roll: null })])[0].decision.roll).toEqual([]);
   });
 
   it("drops rows decisionFromRow can't build, keeping the rest in order", () => {
-    const items = toDecisionListItems(
-      [row({ id: 1 }), row({ id: 2, rawError: null }), row({ id: 3, raw: { reviews: [] } }), row({ id: 4 })],
-      new Map()
-    );
+    const items = toDecisionListItems([
+      row({ id: 1 }),
+      row({ id: 2, rawError: null }),
+      row({ id: 3, raw: { reviews: [] } }),
+      row({ id: 4 }),
+    ]);
     expect(items.map((i) => i.decision.id)).toEqual(["1", "4"]);
   });
 
   it("returns an empty list for no rows", () => {
-    expect(toDecisionListItems([], new Map())).toEqual([]);
+    expect(toDecisionListItems([])).toEqual([]);
   });
 });

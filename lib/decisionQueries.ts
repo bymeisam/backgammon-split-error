@@ -4,13 +4,7 @@
 // without a database.
 import type { ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
-import {
-  buildCubeStateLookup,
-  buildRollLookup,
-  toDecisionListItems,
-  type DecisionListItem,
-  type DecisionListRow,
-} from "@/lib/decisionFromRow";
+import { toDecisionListItems, type DecisionListItem, type DecisionListRow } from "@/lib/decisionFromRow";
 
 // Columns a DecisionListRow needs — every list query selects exactly this.
 export const DECISION_LIST_SELECT = {
@@ -26,30 +20,25 @@ export const DECISION_LIST_SELECT = {
   notationPlayed: true,
   notationBest: true,
   sourcePositionId: true,
+  roll: true,
+  cubeOwnerUserId: true,
+  cubeValue: true,
+  cubeConfident: true,
   raw: true,
   game: { select: { gameIndex: true, match: { select: { sourceMatchId: true } } } },
 } satisfies Prisma.DecisionSelect;
 
-// A checker decision's own move_commited event never carries its roll —
-// the preceding dice_rolled event does, stored as its own sibling Decision
-// row (kind: CUBE, often countAsDecision: false) in the same game. List
-// queries only select countAsDecision: true rows, so they never see those
-// siblings; fetch every row for just the games actually in `rows` (cheap —
-// a handful of games, not the whole table) and build a "gameId:eventId" ->
-// roll lookup from them. The same unfiltered per-game rows also drive the
-// cumulative cube-state lookup (lib/cubeState.ts) — same reasoning: a cube
-// action that resolved the game's cube need not itself be one of the
-// countAsDecision: true rows `rows` is scoped to.
+// Used to need a second, unfiltered per-game query here to build roll/
+// cube-state lookups from sibling rows (a countAsDecision: true list query
+// alone never sees the countAsDecision: false rows those lookups needed) —
+// both are now plain columns on `rows` directly (see reports/2026-10-02-
+// step4-dice-roll-column-design.md and reports/2026-10-02-step5-cube-
+// value-confident-design.md), so this is just a synchronous mapping now,
+// no DB call. Kept as an async function (not changed to a plain export)
+// so callers don't need updating if a future field ever needs this shape
+// of lookup again.
 export async function loadDecisionItems(rows: DecisionListRow[]): Promise<DecisionListItem[]> {
-  const gameIds = [...new Set(rows.map((row) => row.gameId))];
-  const gameRows =
-    gameIds.length > 0
-      ? await prisma.decision.findMany({
-          where: { gameId: { in: gameIds } },
-          select: { gameId: true, eventId: true, raw: true },
-        })
-      : [];
-  return toDecisionListItems(rows, buildRollLookup(gameRows), buildCubeStateLookup(gameRows));
+  return toDecisionListItems(rows);
 }
 
 // Every individual Decision that faced one RepeatedPosition's exact

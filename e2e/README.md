@@ -274,9 +274,13 @@ regardless of what's actually in the real `PlayerIdentity` table.
 
 `e2e/fixtures/seed-data.json` is a one-time real snapshot (opponent name
 anonymized to "Test Opponent") of exactly the rows `e2e/seed-test-db.ts`
-writes into `bg_test`: the Match, its 3 Games, and 8 Decisions — the 4
+writes into `bg_test`: the Match, its 3 Games, and 10 Decisions — the 5
 representative checker decisions plus each one's immediately preceding
-`dice_rolled` sibling row (a checker decision's own event never carries its
-own roll; without the sibling, `/mistakes` can't find one — see
-`lib/decisionFromRow.ts`'s `buildRollLookup`). Deliberately not a full
-match/account replica, just what these 4 tests render.
+`dice_rolled` sibling row, kept for historical/snapshot fidelity (this is a
+real one-time capture, not hand-assembled) even though nothing reads them
+as siblings anymore — `roll`/`cubeOwnerUserId`/`cubeValue`/`cubeConfident`
+are all plain columns on each row directly, populated in the JSON itself
+(see `reports/2026-10-02-step4-dice-roll-column-design.md` and
+`reports/2026-10-02-step5-cube-value-confident-design.md`). Deliberately
+not a full match/account replica, just what these 5 tests
+render.

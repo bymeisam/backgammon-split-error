@@ -5,13 +5,17 @@
 // event (including reviews[0]), so the same label-derivation logic
 // lib/mistakes.ts already uses for a live game_reviews fetch applies here
 // unchanged for myLabel/bestLabel (via actionLabels) — but myMoveNotation/
-// bestMoveNotation/sourcePositionId read the row's own notationPlayed/
-// notationBest/sourcePositionId columns directly rather than re-parsing raw,
-// since ingest already stores exactly this (notation: confirmed
-// byte-identical against 2,700 real rows, 2026-10-01 — see PROGRESS.md;
-// sourcePositionId: see reports/2026-10-02-step3-sourcepositionid-column-
-// design.md). The live-fetch path in lib/mistakes.ts has no DB row to read
-// a column from, so it still re-parses raw for both; that's unchanged.
+// bestMoveNotation/sourcePositionId/roll/cubeState read the row's own
+// notationPlayed/notationBest/sourcePositionId/roll/cubeOwnerUserId+
+// cubeValue+cubeConfident columns directly rather than re-parsing raw or
+// re-scanning sibling rows, since ingest already stores exactly this
+// (notation: confirmed byte-identical against 2,700 real rows, 2026-10-01
+// — see PROGRESS.md; sourcePositionId: reports/2026-10-02-step3-
+// sourcepositionid-column-design.md; roll: reports/2026-10-02-step4-dice-
+// roll-column-design.md; cubeState: reports/2026-10-02-step5-cube-value-
+// confident-design.md). The live-fetch path in lib/mistakes.ts has no DB
+// row to read a column from, so it still re-parses raw/re-scans for all of
+// these; that's unchanged.
 //
 // Server-only (imports the Prisma-generated enum types) — never import this
 // from a "use client" file; pass the resulting plain Decision objects down
@@ -23,13 +27,33 @@ import type {
 import type { GameEvent } from "@/lib/gameReviewsTypes";
 import {
   actionLabels,
-  findPrecedingRoll,
   severityFromErrorSeverity,
   type Decision,
   type DecisionKind,
   type Severity,
 } from "@/lib/mistakes";
-import { computeCubeStates, type CubeState } from "@/lib/cubeState";
+import type { CubeState } from "@/lib/cubeState";
+import type { CubeOwner } from "@/lib/boardGeometry";
+
+// Converts the row's own absolute cubeOwnerUserId (a real user_id, or null
+// for centered) into the relative "mine"/"opponent"/"center" framing
+// Decision.cubeState/BoardPanel already use — same relativization BoardPanel
+// already applies to decoded positions, just at read time here instead of
+// inside computeCubeStates (which only ever returns relative, never the
+// absolute value this column stores).
+function relativeCubeOwner(cubeOwnerUserId: string | null, viewerUserId: string): CubeOwner {
+  if (cubeOwnerUserId === null) return "center";
+  return cubeOwnerUserId === viewerUserId ? "mine" : "opponent";
+}
+
+function cubeStateFor(row: DecisionRow): CubeState | null {
+  if (row.cubeValue === null || row.cubeConfident === null) return null;
+  return {
+    value: row.cubeValue,
+    owner: relativeCubeOwner(row.cubeOwnerUserId, row.userId),
+    confident: row.cubeConfident,
+  };
+}
 
 // Exported for lib/decisionFromRow.ts's own decisionFromRowForReplay below
 // to reuse verbatim, rather than re-declaring the same mapping twice.
@@ -72,82 +96,29 @@ export interface DecisionRow {
   // review.source_position?.formatted_value, now a plain indexed column
   // (see reports/2026-10-02-step3-sourcepositionid-column-design.md).
   sourcePositionId: string | null;
+  // Populated at ingest via the same findPrecedingRoll backward scan the
+  // old buildRollLookup (removed) used to re-run at read time over sibling
+  // rows — see reports/2026-10-02-step4-dice-roll-column-design.md. Json
+  // column, so `unknown` here same as `raw` below; cast at the point of use.
+  roll: unknown;
+  // Absolute owner (a real user_id, or null for centered) — widened at
+  // ingest (2026-10-02) to every kind, not just CUBE. cubeValue/
+  // cubeConfident: the same computeCubeStates walk the old (removed)
+  // buildCubeStateLookup used to re-run at read time, now a plain column
+  // triple — see cubeStateFor above / reports/2026-10-02-step5-cube-value-
+  // confident-design.md.
+  cubeOwnerUserId: string | null;
+  cubeValue: number | null;
+  cubeConfident: boolean | null;
   raw: unknown;
   game: { gameIndex: number };
-}
-
-// Galaxy analyses a dice_rolled event too (as a "should you have doubled
-// before this roll" cube check — kind: CUBE, often countAsDecision: false),
-// so it's stored as its own sibling Decision row in the same game, carrying
-// rolled_dice at its raw JSON's top level. A checker decision's own
-// move_commited event never carries its own roll — the caller must fetch
-// every Decision row for the games it's displaying (not just the
-// countAsDecision: true ones /mistakes normally queries) and build this
-// lookup from them, keyed by "gameId:eventId", before calling
-// decisionFromRow. Mirrors lib/mistakes.ts's own live-fetch extraction
-// (which always has the full event list already), just narrowed to
-// whichever games are actually on the current page.
-export function buildRollLookup(
-  gameRows: { gameId: number; eventId: bigint; raw: unknown }[]
-): Map<string, number[]> {
-  const byGame = new Map<number, { eventId: bigint; event: GameEvent }[]>();
-  for (const row of gameRows) {
-    const list = byGame.get(row.gameId) ?? [];
-    list.push({ eventId: row.eventId, event: row.raw as unknown as GameEvent });
-    byGame.set(row.gameId, list);
-  }
-
-  const lookup = new Map<string, number[]>();
-  for (const [gameId, rows] of byGame) {
-    rows.sort((a, b) => (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0));
-    const events = rows.map((r) => r.event);
-    rows.forEach((r, index) => {
-      lookup.set(`${gameId}:${r.eventId}`, findPrecedingRoll(events, index));
-    });
-  }
-  return lookup;
-}
-
-// Same shape as buildRollLookup above (same input, same "gameId:eventId"
-// key), for the cumulative cube state (lib/cubeState.ts) instead of dice
-// rolls — the caller must fetch every Decision row for a game (not just
-// the countAsDecision: true ones a mistake-focused query normally selects)
-// for computeCubeStates to walk correctly, same requirement as the roll
-// lookup.
-export function buildCubeStateLookup(
-  gameRows: { gameId: number; eventId: bigint; raw: unknown }[]
-): Map<string, CubeState> {
-  const byGame = new Map<number, { eventId: bigint; event: GameEvent }[]>();
-  for (const row of gameRows) {
-    const list = byGame.get(row.gameId) ?? [];
-    list.push({ eventId: row.eventId, event: row.raw as unknown as GameEvent });
-    byGame.set(row.gameId, list);
-  }
-
-  const lookup = new Map<string, CubeState>();
-  for (const [gameId, rows] of byGame) {
-    rows.sort((a, b) => (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0));
-    const events = rows.map((r) => r.event);
-    const cubeStates = computeCubeStates(events);
-    for (const r of rows) {
-      const state = cubeStates.get(r.event.id);
-      if (state) lookup.set(`${gameId}:${r.eventId}`, state);
-    }
-  }
-  return lookup;
 }
 
 // Returns null for a row with no usable data (rawError null, or somehow no
 // reviews[0] in its own raw JSON) — same "ungraded, skip it" treatment
 // lib/mistakes.ts's own extractDecisions gives a null rawError, rather than
-// crashing or faking a zero. `rollLookup`/`cubeStateLookup` are optional so
-// callers that don't need them (or haven't fetched the sibling rows) can
-// omit them and get an empty roll / null cube state.
-export function decisionFromRow(
-  row: DecisionRow,
-  rollLookup?: Map<string, number[]>,
-  cubeStateLookup?: Map<string, CubeState>
-): Decision | null {
+// crashing or faking a zero.
+export function decisionFromRow(row: DecisionRow): Decision | null {
   if (row.rawError === null) return null;
 
   const event = row.raw as unknown as GameEvent;
@@ -174,11 +145,11 @@ export function decisionFromRow(
         : `${mine} → best: ${best}`,
     myLabel: mine,
     bestLabel: best,
-    roll: rollLookup?.get(`${row.gameId}:${row.eventId}`) ?? event.rolled_dice ?? [],
+    roll: (row.roll as number[] | null) ?? [],
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
-    cubeState: cubeStateLookup?.get(`${row.gameId}:${row.eventId}`) ?? null,
+    cubeState: cubeStateFor(row),
   };
 }
 
@@ -196,11 +167,7 @@ export function decisionFromRow(
 // game exactly as played instead, so nothing here is filtered on either
 // count_as_decision or a null raw_error — only a row with no review data at
 // all (shouldn't happen for anything actually ingested) returns null.
-export function decisionFromRowForReplay(
-  row: DecisionRow,
-  rollLookup?: Map<string, number[]>,
-  cubeStateLookup?: Map<string, CubeState>
-): Decision | null {
+export function decisionFromRowForReplay(row: DecisionRow): Decision | null {
   const event = row.raw as unknown as GameEvent;
   const review = event.reviews?.[0];
   if (!review) return null;
@@ -225,11 +192,11 @@ export function decisionFromRowForReplay(
         : `${mine} → best: ${best}`,
     myLabel: mine,
     bestLabel: best,
-    roll: rollLookup?.get(`${row.gameId}:${row.eventId}`) ?? event.rolled_dice ?? [],
+    roll: (row.roll as number[] | null) ?? [],
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
-    cubeState: cubeStateLookup?.get(`${row.gameId}:${row.eventId}`) ?? null,
+    cubeState: cubeStateFor(row),
   };
 }
 
@@ -248,16 +215,11 @@ export interface DecisionListRow extends DecisionRow {
 }
 
 // Rows (in display order) -> list items, dropping any row decisionFromRow
-// can't build a board card from. The DB side — fetching the sibling rows
-// `rollLookup` is built from — is lib/decisionQueries.ts's loadDecisionItems.
-export function toDecisionListItems(
-  rows: DecisionListRow[],
-  rollLookup: Map<string, number[]>,
-  cubeStateLookup?: Map<string, CubeState>
-): DecisionListItem[] {
+// can't build a board card from.
+export function toDecisionListItems(rows: DecisionListRow[]): DecisionListItem[] {
   const items: DecisionListItem[] = [];
   for (const row of rows) {
-    const decision = decisionFromRow(row, rollLookup, cubeStateLookup);
+    const decision = decisionFromRow(row);
     if (!decision) continue;
     items.push({
       decision,

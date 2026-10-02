@@ -116,7 +116,32 @@ model Decision {
   // source's position-encoding format — see docs/field-mapping.md's "Ply
   // number" section for the full reasoning.
   plyNumber       Int?
+  // Owner entering this decision, before its own outcome is applied — same
+  // semantics/timing as lib/cubeState.ts's computeCubeStates. Previously
+  // populated only for CUBE-kind rows; widened to every kind (2026-10-02,
+  // see reports/2026-10-02-step5-cube-value-confident-design.md) since
+  // CHECKER/RESIGNATION decisions have a real cube owner too (just not
+  // their own decision about it). Verified the two independent absolute-
+  // owner walks (this one, and computeCubeStates' own internal tracking)
+  // never disagree: 0 mismatches across all 1,257,534 rows.
   cubeOwnerUserId String?       @db.VarChar(191)
+  // Cumulative cube value/confidence entering this decision — the same
+  // computeCubeStates walk lib/decisionFromRow.ts's (now-removed)
+  // buildCubeStateLookup used to re-run at read time, now computed once at
+  // ingest. Nullable only for migration sequencing — every row with a
+  // review always gets a real computed value, no legitimate N/A case.
+  // confident is false for ~21% of rows (measured): mostly because
+  // double_accepted/double_rejected events are often stored with a null
+  // error_analysis and silently dropped (see
+  // EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS in lib/ingest.ts), so a DB-
+  // row-only read can never see the double's resolution. Ingest-time
+  // computation (the full live event stream, before filtering) fixes this
+  // for new data going forward; the backfill script, DB-rows-only by
+  // design (no live Galaxy calls), can't retroactively fix historical
+  // data the same way — see the design report for the full investigation
+  // and the explicit scope decision.
+  cubeValue       Int?
+  cubeConfident   Boolean?
   // GNU Position ID (review.source_position.formatted_value) of the board
   // position this decision was made at. Populated at ingest going forward;
   // backfilled for pre-existing rows by scripts/backfill-source-position-id.ts.
@@ -131,6 +156,21 @@ model Decision {
   // positions.ts) — see reports/2026-10-02-step3-sourcepositionid-column-
   // design.md for the full index-design reasoning.
   sourcePositionId String?      @db.VarChar(191)
+  // The dice roll this decision was made with/under, computed once at
+  // ingest (lib/ingest.ts) via the exact same backward scan
+  // lib/mistakes.ts's findPrecedingRoll already implements (a move_commited
+  // event never carries its own roll; the nearest preceding dice_rolled/
+  // game_started event does) — replacing a read-time re-scan over sibling
+  // rows (lib/decisionFromRow.ts's old buildRollLookup) with a plain column
+  // read. Null for ~2.52% of rows, in three confirmed categories (see
+  // reports/2026-10-02-step4-dice-roll-column-design.md): a game's
+  // genuinely first decision (no roll precedes it at all); a dice_rolled
+  // event's own cube-check review (the backward scan looks past its own
+  // roll by design, a real pre-existing display quirk this column
+  // faithfully replicates rather than silently fixing); and a
+  // RESIGNATION/CUBE decision with no roll associated at all. Backfilled
+  // for pre-existing rows by scripts/backfill-decision-roll.ts.
+  roll            Json?
   notationPlayed  String?
   notationBest    String?
   cubeDetail      String?

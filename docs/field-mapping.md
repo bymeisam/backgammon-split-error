@@ -226,10 +226,12 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `classification` | **`review.source_position.classification` only — never `destination_position`.** The analysis is about the quality of a decision made *at* a position, so the phase that matters is the board state before the move (source), not after (destination); falling back to destination would silently mislabel the decision's phase. If `source_position`/`.classification` is ever actually missing, ingest throws for that one decision (caught, recorded in the ingest summary's `errors`) rather than silently substituting destination. |
 | `sourcePositionId` | `review.source_position.formatted_value` (the GNU Position ID of the board *before* this decision — same source object `classification` reads from, just not hard-failing if missing). Added as a real column (previously re-parsed from `raw` on every read) specifically to replace two unindexed `JSON_EXTRACT` call sites — see `findPositionOccurrences` (`lib/decisionQueries.ts`) and "Collation for externally-sourced identifiers" above, and `reports/2026-10-02-step3-sourcepositionid-column-design.md` for the full before/after measurements (unforced ~28.4s / `FORCE INDEX`-forced ~21.2s / new column+index ~0.3s, same real worst-case literal). Confirmed 100% real-data coverage; nullable only for migration-sequencing reasons, same as `plyNumber`. |
 | `plyNumber` | Not in the payload directly — computed at ingest from `eventId` order alone (see "Ply number" below). `1`-`4` for a game's first four `CHECKER` decisions (by `eventId` ascending), `null` beyond that and always `null` for `CUBE`/`RESIGNATION` kind. |
+| `roll` | Not in the payload directly on *this* event — computed at ingest by walking the game's full event list backward from this one for the nearest preceding `dice_rolled`/`game_started` event's own `rolled_dice` (a checker's own `move_commited` event never carries its roll). Added as a real `Json?` column (previously re-scanned on every read via a now-removed `buildRollLookup`) — see `reports/2026-10-02-step4-dice-roll-column-design.md`. Null for ~2.52% of rows, in three confirmed categories: a game's genuinely first decision; a `dice_rolled` event's own cube-check review (the scan looks past its own roll by design — a real, deliberately-unfixed pre-existing display quirk, not a data gap); a `RESIGNATION`/`CUBE` decision with no roll associated at all. |
 | `matchScoreBlack` | `metadata.scores?.black`, nullable. `metadata.scores` is `null` for money-game-type matches (confirmed against a real match: `scores: null` *and* `match_length: null` together, consistently across every decision in the match) — there's no running match score to report for a match that isn't played to a fixed length. Not a data quality issue, a real category of match the original schema didn't account for. |
 | `matchScoreWhite` | `metadata.scores?.white`, nullable — same reasoning as `matchScoreBlack`. |
 | `crawfordState` | `metadata.crawford_state`. **Investigated and confirmed non-nullable** — even for money-game-type matches (where `scores`/`match_length` are null), `crawford_state` is still always a real string (`"none"` in every case checked, since the Crawford rule doesn't apply outside match play, but it's reported as a normal value rather than omitted). Recorded here so this isn't re-investigated later. |
-| `cubeOwnerUserId` | Not in the payload directly — computed at ingest by walking a game's cube-kind decisions in order: starts `null` (centered), and becomes the taking player's `user_id` after a `cube_pass` review with `take === true`. Reflects who owned the cube *entering* each decision, before that decision's own outcome is applied. `null` for `CHECKER` and `RESIGNATION` kind. |
+| `cubeOwnerUserId` | Not in the payload directly — computed at ingest by walking a game's decisions in order: starts `null` (centered), and becomes the taking player's `user_id` after a `cube_pass` review with `take === true`. Reflects who owned the cube *entering* each decision, before that decision's own outcome is applied. **Widened to every kind (2026-10-02)** — previously only populated for `CUBE` kind; a `CHECKER`/`RESIGNATION` decision has a real cube owner too, just not its own decision about it. See `reports/2026-10-02-step5-cube-value-confident-design.md`. |
+| `cubeValue`/`cubeConfident` | Not in the payload directly — computed at ingest via `lib/cubeState.ts`'s `computeCubeStates`, called once per game (the same walk the old read-time `buildCubeStateLookup`, now removed, used to re-run on every page load; reused directly rather than reimplemented, to avoid silent drift from the already-tested function). `cubeConfident` is `false` for ~21.9% of all rows (measured) — mostly because `double_accepted`/`double_rejected` events are frequently stored with a null `error_analysis` and silently dropped (see "Events skipped via null `error_analysis`" below), so a row-by-row walk can never see that a double was actually resolved. This is a real, confirmed, pre-existing characteristic, not a bug introduced by making this a column — see `reports/2026-10-02-step5-cube-value-confident-design.md` for the full investigation (including a sampling-bias bug caught and fixed mid-investigation) and the explicit scope decision (ingest-time computation fixes this for new data going forward; the backfill script, DB-rows-only by design, inherits the same rate for historical data). `cubeOwnerUserId` keeps its own separate absolute-owner walk rather than `CubeState`'s public shape being widened to also expose one (would've broken ~10 exhaustive `.toEqual()` assertions in `lib/cubeState.test.ts` for no real benefit) — verified directly the two independent walks never disagree: 0 mismatches across all 1,257,534 real rows. |
 | `notationPlayed` | For `CHECKER` kind: the candidate move with `move_played: true`. Null for `CUBE`/`RESIGNATION` kind. |
 | `notationBest` | For `CHECKER` kind: the candidate move with `rank === 1` (falls back to the first move if none has rank 1). Null for `CUBE`/`RESIGNATION` kind. |
 | `cubeDetail` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): a human-readable summary built from `review.double`/`review.take` plus `cube_analysis.doublers_best_action`/`receivers_best_action`. Null for `CHECKER`/`RESIGNATION` kind. |
@@ -417,6 +419,76 @@ redundantly flagged. Left undocumented as a fix target — the existing
 unrecognized-`event_type`/unconfirmed-null-`error_analysis` warnings remain
 the real safety net for catching this (or any other event-type shape) if it
 ever does turn out to drop a row that mattered.
+
+### Null `rawError`: three different behaviors, by design
+
+`rawError`'s own row above documents its nullability (a non-null
+`error_analysis` can still carry a null `raw_error` — a partial/low-
+confidence analysis that grades severity without computing an equity-error
+magnitude). What it doesn't spell out is that the three read paths that
+consume it each treat a null `rawError` differently — a real inconsistency
+across call sites, flagged by the 2026-10-01 raw-field audit
+(`reports/2026-10-01-decision-raw-field-audit.md`, cross-cutting finding
+#2) as worth documenting explicitly rather than leaving buried in three
+separate code comments:
+
+- **`lib/mistakes.ts`'s `extractDecisions`** (live-fetch: `/matches`,
+  `/galaxy/matches`) — **excludes the decision entirely**, from both the PR
+  numerator and denominator. An ungraded decision isn't a zero-error clean
+  play, so it's treated the same as `count_as_decision: false` and an
+  unrecognized `analysed_event`: skipped, not faked as a zero.
+- **`lib/decisionFromRow.ts`'s `decisionFromRow`** (DB-row: `/mistakes`,
+  non-replay) — **drops the row**, returning `null` so the caller filters
+  it out of the list entirely. Same end result as `extractDecisions` (the
+  decision never appears), different mechanism (a row-level `null` return
+  vs. a loop-level `continue`).
+- **`lib/decisionFromRow.ts`'s `decisionFromRowForReplay`** (DB-row:
+  `app/matches/[matchId]/replay/[gameIndex]`) — **keeps the row**, treating
+  a null `rawError` as `absError: 0`. A replay shows the game exactly as
+  played, not a mistake-filtered view, so a row with no review data at all
+  is the only thing that returns `null` here — an ungraded decision still
+  gets a step in the sequence, just with no error to show.
+
+Each behavior is correct for its own view's purpose (a mistake list
+shouldn't show ungraded decisions at all; a replay shouldn't silently skip
+a step in the game). Documented here so the divergence reads as a
+deliberate, audited set of three choices, not an unnoticed inconsistency.
+
+### Two real "unindexed JSON access is slow" incidents
+
+Before `Decision.sourcePositionId` existed as a real column (added
+2026-10-02, see `reports/2026-10-02-step3-sourcepositionid-column-design.md`),
+every read of a decision's board position re-parsed it from `raw` via
+`JSON_EXTRACT`/`JSON_UNQUOTE`, unindexable by MySQL. This produced two real,
+measured incidents — the exact evidence the 2026-10-01 raw-field audit's
+performance heuristic leaned on (cross-cutting finding #5) to recommend
+building the column, flagged at the time as living "only in code comments,
+not in this doc":
+
+- **`lib/recompute-repeated-positions.ts`**: a grouped SQL query (`GROUP BY`
+  the JSON-extracted position, counting occurrences) measured at **341
+  seconds** for just 4 groups, since MySQL had no index on the extracted
+  expression and re-scanned/re-sorted per group. Fixed by dropping the
+  `GROUP BY` entirely in favor of one unaggregated extraction (~2 seconds
+  for ~502k rows) plus in-JS grouping via a plain `Map` — still the current
+  shape even after the column existed, since the column's win there is a
+  cheaper per-row projection, not a different query shape (the query's
+  `WHERE` clause doesn't share a prefix with the new
+  `(sourcePositionId, errorSeverity)` index, so SQL-level grouping still
+  can't be satisfied by an index scan).
+- **`lib/decisionQueries.ts`'s `findPositionOccurrences`**: MySQL's
+  optimizer picked a kind-only index over the composite index that also
+  covered `countAsDecision`/`rawError`/`errorSeverity`, measured at **11.4
+  seconds** unforced vs. **1.2 seconds** with a `FORCE INDEX` hint for the
+  identical query. The hint was the workaround until the column existed;
+  once `sourcePositionId` became a real, indexed column, the hint became
+  fully unnecessary — the new `(sourcePositionId, errorSeverity)` index
+  dominates every other candidate by 2-3 orders of magnitude on the most
+  selective predicate, so the optimizer no longer needs steering (confirmed
+  via real `EXPLAIN` and wall-clock timing: ~0.3 seconds, no hint). The
+  `FORCE INDEX` code and its explaining comment were removed once this was
+  confirmed — this section is where that historical justification now
+  lives instead.
 
 ### The `resignation` decision shape
 
