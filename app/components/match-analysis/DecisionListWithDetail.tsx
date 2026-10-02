@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { resolveSelected } from "@/lib/listSelection";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import DecisionCard from "./DecisionCard";
+import DecisionList from "./DecisionList";
 import MoveDelta from "./MoveDelta";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
@@ -29,6 +31,17 @@ export default function DecisionListWithDetail({
     useListSelection<string | null>(null);
   const selected = resolveSelected(items, selectedId, (i) => i.decision.id);
 
+  // DecisionList's renderDetailCell receives only the plain Decision row
+  // (shared across all three callers), not this component's own
+  // DecisionListItem wrapper — so the classification each row needs for
+  // its optional badge is looked up from this map instead of threaded
+  // through DecisionList itself, keeping that component ignorant of this
+  // caller-specific wrapper shape.
+  const classificationByDecisionId = useMemo(
+    () => new Map(items.map((item) => [item.decision.id, item.classification])),
+    [items]
+  );
+
   if (items.length === 0) {
     return <p className={style.emptyStateText}>No decisions match this filter.</p>;
   }
@@ -49,47 +62,22 @@ export default function DecisionListWithDetail({
       </div>
 
       <div data-testid="mistake-row-list" className={style.listWrapper}>
-        <div className={style.listScroll}>
-          <table className={style.listTable}>
-            <thead>
-              <tr className={style.listHeadRow}>
-                <th className={style.tableCell}>Detail</th>
-                <th className={style.tableCell}>|Error|</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => {
-                const isSelected = item.decision.id === (selected?.decision.id ?? null);
-                return (
-                  <tr
-                    key={item.decision.id}
-                    onClick={() => selectRow(item.decision.id)}
-                    className={style.listRow(isSelected)}
-                  >
-                    <td className={style.listDetailCell}>
-                      <span className={style.listBadgeGroup}>
-                        {item.decision.severity && (
-                          <SeverityBadge type={item.decision.severity} />
-                        )}
-                        {showClassification && (
-                          <ClassificationBadge type={item.classification} />
-                        )}
-                        <MoveDelta
-                          decision={item.decision}
-                          activeTab={isSelected ? moveTab : null}
-                          onSelectTab={(tab) => selectRow(item.decision.id, tab)}
-                        />
-                      </span>
-                    </td>
-                    <td className={style.listErrorCell}>
-                      {item.decision.absError.toFixed(3)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DecisionList
+          rows={items.map((item) => item.decision)}
+          isSelected={(row) => row.id === (selected?.decision.id ?? null)}
+          moveTab={moveTab}
+          onSelectRow={(row, _index, tab) => selectRow(row.id, tab)}
+          showErrorColumn
+          renderDetailCell={(row, activeTab, onSelectTab) => (
+            <span className={style.listBadgeGroup}>
+              {row.severity && <SeverityBadge type={row.severity} />}
+              {showClassification && (
+                <ClassificationBadge type={classificationByDecisionId.get(row.id) ?? ""} />
+              )}
+              <MoveDelta decision={row} activeTab={activeTab} onSelectTab={onSelectTab} />
+            </span>
+          )}
+        />
       </div>
     </div>
   );

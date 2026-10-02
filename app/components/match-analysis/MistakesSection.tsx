@@ -19,8 +19,7 @@ import { useListSelection } from "@/app/hooks/useListSelection";
 import { usePlayerIdentities } from "@/app/hooks/usePlayerIdentities";
 import { useTickSet, type TickSet } from "@/app/hooks/useTickSet";
 import BoardPanel from "./BoardPanel";
-import { DiceRoll } from "./Dice";
-import MoveDelta from "./MoveDelta";
+import DecisionList from "./DecisionList";
 import { style } from "./MistakesSection.styles";
 
 function PRCard({ label, pr, decisionCount }: { label: string; pr: number | null; decisionCount: number }) {
@@ -53,78 +52,21 @@ function MistakeTable({
   const ids = mistakes.map((m) => m.id);
 
   return (
-    <div className={style.mistakeTableWrapper}>
-      <div className={style.mistakeTableHeader}>
-        <h3 className={style.mistakeTableTitle}>{title}</h3>
-        <div className={style.mistakeTableActions}>
-          <button
-            type="button"
-            onClick={() => ticks.setAll(ids, true)}
-            className={style.mistakeTableActionButton}
-          >
-            Select all
-          </button>
-          <button
-            type="button"
-            onClick={() => ticks.setAll(ids, false)}
-            className={style.mistakeTableActionButton}
-          >
-            Select none
-          </button>
-        </div>
-      </div>
-
-      {mistakes.length === 0 ? (
-        <p className={style.mutedText}>No mistakes in this scope.</p>
-      ) : (
-        <div className={style.mistakeTableScroll}>
-          <table className={style.mistakeTable}>
-            <thead>
-              <tr className={style.mistakeTableHeadRow}>
-                <th className={style.mistakeTableCheckboxHeadCell}></th>
-                <th className={style.tableCell}>Roll</th>
-                <th className={style.tableCell}>Detail</th>
-                <th className={style.tableCell}>|Error|</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mistakes.map((m) => (
-                <tr
-                  key={m.id}
-                  onClick={() => onSelectRow(m.id)}
-                  className={style.mistakeRow(m.id === selectedId)}
-                >
-                  <td className={style.tableCell}>
-                    <input
-                      type="checkbox"
-                      checked={ticks.isTicked(m.id)}
-                      onChange={() => ticks.toggle(m.id)}
-                    />
-                  </td>
-                  <td className={style.tableCell}>
-                    {m.roll.length > 0 ? (
-                      <DiceRoll roll={m.roll} size={18} />
-                    ) : (
-                      <span className={style.mistakeTableNoRollText}>—</span>
-                    )}
-                  </td>
-                  <td className={style.mistakeTableDetailCell}>
-                    <MoveDelta
-                      decision={m}
-                      activeTab={m.id === selectedId ? moveTab : null}
-                      onSelectTab={(tab) => onSelectRow(m.id, tab)}
-                    />
-                  </td>
-                  <td className={style.mistakeTableErrorCell}>
-                    {m.absError.toFixed(3)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+    <DecisionList
+      rows={mistakes}
+      title={title}
+      emptyMessage="No mistakes in this scope."
+      isSelected={(row) => row.id === selectedId}
+      moveTab={moveTab}
+      onSelectRow={(row, _index, tab) => onSelectRow(row.id, tab)}
+      showRollColumn
+      rollEmptyPlaceholder={<span className={style.mistakeTableNoRollText}>—</span>}
+      showErrorColumn
+      isChecked={(row) => ticks.isTicked(row.id)}
+      onToggleCheck={(row) => ticks.toggle(row.id)}
+      onSelectAll={() => ticks.setAll(ids, true)}
+      onSelectNone={() => ticks.setAll(ids, false)}
+    />
   );
 }
 

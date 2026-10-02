@@ -1,7 +1,9 @@
-import clsx from "clsx";
-
 // Page-local (see .claude/skills/styling-conventions) — covers
 // page.tsx and GameReplay.tsx, the only components in this route folder.
+// GameReplay's own list/row/table markup moved into DecisionList.styles.ts
+// as part of the 2026-10-03 consolidation of the three decision-list
+// implementations — listWrapper (the [380px]/overflow sizing) stays here,
+// since that stays caller-owned per DecisionList's own design.
 export const style = {
   pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
   main: "flex w-full max-w-7xl flex-col gap-6 px-6 py-12",
@@ -36,23 +38,4 @@ export const style = {
 
   listWrapper:
     "flex w-full flex-col gap-2 lg:max-h-[80vh] lg:w-[380px] lg:shrink-0 lg:overflow-y-auto",
-  listScroll: "overflow-x-auto rounded-lg border border-black/10 dark:border-white/15",
-  listTable: "w-full border-collapse text-left text-sm",
-  listHeadRow:
-    "border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400",
-  // Shared by all 3 head cells (#/Roll/Detail).
-  tableCell: "px-3 py-2",
-
-  // Function, 1 param -> passed directly.
-  listRow: (isSelected: boolean): string =>
-    clsx(
-      "cursor-pointer border-b border-black/5 last:border-b-0 dark:border-white/10",
-      isSelected
-        ? "bg-blue-50 ring-1 ring-inset ring-blue-400 dark:bg-blue-950/40 dark:ring-blue-500"
-        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-    ),
-
-  indexCell: "px-3 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400",
-  rollCell: "px-3 py-2",
-  listDetailCell: "px-3 py-2 font-mono text-xs",
 } as const;

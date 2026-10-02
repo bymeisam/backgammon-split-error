@@ -1,39 +1,14 @@
-import clsx from "clsx";
-
 // Page-local to this shared component (see .claude/skills/styling-conventions)
-// — covers MistakesSection.tsx's own markup and its exclusive
-// subcomponents MistakeTable and PRCard (same file, used nowhere else).
-// MoveDelta and Dice are shared leaves with their own styles files.
+// — covers MistakesSection.tsx's own markup and its exclusive subcomponent
+// PRCard (same file, used nowhere else). MoveDelta/Dice/DecisionList are
+// shared leaves with their own styles files — MistakeTable's row/table
+// markup moved into DecisionList.styles.ts as part of the 2026-10-03
+// consolidation of the three decision-list implementations; only the
+// Roll column's empty-state span (mistakeTableNoRollText, passed as
+// DecisionList's rollEmptyPlaceholder prop) stays here, since it's a
+// MistakesSection-specific choice, not shared with the other two callers.
 export const style = {
-  // MistakeTable subcomponent.
-  mistakeTableWrapper: "flex flex-col gap-2",
-  mistakeTableHeader: "flex items-center justify-between",
-  mistakeTableTitle: "text-sm font-semibold text-black dark:text-zinc-50",
-  mistakeTableActions: "flex gap-2 text-xs",
-  // Shared by both "Select all" and "Select none" — identical treatment.
-  mistakeTableActionButton:
-    "text-zinc-600 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
-  mistakeTableScroll: "overflow-x-auto rounded-lg border border-black/10 dark:border-white/15",
-  mistakeTable: "w-full border-collapse text-left text-sm",
-  mistakeTableHeadRow:
-    "border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400",
-  mistakeTableCheckboxHeadCell: "w-8 px-3 py-2",
-  // Shared by every other head/body cell that's just basic padding with no
-  // other distinguishing style — 3 head cells (Roll/Detail/|Error|) plus
-  // the checkbox and roll body cells.
-  tableCell: "px-3 py-2",
   mistakeTableNoRollText: "text-xs text-zinc-400 dark:text-zinc-600",
-  mistakeTableDetailCell: "px-3 py-2 font-mono text-xs",
-  mistakeTableErrorCell: "px-3 py-2 font-mono text-xs text-black dark:text-zinc-100",
-
-  // Function, 1 param -> passed directly.
-  mistakeRow: (isSelected: boolean): string =>
-    clsx(
-      "cursor-pointer border-b border-black/5 last:border-b-0 dark:border-white/10",
-      isSelected
-        ? "bg-blue-50 ring-1 ring-inset ring-blue-400 dark:bg-blue-950/40 dark:ring-blue-500"
-        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-    ),
 
   // MistakesSection's own top-level markup.
   sectionWrapper: "flex flex-col gap-6 border-t border-black/10 pt-8 dark:border-white/15",

@@ -6,8 +6,7 @@ import Link from "next/link";
 import type { Decision } from "@/lib/mistakes";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
-import MoveDelta from "@/app/components/match-analysis/MoveDelta";
-import { DiceRoll } from "@/app/components/match-analysis/Dice";
+import DecisionList from "@/app/components/match-analysis/DecisionList";
 import { style } from "./gameReplay.styles";
 
 // List + single-detail split, same interaction pattern as
@@ -153,38 +152,15 @@ export default function GameReplay({
       </div>
 
       <div className={style.listWrapper}>
-        <div className={style.listScroll}>
-          <table className={style.listTable}>
-            <thead>
-              <tr className={style.listHeadRow}>
-                <th className={style.tableCell}>#</th>
-                <th className={style.tableCell}>Roll</th>
-                <th className={style.tableCell}>Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {decisions.map((d, index) => (
-                <tr
-                  key={d.id}
-                  onClick={() => selectRow(index)}
-                  className={style.listRow(index === selectedIndex)}
-                >
-                  <td className={style.indexCell}>{index + 1}</td>
-                  <td className={style.rollCell}>
-                    <DiceRoll roll={d.roll} size={16} />
-                  </td>
-                  <td className={style.listDetailCell}>
-                    <MoveDelta
-                      decision={d}
-                      activeTab={index === selectedIndex ? moveTab : null}
-                      onSelectTab={(tab) => selectRow(index, tab)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DecisionList
+          rows={decisions}
+          isSelected={(_row, index) => index === selectedIndex}
+          moveTab={moveTab}
+          onSelectRow={(_row, index, tab) => selectRow(index, tab)}
+          showIndexColumn
+          showRollColumn
+          rollDiceSize={16}
+        />
       </div>
     </div>
   );
