@@ -14,9 +14,11 @@
 // these exact rows (opponent name anonymized), not re-derived or
 // hand-typed, so field values match what the app itself would have
 // produced via lib/ingest.ts — except sourcePositionId/roll/cubeOwnerUserId/
-// cubeValue/cubeConfident, added after the fact (2026-10-02) once those
-// became real columns: computed directly from each row's own raw/sibling
-// context, not hand-typed either.
+// cubeValue/cubeConfident/cubeActionPlayed/cubeActionBest, added after the
+// fact (2026-10-02) once those became real columns (or, for
+// movePlayed/moveBest, renamed from notationPlayed/notationBest, same
+// date): computed directly from each row's own raw/sibling context, not
+// hand-typed either.
 //
 // Standalone by design: builds its own MySQL connection directly from
 // .env.test rather than importing lib/prisma.ts (which throws at import

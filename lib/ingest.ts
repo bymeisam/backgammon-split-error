@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { createGalaxyClient } from "@/lib/galaxy-client";
 import { DecisionKind, ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
 import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
-import { findPrecedingRoll } from "@/lib/mistakes";
+import { actionLabels, findPrecedingRoll } from "@/lib/mistakes";
 import { computeCubeStates } from "@/lib/cubeState";
 
 // How many of a game's own CHECKER decisions get a plyNumber at all —
@@ -149,27 +149,10 @@ function moveNotations(review: Review): { played: string | null; best: string | 
   return { played: played?.notation ?? null, best: best?.notation ?? null };
 }
 
-// Only ever reads cube_analysis for the two event types that actually carry
-// it — never as a fallback/else, since "resignation" (and any other future
-// analysed_event) has no cube_analysis at all and would crash on one.
-function buildCubeDetail(review: Review): string | null {
-  if (review.result.analysed_event !== "cube_double" && review.result.analysed_event !== "cube_pass") {
-    return null;
-  }
-  const cube = review.result.result.cube_analysis;
-
-  if (review.result.analysed_event === "cube_double") {
-    const mine = review.double ? "doubled" : "did not double";
-    return `${mine} — best: ${cube.doublers_best_action.replace(/_/g, " ")}`;
-  }
-
-  const mine = review.take ? "took" : "passed";
-  return `${mine} — best: ${cube.receivers_best_action.replace(/_/g, " ")}`;
-}
-
 // Resignation-only fields (resign_error/should_resign/resignation_type/
 // equity_before/equity_after) — null for every other kind, same convention
-// as notationPlayed/notationBest/cubeDetail being null outside their kind.
+// as movePlayed/moveBest/cubeActionPlayed/cubeActionBest being null outside
+// their kind.
 function buildResignationDetail(review: Review): {
   resignError: number | null;
   shouldResign: boolean | null;
@@ -443,6 +426,15 @@ export async function ingestMatch(
         const cubeValue = cubeState?.value ?? null;
         const cubeConfident = cubeState?.confident ?? null;
 
+        // The same mine/best short labels lib/mistakes.ts's actionLabels()
+        // already computes at read time for display — reused directly
+        // (not reimplemented) rather than the old bespoke buildCubeDetail,
+        // which composed the same two raw fields into one string. Gated to
+        // CUBE kind only — RESIGNATION's own labels deliberately stay
+        // read-time-computed, no column (see Decision.cubeActionPlayed's
+        // schema comment / reports/2026-10-02-raw-field-reverification.md).
+        const cubeLabels = kind === DecisionKind.CUBE ? actionLabels(review) : null;
+
         const { played, best } = moveNotations(review);
         const resignation = buildResignationDetail(review);
         const timestamp = new Date(metadata.timestamp);
@@ -457,7 +449,6 @@ export async function ingestMatch(
           countAsDecision: metadata.count_as_decision,
           rawError: errorAnalysis.raw_error,
           errorSeverity: mapSeverity(errorAnalysis.error_severity),
-          isBlunder: errorAnalysis.is_blunder,
           luck: errorAnalysis.luck,
           luckMwc: errorAnalysis.luck_mwc,
           equity: review.result.result.equity,
@@ -483,9 +474,10 @@ export async function ingestMatch(
           cubeOwnerUserId,
           cubeValue,
           cubeConfident,
-          notationPlayed: played,
-          notationBest: best,
-          cubeDetail: buildCubeDetail(review),
+          movePlayed: played,
+          moveBest: best,
+          cubeActionPlayed: cubeLabels?.mine ?? null,
+          cubeActionBest: cubeLabels?.best ?? null,
           resignError: resignation.resignError,
           shouldResign: resignation.shouldResign,
           resignationType: resignation.resignationType,

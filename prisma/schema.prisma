@@ -28,9 +28,9 @@ enum IngestStatus {
 }
 
 model Match {
-  id              Int       @id @default(autoincrement())
+  id              Int          @id @default(autoincrement())
   source          String
-  sourceMatchId   String @db.VarChar(191)
+  sourceMatchId   String       @db.VarChar(191)
   matchLength     Int?
   opponentName    String
   opponentCountry String
@@ -41,7 +41,7 @@ model Match {
   userRating      Float
   userScore       Int
   playedAt        DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime     @default(now())
   ingestStatus    IngestStatus @default(PENDING)
   ingestError     String?      @db.Text
 
@@ -64,7 +64,7 @@ model SyncRun {
 model PlayerIdentity {
   id           Int     @id @default(autoincrement())
   source       String
-  sourceUserId String @db.VarChar(191)
+  sourceUserId String  @db.VarChar(191)
   displayName  String
   isMe         Boolean @default(true)
 
@@ -84,26 +84,29 @@ model Game {
 }
 
 model Decision {
-  id              Int           @id @default(autoincrement())
-  gameId          Int
-  game            Game          @relation(fields: [gameId], references: [id])
-  eventId         BigInt
-  userId          String        @db.VarChar(191)
-  color           String
-  kind            DecisionKind
-  analysedEvent   String
-  countAsDecision Boolean
-  rawError        Float?
-  errorSeverity   ErrorSeverity
-  isBlunder       Boolean
-  luck            Float?
-  luckMwc         Float?
-  equity          Float?
-  mwc             Float?
-  classification  String
-  matchScoreBlack Int?
-  matchScoreWhite Int?
-  crawfordState   String
+  id               Int           @id @default(autoincrement())
+  gameId           Int
+  game             Game          @relation(fields: [gameId], references: [id])
+  eventId          BigInt
+  userId           String        @db.VarChar(191)
+  color            String
+  kind             DecisionKind
+  analysedEvent    String
+  countAsDecision  Boolean
+  rawError         Float?
+  errorSeverity    ErrorSeverity
+  // isBlunder was dropped 2026-10-02 (reports/2026-10-02-raw-field-
+  // reverification.md) — confirmed 100% redundant with errorSeverity ===
+  // 'BLUNDER' (0 mismatches across 371 real rows), and never read anywhere
+  // (write-only). Use errorSeverity instead.
+  luck             Float?
+  luckMwc          Float?
+  equity           Float?
+  mwc              Float?
+  classification   String
+  matchScoreBlack  Int?
+  matchScoreWhite  Int?
+  crawfordState    String
   // Ordinal position among this game's own CHECKER decisions, ordered by
   // eventId ascending: 1 for the first, 2 for the second, etc., up to 4 —
   // null beyond that (deeper plies aren't a useful filter dimension). Always
@@ -115,7 +118,7 @@ model Decision {
   // ply position is a universal concept independent of any one data
   // source's position-encoding format — see docs/field-mapping.md's "Ply
   // number" section for the full reasoning.
-  plyNumber       Int?
+  plyNumber        Int?
   // Owner entering this decision, before its own outcome is applied — same
   // semantics/timing as lib/cubeState.ts's computeCubeStates. Previously
   // populated only for CUBE-kind rows; widened to every kind (2026-10-02,
@@ -124,7 +127,7 @@ model Decision {
   // their own decision about it). Verified the two independent absolute-
   // owner walks (this one, and computeCubeStates' own internal tracking)
   // never disagree: 0 mismatches across all 1,257,534 rows.
-  cubeOwnerUserId String?       @db.VarChar(191)
+  cubeOwnerUserId  String?       @db.VarChar(191)
   // Cumulative cube value/confidence entering this decision — the same
   // computeCubeStates walk lib/decisionFromRow.ts's (now-removed)
   // buildCubeStateLookup used to re-run at read time, now computed once at
@@ -140,8 +143,8 @@ model Decision {
   // design (no live Galaxy calls), can't retroactively fix historical
   // data the same way — see the design report for the full investigation
   // and the explicit scope decision.
-  cubeValue       Int?
-  cubeConfident   Boolean?
+  cubeValue        Int?
+  cubeConfident    Boolean?
   // GNU Position ID (review.source_position.formatted_value) of the board
   // position this decision was made at. Populated at ingest going forward;
   // backfilled for pre-existing rows by scripts/backfill-source-position-id.ts.
@@ -155,7 +158,7 @@ model Decision {
   // decisionQueries.ts's findPositionOccurrences, lib/recompute-repeated-
   // positions.ts) — see reports/2026-10-02-step3-sourcepositionid-column-
   // design.md for the full index-design reasoning.
-  sourcePositionId String?      @db.VarChar(191)
+  sourcePositionId String?       @db.VarChar(191)
   // The dice roll this decision was made with/under, computed once at
   // ingest (lib/ingest.ts) via the exact same backward scan
   // lib/mistakes.ts's findPrecedingRoll already implements (a move_commited
@@ -170,18 +173,31 @@ model Decision {
   // faithfully replicates rather than silently fixing); and a
   // RESIGNATION/CUBE decision with no roll associated at all. Backfilled
   // for pre-existing rows by scripts/backfill-decision-roll.ts.
-  roll            Json?
-  notationPlayed  String?
-  notationBest    String?
-  cubeDetail      String?
-  resignError     Float?
-  shouldResign    Boolean?
-  resignationType String?
-  equityBefore    Float?
-  equityAfter     Float?
-  timestamp       DateTime
-  myTag           String?
-  raw             Json
+  roll             Json?
+  // For CHECKER kind: the played/best candidate move's own notation string
+  // (review.result.result.moves[], filtered by .move_played / .rank === 1).
+  // Renamed from notationPlayed/notationBest 2026-10-02 for parallel naming
+  // with cubeActionPlayed/cubeActionBest below (reports/2026-10-02-raw-
+  // field-reverification.md) — same values, same derivation, name only.
+  movePlayed       String?
+  moveBest         String?
+  // For CUBE kind: the same mine/best short labels lib/mistakes.ts's
+  // actionLabels() computes at read time for display (e.g. "doubled"/
+  // "double"), stored once at ingest instead — replaces cubeDetail (a
+  // single composed display string, confirmed 2026-10-02 never rendered
+  // anywhere) with a column pair parallel to movePlayed/moveBest. RESIGNATION
+  // kind deliberately excluded — stays read-time-computed via actionLabels(),
+  // no column (reports/2026-10-02-raw-field-reverification.md).
+  cubeActionPlayed String?
+  cubeActionBest   String?
+  resignError      Float?
+  shouldResign     Boolean?
+  resignationType  String?
+  equityBefore     Float?
+  equityAfter      Float?
+  timestamp        DateTime
+  myTag            String?
+  raw              Json
 
   @@unique([gameId, eventId])
   @@index([kind, classification])

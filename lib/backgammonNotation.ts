@@ -49,7 +49,8 @@ export function mirrorSubMoves(subMoves: ParsedSubMove[]): ParsedSubMove[] {
 // own anchored single-hop case but fail the regex entirely once a second
 // "/" appeared — silently dropping the whole token, no arrow drawn for
 // either hop. Confirmed against real data: ~1.55% of CHECKER decisions
-// have at least one chained token (notationPlayed and/or notationBest),
+// have at least one chained token (movePlayed and/or moveBest, renamed
+// from notationPlayed/notationBest 2026-10-02),
 // almost all 2-hop but real 3- and 4-hop examples exist too (PROGRESS.md,
 // 2026-10-01) — so this walks the chain generically rather than special-
 // casing 2 hops. Each hop becomes its own ParsedSubMove (its own anchor,

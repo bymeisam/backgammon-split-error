@@ -40,7 +40,6 @@
       "countAsDecision": false,
       "rawError": 0,
       "errorSeverity": "NONE",
-      "isBlunder": false,
       "luck": 0,
       "luckMwc": null,
       "equity": -0.0231,
@@ -50,9 +49,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": null,
-      "notationBest": null,
-      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -157,7 +153,11 @@
       "sourcePositionId": "4HPkASjgc/ABMA",
       "roll": null,
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": null,
+      "moveBest": null,
+      "cubeActionPlayed": "did not double",
+      "cubeActionBest": "roll"
     },
     {
       "id": 1205322,
@@ -170,7 +170,6 @@
       "countAsDecision": true,
       "rawError": -0.0149,
       "errorSeverity": "DOUBTFUL",
-      "isBlunder": false,
       "luck": -0.130745,
       "luckMwc": -0.009672,
       "equity": -0.1472,
@@ -180,9 +179,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": "24/23 13/11",
-      "notationBest": "24/21",
-      "cubeDetail": null,
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -421,7 +417,11 @@
         1
       ],
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": "24/23 13/11",
+      "moveBest": "24/21",
+      "cubeActionPlayed": null,
+      "cubeActionBest": null
     },
     {
       "id": 1205329,
@@ -434,7 +434,6 @@
       "countAsDecision": false,
       "rawError": 0,
       "errorSeverity": "NONE",
-      "isBlunder": false,
       "luck": 0,
       "luckMwc": null,
       "equity": -0.7039,
@@ -444,9 +443,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": null,
-      "notationBest": null,
-      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -554,7 +550,11 @@
         1
       ],
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": null,
+      "moveBest": null,
+      "cubeActionPlayed": "did not double",
+      "cubeActionBest": "roll"
     },
     {
       "id": 1205330,
@@ -567,7 +567,6 @@
       "countAsDecision": true,
       "rawError": 0,
       "errorSeverity": "NONE",
-      "isBlunder": false,
       "luck": -0.092328,
       "luckMwc": -0.00683,
       "equity": -0.5373,
@@ -577,9 +576,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": "23/14*",
-      "notationBest": "23/14*",
-      "cubeDetail": null,
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -818,7 +814,11 @@
         4
       ],
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": "23/14*",
+      "moveBest": "23/14*",
+      "cubeActionPlayed": null,
+      "cubeActionBest": null
     },
     {
       "id": 1205409,
@@ -831,7 +831,6 @@
       "countAsDecision": false,
       "rawError": 0,
       "errorSeverity": "NONE",
-      "isBlunder": false,
       "luck": 0,
       "luckMwc": null,
       "equity": -0.1495,
@@ -841,9 +840,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": null,
-      "notationBest": null,
-      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -948,7 +944,11 @@
       "sourcePositionId": "4NuRASjg88gBSA",
       "roll": null,
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": null,
+      "moveBest": null,
+      "cubeActionPlayed": "did not double",
+      "cubeActionBest": "roll"
     },
     {
       "id": 1205410,
@@ -961,7 +961,6 @@
       "countAsDecision": true,
       "rawError": -0.0277,
       "errorSeverity": "ERROR",
-      "isBlunder": false,
       "luck": 0.250984,
       "luckMwc": 0.021596,
       "equity": -0.05,
@@ -971,9 +970,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": "bar/22 23/20 8/5(2)",
-      "notationBest": "bar/22 11/5 8/5",
-      "cubeDetail": null,
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -1216,7 +1212,11 @@
         3
       ],
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": "bar/22 23/20 8/5(2)",
+      "moveBest": "bar/22 11/5 8/5",
+      "cubeActionPlayed": null,
+      "cubeActionBest": null
     },
     {
       "id": 1205437,
@@ -1229,7 +1229,6 @@
       "countAsDecision": true,
       "rawError": -0.0441,
       "errorSeverity": "ERROR",
-      "isBlunder": false,
       "luck": 0,
       "luckMwc": null,
       "equity": 0.631,
@@ -1239,9 +1238,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": null,
-      "notationBest": null,
-      "cubeDetail": "did not double — best: double",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -1349,7 +1345,11 @@
         3
       ],
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": null,
+      "moveBest": null,
+      "cubeActionPlayed": "did not double",
+      "cubeActionBest": "double"
     },
     {
       "id": 1205438,
@@ -1362,7 +1362,6 @@
       "countAsDecision": true,
       "rawError": -0.0206,
       "errorSeverity": "ERROR",
-      "isBlunder": false,
       "luck": -0.019015,
       "luckMwc": -0.001636,
       "equity": 0.3575,
@@ -1372,9 +1371,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "none",
       "cubeOwnerUserId": null,
-      "notationPlayed": "10/4 8/4",
-      "notationBest": "20/16 20/14",
-      "cubeDetail": null,
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -1613,7 +1609,11 @@
         4
       ],
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": "10/4 8/4",
+      "moveBest": "20/16 20/14",
+      "cubeActionPlayed": null,
+      "cubeActionBest": null
     },
     {
       "id": 1205571,
@@ -1626,7 +1626,6 @@
       "countAsDecision": false,
       "rawError": 0,
       "errorSeverity": "NONE",
-      "isBlunder": false,
       "luck": 0,
       "luckMwc": null,
       "equity": -0.9846,
@@ -1636,9 +1635,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "crawford",
       "cubeOwnerUserId": null,
-      "notationPlayed": null,
-      "notationBest": null,
-      "cubeDetail": "did not double — best: roll",
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -1743,7 +1739,11 @@
       "sourcePositionId": "7wAAAGbvAAAAAA",
       "roll": null,
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": null,
+      "moveBest": null,
+      "cubeActionPlayed": "did not double",
+      "cubeActionBest": "roll"
     },
     {
       "id": 1205572,
@@ -1756,7 +1756,6 @@
       "countAsDecision": true,
       "rawError": -0.0004,
       "errorSeverity": "DOUBTFUL",
-      "isBlunder": false,
       "luck": 0,
       "luckMwc": 0,
       "equity": -0.9944,
@@ -1766,9 +1765,6 @@
       "matchScoreWhite": 2,
       "crawfordState": "crawford",
       "cubeOwnerUserId": null,
-      "notationPlayed": "6/3 2/off",
-      "notationBest": "4/1 2/off",
-      "cubeDetail": null,
       "resignError": null,
       "shouldResign": null,
       "resignationType": null,
@@ -2007,7 +2003,11 @@
         2
       ],
       "cubeValue": 1,
-      "cubeConfident": true
+      "cubeConfident": true,
+      "movePlayed": "6/3 2/off",
+      "moveBest": "4/1 2/off",
+      "cubeActionPlayed": null,
+      "cubeActionBest": null
     }
   ]
 }

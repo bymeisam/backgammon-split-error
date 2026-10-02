@@ -218,7 +218,7 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `countAsDecision` | `metadata.count_as_decision` |
 | `rawError` | `error_analysis.raw_error`, unmodified (not absolute-valued — the app layer takes `Math.abs()` where it needs magnitude). **Nullable** — confirmed against real data (match `32699544`): some events have a non-null `error_analysis` (real `error_severity`/`is_blunder`/`luck` values) but a null `raw_error` — `analysis_level: 1`, `error_severity: "doubtful"`, `event_type: "dice_rolled"` paired with `analysed_event: "cube_double"` — a partial/low-confidence analysis that grades severity without computing an equity-error magnitude. `lib/mistakes.ts`'s `extractDecisions` excludes `rawError: null` decisions entirely from PR (both numerator and denominator) — same treatment as `count_as_decision: false` and an unrecognized `analysed_event` — rather than letting `Math.abs(null)` silently coerce to `0` and count an ungraded decision as a zero-error clean play. |
 | `errorSeverity` | `error_analysis.error_severity`, mapped from the payload's lowercase string to the `NONE`/`DOUBTFUL`/`ERROR`/`BLUNDER` enum. |
-| `isBlunder` | `error_analysis.is_blunder` |
+| ~~`isBlunder`~~ | **Dropped 2026-10-02** (`reports/2026-10-02-raw-field-reverification.md`) — confirmed 100% redundant with `errorSeverity === 'BLUNDER'` (0 mismatches across 371 real rows checked) and never read anywhere (write-only). Use `errorSeverity` instead. |
 | `luck` | `error_analysis.luck` |
 | `luckMwc` | `error_analysis.luck_mwc` |
 | `equity` | `result.result.equity` (the decision-level equity, not a per-candidate-move one). |
@@ -232,9 +232,9 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `crawfordState` | `metadata.crawford_state`. **Investigated and confirmed non-nullable** — even for money-game-type matches (where `scores`/`match_length` are null), `crawford_state` is still always a real string (`"none"` in every case checked, since the Crawford rule doesn't apply outside match play, but it's reported as a normal value rather than omitted). Recorded here so this isn't re-investigated later. |
 | `cubeOwnerUserId` | Not in the payload directly — computed at ingest by walking a game's decisions in order: starts `null` (centered), and becomes the taking player's `user_id` after a `cube_pass` review with `take === true`. Reflects who owned the cube *entering* each decision, before that decision's own outcome is applied. **Widened to every kind (2026-10-02)** — previously only populated for `CUBE` kind; a `CHECKER`/`RESIGNATION` decision has a real cube owner too, just not its own decision about it. See `reports/2026-10-02-step5-cube-value-confident-design.md`. |
 | `cubeValue`/`cubeConfident` | Not in the payload directly — computed at ingest via `lib/cubeState.ts`'s `computeCubeStates`, called once per game (the same walk the old read-time `buildCubeStateLookup`, now removed, used to re-run on every page load; reused directly rather than reimplemented, to avoid silent drift from the already-tested function). `cubeConfident` is `false` for ~21.9% of all rows (measured) — mostly because `double_accepted`/`double_rejected` events are frequently stored with a null `error_analysis` and silently dropped (see "Events skipped via null `error_analysis`" below), so a row-by-row walk can never see that a double was actually resolved. This is a real, confirmed, pre-existing characteristic, not a bug introduced by making this a column — see `reports/2026-10-02-step5-cube-value-confident-design.md` for the full investigation (including a sampling-bias bug caught and fixed mid-investigation) and the explicit scope decision (ingest-time computation fixes this for new data going forward; the backfill script, DB-rows-only by design, inherits the same rate for historical data). `cubeOwnerUserId` keeps its own separate absolute-owner walk rather than `CubeState`'s public shape being widened to also expose one (would've broken ~10 exhaustive `.toEqual()` assertions in `lib/cubeState.test.ts` for no real benefit) — verified directly the two independent walks never disagree: 0 mismatches across all 1,257,534 real rows. |
-| `notationPlayed` | For `CHECKER` kind: the candidate move with `move_played: true`. Null for `CUBE`/`RESIGNATION` kind. |
-| `notationBest` | For `CHECKER` kind: the candidate move with `rank === 1` (falls back to the first move if none has rank 1). Null for `CUBE`/`RESIGNATION` kind. |
-| `cubeDetail` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): a human-readable summary built from `review.double`/`review.take` plus `cube_analysis.doublers_best_action`/`receivers_best_action`. Null for `CHECKER`/`RESIGNATION` kind. |
+| `movePlayed` | For `CHECKER` kind: the candidate move with `move_played: true`. Null for `CUBE`/`RESIGNATION` kind. **Renamed from `notationPlayed` 2026-10-02** (`reports/2026-10-02-raw-field-reverification.md`) for parallel naming with `cubeActionPlayed`/`cubeActionBest` below — same values, same derivation, name only (the rename migration preserved all existing data via `CHANGE COLUMN`, not a drop+recreate). |
+| `moveBest` | For `CHECKER` kind: the candidate move with `rank === 1` (falls back to the first move if none has rank 1). Null for `CUBE`/`RESIGNATION` kind. Renamed from `notationBest`, same as `movePlayed` above. |
+| `cubeActionPlayed`/`cubeActionBest` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): the same `mine`/`best` short labels `lib/mistakes.ts`'s `actionLabels()` computes at read time for display (e.g. `"doubled"`/`"double"`), now stored once at ingest instead of recomputed on every read. **Replaces the old `cubeDetail` column** (a single composed display string, confirmed 2026-10-02 never rendered anywhere) with a column pair parallel to `movePlayed`/`moveBest`. `RESIGNATION` kind's own labels deliberately excluded from this treatment — stays read-time-computed via `actionLabels()`, no column (a scope decision, not an oversight). Null for `CHECKER`/`RESIGNATION` kind. |
 | `resignError` | For `RESIGNATION` kind: `result.result.resign_error`. Null otherwise. |
 | `shouldResign` | For `RESIGNATION` kind: `result.result.should_resign`. Null otherwise. |
 | `resignationType` | For `RESIGNATION` kind: `result.result.resignation_type` — **confirmed nullable even for `RESIGNATION` rows**, not just absent for other kinds (seen `null` on a real blunder-severity resignation, match `2856675` event `440889365`). Null for other kinds too. |
@@ -506,13 +506,13 @@ were all present but `null` — confirmed genuinely nullable, not assumed
 always-populated just because they're resignation-specific fields (only
 `resign_error`/`should_resign` were non-null in the one case checked).
 
-The general fields (`rawError`, `errorSeverity`, `isBlunder`, `luck`,
-`luckMwc`, `equity`, `mwc`, `classification`, `matchScoreBlack`/`White`,
+The general fields (`rawError`, `errorSeverity`, `luck`, `luckMwc`,
+`equity`, `mwc`, `classification`, `matchScoreBlack`/`White`,
 `crawfordState`, `timestamp`) come from `error_analysis`/`metadata`/
 `probabilities`, same as every other kind — no special-casing needed there.
-Only the cube-specific (`cubeDetail`) and resignation-specific
-(`resignError`/`shouldResign`/`resignationType`/`equityBefore`/
-`equityAfter`) fields are kind-gated.
+Only the cube-specific (`cubeActionPlayed`/`cubeActionBest`) and
+resignation-specific (`resignError`/`shouldResign`/`resignationType`/
+`equityBefore`/`equityAfter`) fields are kind-gated.
 
 **RESIGNATION decisions are excluded from checker/cube PR calculations.**
 `lib/mistakes.ts`'s checker/cube PR buckets are built by filtering on

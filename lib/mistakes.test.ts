@@ -23,7 +23,6 @@ function d(id: string, overrides: Partial<Decision> = {}): Decision {
     absError: 0,
     isMistake: false,
     severity: null,
-    detail: "",
     myLabel: "",
     bestLabel: "",
     roll: [],

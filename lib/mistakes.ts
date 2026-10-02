@@ -51,7 +51,6 @@ export interface Decision {
   absError: number;
   isMistake: boolean;
   severity: Severity | null;
-  detail: string;
   myLabel: string;
   bestLabel: string;
   roll: number[];
@@ -116,13 +115,6 @@ export function actionLabels(review: Review): { mine: string; best: string } {
 
   const mine = review.take ? "took" : "passed";
   return { mine, best: formatCubeAction(cube.receivers_best_action) };
-}
-
-function buildDetail(review: Review): string {
-  const { mine, best } = actionLabels(review);
-  return review.result.analysed_event === "move"
-    ? `played ${mine} → best ${best}`
-    : `${mine} → best: ${best}`;
 }
 
 // Exported for lib/decisionFromRow.ts, which builds a Decision straight
@@ -244,7 +236,6 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         absError,
         isMistake,
         severity: severityFromErrorSeverity(review.result.result.error_analysis.error_severity),
-        detail: buildDetail(review),
         myLabel: labels.mine,
         bestLabel: labels.best,
         // Cube decisions are made before any roll; checker decisions pull the

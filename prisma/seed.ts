@@ -181,10 +181,16 @@ function lerpScore(start: number, end: number, i: number, total: number): number
   return Math.round(start + ((end - start) * i) / (total - 1));
 }
 
-function cubeDetailFor(recipe: DecisionRecipe): string {
-  const mine = recipe.cubeDoubled ? "doubled" : "did not double";
-  const best = recipe.doublersBestAction?.replace(/_/g, " ") ?? "";
-  return `${mine} — best: ${best}`;
+// Only ever builds cube_double-shaped recipes (no cube_pass ones in this
+// fake-data set) — mirrors lib/mistakes.ts's actionLabels() cube_double
+// branch, split into the two columns (cubeActionPlayed/cubeActionBest)
+// that replaced the old single composed cubeDetail string (2026-10-02, see
+// reports/2026-10-02-raw-field-reverification.md).
+function cubeActionLabelsFor(recipe: DecisionRecipe): { played: string; best: string | null } {
+  return {
+    played: recipe.cubeDoubled ? "doubled" : "did not double",
+    best: recipe.doublersBestAction?.replace(/_/g, " ") ?? null,
+  };
 }
 
 function buildRawEvent(params: {
@@ -443,7 +449,6 @@ async function main() {
           countAsDecision: true,
           rawError: recipe.rawError,
           errorSeverity: recipe.severity,
-          isBlunder: recipe.severity === ErrorSeverity.BLUNDER,
           luck: null,
           luckMwc: null,
           equity: recipe.rawError === 0 ? 0.5 : 0.5 - recipe.rawError,
@@ -454,9 +459,10 @@ async function main() {
           matchScoreWhite,
           crawfordState: recipe.crawfordState,
           cubeOwnerUserId: recipe.kind === DecisionKind.CUBE ? YOU_USER_ID : null,
-          notationPlayed: recipe.notationPlayed,
-          notationBest: recipe.notationBest,
-          cubeDetail: recipe.kind === DecisionKind.CUBE ? cubeDetailFor(recipe) : null,
+          movePlayed: recipe.notationPlayed,
+          moveBest: recipe.notationBest,
+          cubeActionPlayed: recipe.kind === DecisionKind.CUBE ? cubeActionLabelsFor(recipe).played : null,
+          cubeActionBest: recipe.kind === DecisionKind.CUBE ? cubeActionLabelsFor(recipe).best : null,
           timestamp,
           myTag: null,
           raw,

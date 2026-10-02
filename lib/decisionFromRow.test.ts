@@ -26,11 +26,16 @@ function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
     // Real values for this fixture's own event — confirmed matching what
     // moveNotations(review) would derive from it (the column/raw-parse
     // equivalence this project verified directly before switching, 2026-10-01).
-    notationPlayed: "24/18",
-    notationBest: "24/18",
+    movePlayed: "24/18",
+    moveBest: "24/18",
+    // CUBE-kind-only columns — irrelevant for this CHECKER-kind default row,
+    // but present since every DecisionRow has them (null outside CUBE kind,
+    // same convention movePlayed/moveBest use outside CHECKER kind).
+    cubeActionPlayed: null,
+    cubeActionBest: null,
     // Real value for this fixture's own event (reviews[0].source_position.
     // formatted_value) — same "column, not re-parsed raw" equivalence
-    // confirmed for notationPlayed/notationBest above.
+    // confirmed for movePlayed/moveBest above.
     sourcePositionId: "4HPwATDgc/ABMA",
     roll: [6, 2],
     cubeOwnerUserId: null,
@@ -56,8 +61,10 @@ function baseRow(overrides: Partial<DecisionRow> = {}): DecisionRow {
     kind: "CHECKER",
     rawError: -0.12,
     errorSeverity: "BLUNDER",
-    notationPlayed: "24/18",
-    notationBest: "24/18",
+    movePlayed: "24/18",
+    moveBest: "24/18",
+    cubeActionPlayed: null,
+    cubeActionBest: null,
     sourcePositionId: "4HPwATDgc/ABMA",
     roll: [6, 2],
     cubeOwnerUserId: null,
@@ -70,18 +77,18 @@ function baseRow(overrides: Partial<DecisionRow> = {}): DecisionRow {
 }
 
 describe("decisionFromRow / decisionFromRowForReplay — notation from the column, not re-parsed raw", () => {
-  it("decisionFromRow returns the row's own notationPlayed/notationBest columns verbatim", () => {
+  it("decisionFromRow returns the row's own movePlayed/moveBest columns verbatim", () => {
     // Deliberately different from what moveNotations(review) would derive
     // from this fixture's raw ("24/18" for both, confirmed earlier) — if
     // this still silently re-parsed raw instead of reading the column, the
     // assertions below would see "24/18", not these values, and fail.
-    const decision = decisionFromRow(baseRow({ notationPlayed: "99/1", notationBest: "88/2" }));
+    const decision = decisionFromRow(baseRow({ movePlayed: "99/1", moveBest: "88/2" }));
     expect(decision?.myMoveNotation).toBe("99/1");
     expect(decision?.bestMoveNotation).toBe("88/2");
   });
 
-  it("decisionFromRowForReplay returns the row's own notationPlayed/notationBest columns verbatim", () => {
-    const decision = decisionFromRowForReplay(baseRow({ notationPlayed: "99/1", notationBest: "88/2" }));
+  it("decisionFromRowForReplay returns the row's own movePlayed/moveBest columns verbatim", () => {
+    const decision = decisionFromRowForReplay(baseRow({ movePlayed: "99/1", moveBest: "88/2" }));
     expect(decision?.myMoveNotation).toBe("99/1");
     expect(decision?.bestMoveNotation).toBe("88/2");
   });
@@ -102,8 +109,8 @@ describe("decisionFromRow / decisionFromRowForReplay — notation from the colum
         eventId: BigInt(resignEvent.id),
         rawError: 0.15,
         errorSeverity: "NONE",
-        notationPlayed: null,
-        notationBest: null,
+        movePlayed: null,
+        moveBest: null,
         raw: resignEvent,
       })
     );
@@ -122,13 +129,63 @@ describe("decisionFromRow / decisionFromRowForReplay — notation from the colum
         eventId: BigInt(cubeEvent.id),
         rawError: null,
         errorSeverity: "NONE",
-        notationPlayed: null,
-        notationBest: null,
+        movePlayed: null,
+        moveBest: null,
         raw: cubeEvent,
       })
     );
     expect(decision?.myMoveNotation).toBeNull();
     expect(decision?.bestMoveNotation).toBeNull();
+  });
+});
+
+describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: column for CHECKER/CUBE, actionLabels() for RESIGNATION", () => {
+  it("CHECKER kind: myLabel/bestLabel come from movePlayed/moveBest (same column as myMoveNotation/bestMoveNotation)", () => {
+    const decision = decisionFromRow(baseRow({ movePlayed: "13/7", moveBest: "13/9" }));
+    expect(decision?.myLabel).toBe("13/7");
+    expect(decision?.bestLabel).toBe("13/9");
+  });
+
+  it("CUBE kind: myLabel/bestLabel come from cubeActionPlayed/cubeActionBest, not re-parsed raw", () => {
+    // Real cube_double event from the fixture (low-confidence-doubtful.json)
+    // — deliberately different literal values than actionLabels(review)
+    // would derive from it, so a silent raw-reparse would be caught.
+    const cubeEvent = lowConfidenceDoubtful.data.events.find(
+      (e: { reviews?: { result: { analysed_event: string } }[] }) =>
+        e.reviews?.[0]?.result.analysed_event === "cube_double"
+    )!;
+    const decision = decisionFromRowForReplay(
+      baseRow({
+        kind: "CUBE",
+        eventId: BigInt(cubeEvent.id),
+        rawError: null,
+        errorSeverity: "NONE",
+        movePlayed: null,
+        moveBest: null,
+        cubeActionPlayed: "doubled",
+        cubeActionBest: "double",
+        raw: cubeEvent,
+      })
+    );
+    expect(decision?.myLabel).toBe("doubled");
+    expect(decision?.bestLabel).toBe("double");
+  });
+
+  it("RESIGNATION kind: myLabel/bestLabel still call actionLabels() against raw — no column for this kind, deliberately", () => {
+    const resignEvent = resignation.data.events[0];
+    const decision = decisionFromRow(
+      baseRow({
+        kind: "RESIGNATION",
+        eventId: BigInt(resignEvent.id),
+        rawError: 0.15,
+        errorSeverity: "NONE",
+        movePlayed: null,
+        moveBest: null,
+        raw: resignEvent,
+      })
+    );
+    expect(decision?.myLabel).toBe("resigned");
+    expect(decision?.bestLabel).toBe("should resign"); // this fixture's should_resign: true
   });
 });
 

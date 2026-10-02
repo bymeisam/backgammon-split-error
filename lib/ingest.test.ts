@@ -491,6 +491,29 @@ describe("ingestMatch", () => {
     expect(byEventId.get(40)).toEqual({ value: 2, owner: "user_b", confident: true });
   });
 
+  it("cube: cubeActionPlayed/cubeActionBest come from actionLabels(), gated to CUBE kind only", async () => {
+    serveSingleGame(
+      gameReviewsResponse([
+        moveEvent(10, { userId: "user_a" }),
+        doubleEvent(20, "user_a"), // double: true, doublers_best_action: "double"
+        cubePassEvent(30, "user_b", true), // take: true, receivers_best_action: "take"
+      ])
+    );
+
+    await ingestMatch(90000015, indexData, "token");
+
+    const byEventId = new Map(
+      decisionUpsert.mock.calls.map(([{ create }]) => [
+        Number(create.eventId),
+        { played: create.cubeActionPlayed, best: create.cubeActionBest },
+      ])
+    );
+    // CHECKER kind: no cube action labels, column stays null.
+    expect(byEventId.get(10)).toEqual({ played: null, best: null });
+    expect(byEventId.get(20)).toEqual({ played: "doubled", best: "double" });
+    expect(byEventId.get(30)).toEqual({ played: "took", best: "take" });
+  });
+
   it("cube: confident flips false for the rest of the game when a decision occurs while a double is unresolved", async () => {
     serveSingleGame(
       gameReviewsResponse([
