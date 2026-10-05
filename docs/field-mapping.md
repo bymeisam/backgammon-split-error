@@ -47,19 +47,22 @@ Two separate MySQL connection strings, each pointed at a user scoped to the
 minimum privilege its callers actually need — introduced when the Oracle
 HeatWave instance was set up with two real MySQL users:
 
-- **`bg_readwrite`** — `SELECT`/`INSERT`/`UPDATE`/`DELETE`/`CREATE`/`ALTER`/
+- **`bg_db_rw`** — `SELECT`/`INSERT`/`UPDATE`/`DELETE`/`CREATE`/`ALTER`/
   `INDEX`/`REFERENCES` on the `backgammon` database. Used for ingest and
   schema migrations.
-- **`bg_readonly`** — `SELECT` only on the `backgammon` database. Used for
+- **`bg_db_ro`** — `SELECT` only on the `backgammon` database. Used for
   read-only access.
 
 `lib/prisma.ts` exports one Prisma client per credential — `prisma` (reads
 `DATABASE_URL`) and `prismaReadOnly` (reads `DATABASE_URL_READONLY`) — via a
 shared client-construction helper, rather than each caller building its own
-adapter. Locally both env vars point at the same single Docker MySQL user
-(`app`) — there's no local privilege separation to test against — but the
-split exists in the code regardless of environment, so production
-(`bg_readwrite`/`bg_readonly`) is a config change, not a code change.
+adapter. The local Docker MySQL has the same two users
+(`bg_db_rw`/`bg_db_ro`, same grant shapes, on `app_dev` and `bg_test`), and
+the local `.env` uses them, so the split can be tested locally.
+`.env.example` still defaults both vars to the docker-compose `app` user
+for a fresh checkout. The split exists in the code regardless of
+environment, so production (`bg_db_rw`/`bg_db_ro`) is a config change, not
+a code change.
 
 **Call sites, by actual need:**
 
@@ -72,9 +75,9 @@ split exists in the code regardless of environment, so production
 runtime clients.** It's configured in `prisma7.config.ts`, which reads
 `DATABASE_URL` — the same var the read-write app client uses — and stays
 there deliberately: schema changes need `CREATE`/`ALTER`/`INDEX`/
-`REFERENCES`, privileges `bg_readwrite` already has but a narrower app-only
-user wouldn't. Don't point migrations at `bg_readonly`, and don't invent a
-third, even-more-privileged migration-only user unless `bg_readwrite`'s
+`REFERENCES`, privileges `bg_db_rw` already has but a narrower app-only
+user wouldn't. Don't point migrations at `bg_db_ro`, and don't invent a
+third, even-more-privileged migration-only user unless `bg_db_rw`'s
 grants ever turn out to be insufficient.
 
 **One deliberately-flagged ambiguous case:** `scripts/backfill-opponent-identities.ts`
