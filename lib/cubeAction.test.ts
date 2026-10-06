@@ -239,6 +239,16 @@ describe("deriveCubeAction — exact ties count as matching Galaxy", () => {
     expect(deriveCubeAction("cube_pass", { ...base, receivers_best_action: "pass" })).toMatchObject({ action: "Take", matchesGalaxy: true });
   });
 
+  it("DT < DP == ND is not a doubling tie: doubling yields DT < ND, so 'double' is a mismatch", () => {
+    const base = { no_double: 1, double_take: 0.8, double_pass: 1 };
+    expect(deriveCubeAction("cube_double", { ...base, doublers_best_action: "double" })).toEqual({
+      action: "Too good/take",
+      matchesGalaxy: false,
+      galaxyLabel: "double",
+    });
+    expect(deriveCubeAction("cube_double", { ...base, doublers_best_action: "roll" })?.matchesGalaxy).toBe(true);
+  });
+
   it("C2 (629849) is not a tie and stays a mismatch", () => {
     expect(
       deriveCubeAction("cube_double", { no_double: 0.7922, double_take: 0.9751, double_pass: 1, doublers_best_action: "roll" })

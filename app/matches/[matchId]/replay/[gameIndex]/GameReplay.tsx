@@ -7,6 +7,7 @@ import type { Decision } from "@/lib/mistakes";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
 import DecisionList from "@/app/components/match-analysis/DecisionList";
+import { doubleOfferLabel } from "@/lib/cubeState";
 import { style } from "./gameReplay.styles";
 
 // List + single-detail split, same interaction pattern as
@@ -59,6 +60,12 @@ export default function GameReplay({
   // so "my" decisions keep rendering exactly as the always-on-roll view
   // already does (mine is already on the bottom/dark for my own turn).
   const flipped = fixedPerspective && selected !== null && selected.color !== myColor;
+  // A take/pass step answers a double Galaxy didn't analyse as its own step
+  // (only the receiver had a decision), so say what was offered.
+  const doubleOfferText =
+    selected?.doubleOffer != null
+      ? doubleOfferLabel(selected.doubleOffer, myColor === null ? null : selected.color === myColor, selected.color)
+      : null;
 
   // At a game boundary with an adjacent game available, Previous/Next cross
   // straight into it (landing on its last/first decision respectively) —
@@ -128,9 +135,16 @@ export default function GameReplay({
           >
             ← Previous
           </button>
-          <span className={style.positionCounter}>
-            Move {selectedIndex + 1} of {decisions.length}
-          </span>
+          <div className={style.stepLabel}>
+            <span className={style.positionCounter}>
+              Move {selectedIndex + 1} of {decisions.length}
+            </span>
+            {doubleOfferText && (
+              <span data-testid="double-offer-label" className={style.doubleOfferLine}>
+                {doubleOfferText}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={goNext}

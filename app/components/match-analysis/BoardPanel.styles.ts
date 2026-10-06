@@ -40,12 +40,21 @@ export const style = {
         : "opacity-70 hover:opacity-100"
     ),
 
-  // Function, 1 param -> passed directly.
-  bestMoveButton: (isActive: boolean): string =>
+  // Function, 1 param -> passed directly. The green best-move box (the
+  // clickable variant): a box around the tab button plus, when present, the
+  // "Doesn't match Galaxy" badge — the badge is outside the <button> so its
+  // title tooltip shows in every browser (see BoardPanel.tsx).
+  bestMoveGroup: (isActive: boolean): string =>
     clsx(
-      "flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 transition-colors dark:border-green-800 dark:bg-green-950 dark:text-green-300",
+      "flex items-center rounded-lg border border-green-300 bg-green-50 text-green-700 transition-colors dark:border-green-800 dark:bg-green-950 dark:text-green-300",
       isActive ? "ring-1 ring-inset ring-black/30 dark:ring-white/40" : "opacity-70 hover:opacity-100"
     ),
+  // The tab button inside bestMoveGroup — carries the padding the box used
+  // to, so the box looks the same without a badge.
+  bestMoveGroupButton: "flex items-center gap-1.5 self-stretch px-3 py-1.5",
+  // The badge's slot: -ml-1.5 pulls it back to the label's old gap-1.5
+  // spacing (the badge has its own ml-1.5), pr-3 is the box's right padding.
+  bestMoveGroupBadge: "-ml-1.5 flex items-center pr-3",
 
   // Function, 1 param -> passed directly. The static (non-interactive)
   // my-move box variant, used when onSelectTab isn't provided.

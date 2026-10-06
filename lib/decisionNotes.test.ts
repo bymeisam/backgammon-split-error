@@ -57,6 +57,8 @@ function liveDecision(gameIndex: number, eventId: string): Decision {
     myMoveNotation: null,
     bestMoveNotation: null,
     cubeState: null,
+    positionFromOpponent: false,
+    doubleOffer: null,
   };
 }
 

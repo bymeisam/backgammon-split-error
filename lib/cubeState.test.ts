@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { cubeSide, cubeStateFromMatchId, flipCubeState, type CubeState } from "@/lib/cubeState";
-import { decodeGnuMatchId } from "@/lib/gnuMatchId";
+import {
+  cubeSide,
+  cubeStateFromMatchId,
+  doubleOfferFor,
+  doubleOfferLabel,
+  flipCubeState,
+  positionFromOpponent,
+  type CubeState,
+} from "@/lib/cubeState";
+import { decodeGnuMatchId, encodeGnuMatchId } from "@/lib/gnuMatchId";
 
 describe("cubeSide", () => {
   it("centred -> center, owner at the bottom -> mine, otherwise opponent", () => {
@@ -58,5 +66,80 @@ describe("flipCubeState", () => {
   it("is its own inverse", () => {
     const state: CubeState = { value: 4, owner: "mine", confident: true };
     expect(flipCubeState(flipCubeState(state))).toEqual(state);
+  });
+});
+
+describe("positionFromOpponent", () => {
+  it("a take/pass whose Match ID has dice owner != turn (A2) is drawn from the doubler's side", () => {
+    expect(positionFromOpponent("cube_pass", decodeGnuMatchId("ARmgAAAACAAE"))).toBe(true);
+  });
+
+  it("a cube_pass whose Match ID has dice owner == turn is not flipped", () => {
+    const m = decodeGnuMatchId("ARmgAAAACAAE")!;
+    const same = decodeGnuMatchId(encodeGnuMatchId({ ...m, turn: m.diceOwner }));
+    expect(positionFromOpponent("cube_pass", same)).toBe(false);
+  });
+
+  it("a cube_pass with no Match ID falls back to the doubler's side", () => {
+    expect(positionFromOpponent("cube_pass", null)).toBe(true);
+  });
+
+  it("moves, doubles and resignations are drawn from the actor's side", () => {
+    const m = decodeGnuMatchId("ARmgAAAACAAE");
+    expect(positionFromOpponent("move", m)).toBe(false);
+    expect(positionFromOpponent("cube_double", m)).toBe(false);
+    expect(positionFromOpponent("resignation", m)).toBe(false);
+  });
+});
+
+describe("doubleOfferFor", () => {
+  it("A2: the opponent's 2-cube redoubled -> offered 4, a redouble", () => {
+    expect(doubleOfferFor("cube_pass", decodeGnuMatchId("ARmgAAAACAAE"), true)).toEqual({
+      value: 4,
+      redouble: true,
+      took: true,
+    });
+  });
+
+  it("a centred cube -> an initial double to 2", () => {
+    expect(doubleOfferFor("cube_pass", decodeGnuMatchId("MAGzAAAACAAE"), false)).toEqual({
+      value: 2,
+      redouble: false,
+      took: false,
+    });
+  });
+
+  it("null off cube_pass, or with no Match ID", () => {
+    expect(doubleOfferFor("cube_double", decodeGnuMatchId("ARmgAAAACAAE"), null)).toBeNull();
+    expect(doubleOfferFor("cube_pass", null, true)).toBeNull();
+  });
+});
+
+describe("doubleOfferLabel", () => {
+  it("the user takes the opponent's redouble", () => {
+    expect(doubleOfferLabel({ value: 4, redouble: true, took: true }, true, "black")).toBe(
+      "Opponent redoubles to 4: you took"
+    );
+  });
+
+  it("the opponent passes the user's double", () => {
+    expect(doubleOfferLabel({ value: 2, redouble: false, took: false }, false, "white")).toBe(
+      "You double to 2: opponent passed"
+    );
+  });
+
+  it("the user redoubles and the opponent takes", () => {
+    expect(doubleOfferLabel({ value: 4, redouble: true, took: true }, false, "white")).toBe(
+      "You redouble to 4: opponent took"
+    );
+  });
+
+  it("unknown user -> colours; unknown response -> the offer alone", () => {
+    expect(doubleOfferLabel({ value: 2, redouble: false, took: true }, null, "black")).toBe(
+      "White doubles to 2: Black took"
+    );
+    expect(doubleOfferLabel({ value: 8, redouble: true, took: null }, true, "black")).toBe(
+      "Opponent redoubles to 8"
+    );
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   decisionFromRow,
   decisionFromRowForReplay,
+  rollForRow,
   toDecisionListItems,
   type DecisionListRow,
   type DecisionRow,
@@ -299,6 +300,50 @@ describe("decisionFromRow / decisionFromRowForReplay — cube state: value from 
     expect(decisionFromRow(baseRow({ cubeValue: null, raw }))?.cubeState).toBeNull();
     expect(decisionFromRowForReplay(baseRow({ cubeValue: null, raw }))?.cubeState).toBeNull();
     expect(decisionFromRow(baseRow({ raw: event }))?.cubeState).toBeNull();
+  });
+});
+
+// A take/pass (cube_pass) raw payload with the given Match ID and take flag.
+function rawCubePass(matchId: string, take: boolean | null) {
+  const raw = rawWithMatchId(matchId) as unknown as {
+    reviews: { take: boolean | null; result: { analysed_event: string } }[];
+  };
+  raw.reviews[0].result.analysed_event = "cube_pass";
+  raw.reviews[0].take = take;
+  return raw;
+}
+
+describe("decisionFromRow / decisionFromRowForReplay — take/pass board frame and double offer", () => {
+  it("a take row (A2, 45282503 g2 Move 16): position from the doubler's side, a redouble to 4, took", () => {
+    // ARmgAAAACAAE: dice owner white (the redoubler), turn black (the
+    // user, taking), cube 2 owned by white.
+    for (const build of [decisionFromRow, decisionFromRowForReplay]) {
+      const decision = build(
+        baseRow({ kind: "CUBE", cubeValue: 2, cubeConfident: true, raw: rawCubePass("ARmgAAAACAAE", true) })
+      );
+      expect(decision?.positionFromOpponent).toBe(true);
+      expect(decision?.doubleOffer).toEqual({ value: 4, redouble: true, took: true });
+    }
+  });
+
+  it("a checker row: actor's own position, no double offer", () => {
+    const decision = decisionFromRow(baseRow({ raw: rawWithMatchId("QQmxAAAACAAE") }));
+    expect(decision?.positionFromOpponent).toBe(false);
+    expect(decision?.doubleOffer).toBeNull();
+  });
+});
+
+describe("rollForRow — no dice on cube decisions", () => {
+  it("CUBE rows get no dice even when the roll column holds a neighbouring roll", () => {
+    expect(rollForRow({ kind: "CUBE", roll: [6, 2] })).toEqual([]);
+    expect(decisionFromRow(baseRow({ kind: "CUBE", roll: [6, 2] }))?.roll).toEqual([]);
+    expect(decisionFromRowForReplay(baseRow({ kind: "CUBE", roll: [6, 2] }))?.roll).toEqual([]);
+  });
+
+  it("CHECKER rows keep their roll; null becomes []", () => {
+    expect(rollForRow({ kind: "CHECKER", roll: [6, 2] })).toEqual([6, 2]);
+    expect(rollForRow({ kind: "CHECKER", roll: null })).toEqual([]);
+    expect(rollForRow({ kind: "RESIGNATION", roll: [3, 1] })).toEqual([3, 1]);
   });
 });
 

@@ -19,12 +19,12 @@
 // 1 so it stays right if that ever changes.
 //
 // Comparison with Galaxy: a disagreement caused only by an exact tie counts
-// as matching (about 324 counted rows locally) — ND == DP (too good and
-// double are equal: "roll" and "double" both match on the doubling part),
-// DT == ND below DP (double and no double are equal: both match), DT == DP
-// (take and pass are equal: both match). The derived action itself keeps the
-// tie rules above; only matchesGalaxy changes. Exact equality on the stored
-// numbers, as the tie rules use.
+// as matching (about 324 counted rows locally) — ND == min(DT, DP) (not
+// doubling equals what doubling yields: "roll" and "double" both match on
+// the doubling part; i.e. ND == DP with DT >= DP, or DT == ND below DP),
+// DT == DP (take and pass are equal: both match). The derived action itself
+// keeps the tie rules above; only matchesGalaxy changes. Exact equality on
+// the stored numbers, as the tie rules use.
 import type { CubeAnalysis, Review } from "@/lib/gameReviewsTypes";
 
 export type DoublerAction =
@@ -110,7 +110,10 @@ export function deriveCubeAction(
     const action = doublerAction(nd, dt, dp);
     // Galaxy's stored labels are "roll"/"double"; "no double" is accepted
     // as the no-double side too.
-    const doubleTie = nd === dp || (dt === nd && nd < dp);
+    // Doubling ties not doubling only when ND equals what doubling yields,
+    // min(DT, DP). That covers ND == DP when DT >= DP, and DT == ND below
+    // DP. Not DT < DP == ND: doubling yields DT < ND there.
+    const doubleTie = nd === Math.min(dt, dp);
     let matches = doublerMatches(action, doublerLabel, doubleTie);
     if (receiverLabel !== null) matches = matches && receiverMatches(action, receiverLabel, dt === dp);
     const galaxyLabel = [doublerLabel, receiverLabel].filter((l) => l !== null).join(", ");

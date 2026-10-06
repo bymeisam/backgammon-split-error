@@ -5,6 +5,7 @@ import type { Decision } from "@/lib/mistakes";
 import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
 import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
 import { flipCubeState } from "@/lib/cubeState";
+import { boardPositionFlipped } from "@/lib/boardFrame";
 import Board from "./Board";
 import DecisionNote from "./DecisionNote";
 import GalaxyMismatchBadge from "./GalaxyMismatchBadge";
@@ -35,15 +36,24 @@ export default function BoardPanel({
   // on the server — see DecisionNote). Default false: read-only.
   canEditNotes?: boolean;
 }) {
+  // The position (and its cube) is flipped when exactly one of these holds:
+  // the view asks for it (`flipped`), or the stored position is drawn from
+  // the other player's side (a take/pass, stored from the doubler's side).
+  // So the decision-maker is at the bottom on a take/pass too, and the
+  // replay's fixed-perspective flip works unchanged on top of it.
+  // `flipped` itself still goes to Board as-is (point numbers, dice colour,
+  // arrow anchoring — all about the actor), and to mirrorSubMoves.
+  const flipPosition = boardPositionFlipped(selected, flipped);
+
   const decoded = useMemo(() => {
     if (!selected?.sourcePositionId) return null;
     try {
       const raw = decodeGnuPositionId(selected.sourcePositionId);
-      return flipped ? flipPerspective(raw) : raw;
+      return flipPosition ? flipPerspective(raw) : raw;
     } catch {
       return null;
     }
-  }, [selected, flipped]);
+  }, [selected, flipPosition]);
 
   const notation =
     selected?.kind === "checker"
@@ -64,10 +74,10 @@ export default function BoardPanel({
         ? BLUNDER_COLOR
         : ERROR_COLOR;
 
-  // Mirrors the decoded/subMoves flip above — applied once, here, before
-  // Board ever sees it, same as the other two.
+  // Mirrors the decoded flip above — applied once, here, before Board ever
+  // sees it.
   const cubeState =
-    selected?.cubeState && flipped ? flipCubeState(selected.cubeState) : (selected?.cubeState ?? null);
+    selected?.cubeState && flipPosition ? flipCubeState(selected.cubeState) : (selected?.cubeState ?? null);
 
   return (
     <div className={style.panelStack}>
@@ -103,14 +113,25 @@ export default function BoardPanel({
                   <span className={style.moveNotation}>{selected.myLabel}</span>
                   <span className={style.mutedLabel}>({selected.absError.toFixed(3)})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onSelectTab("best")}
-                  className={style.bestMoveButton(moveTab === "best")}
-                >
-                  <span className={style.moveNotation}>{selected.bestLabel}</span>
-                  <GalaxyMismatchBadge galaxyLabel={selected.galaxyBestLabel} />
-                </button>
+                {/* The badge sits beside the button, inside the same green
+                    box, not inside the <button>: Firefox and Safari show
+                    a tooltip for the button itself on hover over its
+                    content, so a title on a child of a button never shows
+                    there. */}
+                <div className={style.bestMoveGroup(moveTab === "best")}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectTab("best")}
+                    className={style.bestMoveGroupButton}
+                  >
+                    <span className={style.moveNotation}>{selected.bestLabel}</span>
+                  </button>
+                  {selected.galaxyBestLabel != null && (
+                    <span className={style.bestMoveGroupBadge}>
+                      <GalaxyMismatchBadge galaxyLabel={selected.galaxyBestLabel} />
+                    </span>
+                  )}
+                </div>
               </>
             ) : (
               <>

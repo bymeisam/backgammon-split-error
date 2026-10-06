@@ -4,7 +4,13 @@ import type {
   GameReviewsResponse,
   Review,
 } from "@/lib/gameReviewsTypes";
-import { cubeStateFromMatchId, type CubeState } from "@/lib/cubeState";
+import {
+  cubeStateFromMatchId,
+  doubleOfferFor,
+  positionFromOpponent,
+  type CubeState,
+  type DoubleOffer,
+} from "@/lib/cubeState";
 import { deriveCubeActionFromReview } from "@/lib/cubeAction";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
@@ -69,6 +75,15 @@ export interface Decision {
   // relative to the player drawn at the bottom — see lib/cubeState.ts. Null
   // when the Match ID is missing or doesn't decode.
   cubeState: CubeState | null;
+  // True when sourcePositionId is drawn from the other player's side, not
+  // the actor's — a take/pass (cube_pass), whose stored position is the
+  // doubler's. BoardPanel flips the board (and cubeState) for these so the
+  // decision-maker is at the bottom. See lib/cubeState.ts.
+  positionFromOpponent: boolean;
+  // On a take/pass, the double it answers (value offered, redouble or not,
+  // took/passed); null on every other decision. The replay labels the step
+  // with it.
+  doubleOffer: DoubleOffer | null;
   // The user's own note on this decision (DecisionNote), null/absent when
   // there isn't one. DB-row paths (lib/decisionFromRow.ts) read it from the
   // joined row; the live path (extractDecisions below) has no DB row, so
@@ -262,6 +277,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
       const isMistake = absError > 0;
       const { mine, best } = moveNotations(review);
       const labels = displayLabels(review);
+      const matchId = decodeGnuMatchId(review.source_match?.formatted_value);
 
       decisions.push({
         id: `${game.gameIndex}:${event.id}`,
@@ -281,7 +297,9 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         sourcePositionId: review.source_position?.formatted_value ?? null,
         myMoveNotation: mine,
         bestMoveNotation: best,
-        cubeState: cubeStateFromMatchId(decodeGnuMatchId(review.source_match?.formatted_value)),
+        cubeState: cubeStateFromMatchId(matchId),
+        positionFromOpponent: positionFromOpponent(review.result.analysed_event, matchId),
+        doubleOffer: doubleOfferFor(review.result.analysed_event, matchId, review.take),
       });
     }
   }

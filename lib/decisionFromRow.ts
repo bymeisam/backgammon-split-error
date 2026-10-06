@@ -36,7 +36,13 @@ import {
   type DecisionKind,
   type Severity,
 } from "@/lib/mistakes";
-import { cubeSide, type CubeState } from "@/lib/cubeState";
+import {
+  cubeSide,
+  doubleOfferFor,
+  positionFromOpponent,
+  type CubeState,
+  type DoubleOffer,
+} from "@/lib/cubeState";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 // myLabel/bestLabel for CHECKER/CUBE kind come straight from the row's own
@@ -65,18 +71,38 @@ function labelsFor(
 }
 
 // The board's cube for this row. cubeValue/cubeConfident are the stored
-// truth (from the row's GNU Match ID at ingest/backfill); the side is drawn
-// relative to the player at the BOTTOM of the board — the position's on-roll
-// player (the Match ID's dice owner) — not the row's actor. On a cube_pass
-// row the stored position is the doubler's, so the receiver (the actor) is
-// at the top; relativizing to row.userId put a redoubled cube beside the
-// wrong checkers. cubeConfident = false (Match ID didn't decode) draws no
-// cube.
+// truth (from the row's GNU Match ID at ingest/backfill); the side is
+// relative to the stored position's on-roll player (the Match ID's dice
+// owner) — not the row's actor. On a cube_pass row the stored position is
+// the doubler's; BoardPanel flips that board and this cube together
+// (positionFromOpponent) so the receiver is at the bottom and the cube stays
+// beside its real owner. cubeConfident = false (Match ID didn't decode)
+// draws no cube.
 function cubeStateFor(row: DecisionRow, review: Review): CubeState | null {
   if (row.cubeValue === null || row.cubeConfident !== true) return null;
   const m = decodeGnuMatchId(review.source_match?.formatted_value);
   if (!m) return null;
   return { value: row.cubeValue, owner: cubeSide(m.cubeOwner, m.diceOwner), confident: true };
+}
+
+// The board-frame and take/pass fields shared by both builders below — see
+// Decision.positionFromOpponent/doubleOffer in lib/mistakes.ts.
+function boardFrameFor(review: Review): { positionFromOpponent: boolean; doubleOffer: DoubleOffer | null } {
+  const m = decodeGnuMatchId(review.source_match?.formatted_value);
+  const event = review.result.analysed_event;
+  return {
+    positionFromOpponent: positionFromOpponent(event, m),
+    doubleOffer: doubleOfferFor(event, m, review.take),
+  };
+}
+
+// The dice to show for this row. A cube decision is made before the roll,
+// so it gets none — the stored roll column on a CUBE row is a neighbouring
+// event's roll (see docs/field-mapping.md's `roll` row). Same rule the live
+// path (lib/mistakes.ts's extractDecisions) already applies.
+export function rollForRow(row: Pick<DecisionRow, "kind" | "roll">): number[] {
+  if (row.kind === "CUBE") return [];
+  return (row.roll as number[] | null) ?? [];
 }
 
 // Exported for lib/decisionFromRow.ts's own decisionFromRowForReplay below
@@ -176,11 +202,12 @@ export function decisionFromRow(row: DecisionRow): Decision | null {
     myLabel: mine,
     bestLabel: best,
     galaxyBestLabel,
-    roll: (row.roll as number[] | null) ?? [],
+    roll: rollForRow(row),
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
     cubeState: cubeStateFor(row, review),
+    ...boardFrameFor(review),
     note: row.note?.note ?? null,
     dbDecisionId: row.id,
   };
@@ -222,11 +249,12 @@ export function decisionFromRowForReplay(row: DecisionRow): Decision | null {
     myLabel: mine,
     bestLabel: best,
     galaxyBestLabel,
-    roll: (row.roll as number[] | null) ?? [],
+    roll: rollForRow(row),
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
     cubeState: cubeStateFor(row, review),
+    ...boardFrameFor(review),
     note: row.note?.note ?? null,
     dbDecisionId: row.id,
   };

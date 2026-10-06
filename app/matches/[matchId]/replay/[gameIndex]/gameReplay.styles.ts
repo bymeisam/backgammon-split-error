@@ -30,7 +30,10 @@ export const style = {
   // paginationButton.
   navButton:
     "inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
+  // "Move N of M", plus the take/pass step's double line under it.
+  stepLabel: "flex flex-col items-center gap-0.5 text-center",
   positionCounter: "text-sm text-zinc-600 dark:text-zinc-400",
+  doubleOfferLine: "text-xs text-zinc-500 dark:text-zinc-400",
 
   gameBoundaryRow: "flex justify-center",
   gameBoundaryLink:

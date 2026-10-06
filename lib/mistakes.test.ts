@@ -30,6 +30,8 @@ function d(id: string, overrides: Partial<Decision> = {}): Decision {
     myMoveNotation: null,
     bestMoveNotation: null,
     cubeState: null,
+    positionFromOpponent: false,
+    doubleOffer: null,
     ...overrides,
   };
 }
