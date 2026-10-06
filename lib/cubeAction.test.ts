@@ -179,3 +179,70 @@ describe("deriveCubeAction — real cube_pass rows (receiver's view, negated)", 
     ).toMatchObject({ action: "Take", matchesGalaxy: false, galaxyLabel: "pass" });
   });
 });
+
+describe("deriveCubeAction — exact ties count as matching Galaxy", () => {
+  it("662455 (33173703 g2): ND == DP == 1, DT 2.8281, Galaxy 'double, pass' -> no badge", () => {
+    expect(
+      deriveCubeAction("cube_double", {
+        no_double: 1,
+        double_take: 2.8281,
+        double_pass: 1,
+        doublers_best_action: "double",
+        receivers_best_action: "pass",
+      })
+    ).toEqual({ action: "Too good/pass", matchesGalaxy: true, galaxyLabel: "double, pass" });
+  });
+
+  it("ND == DP: 'roll' still matches, and a wrong receiver label is still a mismatch", () => {
+    const base = { no_double: 1, double_take: 2.8281, double_pass: 1 };
+    expect(deriveCubeAction("cube_double", { ...base, doublers_best_action: "roll" })?.matchesGalaxy).toBe(true);
+    expect(
+      deriveCubeAction("cube_double", { ...base, doublers_best_action: "double", receivers_best_action: "take" })
+        ?.matchesGalaxy
+    ).toBe(false);
+  });
+
+  it("1228774 (33887678 g4): DT == DP == 1, ND 0.7293, Galaxy 'double, pass' -> no badge", () => {
+    expect(
+      deriveCubeAction("cube_double", {
+        no_double: 0.7293,
+        double_take: 1,
+        double_pass: 1,
+        doublers_best_action: "double",
+        receivers_best_action: "pass",
+      })
+    ).toEqual({ action: "Double/take", matchesGalaxy: true, galaxyLabel: "double, pass" });
+  });
+
+  it("1020878 (42234245 g2): DT == ND == 0.5242 < DP, Galaxy 'double, take' -> no badge", () => {
+    expect(
+      deriveCubeAction("cube_double", {
+        no_double: 0.5242,
+        double_take: 0.5242,
+        double_pass: 1,
+        doublers_best_action: "double",
+        receivers_best_action: "take",
+      })
+    ).toEqual({ action: "No double/take", matchesGalaxy: true, galaxyLabel: "double, take" });
+  });
+
+  it("DT == ND: 'roll' still matches too", () => {
+    expect(
+      deriveCubeAction("cube_double", { no_double: 0.5242, double_take: 0.5242, double_pass: 1, doublers_best_action: "roll" })
+        ?.matchesGalaxy
+    ).toBe(true);
+  });
+
+  it("cube_pass with DT == DP: take and pass both match", () => {
+    const base = { no_double: -0.6, double_take: -1, double_pass: -1 };
+    expect(deriveCubeAction("cube_pass", { ...base, receivers_best_action: "take" })).toMatchObject({ action: "Take", matchesGalaxy: true });
+    expect(deriveCubeAction("cube_pass", { ...base, receivers_best_action: "pass" })).toMatchObject({ action: "Take", matchesGalaxy: true });
+  });
+
+  it("C2 (629849) is not a tie and stays a mismatch", () => {
+    expect(
+      deriveCubeAction("cube_double", { no_double: 0.7922, double_take: 0.9751, double_pass: 1, doublers_best_action: "roll" })
+        ?.matchesGalaxy
+    ).toBe(false);
+  });
+});

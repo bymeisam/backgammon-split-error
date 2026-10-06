@@ -13,6 +13,7 @@ import {
   PlayerUserIds,
   addSeatEvidence,
   decodeGnuMatchId,
+  effectiveMatchLength,
   gameScoreFromMatchId,
   type DecodedMatchId,
 } from "@/lib/gnuMatchId";
@@ -280,7 +281,8 @@ export async function ingestMatch(
   let eventsSkippedNoReview = 0;
   const gamePlayedAts: Date[] = [];
   // Match.matchLength = the GNU Match ID length (0 = money) of the match's
-  // first decision: lowest gameIndex, then lowest eventId — see
+  // first decision: lowest gameIndex, then lowest eventId, with an even
+  // decoded length read as money (effectiveMatchLength) — see
   // docs/field-mapping.md, "GNU Match ID". Built in ascending gameIndex
   // order, one entry per game whose first decision decodes.
   const gameMatchLengths: number[] = [];
@@ -544,7 +546,7 @@ export async function ingestMatch(
     const firstState = firstDecision?.matchId ?? null;
     if (firstState) {
       await prisma.game.update({ where: { id: game.id }, data: gameScoreFromMatchId(firstState, players, me?.sourceUserId) });
-      gameMatchLengths.push(firstState.matchLength);
+      gameMatchLengths.push(effectiveMatchLength(firstState));
     }
 
     gamesIngested++;

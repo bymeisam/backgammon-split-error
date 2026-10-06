@@ -441,6 +441,21 @@ describe("ingestMatch", () => {
     expect(matchUpdate.mock.calls[0][0].data).toHaveProperty("playedAt");
   });
 
+  it("an even decoded length is money (72588-shaped, length 8): Match.matchLength 0, Game score/crawford null", async () => {
+    playerIdentityFindFirst.mockResolvedValueOnce({ sourceUserId: "user_me" });
+    serveSingleGame(
+      gameReviewsResponse([
+        moveEvent(10, { userId: "user_me", color: "black", matchId: mid({ matchLength: 8, score: [0, 0] }) }),
+      ])
+    );
+
+    await ingestMatch(90000012, indexData, "token");
+
+    const scoreUpdateCall = gameUpdate.mock.calls.find((call) => "userScore" in call[0].data);
+    expect(scoreUpdateCall![0].data).toEqual({ userScore: null, opponentScore: null, crawfordState: null });
+    expect(matchUpdate.mock.calls[0][0].data).toMatchObject({ matchLength: 0 });
+  });
+
   it("a game whose first decision has no Match ID sets no score/crawford/matchLength, and warns", async () => {
     serveSingleGame(moneyGameMove as unknown as GameReviewsResponse);
 

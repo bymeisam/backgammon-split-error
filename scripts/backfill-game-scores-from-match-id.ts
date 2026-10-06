@@ -13,12 +13,15 @@
 //         gameScoreFromMatchId(): scores through the user's own seat
 //         (PlayerIdentity.isMe; black = player 1, white = player 0),
 //         crawfordState from the Crawford bit + scores/length; all three
-//         null for a money game (length 0). Scores are left untouched when
-//         the user's seat can't be resolved (counted below).
-//   Match.matchLength: the Match ID length of the match's first decision
-//         (lowest gameIndex, then lowest eventId); 0 = money game. This also
-//         sets the ~30 single-game matches whose Match ID flips from 0 to 1
-//         after a double to 0 (the user's call).
+//         null for a money game (length 0, or an even decoded length — see
+//         effectiveMatchLength). Scores are left untouched when the user's
+//         seat can't be resolved (counted below).
+//   Match.matchLength: effectiveMatchLength of the match's first decision's
+//         Match ID (lowest gameIndex, then lowest eventId); 0 = money game,
+//         and an even decoded length is money too (Galaxy matches are odd;
+//         five old money games decode to 8 or 16). This also sets the ~30
+//         single-game matches whose Match ID flips from 0 to 1 after a
+//         double to 0 (the user's call).
 //
 // No live Galaxy calls. Selects only ids, colours and the one extracted
 // Match ID string (never full `raw`), batched by Match.id range. Writes only
@@ -37,6 +40,7 @@ import {
   PlayerUserIds,
   addSeatEvidence,
   decodeGnuMatchId,
+  effectiveMatchLength,
   gameScoreFromMatchId,
   type DecodedMatchId,
 } from "@/lib/gnuMatchId";
@@ -126,7 +130,7 @@ async function main() {
       if (m) {
         let lengths = lengthsByMatch.get(r.matchId);
         if (!lengths) lengthsByMatch.set(r.matchId, (lengths = new Set()));
-        lengths.add(m.matchLength);
+        lengths.add(effectiveMatchLength(m));
       }
     }
 
@@ -168,7 +172,7 @@ async function main() {
       const first = firstByMatch.get(match.id);
       if (!first?.m) continue;
       matchesScanned++;
-      const length = first.m.matchLength;
+      const length = effectiveMatchLength(first.m);
       const lengths = lengthsByMatch.get(match.id) ?? new Set<number>();
       const flips = length === 0 && [...lengths].some((l) => l !== 0);
       if (flips) matchesFlipSetToZero++;

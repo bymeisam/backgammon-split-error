@@ -113,21 +113,38 @@ export function decodeGnuMatchId(id: string | null | undefined): DecodedMatchId 
   };
 }
 
+// The match length the app uses (Match.matchLength; 0 = money), from a
+// decoded Match ID. The one place the even-length rule lives: Galaxy
+// matches are always odd lengths (1, 3, 5, 7...), and an even decoded length
+// means a money game — five old single-game "matches" decode to 8 (72588,
+// 72587, 72577, 19719) or 16 (249289) with final scores no match of that
+// length can end on; old money-game Match IDs apparently reuse the length
+// bits. decodeGnuMatchId keeps returning the literal bits; everything that
+// turns them into a length or a money flag (ingest, gameScoreFromMatchId,
+// crawfordStateFor, the scores backfill) goes through here. See
+// docs/field-mapping.md, "GNU Match ID".
+export function effectiveMatchLength(m: DecodedMatchId): number {
+  return m.matchLength % 2 === 0 ? 0 : m.matchLength;
+}
+
 // The value Game.crawfordState stores, in Galaxy's own metadata.crawford_state
 // vocabulary: "crawford" for the Crawford game itself, "post_crawford" for a
 // later game in which a player still needs exactly one point, "none"
-// otherwise — and always for a money game and a 1-point match, where the
-// Crawford rule has nothing to apply to. Matches Galaxy's own label on every
-// game of length 2+ (local check, 2026-10-06: 7,531 of 7,531). For 1-point
+// otherwise — and always for a money game (including an even decoded length,
+// see effectiveMatchLength) and a 1-point match, where the Crawford rule has
+// nothing to apply to. Matches Galaxy's own label on every game of length 2+
+// (local check, 2026-10-06: 7,471 of 7,471; the 60 money games, the other
+// part of an earlier "7,531" count, agree too). For 1-point
 // matches Galaxy changed its own label over time ("crawford" up to match
 // 40136106, "none" from 40310886 on, with the GNU Crawford bit clear in
 // both); "none" follows its current behaviour.
 export type CrawfordState = "none" | "crawford" | "post_crawford";
 
 export function crawfordStateFor(m: DecodedMatchId): CrawfordState {
-  if (m.matchLength <= 1) return "none";
+  const length = effectiveMatchLength(m);
+  if (length <= 1) return "none";
   if (m.crawford) return "crawford";
-  const away = m.matchLength - 1;
+  const away = length - 1;
   return m.score[0] === away || m.score[1] === away ? "post_crawford" : "none";
 }
 
@@ -231,7 +248,8 @@ export function addSeatEvidence(
 }
 
 // Game.userScore/opponentScore/crawfordState from the game's first
-// decision's Match ID. Money game (length 0): all three null — a score
+// decision's Match ID. Money game (effectiveMatchLength 0, which includes an
+// even decoded length): all three null — a score
 // means nothing there (same as before the switch). Scores go through the
 // user's own seat (PlayerIdentity.isMe; black = player 1, white = player 0)
 // and are left out — not overwritten — when that seat isn't known (no isMe
@@ -242,7 +260,7 @@ export function gameScoreFromMatchId(
   players: PlayerUserIds,
   myUserId: string | null | undefined
 ): { crawfordState: CrawfordState | null; userScore?: number | null; opponentScore?: number | null } {
-  if (m.matchLength === 0) return { crawfordState: null, userScore: null, opponentScore: null };
+  if (effectiveMatchLength(m) === 0) return { crawfordState: null, userScore: null, opponentScore: null };
   const crawfordState = crawfordStateFor(m);
   const mySeat = myUserId ? players.playerFor(myUserId) : null;
   if (mySeat === null) return { crawfordState };

@@ -4,7 +4,9 @@ import {
   actorPlayerFor,
   crawfordStateFor,
   decodeGnuMatchId,
+  effectiveMatchLength,
   encodeGnuMatchId,
+  gameScoreFromMatchId,
   gnuPlayerForColor,
   type DecodedMatchId,
 } from "@/lib/gnuMatchId";
@@ -153,6 +155,46 @@ describe("crawfordStateFor", () => {
 
   it("1-point match -> none (no Crawford rule to apply)", () => {
     expect(crawfordStateFor({ ...base, matchLength: 1, score: [0, 0] })).toBe("none");
+  });
+});
+
+describe("effectiveMatchLength — an even decoded length means money", () => {
+  const base = decodeGnuMatchId("MAGzAAAACAAE")!;
+
+  it("odd lengths pass through; 0 stays money", () => {
+    for (const length of [1, 3, 5, 7, 25]) expect(effectiveMatchLength({ ...base, matchLength: length })).toBe(length);
+    expect(effectiveMatchLength({ ...base, matchLength: 0 })).toBe(0);
+  });
+
+  it("even lengths are money: 8 (72588, 72587, 72577, 19719) and 16 (249289)", () => {
+    expect(effectiveMatchLength({ ...base, matchLength: 8 })).toBe(0);
+    expect(effectiveMatchLength({ ...base, matchLength: 16 })).toBe(0);
+    expect(effectiveMatchLength({ ...base, matchLength: 2 })).toBe(0);
+  });
+
+  it("the raw decoder still returns the literal length bits", () => {
+    const id = encodeGnuMatchId({ ...base, matchLength: 8 });
+    expect(decodeGnuMatchId(id)?.matchLength).toBe(8);
+  });
+
+  it("crawfordStateFor treats an even length as money (none), even with a player at length - 1", () => {
+    expect(crawfordStateFor({ ...base, matchLength: 8, score: [7, 0] })).toBe("none");
+    expect(crawfordStateFor({ ...base, matchLength: 16, crawford: true, score: [15, 0] })).toBe("none");
+  });
+
+  it("gameScoreFromMatchId: even length -> scores and Crawford null, like length 0", () => {
+    const players = new PlayerUserIds();
+    players.add("me", BLACK);
+    players.add("opp", WHITE);
+    const money = { crawfordState: null, userScore: null, opponentScore: null };
+    expect(gameScoreFromMatchId({ ...base, matchLength: 8, score: [0, 0] }, players, "me")).toEqual(money);
+    expect(gameScoreFromMatchId({ ...base, matchLength: 16, score: [0, 0] }, players, "me")).toEqual(money);
+    expect(gameScoreFromMatchId({ ...base, matchLength: 0 }, players, "me")).toEqual(money);
+    expect(gameScoreFromMatchId({ ...base, matchLength: 5, score: [0, 1] }, players, "me")).toEqual({
+      crawfordState: "none",
+      userScore: 1,
+      opponentScore: 0,
+    });
   });
 });
 

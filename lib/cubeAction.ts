@@ -17,6 +17,14 @@
 // DP is 1 on every counted cube_double row (it's 0.18–0.91 on 89,593
 // uncounted pre-roll checks locally), but the rule compares against DP rather than a literal
 // 1 so it stays right if that ever changes.
+//
+// Comparison with Galaxy: a disagreement caused only by an exact tie counts
+// as matching (about 324 counted rows locally) — ND == DP (too good and
+// double are equal: "roll" and "double" both match on the doubling part),
+// DT == ND below DP (double and no double are equal: both match), DT == DP
+// (take and pass are equal: both match). The derived action itself keeps the
+// tie rules above; only matchesGalaxy changes. Exact equality on the stored
+// numbers, as the tie rules use.
 import type { CubeAnalysis, Review } from "@/lib/gameReviewsTypes";
 
 export type DoublerAction =
@@ -60,10 +68,20 @@ function format(label: string | null | undefined): string | null {
   return typeof label === "string" && label !== "" ? label.replace(/_/g, " ") : null;
 }
 
-// Galaxy's receiver label ("take"/"pass") agrees with `action`'s take side.
-function receiverMatches(action: CubeAction, receiverLabel: string): boolean {
-  if (receiverLabel === "take") return TAKE_SIDE.has(action);
-  if (receiverLabel === "pass") return !TAKE_SIDE.has(action);
+// Galaxy's receiver label ("take"/"pass") agrees with `action`'s take side,
+// or either label goes when take and pass are tied (DT == DP).
+function receiverMatches(action: CubeAction, receiverLabel: string, takePassTie: boolean): boolean {
+  if (receiverLabel === "take") return takePassTie || TAKE_SIDE.has(action);
+  if (receiverLabel === "pass") return takePassTie || !TAKE_SIDE.has(action);
+  return false;
+}
+
+// Galaxy's doubler label ("roll"/"no double" or "double") agrees with
+// `action`'s doubling side, or either label goes when doubling and not
+// doubling are tied (ND == DP, or DT == ND below DP).
+function doublerMatches(action: DoublerAction, doublerLabel: string | null, doubleTie: boolean): boolean {
+  if (doublerLabel === "roll" || doublerLabel === "no double") return doubleTie || !DOUBLE_SIDE.has(action);
+  if (doublerLabel === "double") return doubleTie || DOUBLE_SIDE.has(action);
   return false;
 }
 
@@ -92,9 +110,9 @@ export function deriveCubeAction(
     const action = doublerAction(nd, dt, dp);
     // Galaxy's stored labels are "roll"/"double"; "no double" is accepted
     // as the no-double side too.
-    const noDouble = doublerLabel === "roll" || doublerLabel === "no double";
-    let matches = noDouble ? !DOUBLE_SIDE.has(action) : doublerLabel === "double" ? DOUBLE_SIDE.has(action) : false;
-    if (receiverLabel !== null) matches = matches && receiverMatches(action, receiverLabel);
+    const doubleTie = nd === dp || (dt === nd && nd < dp);
+    let matches = doublerMatches(action, doublerLabel, doubleTie);
+    if (receiverLabel !== null) matches = matches && receiverMatches(action, receiverLabel, dt === dp);
     const galaxyLabel = [doublerLabel, receiverLabel].filter((l) => l !== null).join(", ");
     return { action, matchesGalaxy: matches, galaxyLabel };
   }
@@ -104,7 +122,7 @@ export function deriveCubeAction(
     const action = receiverAction(dt * sign, dp * sign);
     return {
       action,
-      matchesGalaxy: receiverLabel !== null && receiverMatches(action, receiverLabel),
+      matchesGalaxy: receiverLabel !== null && receiverMatches(action, receiverLabel, dt === dp),
       galaxyLabel: receiverLabel ?? "",
     };
   }

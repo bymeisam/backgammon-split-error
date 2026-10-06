@@ -26,7 +26,9 @@
 // change, unless --accept-confident-changes=N is given and N is exactly the
 // number found (so an approval of "these 27 rows" can't silently cover a
 // different set). The 2026-10-06 local dry run found 27, all in match
-// 46000168 game 4 — awaiting the user's decision. Review the dry run first.
+// 46000168 game 4; the user approved them and the local run applied them on
+// 2026-10-07 (--accept-confident-changes=27). Oracle needs its own dry-run
+// count, approved by the user. Review the dry run first.
 //
 // Usage:
 //   npx tsx scripts/backfill-decision-cube-from-match-id.ts --dry-run   # count only
