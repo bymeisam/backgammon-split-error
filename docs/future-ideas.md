@@ -1,6 +1,34 @@
 # Future ideas
 
-Ideas parked for later review. These are not planned work. Each entry says where it came from and why it was deferred.
+Ideas parked for later review. These are not planned work. Each entry says where it came from and, if known, why it was deferred.
+
+## Data sources
+
+### XG file import
+- **Idea:** support XG match files (`.xgp`/`.xg`) as a second data source alongside the Galaxy API.
+- **Notes:** imported rows need their own `source` value. Any string identifier taken from XG files must be pinned to `utf8mb4_bin` (CLAUDE.md). XG uses its own position-ID format, which ties in with [position search](#position-search-from-a-manual-board).
+- **Source:** user's idea list, 2026-10-06.
+
+### Single-match lookup by ID
+- **Idea:** `sourceMatchId` is a global Galaxy counter, so any match can be fetched by its ID. This would be a targeted tool for one specific external match, such as a referenced tournament game.
+- **Ruled out:** bulk-ingesting other players' matches.
+- **Source:** user's idea list, 2026-10-06.
+
+## Study and review
+
+### Built-in spaced repetition
+- **Idea:** an Anki-style review flow built on the pipeline's own decision and error data, instead of exporting through AnkiGammon. Your personal notes on each blunder show up at recall time.
+- **Source:** user's idea list, 2026-10-06.
+
+### Position search from a manual board
+- **Idea:** set up a position on screen, encode it to a GNU Position ID, and search your decisions for that exact position.
+- **Notes:** other sources may use a different position-ID format, such as XG's, so this needs a common representation. Closely related to [notes on a position](#notes-on-a-position-not-just-a-decision).
+- **Source:** user's idea list, 2026-10-06.
+
+### Forum
+- **Idea:** discuss or chat about specific positions.
+- **Notes:** needs auth and multiple users first (see [Vercel deploy](#vercel-deploy-behind-auth)).
+- **Source:** user's idea list, 2026-10-06.
 
 ## Decision notes
 
@@ -15,6 +43,19 @@ Ideas parked for later review. These are not planned work. Each entry says where
 ### Notes visible only to the match owner
 - **Idea:** once the app has auth, show a note (pages and `/api/decision-notes`) only to the owner of the match it belongs to. Today, notes on Oracle are readable by anyone on the public read-only site.
 - **Why deferred:** there's no auth yet. The user accepted public notes for now (2026-10-06).
+
+## Deployment and auth
+
+### Vercel deploy behind auth
+- **Idea:** deploy to Vercel as a read-only viewer first, with the Galaxy pages and routes hidden until the app sits behind an auth wall that admits only you.
+- **Notes:** the first part already exists. The app is deployable as a read-only viewer (`app/status/notes.ts`, `docs/deploy.md`), and `/galaxy/*` plus the write routes return 404 unless `ENABLE_WRITE_MODE` is set (`proxy.ts`, `lib/galaxyGate.ts`). The open part is the auth wall. That same auth is what [owner-only notes](#notes-visible-only-to-the-match-owner) and the [forum](#forum) need.
+- **Source:** user's idea list, 2026-10-06.
+
+## Tooling
+
+### Design review by another LLM
+- **Idea:** have a separate agent critique the site's look and feel and suggest improvements.
+- **Source:** user's idea list, 2026-10-06.
 
 ## Performance
 

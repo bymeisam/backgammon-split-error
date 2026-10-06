@@ -667,4 +667,5 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - `docs/future-ideas.md` gained "notes visible only to the match owner (after auth)".
   - The migration folder name (`20261006120000_add_decision_note`) is deliberately left as it is. Prisma tracks applied migrations by folder name, and it's already applied locally.
   - Committed locally in two commits: tooling/docs fixes first, then the decision-notes feature. Not pushed.
+- **Ideas list.** Added the user's idea list to `docs/future-ideas.md`, grouped by area: XG file import, single-match lookup by ID, built-in spaced repetition, position search from a manual board, forum, Vercel deploy behind auth (the read-only part already exists; the auth wall is open), and design review by another LLM. Related ideas are cross-linked. Docs only.
 - What's next: Restart Claude Code so the main session can spawn `investigator`/`developer` directly. Decision notes step 2 (Oracle), only after the user's manual local check and explicit approval: `prisma migrate deploy` against Oracle, then optionally `notes-export` locally and `notes-import --dry-run`, then the real import against Oracle.
