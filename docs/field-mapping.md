@@ -68,8 +68,8 @@ a code change.
 
 | Client | Used by |
 |---|---|
-| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts` |
-| `prismaReadOnly` (read-only) | `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx` |
+| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts` |
+| `prismaReadOnly` (read-only) | `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
 
 **`prisma migrate deploy` itself is a separate concern from these two app
 runtime clients.** It's configured in `prisma7.config.ts`, which reads

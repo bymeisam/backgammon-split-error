@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { DECISION_LIST_SELECT, loadDecisionItems } from "@/lib/decisionQueries";
 import {
   PAGE_SIZE_OPTIONS,
@@ -136,7 +137,11 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
         {total === 1 ? "" : "s"}.
       </p>
 
-      <DecisionListWithDetail items={items} showClassification={!phase} />
+      <DecisionListWithDetail
+        items={items}
+        showClassification={!phase}
+        canEditNotes={isGalaxyEnabled()}
+      />
 
       <PaginationLinks
         basePath="/mistakes"

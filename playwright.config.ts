@@ -94,6 +94,19 @@ export default defineConfig({
     // this, so the overlay stays on there — it's a genuinely useful
     // indicator for actual local development, just noise for a
     // screenshot-diffing test server.
-    env: { ...testDbEnv, NEXT_DIST_DIR: ".next-test", DISABLE_DEV_INDICATOR: "1" },
+    //
+    // ENABLE_WRITE_MODE is pinned to "true" here (after the .env.test
+    // spread, so it always wins) so isGalaxyEnabled() is on for this server
+    // regardless of what .env/.env.test say: decision-card-chromium-darwin.png
+    // is captured with DecisionNote's editable textarea, which only renders
+    // when write mode is on. The other half of isGalaxyEnabled(),
+    // DATABASE_URL, comes from .env.test (bg_test). Writes from this server
+    // can only reach bg_test, and the suite itself never saves a note.
+    env: {
+      ...testDbEnv,
+      ENABLE_WRITE_MODE: "true",
+      NEXT_DIST_DIR: ".next-test",
+      DISABLE_DEV_INDICATOR: "1",
+    },
   },
 });

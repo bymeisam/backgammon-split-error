@@ -342,7 +342,10 @@ function buildRawEvent(params: {
 
 async function main() {
   // FK-safe order: children before parents. PlayerIdentity is standalone,
-  // order relative to the others doesn't matter.
+  // order relative to the others doesn't matter. DecisionNote first: its FK
+  // to Decision is ON DELETE RESTRICT, so a decision with a note can't be
+  // deleted until the note is.
+  await prisma.decisionNote.deleteMany();
   await prisma.decision.deleteMany();
   await prisma.game.deleteMany();
   await prisma.match.deleteMany();

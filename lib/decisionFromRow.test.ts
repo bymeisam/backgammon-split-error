@@ -43,6 +43,7 @@ function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
     cubeConfident: true,
     raw: event,
     classification: "opening_game",
+    note: null,
     game: { gameIndex: 3, match: { sourceMatchId: "46576635" } },
     ...overrides,
   };
@@ -71,6 +72,7 @@ function baseRow(overrides: Partial<DecisionRow> = {}): DecisionRow {
     cubeValue: 1,
     cubeConfident: true,
     raw: event,
+    note: null,
     game: { gameIndex: 3 },
     ...overrides,
   };
@@ -264,5 +266,22 @@ describe("toDecisionListItems", () => {
 
   it("returns an empty list for no rows", () => {
     expect(toDecisionListItems([])).toEqual([]);
+  });
+});
+
+describe("note and dbDecisionId", () => {
+  it("carries the joined note text and the real DB id, on both mappers", () => {
+    const withNote = baseRow({ id: 42, note: { note: "should have slotted", updatedAt: new Date(0) } });
+    for (const decision of [decisionFromRow(withNote), decisionFromRowForReplay(withNote)]) {
+      expect(decision?.note).toBe("should have slotted");
+      expect(decision?.dbDecisionId).toBe(42);
+      expect(decision?.id).toBe("42");
+    }
+  });
+
+  it("a decision without a note gets note null but still its DB id (so a note can be added)", () => {
+    const decision = decisionFromRow(baseRow({ id: 7, note: null }));
+    expect(decision?.note).toBeNull();
+    expect(decision?.dbDecisionId).toBe(7);
   });
 });

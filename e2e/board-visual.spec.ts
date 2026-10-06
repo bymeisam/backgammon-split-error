@@ -162,6 +162,20 @@ async function mockGameFetches(page: Page) {
       body: JSON.stringify(PLAYER_IDENTITIES),
     })
   );
+  // MistakesSection's per-match decision-notes lookup (one fetch on mount,
+  // /matches/[matchId] only — /galaxy/matches/[matchId] never fetches notes,
+  // it's live Galaxy data and read-only). Mocked to "no DB decisions" so no
+  // note UI ever renders on /matches, whatever the test server's DB/write
+  // mode is — otherwise its arrival time would race the screenshots. The
+  // note UI's own look is covered by the /mistakes decision-card screenshot
+  // instead.
+  await page.route("**/api/decision-notes?*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ canEdit: false, decisions: [] }),
+    })
+  );
 }
 
 const boardPanel = (page: Page) => page.getByTestId("board-panel");

@@ -23,9 +23,12 @@ import { style } from "./DecisionListWithDetail.styles";
 export default function DecisionListWithDetail({
   items,
   showClassification,
+  canEditNotes,
 }: {
   items: DecisionListItem[];
   showClassification: boolean;
+  // isGalaxyEnabled(), computed by the server page — see DecisionNote.
+  canEditNotes: boolean;
 }) {
   const { selectedKey: selectedId, moveTab, selectRow, setMoveTab } =
     useListSelection<string | null>(null);
@@ -57,6 +60,7 @@ export default function DecisionListWithDetail({
             matchHref={selected.matchHref}
             moveTab={moveTab}
             onMoveTabChange={setMoveTab}
+            canEditNotes={canEditNotes}
           />
         )}
       </div>

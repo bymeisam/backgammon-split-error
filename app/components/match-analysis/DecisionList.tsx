@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { Decision } from "@/lib/mistakes";
 import type { MoveTab } from "@/lib/listSelection";
+import { useDecisionNotes } from "@/app/providers/DecisionNotesProvider";
 import { DiceRoll } from "./Dice";
 import MoveDelta from "./MoveDelta";
 import { style } from "./DecisionList.styles";
@@ -82,6 +83,14 @@ export default function DecisionList({
   renderDetailCell,
 }: DecisionListProps) {
   const showCheckboxColumn = isChecked !== undefined && onToggleCheck !== undefined;
+  // A note saved in this tab wins over the row's own (possibly stale) note
+  // — same rule as DecisionNote's useEffectiveNote, applied per row here.
+  const { savedNotes } = useDecisionNotes();
+  const hasNote = (row: Decision): boolean => {
+    const id = row.dbDecisionId;
+    const note = id != null && savedNotes.has(id) ? savedNotes.get(id) : row.note;
+    return Boolean(note);
+  };
 
   return (
     <div className={style.wrapper}>
@@ -150,6 +159,12 @@ export default function DecisionList({
                       </td>
                     )}
                     <td className={style.detailCell}>
+                      {/* Only rendered when there's a note, so a row
+                          without one has exactly the markup it had before
+                          notes existed. */}
+                      {hasNote(row) && (
+                        <span role="img" aria-label="Has note" title="Has note" className={style.noteDot} />
+                      )}
                       {renderDetailCell ? (
                         renderDetailCell(row, activeTab, onSelectTab)
                       ) : (

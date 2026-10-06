@@ -46,7 +46,7 @@ export default function MatchAnalysisPage() {
           </div>
         )}
 
-        {!notIngested && <MistakesSection games={games} />}
+        {!notIngested && <MistakesSection matchId={matchId} games={games} />}
       </main>
     </div>
   );

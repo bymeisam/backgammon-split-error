@@ -14,9 +14,11 @@ import {
   type FetchedGame,
 } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
+import { attachNotes } from "@/lib/decisionNotes";
 import { resolveSelected, type MoveTab } from "@/lib/listSelection";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import { usePlayerIdentities } from "@/app/hooks/usePlayerIdentities";
+import { useMatchDecisionNotes } from "@/app/hooks/useMatchDecisionNotes";
 import { useTickSet, type TickSet } from "@/app/hooks/useTickSet";
 import BoardPanel from "./BoardPanel";
 import DecisionList from "./DecisionList";
@@ -70,8 +72,27 @@ function MistakeTable({
   );
 }
 
-export default function MistakesSection({ games }: { games: FetchedGame[] }) {
-  const decisions = useMemo(() => extractDecisions(games), [games]);
+export default function MistakesSection({
+  matchId,
+  games,
+}: {
+  // Galaxy's match id (Match.sourceMatchId) — used only to look up this
+  // match's notes in the DB. Omitted on /galaxy/matches/[matchId]: that page
+  // shows live Galaxy data and is read-only, so it gets no notes at all (no
+  // fetch, no note UI — DecisionNote renders nothing without a dbDecisionId).
+  matchId?: string;
+  games: FetchedGame[];
+}) {
+  // Decisions here are built from game payloads (no DB ids), so notes and
+  // the real Decision.id come from one per-match lookup, matched on
+  // (gameIndex, eventId). A match that isn't in the DB gets none, and so
+  // does a caller that passes no matchId (useMatchDecisionNotes skips the
+  // fetch and returns empty).
+  const matchNotes = useMatchDecisionNotes(matchId);
+  const decisions = useMemo(
+    () => attachNotes(extractDecisions(games), matchNotes.decisions),
+    [games, matchNotes.decisions]
+  );
   const playerOptions = useMemo(() => extractPlayerOptions(games), [games]);
   const gameIndexes = useMemo(() => extractGameIndexes(games), [games]);
 
@@ -172,7 +193,7 @@ export default function MistakesSection({ games }: { games: FetchedGame[] }) {
 
           <div className={style.boardAndTablesRow}>
             <div className={style.boardColumn}>
-              <BoardPanel selected={selected} moveTab={moveTab} />
+              <BoardPanel selected={selected} moveTab={moveTab} canEditNotes={matchNotes.canEdit} />
             </div>
 
             <div className={style.tablesColumn}>

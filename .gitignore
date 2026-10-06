@@ -57,3 +57,7 @@ next-env.d.ts
 
 # sync-script error log (local-only, see lib/errorLog.ts)
 /logs
+
+# Personal decision notes exported by scripts/notes-export.ts (moving notes
+# between local and Oracle) — user data, never committed.
+notes-export*.json

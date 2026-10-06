@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { GameStatsAuthProvider } from "./providers/GameStatsAuthProvider";
+import { DecisionNotesProvider } from "./providers/DecisionNotesProvider";
 import { style } from "./layout.styles";
 import "./globals.css";
 
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={style.html(geistSans.variable, geistMono.variable)}>
       <body className={style.body}>
-        <GameStatsAuthProvider>{children}</GameStatsAuthProvider>
+        <GameStatsAuthProvider>
+          <DecisionNotesProvider>{children}</DecisionNotesProvider>
+        </GameStatsAuthProvider>
       </body>
     </html>
   );

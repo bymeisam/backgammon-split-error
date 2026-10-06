@@ -61,6 +61,19 @@ export interface Decision {
   // lib/cubeState.ts. Null only when this decision's own game had no
   // events to walk (shouldn't happen in practice; defensive default).
   cubeState: CubeState | null;
+  // The user's own note on this decision (DecisionNote), null/absent when
+  // there isn't one. DB-row paths (lib/decisionFromRow.ts) read it from the
+  // joined row; the live path (extractDecisions below) has no DB row, so
+  // MistakesSection attaches it afterwards via /api/decision-notes — see
+  // attachNotes below.
+  note?: string | null;
+  // The real Decision.id in whichever DB served this decision — what a note
+  // is saved against (POST /api/decisions/[id]/note). Separate from `id`
+  // above, which stays the list/selection key (and on the live path is a
+  // synthetic `${gameIndex}:${eventId}`, not a DB id at all). Null/absent
+  // when the decision isn't in the DB (live path, match not ingested), in
+  // which case no note UI renders.
+  dbDecisionId?: number | null;
 }
 
 export interface PlayerOption {

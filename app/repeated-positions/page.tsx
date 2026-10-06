@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { findPositionOccurrences, loadDecisionItems } from "@/lib/decisionQueries";
 import {
   PAGE_SIZE_OPTIONS,
@@ -215,7 +216,7 @@ async function PositionDetailSection({
         {getClassificationLabel(position.classification)}, {position.errorSeverity.toLowerCase()}
         {position.plyNumber ? `, ply ${position.plyNumber}` : ""}).
       </p>
-      <DecisionListWithDetail items={items} showClassification={false} />
+      <DecisionListWithDetail items={items} showClassification={false} canEditNotes={isGalaxyEnabled()} />
     </>
   );
 }

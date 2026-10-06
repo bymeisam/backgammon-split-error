@@ -227,6 +227,10 @@ model Decision {
   myTag            String?
   raw              Json
 
+  // The user's own free-text note on this decision, if any (see
+  // DecisionNote below).
+  note DecisionNote?
+
   @@unique([gameId, eventId])
   @@index([kind, classification])
   @@index([userId])
@@ -336,4 +340,31 @@ model RepeatedPosition {
   @@unique([sourcePositionId, errorSeverity, plyNumber])
   @@index([classification, errorSeverity])
   @@index([plyNumber])
+}
+
+// The user's own free-text note on one decision — the app's first
+// user-authored data (everything else is ingested from Galaxy or derived
+// from it). 1:1 with Decision via the unique decisionId. Written only by
+// POST /api/decisions/[id]/note (gated by proxy.ts / isGalaxyEnabled()),
+// read alongside every decision a board is shown for. Saving an empty note
+// deletes the row rather than storing "".
+//
+// Keyed by the internal Decision.id, which is stable across re-syncs
+// (ingest upserts decisions in place on (gameId, eventId), never deletes)
+// but NOT the same between local and Oracle — scripts/notes-export.ts /
+// notes-import.ts move notes between databases by the natural key
+// (Match.source, Match.sourceMatchId, Game.gameIndex, Decision.eventId)
+// instead. Default (RESTRICT) on delete, same as every other FK here, so a
+// decision with a note can't be silently deleted out from under it.
+//
+// No utf8mb4_bin collation needed: decisionId is an internal Int and note
+// is user text, neither an externally-sourced string identifier (see
+// docs/field-mapping.md's "Collation for externally-sourced identifiers").
+model DecisionNote {
+  id         Int      @id @default(autoincrement())
+  decisionId Int      @unique
+  decision   Decision @relation(fields: [decisionId], references: [id])
+  note       String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

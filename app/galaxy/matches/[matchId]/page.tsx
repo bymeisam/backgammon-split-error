@@ -44,6 +44,8 @@ export default function GalaxyMatchAnalysisPage() {
           {error && <p className={style.errorBox}>{error}</p>}
         </div>
 
+        {/* No matchId: /galaxy is live Galaxy data and read-only, so no
+            notes (see CLAUDE.md). */}
         <MistakesSection games={games} />
       </main>
     </div>

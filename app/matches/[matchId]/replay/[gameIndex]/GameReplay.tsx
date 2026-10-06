@@ -23,6 +23,7 @@ export default function GameReplay({
   nextGameIndex,
   initialIndex,
   myColor,
+  canEditNotes,
 }: {
   matchId: string;
   decisions: Decision[];
@@ -35,6 +36,8 @@ export default function GameReplay({
   // fixed-perspective toggle below has nothing reliable to compare a
   // decision's color against and is hidden rather than offered broken.
   myColor: string | null;
+  // isGalaxyEnabled(), computed by the server page — see DecisionNote.
+  canEditNotes: boolean;
 }) {
   const router = useRouter();
   // Positional (index) selection, not id-based like the mistakes lists —
@@ -97,7 +100,13 @@ export default function GameReplay({
   return (
     <div className={style.layout}>
       <div className={style.boardColumn}>
-        <BoardPanel selected={selected} moveTab={moveTab} onSelectTab={setMoveTab} flipped={flipped} />
+        <BoardPanel
+          selected={selected}
+          moveTab={moveTab}
+          onSelectTab={setMoveTab}
+          flipped={flipped}
+          canEditNotes={canEditNotes}
+        />
 
         {myColor !== null && (
           <label className={style.perspectiveToggle}>

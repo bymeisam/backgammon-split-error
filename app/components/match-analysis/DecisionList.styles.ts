@@ -27,6 +27,8 @@ export const style = {
   detailCell: "px-3 py-2 font-mono text-xs",
   errorCell: "px-3 py-2 font-mono text-xs text-black dark:text-zinc-100",
   indexCell: "px-3 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400",
+  // "Has note" marker, inline before the detail cell's own content.
+  noteDot: "mr-1.5 inline-block h-2 w-2 rounded-full bg-blue-500 align-middle dark:bg-blue-400",
 
   // Function, 1 param -> passed directly.
   row: (isSelected: boolean): string =>

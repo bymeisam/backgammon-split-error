@@ -6,6 +6,7 @@ import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
 import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
 import { flipCubeState } from "@/lib/cubeState";
 import Board from "./Board";
+import DecisionNote from "./DecisionNote";
 import { style } from "./BoardPanel.styles";
 
 const BLUNDER_COLOR = "#dc2626"; // red-600
@@ -17,6 +18,7 @@ export default function BoardPanel({
   moveTab,
   onSelectTab,
   flipped,
+  canEditNotes = false,
 }: {
   selected: Decision | null;
   moveTab: "my" | "best";
@@ -28,6 +30,9 @@ export default function BoardPanel({
   // true, `decoded`/`subMoves` are mirrored here — flipPerspective/
   // mirrorSubMoves, once, in one place — before Board sees them.
   flipped?: boolean;
+  // Whether the selected decision's note is editable here (isGalaxyEnabled()
+  // on the server — see DecisionNote). Default false: read-only.
+  canEditNotes?: boolean;
 }) {
   const decoded = useMemo(() => {
     if (!selected?.sourcePositionId) return null;
@@ -121,6 +126,18 @@ export default function BoardPanel({
           </div>
         )}
       </div>
+
+      {/* Outside the board-panel testid'd box on purpose: the note is its
+          own card below the board, so e2e's board-panel screenshots stay
+          about the board itself. */}
+      {selected && (
+        <DecisionNote
+          key={selected.dbDecisionId ?? selected.id}
+          note={selected.note}
+          dbDecisionId={selected.dbDecisionId}
+          canEditNotes={canEditNotes}
+        />
+      )}
     </div>
   );
 }

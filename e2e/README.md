@@ -55,7 +55,14 @@ are client components that fetch game data over the network; their fetches
 are mocked (`page.route()`) to serve the exact same fixture JSON
 (`e2e/fixtures/match-46576635-game-{5,6,7}.json`, real payloads, not
 fabricated), so both are fully deterministic regardless of what's actually
-in the real DB right now. `/mistakes` is a server component reading Prisma
+in the real DB right now. `/matches/[matchId]`'s decision-notes lookup
+(`GET /api/decision-notes?matchId=`) is mocked too, to "no DB decisions",
+so no note UI renders there and its arrival can't race a screenshot.
+`/galaxy/matches/[matchId]` never fetches notes (it's live Galaxy data and
+read-only). The note UI itself is covered by the `/mistakes`
+`decision-card` screenshot, which shows the editable note card: that needs
+write mode, so `playwright.config.ts` pins `ENABLE_WRITE_MODE=true` on the
+:3100 server instead of depending on `.env`. `/mistakes` is a server component reading Prisma
 directly — no fetch to mock — so it's made deterministic a different way:
 a separate local MySQL schema, `bg_test` (same Docker container as the
 normal `app_dev`), seeded with exactly these decisions
@@ -151,9 +158,13 @@ Needs Chromium installed once: `npx playwright install chromium`.
 ## Setup (one-time, or after a fresh `docker compose up`)
 
 1. Create the `bg_test` schema and grant your local MySQL user access to
-   it (same user `.env.example` already documents for `app_dev` — `app`/`app`,
-   full privileges via `docker-compose.yml`, no local privilege
-   separation):
+   it. The minimal setup uses the `app`/`app` user `docker-compose.yml`
+   creates (full privileges), the same default `.env.example` uses for
+   `app_dev`. Local can also mirror production's privilege split: the
+   existing local container has hand-created `bg_db_rw`/`bg_db_ro` users
+   with production's grant shapes on both `app_dev` and `bg_test` (see
+   `.env.example`), and `.env.test` can point `DATABASE_URL`/
+   `DATABASE_URL_READONLY` at those instead:
    ```sql
    CREATE DATABASE IF NOT EXISTS bg_test CHARACTER SET utf8mb4;
    GRANT ALL PRIVILEGES ON bg_test.* TO 'app'@'%';

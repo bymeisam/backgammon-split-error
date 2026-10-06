@@ -27,6 +27,10 @@ export const DECISION_LIST_SELECT = {
   cubeValue: true,
   cubeConfident: true,
   raw: true,
+  // The user's own note, if any (1:1 DecisionNote, null when absent) — a
+  // unique-key lookup per returned row, so it only ever touches the page's
+  // own rows, never the count query.
+  note: { select: { note: true, updatedAt: true } },
   game: { select: { gameIndex: true, match: { select: { sourceMatchId: true } } } },
 } satisfies Prisma.DecisionSelect;
 

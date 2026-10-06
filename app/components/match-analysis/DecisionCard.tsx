@@ -20,12 +20,14 @@ export default function DecisionCard({
   matchHref,
   moveTab,
   onMoveTabChange,
+  canEditNotes,
 }: {
   decision: Decision;
   classification: string;
   matchHref: string;
   moveTab: "my" | "best";
   onMoveTabChange: (tab: "my" | "best") => void;
+  canEditNotes: boolean;
 }) {
   return (
     <div data-testid="decision-card" className={style.card}>
@@ -42,7 +44,12 @@ export default function DecisionCard({
         </Link>
       </div>
 
-      <BoardPanel selected={decision} moveTab={moveTab} onSelectTab={onMoveTabChange} />
+      <BoardPanel
+        selected={decision}
+        moveTab={moveTab}
+        onSelectTab={onMoveTabChange}
+        canEditNotes={canEditNotes}
+      />
     </div>
   );
 }

@@ -133,6 +133,10 @@ export interface DecisionRow {
   cubeValue: number | null;
   cubeConfident: boolean | null;
   raw: unknown;
+  // The joined DecisionNote (1:1, null when the decision has no note) —
+  // every query that feeds a board selects it (DECISION_LIST_SELECT in
+  // lib/decisionQueries.ts, the replay page's own select).
+  note: { note: string; updatedAt: Date } | null;
   game: { gameIndex: number };
 }
 
@@ -168,6 +172,8 @@ export function decisionFromRow(row: DecisionRow): Decision | null {
     myMoveNotation,
     bestMoveNotation,
     cubeState: cubeStateFor(row),
+    note: row.note?.note ?? null,
+    dbDecisionId: row.id,
   };
 }
 
@@ -211,6 +217,8 @@ export function decisionFromRowForReplay(row: DecisionRow): Decision | null {
     myMoveNotation,
     bestMoveNotation,
     cubeState: cubeStateFor(row),
+    note: row.note?.note ?? null,
+    dbDecisionId: row.id,
   };
 }
 

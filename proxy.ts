@@ -28,5 +28,8 @@ export const config = {
     "/api/galaxy/:path*",
     "/api/sync/:path*",
     "/api/matches/check-existence",
+    // Decision-note writes (POST /api/decisions/[id]/note) — the app's
+    // first write path outside sync/ingest, gated the same way.
+    "/api/decisions/:path*",
   ],
 };

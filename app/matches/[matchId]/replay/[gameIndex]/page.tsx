@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { decisionFromRowForReplay } from "@/lib/decisionFromRow";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
@@ -117,6 +118,8 @@ export default async function GameReplayPage({
       cubeValue: true,
       cubeConfident: true,
       raw: true,
+      // The user's own note on each decision, if any (1:1 DecisionNote).
+      note: { select: { note: true, updatedAt: true } },
       game: { select: { gameIndex: true } },
     },
   });
@@ -190,6 +193,7 @@ export default async function GameReplayPage({
             nextGameIndex={nextGameIndex}
             initialIndex={initialIndex}
             myColor={myColor}
+            canEditNotes={isGalaxyEnabled()}
           />
         )}
       </main>
