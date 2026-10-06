@@ -2,6 +2,7 @@
 
 import type { Decision } from "@/lib/mistakes";
 import type { MoveTab } from "@/lib/listSelection";
+import GalaxyMismatchBadge from "./GalaxyMismatchBadge";
 import { style } from "./MoveDelta.styles";
 
 // A decision's my-move / best-move labels, color-coded (red blunder / amber
@@ -76,6 +77,7 @@ export default function MoveDelta({
       >
         {decision.bestLabel}
       </span>
+      <GalaxyMismatchBadge galaxyLabel={decision.galaxyBestLabel} />
     </span>
   );
 }

@@ -9,7 +9,13 @@ import { createGalaxyClient } from "@/lib/galaxy-client";
 import { DecisionKind, ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
 import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
 import { actionLabels, findPrecedingRoll } from "@/lib/mistakes";
-import { computeCubeStates } from "@/lib/cubeState";
+import {
+  PlayerUserIds,
+  addSeatEvidence,
+  decodeGnuMatchId,
+  gameScoreFromMatchId,
+  type DecodedMatchId,
+} from "@/lib/gnuMatchId";
 
 // How many of a game's own CHECKER decisions get a plyNumber at all —
 // deeper plies aren't a useful filter dimension (see Decision.plyNumber's
@@ -273,14 +279,16 @@ export async function ingestMatch(
   let decisionsSkippedNotCounted = 0;
   let eventsSkippedNoReview = 0;
   const gamePlayedAts: Date[] = [];
-  // Match.matchLength = the resolved matchLength of the match's first game
-  // (lowest gameIndex) that has one — same "first game wins" shape as
-  // gamePlayedAts/Match.playedAt below, not "whichever event is processed
-  // last" (the old, confirmed-buggy behavior: metadata.match_length is
-  // unreliably null on a subset of events even within a real match-play
-  // game, so a plain last-write-wins assignment could regress a real value
-  // back to null depending on event-processing order).
+  // Match.matchLength = the GNU Match ID length (0 = money) of the match's
+  // first decision: lowest gameIndex, then lowest eventId — see
+  // docs/field-mapping.md, "GNU Match ID". Built in ascending gameIndex
+  // order, one entry per game whose first decision decodes.
   const gameMatchLengths: number[] = [];
+  // Which userId sits in which GNU player seat (1 = black, 0 = white),
+  // gathered across the whole match (colours are fixed per match) — maps
+  // the Match ID's cube owner to a userId, and the user's own seat to
+  // their scores.
+  const players = new PlayerUserIds();
 
   // matchId here is the Galaxy match ID (what the URL/UI use) — Match.id is
   // now an internal auto-increment key, resolved via the (source,
@@ -326,9 +334,6 @@ export async function ingestMatch(
       update: {},
     });
 
-    // Cube ownership isn't in the payload directly — walk this game's
-    // cube-kind decisions in order, tracking who last took a double.
-    let cubeOwner: string | null = null;
     // Game.playedAt = metadata.timestamp of this game's first decision *by
     // eventId* (not earliest timestamp value, and not assumed to already be
     // in eventId order from the API) with a populated error_analysis.
@@ -344,36 +349,28 @@ export async function ingestMatch(
     // happened for this app's original 2026-09 backfill (see
     // scripts/backfill-played-at.ts for the one-time consequence of that).
     const decisionTimestampsByEventId: { eventId: number; timestamp: Date }[] = [];
-    // Game.userScore/opponentScore/crawfordState (and, via gameMatchLengths
-    // above, Match.matchLength) all resolve from this same game's first
-    // event (by eventId) whose metadata.scores is non-null — not literally
-    // the first event. Confirmed table-wide (reports/2026-10-02-raw-field-
-    // reverification.md): metadata.scores being null and metadata.match_length
-    // being null are 100% correlated (0 exceptions either direction across
-    // 1,257,534 rows), so both travel together; crawfordState can't be
-    // judged independently (it reports "none" both for a genuine non-
-    // crawford game and for an event whose scores happen to be unreliable),
-    // so it's read from this same resolved event rather than its own value.
-    // Stays empty for a genuine money game (metadata.scores is null for
-    // every event in the game), correctly leaving userScore/opponentScore/
-    // crawfordState/matchLength all null.
-    const gameScoreByEventId: {
-      eventId: number;
-      userScore: number;
-      opponentScore: number;
-      crawfordState: string;
-      matchLength: number;
-    }[] = [];
+    // Game.userScore/opponentScore/crawfordState and (via gameMatchLengths)
+    // Match.matchLength all come from the GNU Match ID of this game's first
+    // stored decision by eventId. Replaces the metadata.scores reading
+    // (2026-10-06): metadata.scores.white is the score of the player on
+    // roll, not a colour's or the actor's, and it's null on Galaxy's older
+    // analyses — see docs/field-mapping.md, "GNU Match ID".
+    let firstDecision: { eventId: number; matchId: DecodedMatchId | null } | null = null;
     const plyByEventId = checkerPlyByEventId(response.data.events);
     const rollByEvent = rollByEventId(response.data.events);
-    // Value/confident only — cubeOwnerUserId keeps its own separate
-    // absolute-owner walk below (cubeOwner), not this function's own
-    // relativized owner. Verified the two never disagree (see Decision.
-    // cubeValue's schema comment / the Step 5 design report) rather than
-    // widening computeCubeStates' public CubeState shape to expose an
-    // absolute owner too, which would've broken every exhaustive
-    // lib/cubeState.test.ts assertion for no real benefit.
-    const cubeStatesByEvent = computeCubeStates(response.data.events);
+
+    // Seat evidence for `players`, from every event before any row is
+    // written, so a cube owner whose first appearance comes later in the
+    // game still resolves.
+    for (const event of response.data.events) {
+      const review = event.reviews?.[0];
+      addSeatEvidence(players, {
+        userId: event.user_id,
+        color: event.color,
+        analysedEvent: review?.result.analysed_event,
+        matchId: decodeGnuMatchId(review?.source_match?.formatted_value),
+      });
+    }
 
     for (const event of response.data.events) {
       if (me && opponentUserId === null && event.user_id && event.user_id !== me.sourceUserId) {
@@ -441,17 +438,25 @@ export async function ingestMatch(
           throw new Error("missing source_position.classification");
         }
 
-        // Owner entering this decision, before applying its own outcome —
-        // every kind now (2026-10-02), not just CUBE: a CHECKER/RESIGNATION
-        // decision has a real cube owner too, just not its own decision
-        // about it. See Decision.cubeOwnerUserId's schema comment.
-        const cubeOwnerUserId = cubeOwner;
-        if (kind === DecisionKind.CUBE && analysedEvent === "cube_pass" && review.take === true) {
-          cubeOwner = event.user_id;
+        // Cube entering this decision, every kind, straight from the
+        // decision's own GNU Match ID (2026-10-06; replaces the take-walk,
+        // which missed takes on ~22% of rows). Owner seat -> userId via
+        // `players`; centred -> null. A Match ID that doesn't decode, or an
+        // owner seat no userId can be matched to, stores no cube and
+        // cubeConfident = false, with a warning.
+        const matchState = decodeGnuMatchId(review.source_match?.formatted_value);
+        const cubeOwnerUserId =
+          matchState && matchState.cubeOwner !== null ? players.userIdFor(matchState.cubeOwner) : null;
+        const cubeConfident =
+          matchState !== null && (matchState.cubeOwner === null || cubeOwnerUserId !== null);
+        const cubeValue = cubeConfident ? matchState!.cubeValue : null;
+        if (!cubeConfident) {
+          const message = matchState
+            ? `match ${matchId} game ${gameIndex} event ${event.id}: cube owner seat ${matchState.cubeOwner} has no known userId, cube left unset`
+            : `match ${matchId} game ${gameIndex} event ${event.id}: GNU Match ID missing or undecodable, cube left unset`;
+          console.warn(message);
+          warnings.push(message);
         }
-        const cubeState = cubeStatesByEvent.get(event.id);
-        const cubeValue = cubeState?.value ?? null;
-        const cubeConfident = cubeState?.confident ?? null;
 
         // The same mine/best short labels lib/mistakes.ts's actionLabels()
         // already computes at read time for display — reused directly
@@ -466,15 +471,8 @@ export async function ingestMatch(
         const resignation = buildResignationDetail(review);
         const timestamp = new Date(metadata.timestamp);
         decisionTimestampsByEventId.push({ eventId: event.id, timestamp });
-        if (me && metadata.scores) {
-          const isMe = event.user_id === me.sourceUserId;
-          gameScoreByEventId.push({
-            eventId: event.id,
-            userScore: isMe ? metadata.scores.black : metadata.scores.white,
-            opponentScore: isMe ? metadata.scores.white : metadata.scores.black,
-            crawfordState: metadata.crawford_state,
-            matchLength: metadata.match_length,
-          });
+        if (firstDecision === null || event.id < firstDecision.eventId) {
+          firstDecision = { eventId: event.id, matchId: matchState };
         }
 
         const decisionData = {
@@ -504,7 +502,7 @@ export async function ingestMatch(
           // nullable column on this model, which isn't Json-typed.
           roll: rollByEvent.get(event.id) ?? Prisma.DbNull,
           plyNumber: plyByEventId.get(event.id) ?? null,
-          cubeOwnerUserId,
+          cubeOwnerUserId: cubeConfident ? cubeOwnerUserId : null,
           cubeValue,
           cubeConfident,
           movePlayed: played,
@@ -543,28 +541,20 @@ export async function ingestMatch(
       gamePlayedAts.push(first.timestamp);
     }
 
-    if (gameScoreByEventId.length > 0) {
-      const first = gameScoreByEventId.reduce((a, b) => (a.eventId < b.eventId ? a : b));
-      await prisma.game.update({
-        where: { id: game.id },
-        data: {
-          userScore: first.userScore,
-          opponentScore: first.opponentScore,
-          crawfordState: first.crawfordState,
-        },
-      });
-      gameMatchLengths.push(first.matchLength);
+    const firstState = firstDecision?.matchId ?? null;
+    if (firstState) {
+      await prisma.game.update({ where: { id: game.id }, data: gameScoreFromMatchId(firstState, players, me?.sourceUserId) });
+      gameMatchLengths.push(firstState.matchLength);
     }
 
     gamesIngested++;
   }
 
   const matchUpdate: { matchLength?: number; playedAt?: Date } = {};
-  // gameMatchLengths is built in ascending gameIndex order (only pushed for
-  // a game that resolved one), so its first element is exactly the lowest-
-  // gameIndex match that has a real value — same "first game wins" rule as
-  // Match.playedAt below, not a money-game's every-event-null case being
-  // mistaken for "no game resolved one yet".
+  // gameMatchLengths is in ascending gameIndex order, so its first element
+  // is the first decision's length — including 0 for a money game, and for
+  // the ~30 single-game matches whose Match ID flips from 0 to 1 after a
+  // double (the user's call: store the first decision's value).
   if (gameMatchLengths.length > 0) matchUpdate.matchLength = gameMatchLengths[0];
   // Match.playedAt = the Game.playedAt of the match's first game (lowest
   // gameIndex), not the earliest across all games — gamePlayedAts is built

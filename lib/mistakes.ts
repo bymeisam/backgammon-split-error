@@ -4,7 +4,9 @@ import type {
   GameReviewsResponse,
   Review,
 } from "@/lib/gameReviewsTypes";
-import { computeCubeStates, type CubeState } from "@/lib/cubeState";
+import { cubeStateFromMatchId, type CubeState } from "@/lib/cubeState";
+import { deriveCubeActionFromReview } from "@/lib/cubeAction";
+import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 export interface FetchedGame {
   gameIndex: number;
@@ -52,14 +54,20 @@ export interface Decision {
   isMistake: boolean;
   severity: Severity | null;
   myLabel: string;
+  // For a cube decision this is the action derived from Galaxy's equities
+  // (lib/cubeAction.ts), not Galaxy's own label — see displayLabels below.
   bestLabel: string;
+  // Galaxy's own best-action label, set only when it disagrees with the
+  // derived bestLabel above (shown as a "Doesn't match Galaxy" badge).
+  // Null/absent otherwise, and always for checker/resignation decisions.
+  galaxyBestLabel?: string | null;
   roll: number[];
   sourcePositionId: string | null;
   myMoveNotation: string | null;
   bestMoveNotation: string | null;
-  // Cumulative doubling-cube state entering this decision — see
-  // lib/cubeState.ts. Null only when this decision's own game had no
-  // events to walk (shouldn't happen in practice; defensive default).
+  // Doubling-cube state entering this decision, from its own GNU Match ID,
+  // relative to the player drawn at the bottom — see lib/cubeState.ts. Null
+  // when the Match ID is missing or doesn't decode.
   cubeState: CubeState | null;
   // The user's own note on this decision (DecisionNote), null/absent when
   // there isn't one. DB-row paths (lib/decisionFromRow.ts) read it from the
@@ -128,6 +136,26 @@ export function actionLabels(review: Review): { mine: string; best: string } {
 
   const mine = review.take ? "took" : "passed";
   return { mine, best: formatCubeAction(cube.receivers_best_action) };
+}
+
+// The labels a decision shows: actionLabels() above, except that a cube
+// decision's "best" is the action derived from Galaxy's own equities
+// (lib/cubeAction.ts) — Galaxy's best-action label is unreliable on old
+// analyses. galaxyBestLabel carries Galaxy's label when the two disagree.
+// actionLabels() itself stays Galaxy's: ingest stores it as
+// Decision.cubeActionBest. `labels` lets the DB-row path pass in the
+// labels it already read from columns.
+export function displayLabels(
+  review: Review,
+  labels: { mine: string; best: string } = actionLabels(review)
+): { mine: string; best: string; galaxyBestLabel: string | null } {
+  const derived = deriveCubeActionFromReview(review);
+  if (!derived) return { ...labels, galaxyBestLabel: null };
+  return {
+    mine: labels.mine,
+    best: derived.action,
+    galaxyBestLabel: derived.matchesGalaxy ? null : derived.galaxyLabel,
+  };
 }
 
 // Exported for lib/decisionFromRow.ts, which builds a Decision straight
@@ -204,11 +232,6 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
 
   for (const game of games) {
     const events = game.data?.data?.events ?? [];
-    // Walked once per game, over the full unfiltered event list — a cube
-    // action with a null raw_error or countAsDecision: false would still
-    // be a real take/double that must count toward the walk, even though
-    // it's excluded from the `decisions` list itself below.
-    const cubeStates = computeCubeStates(events);
 
     for (let index = 0; index < events.length; index++) {
       const event = events[index];
@@ -238,7 +261,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
       const absError = Math.abs(rawError);
       const isMistake = absError > 0;
       const { mine, best } = moveNotations(review);
-      const labels = actionLabels(review);
+      const labels = displayLabels(review);
 
       decisions.push({
         id: `${game.gameIndex}:${event.id}`,
@@ -251,13 +274,14 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         severity: severityFromErrorSeverity(review.result.result.error_analysis.error_severity),
         myLabel: labels.mine,
         bestLabel: labels.best,
+        galaxyBestLabel: labels.galaxyBestLabel,
         // Cube decisions are made before any roll; checker decisions pull the
         // roll from the preceding dice_rolled/game_started event.
         roll: kind === "checker" ? findPrecedingRoll(events, index) : [],
         sourcePositionId: review.source_position?.formatted_value ?? null,
         myMoveNotation: mine,
         bestMoveNotation: best,
-        cubeState: cubeStates.get(event.id) ?? null,
+        cubeState: cubeStateFromMatchId(decodeGnuMatchId(review.source_match?.formatted_value)),
       });
     }
   }

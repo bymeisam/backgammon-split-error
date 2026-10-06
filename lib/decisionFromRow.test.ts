@@ -141,14 +141,14 @@ describe("decisionFromRow / decisionFromRowForReplay — notation from the colum
   });
 });
 
-describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: column for CHECKER/CUBE, actionLabels() for RESIGNATION", () => {
+describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: column for CHECKER/CUBE (CUBE best derived from equities), actionLabels() for RESIGNATION", () => {
   it("CHECKER kind: myLabel/bestLabel come from movePlayed/moveBest (same column as myMoveNotation/bestMoveNotation)", () => {
     const decision = decisionFromRow(baseRow({ movePlayed: "13/7", moveBest: "13/9" }));
     expect(decision?.myLabel).toBe("13/7");
     expect(decision?.bestLabel).toBe("13/9");
   });
 
-  it("CUBE kind: myLabel/bestLabel come from cubeActionPlayed/cubeActionBest, not re-parsed raw", () => {
+  it("CUBE kind: myLabel comes from cubeActionPlayed, not re-parsed raw", () => {
     // Real cube_double event from the fixture (low-confidence-doubtful.json)
     // — deliberately different literal values than actionLabels(review)
     // would derive from it, so a silent raw-reparse would be caught.
@@ -170,7 +170,42 @@ describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: colu
       })
     );
     expect(decision?.myLabel).toBe("doubled");
-    expect(decision?.bestLabel).toBe("double");
+    // bestLabel is derived from the row's own cube equities (ND −0.02,
+    // DT −0.12, DP 1 -> No double/take), not cubeActionBest — Galaxy's
+    // label agrees here ("no double" + "take"), so no mismatch badge.
+    expect(decision?.bestLabel).toBe("No double/take");
+    expect(decision?.galaxyBestLabel).toBeNull();
+  });
+
+  it("CUBE kind: a derived action Galaxy's label disagrees with carries Galaxy's label (C2, decision 629849)", () => {
+    const cubeEvent = lowConfidenceDoubtful.data.events.find(
+      (e: { reviews?: { result: { analysed_event: string } }[] }) =>
+        e.reviews?.[0]?.result.analysed_event === "cube_double"
+    )!;
+    const raw = structuredClone(cubeEvent) as typeof cubeEvent;
+    Object.assign(raw.reviews[0].result.result.cube_analysis, {
+      no_double: 0.7922,
+      double_take: 0.9751,
+      double_pass: 1,
+      doublers_best_action: "roll",
+      receivers_best_action: null,
+    });
+    const decision = decisionFromRow(
+      baseRow({
+        kind: "CUBE",
+        eventId: BigInt(cubeEvent.id),
+        rawError: -0.1829,
+        errorSeverity: "BLUNDER",
+        movePlayed: null,
+        moveBest: null,
+        cubeActionPlayed: "did not double",
+        cubeActionBest: "roll",
+        raw,
+      })
+    );
+    expect(decision?.myLabel).toBe("did not double");
+    expect(decision?.bestLabel).toBe("Double/take");
+    expect(decision?.galaxyBestLabel).toBe("roll");
   });
 
   it("RESIGNATION kind: myLabel/bestLabel still call actionLabels() against raw — no column for this kind, deliberately", () => {
@@ -208,32 +243,62 @@ describe("decisionFromRow / decisionFromRowForReplay — roll from the column, n
   });
 });
 
-describe("decisionFromRow / decisionFromRowForReplay — cube state from the column, not re-walked", () => {
-  it("converts absolute cubeOwnerUserId to relative owner: center when null", () => {
+// A copy of the fixture's raw event with a real GNU Match ID attached
+// (the hand-built fixture's own source_match is null).
+function rawWithMatchId(matchId: string) {
+  const raw = structuredClone(event) as unknown as { reviews: { source_match: unknown }[] };
+  raw.reviews[0].source_match = { id: 1, formatted_value: matchId };
+  return raw;
+}
+
+describe("decisionFromRow / decisionFromRowForReplay — cube state: value from the column, side relative to the board's bottom player", () => {
+  it("center when the Match ID's cube is centred", () => {
     const decision = decisionFromRow(
-      baseRow({ cubeOwnerUserId: null, cubeValue: 1, cubeConfident: true })
+      baseRow({ cubeOwnerUserId: null, cubeValue: 1, cubeConfident: true, raw: rawWithMatchId("MAGzAAAACAAE") })
     );
     expect(decision?.cubeState).toEqual({ value: 1, owner: "center", confident: true });
   });
 
-  it("'mine' when cubeOwnerUserId matches the row's own userId", () => {
+  it("'mine' when the owner is the player on roll (drawn at the bottom)", () => {
+    // EQGvABAAAAAE (A4): owner black, dice owner white -> opponent; use a
+    // state where they match: UQmgADAAEAAE (A5) owner black, dice owner black.
     const decision = decisionFromRow(
-      baseRow({ userId: "user_me", cubeOwnerUserId: "user_me", cubeValue: 2, cubeConfident: true })
+      baseRow({ cubeOwnerUserId: "user_me", cubeValue: 2, cubeConfident: true, raw: rawWithMatchId("UQmgADAAEAAE") })
     );
     expect(decision?.cubeState).toEqual({ value: 2, owner: "mine", confident: true });
   });
 
-  it("'opponent' when cubeOwnerUserId differs from the row's own userId", () => {
+  it("'opponent' when the owner isn't the player on roll", () => {
     const decision = decisionFromRow(
-      baseRow({ userId: "user_me", cubeOwnerUserId: "user_opponent", cubeValue: 4, cubeConfident: false })
+      baseRow({ cubeOwnerUserId: "user_me", cubeValue: 2, cubeConfident: true, raw: rawWithMatchId("EQGvABAAAAAE") })
     );
-    expect(decision?.cubeState).toEqual({ value: 4, owner: "opponent", confident: false });
+    expect(decision?.cubeState).toEqual({ value: 2, owner: "opponent", confident: true });
   });
 
-  it("null cubeValue or cubeConfident (migration-sequencing gap, not yet backfilled) means null cubeState, not a crash", () => {
-    expect(decisionFromRow(baseRow({ cubeValue: null }))?.cubeState).toBeNull();
-    expect(decisionFromRow(baseRow({ cubeConfident: null }))?.cubeState).toBeNull();
-    expect(decisionFromRowForReplay(baseRow({ cubeValue: null }))?.cubeState).toBeNull();
+  it("a take row (A2): the doubler's cube is beside the doubler at the bottom, not relative to the receiving actor", () => {
+    // ARmgAAAACAAE: the opponent (white) owns a 2-cube, redoubles; the user
+    // (black) is the row's actor. Before 2026-10-06 the cube was
+    // relativized to row.userId and drawn on the wrong side.
+    const decision = decisionFromRowForReplay(
+      baseRow({
+        kind: "CUBE",
+        userId: "user_me",
+        cubeOwnerUserId: "user_opponent",
+        cubeValue: 2,
+        cubeConfident: true,
+        raw: rawWithMatchId("ARmgAAAACAAE"),
+      })
+    );
+    expect(decision?.cubeState).toEqual({ value: 2, owner: "mine", confident: true });
+  });
+
+  it("no cube when cubeConfident is false/null, cubeValue is null, or the Match ID doesn't decode", () => {
+    const raw = rawWithMatchId("EQGvABAAAAAE");
+    expect(decisionFromRow(baseRow({ cubeConfident: false, raw }))?.cubeState).toBeNull();
+    expect(decisionFromRow(baseRow({ cubeConfident: null, raw }))?.cubeState).toBeNull();
+    expect(decisionFromRow(baseRow({ cubeValue: null, raw }))?.cubeState).toBeNull();
+    expect(decisionFromRowForReplay(baseRow({ cubeValue: null, raw }))?.cubeState).toBeNull();
+    expect(decisionFromRow(baseRow({ raw: event }))?.cubeState).toBeNull();
   });
 });
 

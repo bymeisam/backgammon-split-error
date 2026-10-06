@@ -7,6 +7,7 @@ import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
 import { flipCubeState } from "@/lib/cubeState";
 import Board from "./Board";
 import DecisionNote from "./DecisionNote";
+import GalaxyMismatchBadge from "./GalaxyMismatchBadge";
 import { style } from "./BoardPanel.styles";
 
 const BLUNDER_COLOR = "#dc2626"; // red-600
@@ -108,6 +109,7 @@ export default function BoardPanel({
                   className={style.bestMoveButton(moveTab === "best")}
                 >
                   <span className={style.moveNotation}>{selected.bestLabel}</span>
+                  <GalaxyMismatchBadge galaxyLabel={selected.galaxyBestLabel} />
                 </button>
               </>
             ) : (
@@ -120,6 +122,7 @@ export default function BoardPanel({
                 <div className={style.bestMoveStatic}>
                   <span className={style.mutedLabel}>Best move</span>
                   <span className={style.moveNotation}>{selected.bestLabel}</span>
+                  <GalaxyMismatchBadge galaxyLabel={selected.galaxyBestLabel} />
                 </div>
               </>
             )}

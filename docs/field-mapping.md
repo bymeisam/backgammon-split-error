@@ -144,7 +144,7 @@ own decisions/games (`matchLength`, `playedAt`).
 | `userError` | `MatchAnalysis.userError` |
 | `userRating` | `MatchAnalysis.userRating` |
 | `userScore` | `MatchAnalysis.userScore` |
-| `matchLength` | The resolved `metadata.match_length` of the match's first game (lowest `gameIndex`) that resolves one — see `Game.userScore`/`opponentScore`/`crawfordState`'s own section below for the resolution rule and why "last event seen wins" (this column's original, confirmed-buggy rule) was wrong. Null until the match has been detail-ingested, or permanently for a genuine money-game-type match. |
+| `matchLength` | The match length in the GNU Match ID (`reviews[0].source_match.formatted_value`) of the match's first decision — lowest `gameIndex`, then lowest `eventId`. **0 = money game.** See "GNU Match ID" below. Since 2026-10-06; before that it was `metadata.match_length`, which is null on Galaxy's older analyses (2,182 local match-play matches had no length). About 30 single-game matches' Match IDs flip from 0 to 1 after a double; they store the first decision's 0, per the user. Null only until detail-ingested, or for a match with no stored decision at all (1 locally, match `6029642`). |
 | `playedAt` | The `Game.playedAt` of the match's first game (lowest `gameIndex`) that has one — see "playedAt: what it actually means" below. Null until then — distinct from `createdAt`. |
 | `createdAt` | DB default (`now()`), set when the row is first created — i.e. when the match was first ingested, not when it was played. |
 
@@ -156,61 +156,100 @@ own decisions/games (`matchLength`, `playedAt`).
 | `matchId` | FK to `Match.id` (the internal key, not `sourceMatchId`). |
 | `gameIndex` | The loop index used to fetch `game_reviews/{matchId}/{gameIndex}` (starts at 1). |
 | `playedAt` | `metadata.timestamp` of this game's first decision **by eventId** (not earliest timestamp value) with a populated `error_analysis`. Null until detail-ingested — see below. |
-| `userScore`/`opponentScore` | The score entering this specific game (not the match's current/final score — that's `Match.userScore`/`opponentScore`, from the separate `analyses/list` endpoint). **Added 2026-10-02**, replacing the old per-`Decision` `matchScoreBlack`/`matchScoreWhite` columns — see "`userScore`/`opponentScore`/`crawfordState`: resolution and the bug they fixed" below. |
-| `crawfordState` | `metadata.crawford_state` from the same resolved event `userScore`/`opponentScore` come from — see below. **Added 2026-10-02**, replacing the old per-`Decision` `crawfordState` column. |
+| `userScore`/`opponentScore` | The score entering this specific game (not the match's current/final score — that's `Match.userScore`/`opponentScore`, from the separate `analyses/list` endpoint). Decoded from the GNU Match ID of the game's first decision by `eventId`, through the user's own seat (`PlayerIdentity.isMe`; black = player 1, white = player 0). Null for a money game (`Match.matchLength` 0). See "`userScore`/`opponentScore`/`crawfordState`" below. |
+| `crawfordState` | `"crawford"`, `"post_crawford"` or `"none"` (Galaxy's own `metadata.crawford_state` vocabulary), derived from the same Match ID: the Crawford bit, plus scores and length for post-Crawford. Null for a money game. See below. |
 
-### `userScore`/`opponentScore`/`crawfordState`: resolution and the bug they fixed
+### `userScore`/`opponentScore`/`crawfordState`
 
-Replaced the old `Decision.matchScoreBlack`/`matchScoreWhite`/`crawfordState`
-columns (dropped the same day — see `reports/2026-10-02-raw-field-
-reverification.md`), which were confirmed write-only (never read anywhere)
-and, worse, confirmed **unreliable at per-decision granularity**: a subset
-of a game's `CHECKER`-kind (`move_commited`) events report
-`metadata.scores` as null while sibling `CUBE`-kind (`dice_rolled`) events
-in the *same game* reliably report the real value instead. Checked
-table-wide, not just for one example match: `metadata.scores` being null
-and `metadata.match_length` being null are 100% correlated (0 exceptions
-either direction across 1,257,534 real rows, confirmed via
-`JSON_TYPE(JSON_EXTRACT(...)) != 'NULL'` — not the naive `IS NOT NULL`,
-which always matches a JSON `null` value and would have produced a false
-"0 exceptions" the easy, wrong way). `crawfordState` can't be judged
-independently of this either — it defaults to the literal string `"none"`
-whenever scores is null, same 100% correlation, but a genuine non-crawford
-match-play game *also* reports `"none"` most of the time, so `"none"`
-alone can't distinguish "this event is unreliable" from "this is really
-just a non-crawford game."
+**Since 2026-10-06** all three come from the GNU Match ID (see "GNU Match ID"
+below) of the game's first stored decision by `eventId`
+(`lib/gnuMatchId.ts`'s `gameScoreFromMatchId`, shared by `lib/ingest.ts` and
+`scripts/backfill-game-scores-from-match-id.ts`):
 
-**The fix**: `Game.userScore`/`opponentScore`/`crawfordState` (and, at
-match granularity, `Match.matchLength`) all resolve from **the same one
-event** — the game's first event (by `eventId`, not literally the first
-event) whose `metadata.scores` is non-null (`lib/ingest.ts`'s
-`gameScoreByEventId`). Naively using "the game's first event by `eventId`"
-alone (the rule `playedAt`/`plyNumber` already use) does **not** fix this
-on its own — checked directly against a known-affected match: its
-first-by-`eventId` decision is itself one of the unreliable
-`CHECKER`-kind events. The real fix needed "the first event *with real
-data*," not just "the first event."
+- **Scores:** the Match ID holds absolute scores per GNU player.
+  `userScore` is the score of the user's seat (`PlayerIdentity.isMe` →
+  black = player 1, white = player 0) and `opponentScore` the other seat's.
+  Seats are resolved per match from the match's own decisions (each row's
+  `color` where Galaxy filled it in, else the Match ID's dice owner for a
+  move or turn for a cube decision — `addSeatEvidence`). If the user's seat
+  can't be resolved, the scores are left as they were (56 local games, all
+  in single-row matches with no seat evidence).
+- **`crawfordState`:** `"crawford"` when the Match ID's Crawford bit is set,
+  `"post_crawford"` when it isn't but a player is 1-away, `"none"`
+  otherwise. Matches Galaxy's own label on every local game of length 2+
+  (7,531 of 7,531). For a 1-point match it's `"none"`: Galaxy changed its
+  own label there over time (`"crawford"` on 60 old games up to match
+  `40136106`, `"none"` from `40310886` on), with the Crawford bit clear in
+  both, so the new rule follows Galaxy's current behaviour.
+- **Money game** (Match ID length 0): all three null, as before.
 
-`metadata.scores.black`/`.white` are **actor-relative, not literal board
-colors** — confirmed against real data via a symmetric cross-check (one
-match's own "black" value for a given event equals the opponent's
-reported "white" value for that same event, and vice versa, in both
-directions, across two independent real matches): `black` means "whoever
-made this specific decision (the event's own `user_id`)", `white` means
-"their opponent", regardless of which real board color that player
-happens to be playing as. `userScore`/`opponentScore` resolve this against
-`PlayerIdentity.isMe` (`event.user_id === me.sourceUserId`), so the
-columns are unambiguous regardless of which color "you" played as in any
-given match — named to match the existing `Match.userScore`/`opponentScore`
-precedent rather than `black`/`white`.
+**Why it changed.** Before 2026-10-06 these came from `metadata.scores` of
+the game's first event with non-null scores, read as "`black` = the actor,
+`white` = their opponent". That was wrong: **`metadata.scores.white` is the
+score of the player on roll, and `black` the other player's.** It isn't keyed
+by colour or by actor. Ingest happened to read the opponent's first move on
+about half of all games, which swapped the two scores. The user confirmed it
+on Galaxy (match `47816592` game 4 starts opp 4 – user 2, stored the other
+way round; `45282503` game 2 starts user 1 – opp 0, stored 0 – 1). Decoding
+the Match ID with the user's colour gives 0 inconsistencies across 1,965
+matches; a plain swap still leaves 2 wrong (`33002925` g3, `33013316` g6,
+where Galaxy's `metadata.scores` orientation is itself anomalous). Also,
+`metadata.scores`/`match_length` are null on Galaxy's older analyses (about
+7,885 local games), which left those games without a score; the Match ID
+has it.
 
-Null for a genuine money-game-type match (`metadata.scores` is null for
-*every* event in the match, a confirmed real category, not a data gap —
-same reasoning as `Match.matchLength`'s own money-game nullability) or
-until detail-ingested. Backfilled for pre-existing rows by
-`scripts/backfill-game-score-crawford.ts` (reads `Decision.raw` directly,
-the same source `lib/ingest.ts` itself parses, rather than the now-dropped
-`Decision` columns — independent of migration ordering).
+Local checks after the backfill (2026-10-06): no match-play game's entering
+score exceeds the match's final `Match.userScore`/`opponentScore` (0), and
+no score goes down between consecutive games (0).
+
+The old `Decision.matchScoreBlack`/`matchScoreWhite`/`crawfordState`
+columns were dropped 2026-10-02 (`reports/2026-10-02-raw-field-
+reverification.md`); the deleted `scripts/backfill-game-score-crawford.ts`
+implemented the old actor-relative reading.
+
+### GNU Match ID
+
+Every analysed event's `reviews[0].source_match.formatted_value` is a GNU
+Backgammon Match ID: 12 base64 characters, 9 bytes. Decoded by
+`lib/gnuMatchId.ts`'s `decodeGnuMatchId` (the one decoder; ingest, the
+backfills and the display paths all use it). Take `lo` = bytes 0–7 as an
+unsigned little-endian 64-bit integer, `hi` = byte 8:
+
+| Bits | Field |
+|---|---|
+| 0–3 | log2(cube value) |
+| 4–5 | cube owner: 0 = player 0, 1 = player 1, 3 = centred |
+| 6 | dice owner (player on roll — the player the position ID is drawn from) |
+| 7 | Crawford game |
+| 8–10 | game state |
+| 11 | turn (player to make the next decision — the receiver while a double is pending) |
+| 12 | double offered |
+| 13–14 | resignation offered |
+| 15–17, 18–20 | die 1, die 2 |
+| 21–35 | match length (0 = money) |
+| 36–50 | score of player 0 |
+| 51–65 | score of player 1: `((lo >> 51) & 8191) \| ((hi & 3) << 13)` |
+
+Galaxy's match-play IDs also set `0x04` in byte 8 (above the 66 decoded
+bits); nothing reads it.
+
+**Player 1 = black, player 0 = white.** Verified on every local CHECKER row
+(595,845): `Decision.color` always equals the dice owner's colour. The
+decision's actor is the dice owner on a move, and the turn on a cube
+decision (`cube_double`: 663,169 rows; `cube_pass`: 6,999 rows, where the
+double-offered bit is set and the turn is the receiver). Resignations don't
+follow either rule reliably (actor ≠ turn on 70 of 1,893 checkable rows), so
+they aren't used as seat evidence.
+
+**Evidence it's right:** the decoded length equals `metadata.match_length`
+on every row where that's set; the decoded cube agrees with every row the
+retired take-walk marked `cubeConfident = 1` except 27 (one game, see
+`Decision.cubeValue` below); every one of the 1,268,047 local Decision rows
+decodes; and the user confirmed the cube on Galaxy's site in 5 cases
+(`reports/2026-10-06-examples-to-check.md`, A1–A5: match `45282503` g2
+`QQmxAAAACAAE` 2-cube on the opponent's side, `ARmgAAAACAAE` the opponent's
+redouble, `EgGgAAAACAAE` 4-cube on the user's side; `30873806` g2
+`EQGvABAAAAAE` 2-cube on the user's side, g5 `UQmgADAAEAAE` a redouble to 4).
 
 ### `playedAt`: what it actually means (and its permanent limitation)
 
@@ -286,11 +325,11 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `plyNumber` | Not in the payload directly — computed at ingest from `eventId` order alone (see "Ply number" below). `1`-`4` for a game's first four `CHECKER` decisions (by `eventId` ascending), `null` beyond that and always `null` for `CUBE`/`RESIGNATION` kind. |
 | `roll` | Not in the payload directly on *this* event — computed at ingest by walking the game's full event list backward from this one for the nearest preceding `dice_rolled`/`game_started` event's own `rolled_dice` (a checker's own `move_commited` event never carries its roll). Added as a real `Json?` column (previously re-scanned on every read via a now-removed `buildRollLookup`) — see `reports/2026-10-02-step4-dice-roll-column-design.md`. Null for ~2.52% of rows at the time the column was added, in three categories: a game's genuinely first decision; a `dice_rolled` event's own cube-check review (the scan looks past its own roll by design — a real, deliberately-unfixed pre-existing display quirk, not a data gap); a `RESIGNATION`/`CUBE` decision with no roll associated at all. **The first category was subsequently fixed** (2026-10-02, same day) — independently verified against Galaxy's live site that this was recoverable, not a genuine gap, and backfilled from each row's own already-stored `raw.moves` field via `lib/mistakes.ts`'s `decodeRollFromMoves` + `scripts/backfill-first-move-roll.ts` (100% reliable for a game's first move specifically — bear-off/bar-entry, which break this decode method in general, can't occur there). The other two categories remain null by design, unchanged. |
 | ~~`matchScoreBlack`~~ / ~~`matchScoreWhite`~~ / ~~`crawfordState`~~ | **Dropped 2026-10-02** (`reports/2026-10-02-raw-field-reverification.md`) — confirmed write-only (never read anywhere) and, worse, confirmed unreliable at this per-decision granularity: a subset of events in a game report `metadata.scores` as null while sibling events in the same game report the real value — the earlier claim here that `scores`/`match_length` are null "consistently across every decision" in a money-game match was true for that one case checked, but wrong as a general rule once more matches were checked. Replaced by `Game.userScore`/`opponentScore`/`crawfordState` — one resolved, actor-relative value per game instead of an unreliable value per decision. See `docs/field-mapping.md`'s `Game` section ("`userScore`/`opponentScore`/`crawfordState`: resolution and the bug they fixed") for the full story. |
-| `cubeOwnerUserId` | Not in the payload directly — computed at ingest by walking a game's decisions in order: starts `null` (centered), and becomes the taking player's `user_id` after a `cube_pass` review with `take === true`. Reflects who owned the cube *entering* each decision, before that decision's own outcome is applied. **Widened to every kind (2026-10-02)** — previously only populated for `CUBE` kind; a `CHECKER`/`RESIGNATION` decision has a real cube owner too, just not its own decision about it. See `reports/2026-10-02-step5-cube-value-confident-design.md`. |
-| `cubeValue`/`cubeConfident` | Not in the payload directly — computed at ingest via `lib/cubeState.ts`'s `computeCubeStates`, called once per game (the same walk the old read-time `buildCubeStateLookup`, now removed, used to re-run on every page load; reused directly rather than reimplemented, to avoid silent drift from the already-tested function). `cubeConfident` is `false` for ~21.9% of all rows (measured) — mostly because `double_accepted`/`double_rejected` events are frequently stored with a null `error_analysis` and silently dropped (see "Events skipped via null `error_analysis`" below), so a row-by-row walk can never see that a double was actually resolved. This is a real, confirmed, pre-existing characteristic, not a bug introduced by making this a column — see `reports/2026-10-02-step5-cube-value-confident-design.md` for the full investigation (including a sampling-bias bug caught and fixed mid-investigation) and the explicit scope decision (ingest-time computation fixes this for new data going forward; the backfill script, DB-rows-only by design, inherits the same rate for historical data). `cubeOwnerUserId` keeps its own separate absolute-owner walk rather than `CubeState`'s public shape being widened to also expose one (would've broken ~10 exhaustive `.toEqual()` assertions in `lib/cubeState.test.ts` for no real benefit) — verified directly the two independent walks never disagree: 0 mismatches across all 1,257,534 real rows. |
+| `cubeOwnerUserId` | The userId in the GNU Match ID's cube-owner seat (see "GNU Match ID" above), null when centred — who owned the cube *entering* this decision. Every kind. Seats resolve per match exactly as for `Game.userScore`. **Since 2026-10-06**; before that a walk over each game's takes, retired (see below). |
+| `cubeValue`/`cubeConfident` | `cubeValue` is the GNU Match ID's cube value entering this decision (1 = centred). **`cubeConfident` is now always true when the Match ID decodes and its owner seat maps to a userId**; false (with `cubeValue`/`cubeOwnerUserId` null, and an ingest warning) only if that ever fails — the backfill dry run found no such local row (0 undecodable, 0 unmapped owners). Kept as a column so that case stays visible. **Since 2026-10-06.** Before that both came from `lib/cubeState.ts`'s `computeCubeStates`, a walk over each game's `cube_pass` takes, which missed takes on ~21.9% of rows (the take events are often stored with a null `error_analysis` and skipped) and flagged them `cubeConfident = false` (drawn with no cube). The walk is retired. Backfill: `scripts/backfill-decision-cube-from-match-id.ts` (replaces the deleted walk-based `scripts/backfill-decision-cube-state.ts`). Its 2026-10-06 local dry run found 27 `cubeConfident = 1` rows that would change — all of match `46000168` game 4, where the Match ID says a 2-cube from the first stored row on and the walk saw no take (the first stored eventId comes well after game 3's last); the real run is on hold for the user's decision. **Board side:** the board draws the position's on-roll player (the Match ID's dice owner) at the bottom, so the cube is drawn relative to that player, not the decision's actor — on a `cube_pass` row the stored position is the doubler's (6,997 of 6,999 local rows share the preceding `cube_double` row's position ID), so the receiver is at the top. `lib/decisionFromRow.ts`'s `cubeStateFor` / `lib/cubeState.ts`'s `cubeStateFromMatchId`. |
 | `movePlayed` | For `CHECKER` kind: the candidate move with `move_played: true`. Null for `CUBE`/`RESIGNATION` kind. **Renamed from `notationPlayed` 2026-10-02** (`reports/2026-10-02-raw-field-reverification.md`) for parallel naming with `cubeActionPlayed`/`cubeActionBest` below — same values, same derivation, name only (the rename migration preserved all existing data via `CHANGE COLUMN`, not a drop+recreate). |
 | `moveBest` | For `CHECKER` kind: the candidate move with `rank === 1` (falls back to the first move if none has rank 1). Null for `CUBE`/`RESIGNATION` kind. Renamed from `notationBest`, same as `movePlayed` above. |
-| `cubeActionPlayed`/`cubeActionBest` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): the same `mine`/`best` short labels `lib/mistakes.ts`'s `actionLabels()` computes at read time for display (e.g. `"doubled"`/`"double"`), now stored once at ingest instead of recomputed on every read. **Replaces the old `cubeDetail` column** (a single composed display string, confirmed 2026-10-02 never rendered anywhere) with a column pair parallel to `movePlayed`/`moveBest`. `RESIGNATION` kind's own labels deliberately excluded from this treatment — stays read-time-computed via `actionLabels()`, no column (a scope decision, not an oversight). Null for `CHECKER`/`RESIGNATION` kind. |
+| `cubeActionPlayed`/`cubeActionBest` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): the same `mine`/`best` short labels `lib/mistakes.ts`'s `actionLabels()` computes (e.g. `"doubled"`/`"double"`), stored once at ingest. **`cubeActionBest` stays Galaxy's own label; the app no longer displays it as "best"** — since 2026-10-06 the displayed best is derived from the equities (see "Cube action from the equities" below), and `cubeActionBest` is shown only in the "Doesn't match Galaxy" badge's tooltip when the two disagree. **Replaces the old `cubeDetail` column** (a single composed display string, confirmed 2026-10-02 never rendered anywhere) with a column pair parallel to `movePlayed`/`moveBest`. `RESIGNATION` kind's own labels deliberately excluded from this treatment — stays read-time-computed via `actionLabels()`, no column (a scope decision, not an oversight). Null for `CHECKER`/`RESIGNATION` kind. |
 | `resignError` | For `RESIGNATION` kind: `result.result.resign_error`. Null otherwise. |
 | `shouldResign` | For `RESIGNATION` kind: `result.result.should_resign`. Null otherwise. |
 | `resignationType` | For `RESIGNATION` kind: `result.result.resignation_type` — **confirmed nullable even for `RESIGNATION` rows**, not just absent for other kinds (seen `null` on a real blunder-severity resignation, match `2856675` event `440889365`). Null for other kinds too. |
@@ -580,6 +619,51 @@ equity?) isn't directly comparable to either a checker-play or a cube
 decision, so folding its error into one of those buckets would just pollute
 the stat with an unrelated decision type.
 
+### Cube action from the equities
+
+Galaxy's `cube_analysis.doublers_best_action` (and `optimal`) is stuck at
+"roll" on about 18k counted cube decisions in its older analyses, while
+`raw_error` (the grade) follows the real equities — e.g. decision `629849`
+(match `29939852` g1): ND 0.7922, DT 0.9751, best "roll", but not doubling
+is graded BLUNDER −0.183. So the app works out the correct action itself
+(`lib/cubeAction.ts`, display only: `rawError`/severity stay Galaxy's, no new
+column, no backfill).
+
+The user's table for the **doubler's** decision (`cube_double` rows; ND =
+`no_double`, DT = `double_take`, DP = `double_pass`):
+
+| ND | DT | Correct action |
+|---|---|---|
+| < DP | ≤ DP | Double/take if DT > ND, otherwise No double/take |
+| < DP | > DP | Double/pass |
+| ≥ DP | > DP | Too good/pass |
+| ≥ DP | ≤ DP | Too good/take |
+
+Tie rules: DT == ND (both < DP) → No double/take; ND == DP → the "too good"
+branch; DT == DP → the take side.
+
+The code compares against DP rather than a literal 1. **DP is 1 on every
+counted `cube_double` row** locally; it differs (0.18–0.91) only on 89,593
+uncounted pre-roll checks, which the app doesn't show.
+
+**The receiver's decision** (`cube_pass` rows): the stored values are the
+doubler's negated (DP = −1), so "take if −DT ≤ −DP" — i.e. take if the
+doubler-view DT ≤ DP, pass otherwise. 4 local `cube_pass` rows (matches
+`33002925`, `33013316`) aren't negated (DP = +1); multiplying by the sign of
+DP handles both. The derived action is "Take" or "Pass".
+
+**"Doesn't match Galaxy":** `doublers_best_action` "roll" corresponds to
+No double/take, Too good/pass and Too good/take; "double" to Double/take and
+Double/pass. Where `receivers_best_action` is set it must also agree: "take"
+with No double/take, Double/take, Too good/take (and Take); "pass" with
+Double/pass, Too good/pass (and Pass). `cube_pass` rows compare against
+`receivers_best_action` only. When they disagree, the UI shows the derived
+action as "best" plus a small "Doesn't match Galaxy" badge with Galaxy's own
+label in its tooltip (`GalaxyMismatchBadge`, on /mistakes, the replay,
+/matches and /galaxy — `lib/mistakes.ts`'s `displayLabels`, used by both
+`extractDecisions` and `lib/decisionFromRow.ts`). On /galaxy this is a
+display computation over Galaxy's own data, not stored user data.
+
 ### Unrecognized `analysed_event`
 
 `lib/ingest.ts`'s `decisionKindFor` (and `lib/mistakes.ts`'s copy of the same
@@ -598,10 +682,10 @@ flag. The evidence for "money game" is indirect — absence of
 `match_length`/`scores`, plus an unusual `analysis_level: 998` seen on one
 event — not a field Galaxy explicitly labels a match with. Encoding that
 inference as a confidently-named boolean would overstate certainty that
-doesn't actually exist. The nullable fields themselves (`Match.matchLength
-IS NULL`, `Game.userScore/opponentScore IS NULL`) are the honest, directly
--true signal for now; a real category flag can be added later if Galaxy's
-data ever confirms this more directly.
+doesn't actually exist. Since 2026-10-06 the signal is `Match.matchLength =
+0` (the GNU Match ID's own money-game encoding, see "GNU Match ID"), with
+`Game.userScore/opponentScore` null for those games; a real category flag can
+be added later if it's ever needed.
 
 ## PlayerIdentity
 

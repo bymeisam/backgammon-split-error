@@ -31,6 +31,9 @@ model Match {
   id              Int          @id @default(autoincrement())
   source          String
   sourceMatchId   String       @db.VarChar(191)
+  // GNU Match ID length of the match's first decision (lowest gameIndex,
+  // then lowest eventId); 0 = money game. Null until detail-ingested. See
+  // docs/field-mapping.md, "GNU Match ID".
   matchLength     Int?
   opponentName    String
   opponentCountry String
@@ -79,26 +82,21 @@ model Game {
   playedAt      DateTime?
   // Score entering this specific game (not the match's current/final score
   // — that's Match.userScore/opponentScore, from a separate endpoint).
-  // Actor-relative at the source (metadata.scores.black/.white mean
-  // "whoever made that event"/"their opponent", not a literal board
-  // color — confirmed against real data, see reports/2026-10-02-raw-field-
-  // reverification.md), resolved here against PlayerIdentity.isMe so these
-  // columns are unambiguous regardless of which color "you" played as.
-  // Sourced from the game's first event (by eventId) whose metadata.scores
-  // is non-null, not literally the first event — some events in a game
-  // (confirmed: a subset of move_commited events) unreliably report
-  // scores/match_length as null while sibling events in the same game
-  // report the real value; see lib/ingest.ts's gameScoreByEventId. Null for
-  // a genuine money game (metadata.scores is null for every event in the
-  // game, a confirmed real category, not a data gap) or until detail-
-  // ingested.
+  // Decoded from the GNU Match ID (reviews[0].source_match.formatted_value)
+  // of the game's first decision by eventId, mapped through the user's own
+  // seat (PlayerIdentity.isMe; black = GNU player 1, white = player 0) —
+  // see docs/field-mapping.md, "GNU Match ID". Replaced (2026-10-06) the
+  // metadata.scores reading, which swapped the two scores on about half of
+  // all games (metadata.scores.white is the player on roll's score, not a
+  // colour's or the actor's) and is null on Galaxy's older analyses. Null
+  // for a money game (Match.matchLength 0) or until detail-ingested.
   userScore     Int?
   opponentScore Int?
-  // metadata.crawford_state from the same resolved event as userScore/
-  // opponentScore above (not judged independently — crawfordState alone
-  // can't distinguish "a real non-crawford game" from "this event's scores
-  // happen to be unreliable", both report "none"). Defaults to "none" for a
-  // money game, same as every individual event already does.
+  // "crawford" (the Crawford game), "post_crawford" (a later game where a
+  // player still needs one point) or "none" — Galaxy's own
+  // metadata.crawford_state vocabulary, now derived from the same Match ID
+  // as the scores: the Crawford bit, plus scores and length for
+  // post-Crawford. "none" for a 1-point match. Null for a money game.
   crawfordState String?
 
   decisions Decision[]
@@ -147,30 +145,19 @@ model Decision {
   // source's position-encoding format — see docs/field-mapping.md's "Ply
   // number" section for the full reasoning.
   plyNumber        Int?
-  // Owner entering this decision, before its own outcome is applied — same
-  // semantics/timing as lib/cubeState.ts's computeCubeStates. Previously
-  // populated only for CUBE-kind rows; widened to every kind (2026-10-02,
-  // see reports/2026-10-02-step5-cube-value-confident-design.md) since
-  // CHECKER/RESIGNATION decisions have a real cube owner too (just not
-  // their own decision about it). Verified the two independent absolute-
-  // owner walks (this one, and computeCubeStates' own internal tracking)
-  // never disagree: 0 mismatches across all 1,257,534 rows.
+  // Cube owner entering this decision (before its own outcome), every kind:
+  // the userId in the GNU Match ID's cube-owner seat
+  // (reviews[0].source_match.formatted_value; black = player 1, white =
+  // player 0), null when centred. See docs/field-mapping.md, "GNU Match ID".
   cubeOwnerUserId  String?       @db.VarChar(191)
-  // Cumulative cube value/confidence entering this decision — the same
-  // computeCubeStates walk lib/decisionFromRow.ts's (now-removed)
-  // buildCubeStateLookup used to re-run at read time, now computed once at
-  // ingest. Nullable only for migration sequencing — every row with a
-  // review always gets a real computed value, no legitimate N/A case.
-  // confident is false for ~21% of rows (measured): mostly because
-  // double_accepted/double_rejected events are often stored with a null
-  // error_analysis and silently dropped (see
-  // EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS in lib/ingest.ts), so a DB-
-  // row-only read can never see the double's resolution. Ingest-time
-  // computation (the full live event stream, before filtering) fixes this
-  // for new data going forward; the backfill script, DB-rows-only by
-  // design (no live Galaxy calls), can't retroactively fix historical
-  // data the same way — see the design report for the full investigation
-  // and the explicit scope decision.
+  // Cube value entering this decision, from the same Match ID (1 = centred
+  // and undoubled). Since 2026-10-06 both columns come from the Match ID;
+  // the old take-walk (lib/cubeState.ts's computeCubeStates, retired) missed
+  // takes on ~22% of rows, which it flagged with cubeConfident = false.
+  // cubeConfident is now true whenever the Match ID decodes and its owner
+  // seat maps to a userId — every local row at the time of the switch;
+  // false (with cubeValue/cubeOwnerUserId null) only if that ever fails.
+  // Kept as a column so that case stays visible.
   cubeValue        Int?
   cubeConfident    Boolean?
   // GNU Position ID (review.source_position.formatted_value) of the board

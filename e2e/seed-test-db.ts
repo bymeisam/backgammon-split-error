@@ -18,12 +18,15 @@
 // fact (2026-10-02) once those became real columns (or, for
 // movePlayed/moveBest, renamed from notationPlayed/notationBest, same
 // date): computed directly from each row's own raw/sibling context, not
-// hand-typed either. Games' userScore/opponentScore/crawfordState (also
-// 2026-10-02, replacing the old per-Decision matchScoreBlack/matchScoreWhite/
-// crawfordState columns) were resolved the same way — each game's own first
-// decision by eventId, actor-relative-corrected against which user made
-// that decision (confirmed here via cross-check against the match's own
-// final userScore/opponentScore, not assumed).
+// hand-typed either. Games' userScore/opponentScore/crawfordState match
+// what lib/ingest.ts derives since 2026-10-06: the GNU Match ID of each
+// game's first decision, through the user's seat (the user is black =
+// player 1 in this match; e.g. game 5's IDs decode to white 3, black 2 ->
+// user 2, opp 3). Re-checked against the IDs in the snapshot's own raw
+// (2026-10-06) — the earlier actor-relative metadata.scores reading happened
+// to give the same values here, so no seed value changed. cubeValue/
+// cubeOwnerUserId/cubeConfident also agree with each row's Match ID (all a
+// centred 1-cube).
 //
 // Standalone by design: builds its own MySQL connection directly from
 // .env.test rather than importing lib/prisma.ts (which throws at import

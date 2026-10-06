@@ -5,16 +5,18 @@
 // event (including reviews[0]), but myLabel/bestLabel/myMoveNotation/
 // bestMoveNotation/sourcePositionId/roll/cubeState all read the row's own
 // movePlayed/moveBest/cubeActionPlayed/cubeActionBest/sourcePositionId/
-// roll/cubeOwnerUserId+cubeValue+cubeConfident columns directly rather than
+// roll/cubeValue+cubeConfident columns directly rather than
 // re-parsing raw or re-scanning sibling rows, since ingest already stores
 // exactly this (notation: confirmed byte-identical against 2,700 real
 // rows, 2026-10-01 — see PROGRESS.md; cube action labels: reports/2026-10-
 // 02-raw-field-reverification.md; sourcePositionId: reports/2026-10-02-
 // step3-sourcepositionid-column-design.md; roll: reports/2026-10-02-step4-
 // dice-roll-column-design.md; cubeState: reports/2026-10-02-step5-cube-
-// value-confident-design.md). RESIGNATION kind is the one exception — no
-// stored column for its labels, still calls actionLabels() against raw
-// (deliberate scope decision, not an oversight — see labelsFor below). The
+// value-confident-design.md). Two things do read raw: RESIGNATION kind's
+// labels (no stored column — deliberate scope decision, see labelsFor
+// below), and, since 2026-10-06, a CUBE row's derived "best" action (from
+// cube_analysis' equities) and the cube's board side (from the Match ID's
+// dice owner — see cubeStateFor). The
 // live-fetch path in lib/mistakes.ts has no DB row to read a column from,
 // so it still re-parses raw/re-scans for everything; that's unchanged.
 //
@@ -28,13 +30,14 @@ import type {
 import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
 import {
   actionLabels,
+  displayLabels,
   severityFromErrorSeverity,
   type Decision,
   type DecisionKind,
   type Severity,
 } from "@/lib/mistakes";
-import type { CubeState } from "@/lib/cubeState";
-import type { CubeOwner } from "@/lib/boardGeometry";
+import { cubeSide, type CubeState } from "@/lib/cubeState";
+import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 // myLabel/bestLabel for CHECKER/CUBE kind come straight from the row's own
 // columns (same values actionLabels(review) would compute — confirmed
@@ -43,30 +46,37 @@ import type { CubeOwner } from "@/lib/boardGeometry";
 // read-time-computed via actionLabels(), a deliberate scope decision (see
 // reports/2026-10-02-raw-field-reverification.md), not every kind getting
 // the same treatment.
-function labelsFor(row: DecisionRow, review: Review): { mine: string; best: string } {
-  if (row.kind === "CHECKER") return { mine: row.movePlayed ?? "?", best: row.moveBest ?? "?" };
-  if (row.kind === "CUBE") return { mine: row.cubeActionPlayed ?? "?", best: row.cubeActionBest ?? "?" };
-  return actionLabels(review);
+//
+// CUBE kind's displayed "best" is then replaced by the action derived from
+// the row's own cube equities (displayLabels, lib/cubeAction.ts) —
+// cubeActionBest stays Galaxy's label, which is unreliable on old analyses;
+// it's surfaced as galaxyBestLabel when the two disagree.
+function labelsFor(
+  row: DecisionRow,
+  review: Review
+): { mine: string; best: string; galaxyBestLabel: string | null } {
+  if (row.kind === "CHECKER") {
+    return { mine: row.movePlayed ?? "?", best: row.moveBest ?? "?", galaxyBestLabel: null };
+  }
+  if (row.kind === "CUBE") {
+    return displayLabels(review, { mine: row.cubeActionPlayed ?? "?", best: row.cubeActionBest ?? "?" });
+  }
+  return { ...actionLabels(review), galaxyBestLabel: null };
 }
 
-// Converts the row's own absolute cubeOwnerUserId (a real user_id, or null
-// for centered) into the relative "mine"/"opponent"/"center" framing
-// Decision.cubeState/BoardPanel already use — same relativization BoardPanel
-// already applies to decoded positions, just at read time here instead of
-// inside computeCubeStates (which only ever returns relative, never the
-// absolute value this column stores).
-function relativeCubeOwner(cubeOwnerUserId: string | null, viewerUserId: string): CubeOwner {
-  if (cubeOwnerUserId === null) return "center";
-  return cubeOwnerUserId === viewerUserId ? "mine" : "opponent";
-}
-
-function cubeStateFor(row: DecisionRow): CubeState | null {
-  if (row.cubeValue === null || row.cubeConfident === null) return null;
-  return {
-    value: row.cubeValue,
-    owner: relativeCubeOwner(row.cubeOwnerUserId, row.userId),
-    confident: row.cubeConfident,
-  };
+// The board's cube for this row. cubeValue/cubeConfident are the stored
+// truth (from the row's GNU Match ID at ingest/backfill); the side is drawn
+// relative to the player at the BOTTOM of the board — the position's on-roll
+// player (the Match ID's dice owner) — not the row's actor. On a cube_pass
+// row the stored position is the doubler's, so the receiver (the actor) is
+// at the top; relativizing to row.userId put a redoubled cube beside the
+// wrong checkers. cubeConfident = false (Match ID didn't decode) draws no
+// cube.
+function cubeStateFor(row: DecisionRow, review: Review): CubeState | null {
+  if (row.cubeValue === null || row.cubeConfident !== true) return null;
+  const m = decodeGnuMatchId(review.source_match?.formatted_value);
+  if (!m) return null;
+  return { value: row.cubeValue, owner: cubeSide(m.cubeOwner, m.diceOwner), confident: true };
 }
 
 // Exported for lib/decisionFromRow.ts's own decisionFromRowForReplay below
@@ -123,12 +133,10 @@ export interface DecisionRow {
   // rows — see reports/2026-10-02-step4-dice-roll-column-design.md. Json
   // column, so `unknown` here same as `raw` below; cast at the point of use.
   roll: unknown;
-  // Absolute owner (a real user_id, or null for centered) — widened at
-  // ingest (2026-10-02) to every kind, not just CUBE. cubeValue/
-  // cubeConfident: the same computeCubeStates walk the old (removed)
-  // buildCubeStateLookup used to re-run at read time, now a plain column
-  // triple — see cubeStateFor above / reports/2026-10-02-step5-cube-value-
-  // confident-design.md.
+  // Absolute owner (a real user_id, or null for centered), value and
+  // confident flag, all from the row's own GNU Match ID (2026-10-06,
+  // replacing the retired take-walk) — see cubeStateFor above and
+  // docs/field-mapping.md's "GNU Match ID" section.
   cubeOwnerUserId: string | null;
   cubeValue: number | null;
   cubeConfident: boolean | null;
@@ -151,7 +159,7 @@ export function decisionFromRow(row: DecisionRow): Decision | null {
   const review = event.reviews?.[0];
   if (!review) return null;
 
-  const { mine, best } = labelsFor(row, review);
+  const { mine, best, galaxyBestLabel } = labelsFor(row, review);
   const myMoveNotation = row.movePlayed;
   const bestMoveNotation = row.moveBest;
   const absError = Math.abs(row.rawError);
@@ -167,11 +175,12 @@ export function decisionFromRow(row: DecisionRow): Decision | null {
     severity: severityFor(row.errorSeverity),
     myLabel: mine,
     bestLabel: best,
+    galaxyBestLabel,
     roll: (row.roll as number[] | null) ?? [],
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
-    cubeState: cubeStateFor(row),
+    cubeState: cubeStateFor(row, review),
     note: row.note?.note ?? null,
     dbDecisionId: row.id,
   };
@@ -196,7 +205,7 @@ export function decisionFromRowForReplay(row: DecisionRow): Decision | null {
   const review = event.reviews?.[0];
   if (!review) return null;
 
-  const { mine, best } = labelsFor(row, review);
+  const { mine, best, galaxyBestLabel } = labelsFor(row, review);
   const myMoveNotation = row.movePlayed;
   const bestMoveNotation = row.moveBest;
   const absError = row.rawError === null ? 0 : Math.abs(row.rawError);
@@ -212,11 +221,12 @@ export function decisionFromRowForReplay(row: DecisionRow): Decision | null {
     severity: severityFor(row.errorSeverity),
     myLabel: mine,
     bestLabel: best,
+    galaxyBestLabel,
     roll: (row.roll as number[] | null) ?? [],
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
     bestMoveNotation,
-    cubeState: cubeStateFor(row),
+    cubeState: cubeStateFor(row, review),
     note: row.note?.note ?? null,
     dbDecisionId: row.id,
   };
