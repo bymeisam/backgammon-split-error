@@ -14,7 +14,7 @@ for both the Production and Preview environments:
 
 | Variable                | Value                                            |
 | ------------------------ | ------------------------------------------------ |
-| `DATABASE_URL_READONLY`  | `mysql://bg_readonly:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
+| `DATABASE_URL_READONLY`  | `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
 
 **Never set `DATABASE_URL` on Vercel**, and **don't set `ENABLE_WRITE_MODE`
 on Vercel either — leave it unset.** The convention this app uses: unset is
@@ -151,7 +151,7 @@ around the Galaxy link in `app/page.tsx`.
    functions **cannot reach Oracle at all** until this is opened up. Real
    options, in order of how much they widen exposure:
    - Open port 3306 to `0.0.0.0/0` on the HeatWave DB System's ingress rule,
-     relying on TLS (the pinned CA) plus the scoped `bg_readonly` credential
+     relying on TLS (the pinned CA) plus the scoped `bg_db_ro` credential
      for security — the common trade-off for serverless-to-managed-DB
      connections without a fixed egress IP.
    - Upgrade to Vercel Pro and use Secure Compute for a static outbound IP,

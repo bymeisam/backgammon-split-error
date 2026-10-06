@@ -37,7 +37,9 @@ npx tsx scripts/ro-query.ts --target local  "SELECT ..."
 npx tsx scripts/ro-query.ts --target oracle "EXPLAIN SELECT ..."
 ```
 
-- `local` uses `DATABASE_URL_READONLY` and refuses to run unless it is `bg_db_ro` on localhost. `oracle` uses `ORACLE_DATABASE_URL_READONLY` (`bg_db_ro`, TLS pinned to the repo's CA). The script refuses any user except `bg_db_ro`, sets the session to `READ ONLY`, and accepts only one SELECT/WITH/EXPLAIN/SHOW/DESCRIBE statement per call. It never prints credentials.
+- Both targets use the one read-only URL, `DATABASE_URL_READONLY`, which points at whichever database the user has set in `.env`. `--target` doesn't choose the database. It asserts which one you expect. `local` refuses to run unless that URL is on localhost. `oracle` refuses if it is on localhost (TLS is pinned to the repo's CA).
+- So `--target oracle` works only while the user has `DATABASE_URL_READONLY` pointed at Oracle. If the script refuses because it points at local, don't ask for or attempt a switch. Report the Oracle check as **not checked** and list it under **Open questions**. The same applies the other way round for `--target local`.
+- The script refuses any user except `bg_db_ro`, sets the session to `READ ONLY`, and accepts only one SELECT/WITH/EXPLAIN/SHOW/DESCRIBE statement per call. It never prints credentials.
 - Never use `bg_db_rw`, the admin user, `root`, `DATABASE_URL`, `mysql`/`docker exec`, or the app's Prisma clients directly.
 - `--grant-check` turns off the script's statement and session guards so you can prove that the server-side grant refuses a write. Use it only on `--target local`, and only when the main session asks you to test that. The script refuses it for Oracle.
 - Oracle is production. Keep its queries cheap and bounded: use LIMIT and indexed predicates, and run EXPLAIN first on anything that touches `Decision` (about 1.2M rows).

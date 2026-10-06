@@ -117,7 +117,7 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 // actually need — see docs/field-mapping.md's "Credential scoping" section
 // for the full call-site list and rationale.
 //
-//   prisma          -> DATABASE_URL. Read-write/admin (bg_readwrite in
+//   prisma          -> DATABASE_URL. Read-write/admin (bg_db_rw in
 //                      production) — ingest (lib/ingest.ts), sync
 //                      (lib/sync.ts, scripts/backfill.ts,
 //                      scripts/incremental-sync.ts, /api/sync/incremental),
@@ -126,7 +126,7 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 //                      beyond plain app read-write, so this intentionally
 //                      stays on full admin credentials rather than a
 //                      narrower app-only read-write user.
-//   prismaReadOnly  -> DATABASE_URL_READONLY. SELECT-only (bg_readonly in
+//   prismaReadOnly  -> DATABASE_URL_READONLY. SELECT-only (bg_db_ro in
 //                      production) — anything that only ever queries:
 //                      lib/local-client.ts, app/api/player-identities,
 //                      app/status, and future read-only diagnostic scripts.

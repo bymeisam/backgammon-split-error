@@ -15,6 +15,9 @@ export default defineConfig({
     // — a separate runner entirely, per the ask. Vitest's default include
     // glob would otherwise also pick up e2e/*.spec.ts and fail trying to
     // run Playwright's test() against a browser that isn't there.
-    exclude: [...configDefaults.exclude, "e2e/**"],
+    // .claude/** holds the agent hooks' own node:test suites (e.g.
+    // .claude/hooks/developer-guard-lib.test.mjs, run with `node --test`),
+    // which Vitest would otherwise collect and fail as "No test suite found".
+    exclude: [...configDefaults.exclude, "e2e/**", ".claude/**"],
   },
 });

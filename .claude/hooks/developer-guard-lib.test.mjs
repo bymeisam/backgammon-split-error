@@ -28,7 +28,7 @@ test("parseDatabaseUrls: duplicate key returns both, in order", () => {
 });
 
 test("parseDatabaseUrls: DATABASE_URL_READONLY and other DATABASE_URL_* keys ignored", () => {
-  assert.deepEqual(parseDatabaseUrls(`DATABASE_URL_READONLY=${REMOTE}\nDATABASE_URL_FOO=${REMOTE}\nORACLE_DATABASE_URL_READONLY=${REMOTE}`), []);
+  assert.deepEqual(parseDatabaseUrls(`DATABASE_URL_READONLY=${REMOTE}\nDATABASE_URL_FOO=${REMOTE}\nFOO_DATABASE_URL=${REMOTE}`), []);
 });
 
 test("isLocalUrl", () => {
@@ -118,6 +118,9 @@ test("connectsToDb: true", () => {
     "npm run dev",
     "npx next start",
     "wget -qO- http://127.0.0.1:3000/api/db-check",
+    "/usr/bin/node x.js",
+    "cd a && tsx b.ts",
+    `bash -c "node x.js"`,
   ]) {
     assert.equal(connectsToDb(cmd), true, cmd);
   }
@@ -130,6 +133,9 @@ test("connectsToDb: false", () => {
     "npm run lint",
     "ls scripts",
     "curl https://example.com",
+    "git diff app/x.tsx",
+    "cat app/components/GameReplay.tsx",
+    "grep -n foo lib/x.ts app/y.tsx",
   ]) {
     assert.equal(connectsToDb(cmd), false, cmd);
   }

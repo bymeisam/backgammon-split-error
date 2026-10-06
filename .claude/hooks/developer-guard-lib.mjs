@@ -63,7 +63,10 @@ const DB_COMMAND_PATTERNS = [
   /\bnpm\s+run\s+(dev|start|backfill|sync)/,
   /\bnext\s+(dev|start)\b/,
   /\bnpm\s+start\b/,
-  /\b(tsx|ts-node|node|bun|deno)\b/, // `node_modules` doesn't match: `_` is a word char
+  // Interpreter at a command position (start, whitespace, ; & | ( / or a
+  // quote/backtick), never after a `.`, so `app/x.tsx` isn't "running tsx".
+  // `node_modules` doesn't match: `_` is a word char, so no \b after `node`.
+  /(?:^|[\s;&|(\/"'`])(tsx|ts-node|node|bun|deno)\b/,
   /\bcd\s+(\.\/)?scripts\b/,
   /\bplaywright\b/,
   /test:visual/,

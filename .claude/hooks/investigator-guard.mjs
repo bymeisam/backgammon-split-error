@@ -26,7 +26,11 @@ const shapeRules = [
   [/docker\s+(exec|run|compose|stop|rm|kill|restart)/, "docker command (use scripts/ro-query.ts)"],
   // Code execution only through the known read-only scripts: an ad-hoc
   // `tsx -e`/`node -e` could import the app's read-write `prisma` client.
-  [/\b(tsx|ts-node|node|bun|deno|python3?|ruby|perl)\b(?!\s+scripts\/(ro-query|galaxy-get|check-oracle-cert)\.ts\b)/, "code execution outside scripts/ro-query.ts, galaxy-get.ts, check-oracle-cert.ts"],
+  // The interpreter name must start a word at a command position (start,
+  // whitespace, ; & | ( / or a quote/backtick) — not after a `.`, so file
+  // paths like `app/x.tsx` aren't mistaken for running `tsx`. `node_modules`
+  // never matches: `_` is a word char, so there's no \b after `node`.
+  [/(?:^|[\s;&|(\/"'`])(tsx|ts-node|node|bun|deno|python3?|ruby|perl)\b(?!\s+scripts\/(ro-query|galaxy-get|check-oracle-cert)\.ts\b)/, "code execution outside scripts/ro-query.ts, galaxy-get.ts, check-oracle-cert.ts"],
 ];
 const fullTextRules = [
   [/\bDATABASE_URL\b(?!_READONLY)/, "read-write DATABASE_URL"],

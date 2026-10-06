@@ -11,11 +11,16 @@
 // --grant-check skips layers 2 and 3 (never layer 1) — it exists only to
 // prove the server-side grant itself refuses a write, and only on local.
 //
-// Targets:
-//   local  → DATABASE_URL_READONLY, must point at localhost/127.0.0.1
-//   oracle → ORACLE_DATABASE_URL_READONLY (separate var, so reading Oracle
-//            never means re-pointing DATABASE_URL*; TLS via the same pinned
-//            CA as the app, through lib/prisma.ts's buildConnectionConfig)
+// Both targets read the one read-only URL, DATABASE_URL_READONLY, which
+// points at whichever database the user has set in .env. --target doesn't
+// pick a database; it asserts which one you expect, and the script refuses
+// to run if .env says otherwise:
+//   local  → DATABASE_URL_READONLY must point at localhost/127.0.0.1
+//   oracle → DATABASE_URL_READONLY must NOT point at localhost/127.0.0.1
+//            (i.e. the user has switched .env to Oracle). TLS via the same
+//            pinned CA as the app, through lib/prisma.ts's
+//            buildConnectionConfig.
+// Only the user changes .env; this script never asks for or makes a switch.
 //
 // Never prints the connection URL or password. Prints elapsed time with every
 // result, so Decision queries always come with timing.
@@ -53,7 +58,7 @@ function parseArgs(argv: string[]): { target: "local" | "oracle"; grantCheck: bo
 }
 
 function resolveUrl(target: "local" | "oracle"): string {
-  const envName = target === "local" ? "DATABASE_URL_READONLY" : "ORACLE_DATABASE_URL_READONLY";
+  const envName = "DATABASE_URL_READONLY";
   const url = process.env[envName];
   if (!url) fail(`${envName} is not set.`);
   const parsed = new URL(url);
@@ -61,7 +66,9 @@ function resolveUrl(target: "local" | "oracle"): string {
   if (user !== READ_ONLY_USER) fail(`${envName} is not the ${READ_ONLY_USER} user — refusing to connect.`);
   const isLocalHost = LOCAL_HOSTS.has(parsed.hostname);
   if (target === "local" && !isLocalHost) fail(`${envName} doesn't point at localhost — refusing (.env may be switched to Oracle).`);
-  if (target === "oracle" && isLocalHost) fail(`${envName} points at localhost, not Oracle.`);
+  if (target === "oracle" && isLocalHost) {
+    fail(`${envName} in .env currently points at local, not Oracle — refusing. Querying Oracle needs the user to point .env's ${envName} at Oracle first.`);
+  }
   return url;
 }
 

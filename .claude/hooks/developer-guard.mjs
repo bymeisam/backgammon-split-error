@@ -55,7 +55,7 @@ try {
   // No .env: no Oracle host to look for (the DB check below fails closed on its own).
 }
 
-if (/\b(ORACLE_DATABASE_URL_READONLY|ORACLE_DB_HOST|awesomebg)\b|--target\s+oracle/.test(command)) block("this touches Oracle or its credentials");
+if (/\b(ORACLE_DB_HOST|awesomebg)\b|--target\s+oracle/.test(command)) block("this touches Oracle or its credentials");
 if (oracleHost && command.includes(oracleHost)) block("this references the Oracle host");
 
 // Every .env* file Next.js, Playwright or dotenv could load, plus the shell's
