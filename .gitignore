@@ -61,3 +61,6 @@ next-env.d.ts
 # Personal decision notes exported by scripts/notes-export.ts (moving notes
 # between local and Oracle) — user data, never committed.
 notes-export*.json
+
+# Galaxy website build (compiled Flutter/Dart JS), local reference only, never commit
+galaxy-source/

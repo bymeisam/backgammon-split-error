@@ -2,6 +2,15 @@
 
 Ideas parked for later review. These are not planned work. Each entry says where it came from and, if known, why it was deferred.
 
+## To review later
+
+### Cube UI review (user, 2026-10-07)
+The user accepted the Galaxy-style cube display for now but wants to look at it again. Open points:
+- **Offered cube on takes and passes:** it's drawn centred on the bar column at the receiver's edge, and can overlap a receiver checker on the bar.
+- **Cube square value:** on a no-double check with a centred cube, the list's square shows "1".
+- **No Roll column on /mistakes:** cube rows there have no cube square, because the list has no Roll column. Adding one would also show dice on checker rows.
+- **Wording:** Galaxy's labels (No Double, Double, Too good, Take, Pass), with the opponent's half as grey secondary text.
+
 ## Data sources
 
 ### XG file import
@@ -19,6 +28,15 @@ Ideas parked for later review. These are not planned work. Each entry says where
 ### Built-in spaced repetition
 - **Idea:** an Anki-style review flow built on the pipeline's own decision and error data, instead of exporting through AnkiGammon. Your personal notes on each blunder show up at recall time.
 - **Source:** user's idea list, 2026-10-06.
+
+### Review-card ideas borrowed from Galaxy's training features
+- **Question wording:** label each card's question the way RushGammon does: "Your Roll" (double?), "Opponent Doubled" (take?), "Your Move".
+- **Result screen:** "Correct/Incorrect", "Played: X", "Best: Y", the equity gap, then the user's note.
+- **Grading tiers:** use Galaxy's Best/Good/Error/Blunder tiers and colours. The planned 0.02 "counts as correct" threshold equals Galaxy's good/error boundary.
+- **Session summary:** an Accuracy % and Streak readout at the end of each review session.
+- **Card organisation:** group cards and mistakes by Galaxy's 17 position categories, plus "Recent", with counts.
+- **Period summary:** Checker Play vs Cube Play, "Error N (eq)" / "Blunder N (eq)", total Equity Loss, Error Rate.
+- **Source:** `reports/2026-10-07-galaxy-client-comparison.md` (Galaxy has no spaced repetition; its puzzles avoid repeats, the opposite of ours).
 
 ### Win, gammon and backgammon chance cards
 - **Idea:** a second kind of review card. Show a position and ask you to estimate the win, gammon and backgammon chances, then reveal the engine's numbers. The point is to build your feel for these chances in different kinds of positions.
