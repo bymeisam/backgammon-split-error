@@ -4,6 +4,7 @@ import {
   actorPlayerFor,
   crawfordStateFor,
   decodeGnuMatchId,
+  diceRollFor,
   effectiveMatchLength,
   encodeGnuMatchId,
   gameScoreFromMatchId,
@@ -243,5 +244,33 @@ describe("PlayerUserIds", () => {
     p.add("a", BLACK);
     p.add("b", BLACK);
     expect(p.userIdFor(BLACK)).toBeNull();
+  });
+});
+
+describe("diceRollFor — the roll a decision shows", () => {
+  const base = decodeGnuMatchId("QQmxAAAACAAE")!;
+
+  it("a checker move: the Match ID's dice, in its order", () => {
+    expect(diceRollFor("move", { ...base, dice: [5, 2] })).toEqual([5, 2]);
+    expect(diceRollFor("move", { ...base, dice: [2, 5] })).toEqual([2, 5]);
+    expect(diceRollFor("move", { ...base, dice: [4, 4] })).toEqual([4, 4]);
+  });
+
+  it("decision 749213 (35478993 g6, 23/21 15/10): EYHqAEAAIAAE -> 5-2", () => {
+    expect(diceRollFor("move", decodeGnuMatchId("EYHqAEAAIAAE"))).toEqual([5, 2]);
+  });
+
+  it("no dice for cube decisions and resignations, even when the Match ID has dice", () => {
+    const m = { ...base, dice: [6, 1] as [number, number] };
+    expect(diceRollFor("cube_double", m)).toEqual([]);
+    expect(diceRollFor("cube_pass", m)).toEqual([]);
+    expect(diceRollFor("resignation", m)).toEqual([]);
+    expect(diceRollFor(null, m)).toEqual([]);
+  });
+
+  it("no dice without a Match ID, or when its dice aren't 1-6", () => {
+    expect(diceRollFor("move", null)).toEqual([]);
+    expect(diceRollFor("move", { ...base, dice: [0, 0] })).toEqual([]);
+    expect(diceRollFor("move", { ...base, dice: [7, 2] })).toEqual([]);
   });
 });

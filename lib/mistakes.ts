@@ -1,6 +1,5 @@
 import type {
   ErrorSeverity as RawErrorSeverity,
-  GameEvent,
   GameReviewsResponse,
   Review,
 } from "@/lib/gameReviewsTypes";
@@ -13,7 +12,7 @@ import {
   type DoubleOffer,
 } from "@/lib/cubeState";
 import { cubeBestDisplay, cubePlayedLabel, deriveCubeActionFromReview } from "@/lib/cubeAction";
-import { decodeGnuMatchId } from "@/lib/gnuMatchId";
+import { decodeGnuMatchId, diceRollFor } from "@/lib/gnuMatchId";
 
 export interface FetchedGame {
   gameIndex: number;
@@ -136,7 +135,7 @@ function decisionKindFor(analysedEvent: string): DecisionKind | null {
   }
 }
 
-// Exported for the same reason as moveNotations below.
+// Exported for displayLabels' callers' tests; see moveNotations below.
 export function actionLabels(review: Review): { mine: string; best: string } {
   const envelope = review.result;
 
@@ -170,14 +169,13 @@ export function actionLabels(review: Review): { mine: string; best: string } {
 // that was too good to double. A cube decision's "best" is the action
 // derived from Galaxy's own equities (Galaxy's best-action label is
 // unreliable on old analyses), with the opponent's take/pass half as
-// bestDetail. actionLabels() itself stays as stored: ingest stores it as
-// Decision.cubeActionPlayed/cubeActionBest. `labels` and `severity` let the
-// DB-row path pass in the values it already read from columns.
-export function displayLabels(
-  review: Review,
-  labels: { mine: string; best: string } = actionLabels(review),
-  severity: RawErrorSeverity = review.result.result.error_analysis?.error_severity ?? "none"
-): { mine: string; best: string; bestDetail: string | null } {
+// bestDetail. Shared by the live path (extractDecisions below) and the
+// DB-row path (lib/analysis/galaxyFields.ts's galaxyLabels), both reading
+// the event itself — nothing is stored (the cubeActionPlayed/cubeActionBest
+// columns were dropped 2026-10-07).
+export function displayLabels(review: Review): { mine: string; best: string; bestDetail: string | null } {
+  const labels = actionLabels(review);
+  const severity: RawErrorSeverity = review.result.result.error_analysis?.error_severity ?? "none";
   const event = review.result.analysed_event;
   if (event === "move") return { ...labels, bestDetail: null };
   const derived = deriveCubeActionFromReview(review);
@@ -187,10 +185,10 @@ export function displayLabels(
   return { mine, best: best.label, bestDetail: best.detail };
 }
 
-// Exported for lib/decisionFromRow.ts, which builds a Decision straight
-// from a stored DB row's raw JSON (a single already-ingested event) rather
-// than from a live game_reviews fetch — reuses this exact logic instead of
-// duplicating it, so the two paths can't silently diverge.
+// Exported for lib/analysis/galaxyFields.ts, which builds the same values
+// straight from a stored DB row's raw JSON (a single already-ingested event)
+// rather than from a live game_reviews fetch — reuses this exact logic
+// instead of duplicating it, so the two paths can't silently diverge.
 export function moveNotations(review: Review): { mine: string | null; best: string | null } {
   const envelope = review.result;
   if (envelope.analysed_event !== "move") return { mine: null, best: null };
@@ -201,69 +199,13 @@ export function moveNotations(review: Review): { mine: string | null; best: stri
   return { mine: played?.notation ?? null, best: best?.notation ?? null };
 }
 
-// A move_commited event's own rolled_dice is always empty — the roll it used
-// lives on the nearest preceding dice_rolled event (or game_started, for the
-// very first move of the game). Exported for lib/decisionFromRow.ts, which
-// needs the same backward scan but over a narrower, DB-fetched events slice
-// (only the games actually shown on a page) rather than a full live fetch.
-export function findPrecedingRoll(events: GameEvent[], index: number): number[] {
-  for (let i = index - 1; i >= 0; i--) {
-    const e = events[i];
-    if (e.event_type === "dice_rolled" || e.event_type === "game_started") {
-      if (e.rolled_dice && e.rolled_dice.length > 0) return e.rolled_dice;
-    }
-  }
-  return [];
-}
-
-// Decodes the roll used for a move directly from the event's own `moves`
-// field — a flat [from1, to1, from2, to2, ...] array Galaxy sends on every
-// move_commited event, one [from, to] pair per die used (never previously
-// read anywhere in this codebase before this function was added). Each
-// pair's pip distance IS the die face used, UNLESS the move involves
-// bear-off (a die larger than the exact pips needed can still legally bear
-// a checker off, so distance-to-"off" doesn't always equal the die face)
-// or bar-entry (a different point-numbering convention) — confirmed via a
-// 5,000-row sample against already-known rolls elsewhere in the table:
-// ~6% mismatch, entirely concentrated in those two cases. **Reliable only
-// for a genuine point-to-point move with no bear-off/bar-entry involved**
-// — which a game's very first move always is (fresh starting position,
-// structurally can't have a checker on the bar or in bear-off range).
-// NOT a general-purpose roll-reconstruction function — callers must scope
-// its use accordingly (see scripts/backfill-first-move-roll.ts, the one
-// current caller, which restricts itself to exactly that scope).
-//
-// Verified against real Galaxy-site data, not just code logic: decision id
-// 1207111's `moves` ([24,18,18,13]) decodes to [6,5], exactly matching the
-// roll independently confirmed on Galaxy's own site for that same decision
-// ([5,6] — order-independent, same roll). See reports/2026-10-02-step4-
-// dice-roll-column-design.md's correction for the full story.
-//
-// Returns null for anything not cleanly decodable: fewer than 2 complete
-// hops (a genuinely single-die turn — real, but this function can't
-// recover the unplayed die's value either) or a malformed/odd-length
-// array (shouldn't happen for a real CHECKER move, but defensive rather
-// than guessing).
-export function decodeRollFromMoves(moves: number[]): number[] | null {
-  if (moves.length < 4 || moves.length % 2 !== 0) return null;
-
-  const distances: number[] = [];
-  for (let i = 0; i < moves.length; i += 2) {
-    distances.push(Math.abs(moves[i] - moves[i + 1]));
-  }
-
-  const distinct = [...new Set(distances)];
-  return distinct.length === 1 ? [distances[0], distances[0]] : distances.slice(0, 2);
-}
-
 export function extractDecisions(games: FetchedGame[]): Decision[] {
   const decisions: Decision[] = [];
 
   for (const game of games) {
     const events = game.data?.data?.events ?? [];
 
-    for (let index = 0; index < events.length; index++) {
-      const event = events[index];
+    for (const event of events) {
       const review = event.reviews?.[0];
       if (!review) continue;
 
@@ -305,9 +247,13 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         myLabel: labels.mine,
         bestLabel: labels.best,
         bestDetail: labels.bestDetail,
-        // Cube decisions are made before any roll; checker decisions pull the
-        // roll from the preceding dice_rolled/game_started event.
-        roll: kind === "checker" ? findPrecedingRoll(events, index) : [],
+        // The Match ID's dice for a checker move; none for cube decisions
+        // (made before the roll) or resignations — the same rule the DB-row
+        // path uses (lib/gnuMatchId.ts's diceRollFor). Until 2026-10-07 this
+        // scanned back to the preceding dice_rolled/game_started event,
+        // which on the DB path (/matches, events rebuilt from stored rows)
+        // depended on row order and could pick up the wrong roll.
+        roll: diceRollFor(review.result.analysed_event, matchId),
         sourcePositionId: review.source_position?.formatted_value ?? null,
         myMoveNotation: mine,
         bestMoveNotation: best,

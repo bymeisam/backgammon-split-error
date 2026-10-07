@@ -41,7 +41,8 @@ export function boardCubeFor(
     return { kind: "offered", value: decision.doubleOffer.value, side: viewFlipped ? "opponent" : "mine" };
   }
   const state = decision.cubeState;
-  // Not confident -> draw nothing rather than a guess (lib/cubeState.ts).
+  // No Match ID (no state) or not confident -> draw nothing rather than a
+  // guess (lib/cubeState.ts).
   if (!state || !state.confident) return null;
   const drawn = boardPositionFlipped(decision, viewFlipped) ? flipCubeState(state) : state;
   return { kind: "owned", value: drawn.value, owner: drawn.owner };

@@ -16,8 +16,9 @@ export interface CubeState {
   // the cube stays beside its real owner's checkers.
   owner: CubeOwner;
   // Kept for Board's "draw nothing rather than a guess" gate. Always true
-  // for a state built from a decodable Match ID; DB rows whose Match ID
-  // didn't decode carry cubeConfident = false and get no CubeState at all.
+  // for a state built from a decodable Match ID; a decision whose Match ID
+  // is missing or doesn't decode gets no CubeState at all (the old
+  // Decision.cubeConfident column is dropped — the Match ID is read live).
   confident: boolean;
 }
 

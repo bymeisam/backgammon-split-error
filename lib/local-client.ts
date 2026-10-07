@@ -93,17 +93,24 @@ export async function getGameReviews(
 ): Promise<GameReviewsResponse | null> {
   const match = await prisma.match.findUnique({
     where: { source_sourceMatchId: { source: SOURCE, sourceMatchId: String(matchId) } },
+    select: { id: true },
   });
   if (!match) return null;
 
   const game = await prisma.game.findUnique({
     where: { matchId_gameIndex: { matchId: match.id, gameIndex } },
+    select: { id: true },
   });
   if (!game) return null;
 
+  // Play order is eventId order. (Until 2026-10-07 this sorted by the
+  // dropped Decision.timestamp — Galaxy's serve time, not play order, which
+  // disagreed with eventId on 116,682 rows in 10,769 local games.) Only raw
+  // is needed: the events array is rebuilt from it.
   const decisions = await prisma.decision.findMany({
     where: { gameId: game.id },
-    orderBy: [{ timestamp: "asc" }, { id: "asc" }],
+    orderBy: { eventId: "asc" },
+    select: { raw: true },
   });
 
   const events = decisions.map((d) => d.raw as unknown as GameEvent);

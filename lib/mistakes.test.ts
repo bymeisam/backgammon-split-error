@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   computePR,
-  decodeRollFromMoves,
   isListedMistake,
   extractDecisions,
   formatPR,
@@ -11,6 +10,7 @@ import {
   type Decision,
   type FetchedGame,
 } from "@/lib/mistakes";
+import { decodeGnuMatchId, encodeGnuMatchId } from "@/lib/gnuMatchId";
 import blunderBelowThreshold from "./__fixtures__/galaxy-payloads/blunder-below-0.08-threshold.json";
 import moneyGameMove from "./__fixtures__/galaxy-payloads/money-game-move.json";
 
@@ -129,34 +129,6 @@ describe("partitionMistakes — Good (doubtful) decisions aren't listed as mista
   });
 });
 
-describe("decodeRollFromMoves", () => {
-  it("real example: decision id 1207111's moves decode to [6,5], matching the roll independently confirmed on Galaxy's own site ([5,6], order-independent)", () => {
-    expect(decodeRollFromMoves([24, 18, 18, 13])).toEqual([6, 5]);
-  });
-
-  it("two different checkers, non-double: each pair's own pip distance is a die face", () => {
-    // "24/18 13/9" (distances 6, 4) — real shape, different point numbers
-    // than the single-checker chain case above but same pairwise decoding.
-    expect(decodeRollFromMoves([13, 9, 24, 18])).toEqual([4, 6]);
-  });
-
-  it("a double (all hops the same distance): returns [d, d], not every repeated hop", () => {
-    // "14/4(2)" — 4 hops of 5 pips each (double 5s), 3-of-4 and 2-of-4
-    // partial-double cases collapse the same way.
-    expect(decodeRollFromMoves([14, 9, 14, 9, 9, 4, 9, 4])).toEqual([5, 5]);
-    expect(decodeRollFromMoves([3, 0, 3, 0, 3, 0])).toEqual([3, 3]); // 3-of-4 used
-  });
-
-  it("returns null for a genuinely single-die turn (only 1 hop) — the other die's value isn't recoverable from moves either", () => {
-    expect(decodeRollFromMoves([10, 5])).toBeNull();
-  });
-
-  it("returns null for a malformed/odd-length array rather than guessing", () => {
-    expect(decodeRollFromMoves([])).toBeNull();
-    expect(decodeRollFromMoves([1, 2, 3])).toBeNull();
-  });
-});
-
 // extractDecisions had no test coverage at all before this — the exact gap
 // that let its severity computation (a local absError >= 0.08 threshold)
 // silently diverge from lib/decisionFromRow.ts's (reading Galaxy's own
@@ -188,6 +160,39 @@ describe("extractDecisions — severity sourced from Galaxy's own classification
     expect(decision).toBeDefined();
     expect(decision.isMistake).toBe(true);
     expect(decision.severity).toBeNull();
+  });
+});
+
+// The roll is the Match ID's dice — the same rule as the DB-row path
+// (lib/gnuMatchId.ts's diceRollFor) — not a scan back to a preceding
+// dice_rolled event, so the order the events arrive in can't change it.
+describe("extractDecisions — roll from the decision's own Match ID", () => {
+  function moveWithDice(dice: [number, number]) {
+    const e = structuredClone(moneyGameMove.data.events[0]) as unknown as {
+      id: number;
+      reviews: { source_match: unknown }[];
+    };
+    e.reviews[0].source_match = {
+      id: 1,
+      formatted_value: encodeGnuMatchId({ ...decodeGnuMatchId("QQmxAAAACAAE")!, dice }),
+    };
+    return e;
+  }
+  // A preceding dice_rolled event carrying a different roll.
+  const diceRolled = { id: 1, event_type: "dice_rolled", rolled_dice: [3, 3], user_id: "u", color: "white", moves: [], reviews: [] };
+
+  function game(events: unknown[]): FetchedGame {
+    return { gameIndex: 1, data: { type: "game_events", data: { events, match_id: 1, game_index: 1 } } as never };
+  }
+
+  it("uses the Match ID's dice even when a preceding dice_rolled event says otherwise, in either event order", () => {
+    const move = moveWithDice([5, 2]);
+    expect(extractDecisions([game([diceRolled, move])])[0].roll).toEqual([5, 2]);
+    expect(extractDecisions([game([move, diceRolled])])[0].roll).toEqual([5, 2]);
+  });
+
+  it("no Match ID -> no dice", () => {
+    expect(extractDecisions([game([diceRolled, moneyGameMove.data.events[0]])])[0].roll).toEqual([]);
   });
 });
 

@@ -2,17 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   decisionFromRow,
   decisionFromRowForReplay,
-  rollForRow,
   toDecisionListItems,
   type DecisionListRow,
   type DecisionRow,
 } from "@/lib/decisionFromRow";
+import { decodeGnuMatchId, encodeGnuMatchId } from "@/lib/gnuMatchId";
 import moneyGameMove from "./__fixtures__/galaxy-payloads/money-game-move.json";
 import resignation from "./__fixtures__/galaxy-payloads/resignation.json";
 import lowConfidenceDoubtful from "./__fixtures__/galaxy-payloads/low-confidence-doubtful.json";
 
 // A real-shaped move_commited event (with reviews[0]) as the raw column.
+// Its played and best move are both "24/18", its colour "white", and its
+// own source_match is null (no Match ID: no dice, no cube).
 const event = moneyGameMove.data.events[0];
+
+// The fixture's real cube_double event (low-confidence-doubtful.json).
+const cubeEvent = lowConfidenceDoubtful.data.events.find(
+  (e: { reviews?: { result: { analysed_event: string } }[] }) => e.reviews?.[0]?.result.analysed_event === "cube_double"
+)!;
 
 function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
   return {
@@ -20,28 +27,12 @@ function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
     gameId: 10,
     eventId: BigInt(event.id),
     userId: "user_me",
-    color: "white",
     kind: "CHECKER",
     rawError: -0.12,
     errorSeverity: "BLUNDER",
-    // Real values for this fixture's own event — confirmed matching what
-    // moveNotations(review) would derive from it (the column/raw-parse
-    // equivalence this project verified directly before switching, 2026-10-01).
-    movePlayed: "24/18",
-    moveBest: "24/18",
-    // CUBE-kind-only columns — irrelevant for this CHECKER-kind default row,
-    // but present since every DecisionRow has them (null outside CUBE kind,
-    // same convention movePlayed/moveBest use outside CHECKER kind).
-    cubeActionPlayed: null,
-    cubeActionBest: null,
     // Real value for this fixture's own event (reviews[0].source_position.
-    // formatted_value) — same "column, not re-parsed raw" equivalence
-    // confirmed for movePlayed/moveBest above.
+    // formatted_value).
     sourcePositionId: "4HPwATDgc/ABMA",
-    roll: [6, 2],
-    cubeOwnerUserId: null,
-    cubeValue: 1,
-    cubeConfident: true,
     raw: event,
     classification: "opening_game",
     note: null,
@@ -51,138 +42,97 @@ function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
 }
 
 // Minimal DecisionRow builder for decisionFromRow/decisionFromRowForReplay
-// tests directly (no classification/match needed, unlike the list-item row
-// helper above).
+// tests directly (no classification/sourceMatchId needed, unlike the
+// list-item row helper above).
 function baseRow(overrides: Partial<DecisionRow> = {}): DecisionRow {
   return {
     id: 1,
     gameId: 10,
     eventId: BigInt(event.id),
     userId: "user_me",
-    color: "white",
     kind: "CHECKER",
     rawError: -0.12,
     errorSeverity: "BLUNDER",
-    movePlayed: "24/18",
-    moveBest: "24/18",
-    cubeActionPlayed: null,
-    cubeActionBest: null,
     sourcePositionId: "4HPwATDgc/ABMA",
-    roll: [6, 2],
-    cubeOwnerUserId: null,
-    cubeValue: 1,
-    cubeConfident: true,
     raw: event,
     note: null,
-    game: { gameIndex: 3 },
+    game: { gameIndex: 3, match: { source: "galaxy" } },
     ...overrides,
   };
 }
 
-describe("decisionFromRow / decisionFromRowForReplay — notation from the column, not re-parsed raw", () => {
-  it("decisionFromRow returns the row's own movePlayed/moveBest columns verbatim", () => {
-    // Deliberately different from what moveNotations(review) would derive
-    // from this fixture's raw ("24/18" for both, confirmed earlier) — if
-    // this still silently re-parsed raw instead of reading the column, the
-    // assertions below would see "24/18", not these values, and fail.
-    const decision = decisionFromRow(baseRow({ movePlayed: "99/1", moveBest: "88/2" }));
-    expect(decision?.myMoveNotation).toBe("99/1");
-    expect(decision?.bestMoveNotation).toBe("88/2");
+// A copy of `base` (default: the checker fixture's event) with a real GNU
+// Match ID attached (the hand-built fixture's own source_match is null).
+function rawWithMatchId(matchId: string, base: unknown = event) {
+  const raw = structuredClone(base) as unknown as { reviews: { source_match: unknown }[] };
+  raw.reviews[0].source_match = { id: 1, formatted_value: matchId };
+  return raw;
+}
+
+// A Match ID whose dice are `dice` (everything else from a real ID).
+function matchIdWithDice(dice: [number, number]): string {
+  return encodeGnuMatchId({ ...decodeGnuMatchId("QQmxAAAACAAE")!, dice });
+}
+
+// A copy of `base` with one candidate's notation / the move_played flag
+// changed, so a label read from somewhere other than raw would be caught.
+function rawWithMoves(moves: { notation: string; rank: number; move_played: boolean }[]) {
+  const raw = structuredClone(event) as unknown as {
+    reviews: { result: { result: { moves: Record<string, unknown>[] } } }[];
+  };
+  const template = raw.reviews[0].result.result.moves[0];
+  raw.reviews[0].result.result.moves = moves.map((m) => ({ ...template, ...m }));
+  return raw;
+}
+
+describe("decisionFromRow / decisionFromRowForReplay — notation and labels from raw", () => {
+  it("both builders read the played/best notation from raw's candidates", () => {
+    const raw = rawWithMoves([
+      { notation: "13/9 6/5", rank: 1, move_played: false },
+      { notation: "24/20 13/12", rank: 2, move_played: true },
+    ]);
+    for (const build of [decisionFromRow, decisionFromRowForReplay]) {
+      const decision = build(baseRow({ raw }));
+      expect(decision?.myMoveNotation).toBe("24/20 13/12");
+      expect(decision?.bestMoveNotation).toBe("13/9 6/5");
+      // CHECKER labels are the same notations.
+      expect(decision?.myLabel).toBe("24/20 13/12");
+      expect(decision?.bestLabel).toBe("13/9 6/5");
+      expect(decision?.bestDetail).toBeNull();
+    }
   });
 
-  it("decisionFromRowForReplay returns the row's own movePlayed/moveBest columns verbatim", () => {
-    const decision = decisionFromRowForReplay(baseRow({ movePlayed: "99/1", moveBest: "88/2" }));
-    expect(decision?.myMoveNotation).toBe("99/1");
-    expect(decision?.bestMoveNotation).toBe("88/2");
-  });
-
-  it("real CHECKER row: column value matches what the raw payload actually contains", () => {
-    // moneyGameMove's own event — confirmed "24/18"/"24/18" via direct
-    // inspection of its raw moves[] array (rank 1 === move_played here).
+  it("real CHECKER row: the fixture's own 24/18 for both", () => {
     const decision = decisionFromRow(baseRow());
     expect(decision?.myMoveNotation).toBe("24/18");
     expect(decision?.bestMoveNotation).toBe("24/18");
   });
 
-  it("real RESIGNATION row: notation columns are null (ingest never populates them for this kind)", () => {
+  it("real RESIGNATION row: no notations, labels from actionLabels() in Galaxy's wording", () => {
     const resignEvent = resignation.data.events[0];
     const decision = decisionFromRow(
-      baseRow({
-        kind: "RESIGNATION",
-        eventId: BigInt(resignEvent.id),
-        rawError: 0.15,
-        errorSeverity: "NONE",
-        movePlayed: null,
-        moveBest: null,
-        raw: resignEvent,
-      })
+      baseRow({ kind: "RESIGNATION", eventId: BigInt(resignEvent.id), rawError: 0.15, errorSeverity: "NONE", raw: resignEvent })
     );
     expect(decision?.myMoveNotation).toBeNull();
     expect(decision?.bestMoveNotation).toBeNull();
+    expect(decision?.myLabel).toBe("Resign");
+    expect(decision?.bestLabel).toBe("should resign"); // this fixture's should_resign: true
   });
 
-  it("real CUBE row (null rawError, via decisionFromRowForReplay): notation columns are null", () => {
-    const cubeEvent = lowConfidenceDoubtful.data.events.find(
-      (e: { reviews?: { result: { analysed_event: string } }[] }) =>
-        e.reviews?.[0]?.result.analysed_event === "cube_double"
-    )!;
+  it("real CUBE row (null rawError, via decisionFromRowForReplay): no notations; Galaxy's wording, best derived from the equities", () => {
     const decision = decisionFromRowForReplay(
-      baseRow({
-        kind: "CUBE",
-        eventId: BigInt(cubeEvent.id),
-        rawError: null,
-        errorSeverity: "NONE",
-        movePlayed: null,
-        moveBest: null,
-        raw: cubeEvent,
-      })
+      baseRow({ kind: "CUBE", eventId: BigInt(cubeEvent.id), rawError: null, errorSeverity: "NONE", raw: cubeEvent })
     );
     expect(decision?.myMoveNotation).toBeNull();
     expect(decision?.bestMoveNotation).toBeNull();
-  });
-});
-
-describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: column for CHECKER/CUBE (CUBE best derived from equities, Galaxy's wording), actionLabels() for RESIGNATION", () => {
-  it("CHECKER kind: myLabel/bestLabel come from movePlayed/moveBest (same column as myMoveNotation/bestMoveNotation)", () => {
-    const decision = decisionFromRow(baseRow({ movePlayed: "13/7", moveBest: "13/9" }));
-    expect(decision?.myLabel).toBe("13/7");
-    expect(decision?.bestLabel).toBe("13/9");
-  });
-
-  it("CUBE kind: myLabel comes from cubeActionPlayed (in Galaxy's wording), not re-parsed raw", () => {
-    // Real cube_double event from the fixture (low-confidence-doubtful.json)
-    // — deliberately different literal values than actionLabels(review)
-    // would derive from it, so a silent raw-reparse would be caught.
-    const cubeEvent = lowConfidenceDoubtful.data.events.find(
-      (e: { reviews?: { result: { analysed_event: string } }[] }) =>
-        e.reviews?.[0]?.result.analysed_event === "cube_double"
-    )!;
-    const decision = decisionFromRowForReplay(
-      baseRow({
-        kind: "CUBE",
-        eventId: BigInt(cubeEvent.id),
-        rawError: null,
-        errorSeverity: "NONE",
-        movePlayed: null,
-        moveBest: null,
-        cubeActionPlayed: "doubled",
-        cubeActionBest: "double",
-        raw: cubeEvent,
-      })
-    );
-    // "doubled" -> Galaxy's "Double".
-    expect(decision?.myLabel).toBe("Double");
-    // bestLabel is derived from the row's own cube equities (ND −0.02,
-    // DT −0.12, DP 1 -> No double/take -> "No Double"), not cubeActionBest.
+    // review.double false -> "did not double" -> "No Double"; ND −0.02,
+    // DT −0.12, DP 1 -> No double/take -> "No Double".
+    expect(decision?.myLabel).toBe("No Double");
     expect(decision?.bestLabel).toBe("No Double");
     expect(decision?.bestDetail).toBeNull();
   });
 
   it("CUBE kind: the derived action wins over Galaxy's stuck 'roll' label (C2, decision 629849, 29939852 g1 Move 14)", () => {
-    const cubeEvent = lowConfidenceDoubtful.data.events.find(
-      (e: { reviews?: { result: { analysed_event: string } }[] }) =>
-        e.reviews?.[0]?.result.analysed_event === "cube_double"
-    )!;
     const raw = structuredClone(cubeEvent) as typeof cubeEvent;
     Object.assign(raw.reviews[0].result.result.cube_analysis, {
       no_double: 0.7922,
@@ -191,18 +141,9 @@ describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: colu
       doublers_best_action: "roll",
       receivers_best_action: null,
     });
+    Object.assign(raw.reviews[0].result.result.error_analysis, { error_severity: "blunder" });
     const decision = decisionFromRow(
-      baseRow({
-        kind: "CUBE",
-        eventId: BigInt(cubeEvent.id),
-        rawError: -0.1829,
-        errorSeverity: "BLUNDER",
-        movePlayed: null,
-        moveBest: null,
-        cubeActionPlayed: "did not double",
-        cubeActionBest: "roll",
-        raw,
-      })
+      baseRow({ kind: "CUBE", eventId: BigInt(cubeEvent.id), rawError: -0.1829, errorSeverity: "BLUNDER", raw })
     );
     expect(decision?.myLabel).toBe("No Double");
     expect(decision?.bestLabel).toBe("Double");
@@ -211,128 +152,107 @@ describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: colu
   });
 
   it("CUBE kind: a no-double check too good to double, graded none, reads Too good", () => {
-    const cubeEvent = lowConfidenceDoubtful.data.events.find(
-      (e: { reviews?: { result: { analysed_event: string } }[] }) =>
-        e.reviews?.[0]?.result.analysed_event === "cube_double"
-    )!;
     const raw = structuredClone(cubeEvent) as typeof cubeEvent;
     Object.assign(raw.reviews[0].result.result.cube_analysis, { no_double: 1.2, double_take: 1.5, double_pass: 1 });
     Object.assign(raw.reviews[0].result.result.error_analysis, { error_severity: "none" });
     const decision = decisionFromRow(
-      baseRow({
-        kind: "CUBE",
-        eventId: BigInt(cubeEvent.id),
-        rawError: 0,
-        errorSeverity: "NONE",
-        movePlayed: null,
-        moveBest: null,
-        cubeActionPlayed: "did not double",
-        cubeActionBest: "roll",
-        raw,
-      })
+      baseRow({ kind: "CUBE", eventId: BigInt(cubeEvent.id), rawError: 0, errorSeverity: "NONE", raw })
     );
     expect(decision?.myLabel).toBe("Too good");
     expect(decision?.bestLabel).toBe("Too good");
     expect(decision?.bestDetail).toBe("opponent should pass");
   });
 
-  it("RESIGNATION kind: myLabel/bestLabel still call actionLabels() against raw — no column for this kind, deliberately", () => {
-    const resignEvent = resignation.data.events[0];
-    const decision = decisionFromRow(
-      baseRow({
-        kind: "RESIGNATION",
-        eventId: BigInt(resignEvent.id),
-        rawError: 0.15,
-        errorSeverity: "NONE",
-        movePlayed: null,
-        moveBest: null,
-        raw: resignEvent,
-      })
+  it("CUBE kind: a double reads Double (review.double true)", () => {
+    const raw = structuredClone(cubeEvent) as typeof cubeEvent;
+    (raw.reviews[0] as { double: boolean | null }).double = true;
+    const decision = decisionFromRowForReplay(
+      baseRow({ kind: "CUBE", eventId: BigInt(cubeEvent.id), rawError: null, errorSeverity: "NONE", raw })
     );
-    expect(decision?.myLabel).toBe("Resign");
-    expect(decision?.bestLabel).toBe("should resign"); // this fixture's should_resign: true
+    expect(decision?.myLabel).toBe("Double");
   });
 });
 
-describe("decisionFromRow / decisionFromRowForReplay — roll from the column, not re-scanned", () => {
-  it("decisionFromRow returns the row's own roll column verbatim", () => {
-    const decision = decisionFromRow(baseRow({ roll: [3, 1] }));
-    expect(decision?.roll).toEqual([3, 1]);
+describe("decisionFromRow / decisionFromRowForReplay — colour from raw", () => {
+  it("raw.color, for both builders", () => {
+    expect(decisionFromRow(baseRow())?.color).toBe("white");
+    const black = { ...structuredClone(event), color: "black" };
+    expect(decisionFromRowForReplay(baseRow({ raw: black }))?.color).toBe("black");
   });
 
-  it("decisionFromRowForReplay returns the row's own roll column verbatim", () => {
-    const decision = decisionFromRowForReplay(baseRow({ roll: [3, 1] }));
-    expect(decision?.roll).toEqual([3, 1]);
-  });
-
-  it("null roll (the genuine first-move/no-roll-applies case) becomes an empty array, not null", () => {
-    expect(decisionFromRow(baseRow({ roll: null }))?.roll).toEqual([]);
-    expect(decisionFromRowForReplay(baseRow({ roll: null }))?.roll).toEqual([]);
+  it("blank when raw has none (Galaxy leaves it blank on most cube rows)", () => {
+    const blank = { ...structuredClone(event), color: "" };
+    expect(decisionFromRow(baseRow({ raw: blank }))?.color).toBe("");
   });
 });
 
-// A copy of the fixture's raw event with a real GNU Match ID attached
-// (the hand-built fixture's own source_match is null).
-function rawWithMatchId(matchId: string) {
-  const raw = structuredClone(event) as unknown as { reviews: { source_match: unknown }[] };
-  raw.reviews[0].source_match = { id: 1, formatted_value: matchId };
-  return raw;
-}
+describe("decisionFromRow / decisionFromRowForReplay — roll from the Match ID's dice", () => {
+  it("a checker move shows the Match ID's dice, in its order, on both builders", () => {
+    const raw = rawWithMatchId(matchIdWithDice([5, 2]));
+    expect(decisionFromRow(baseRow({ raw }))?.roll).toEqual([5, 2]);
+    expect(decisionFromRowForReplay(baseRow({ raw }))?.roll).toEqual([5, 2]);
+    expect(decisionFromRow(baseRow({ raw: rawWithMatchId(matchIdWithDice([3, 3])) }))?.roll).toEqual([3, 3]);
+  });
 
-describe("decisionFromRow / decisionFromRowForReplay — cube state: value from the column, side relative to the board's bottom player", () => {
+  it("decision 749213 (match 35478993 g6, 23/21 15/10): EYHqAEAAIAAE gives 5-2 (the old column said 3-3)", () => {
+    expect(decisionFromRow(baseRow({ raw: rawWithMatchId("EYHqAEAAIAAE") }))?.roll).toEqual([5, 2]);
+  });
+
+  it("no Match ID -> no dice", () => {
+    expect(decisionFromRow(baseRow())?.roll).toEqual([]);
+  });
+
+  it("cube decisions and resignations get no dice, even with dice in the Match ID", () => {
+    const id = matchIdWithDice([6, 2]);
+    const cube = decisionFromRowForReplay(
+      baseRow({ kind: "CUBE", rawError: null, errorSeverity: "NONE", raw: rawWithMatchId(id, cubeEvent) })
+    );
+    expect(cube?.roll).toEqual([]);
+    const resign = decisionFromRowForReplay(
+      baseRow({ kind: "RESIGNATION", rawError: 0.15, errorSeverity: "NONE", raw: rawWithMatchId(id, resignation.data.events[0]) })
+    );
+    expect(resign?.roll).toEqual([]);
+  });
+});
+
+describe("decisionFromRow / decisionFromRowForReplay — cube state from the Match ID, side relative to the board's bottom player", () => {
   it("center when the Match ID's cube is centred", () => {
-    const decision = decisionFromRow(
-      baseRow({ cubeOwnerUserId: null, cubeValue: 1, cubeConfident: true, raw: rawWithMatchId("MAGzAAAACAAE") })
-    );
+    const decision = decisionFromRow(baseRow({ raw: rawWithMatchId("MAGzAAAACAAE") }));
     expect(decision?.cubeState).toEqual({ value: 1, owner: "center", confident: true });
   });
 
   it("'mine' when the owner is the player on roll (drawn at the bottom)", () => {
-    // EQGvABAAAAAE (A4): owner black, dice owner white -> opponent; use a
-    // state where they match: UQmgADAAEAAE (A5) owner black, dice owner black.
-    const decision = decisionFromRow(
-      baseRow({ cubeOwnerUserId: "user_me", cubeValue: 2, cubeConfident: true, raw: rawWithMatchId("UQmgADAAEAAE") })
-    );
+    // UQmgADAAEAAE (A5): owner black, dice owner black.
+    const decision = decisionFromRow(baseRow({ raw: rawWithMatchId("UQmgADAAEAAE") }));
     expect(decision?.cubeState).toEqual({ value: 2, owner: "mine", confident: true });
   });
 
   it("'opponent' when the owner isn't the player on roll", () => {
-    const decision = decisionFromRow(
-      baseRow({ cubeOwnerUserId: "user_me", cubeValue: 2, cubeConfident: true, raw: rawWithMatchId("EQGvABAAAAAE") })
-    );
+    // EQGvABAAAAAE (A4): owner black, dice owner white.
+    const decision = decisionFromRow(baseRow({ raw: rawWithMatchId("EQGvABAAAAAE") }));
     expect(decision?.cubeState).toEqual({ value: 2, owner: "opponent", confident: true });
   });
 
   it("a take row (A2): the doubler's cube is beside the doubler at the bottom, not relative to the receiving actor", () => {
     // ARmgAAAACAAE: the opponent (white) owns a 2-cube, redoubles; the user
-    // (black) is the row's actor. Before 2026-10-06 the cube was
-    // relativized to row.userId and drawn on the wrong side.
+    // (black) is the row's actor.
     const decision = decisionFromRowForReplay(
-      baseRow({
-        kind: "CUBE",
-        userId: "user_me",
-        cubeOwnerUserId: "user_opponent",
-        cubeValue: 2,
-        cubeConfident: true,
-        raw: rawWithMatchId("ARmgAAAACAAE"),
-      })
+      baseRow({ kind: "CUBE", userId: "user_me", raw: rawWithMatchId("ARmgAAAACAAE") })
     );
     expect(decision?.cubeState).toEqual({ value: 2, owner: "mine", confident: true });
   });
 
-  it("no cube when cubeConfident is false/null, cubeValue is null, or the Match ID doesn't decode", () => {
-    const raw = rawWithMatchId("EQGvABAAAAAE");
-    expect(decisionFromRow(baseRow({ cubeConfident: false, raw }))?.cubeState).toBeNull();
-    expect(decisionFromRow(baseRow({ cubeConfident: null, raw }))?.cubeState).toBeNull();
-    expect(decisionFromRow(baseRow({ cubeValue: null, raw }))?.cubeState).toBeNull();
-    expect(decisionFromRowForReplay(baseRow({ cubeValue: null, raw }))?.cubeState).toBeNull();
+  it("no cube when the Match ID is missing or doesn't decode", () => {
     expect(decisionFromRow(baseRow({ raw: event }))?.cubeState).toBeNull();
+    expect(decisionFromRow(baseRow({ raw: rawWithMatchId("not-a-match") }))?.cubeState).toBeNull();
   });
 });
 
-// A take/pass (cube_pass) raw payload with the given Match ID and take flag.
+// A take/pass (cube_pass) raw payload with the given Match ID and take flag,
+// built from the fixture's real cube event (every stored cube row has a
+// cube_analysis — ingest used to read it for the dropped label columns).
 function rawCubePass(matchId: string, take: boolean | null) {
-  const raw = rawWithMatchId(matchId) as unknown as {
+  const raw = rawWithMatchId(matchId, cubeEvent) as unknown as {
     reviews: { take: boolean | null; result: { analysed_event: string } }[];
   };
   raw.reviews[0].result.analysed_event = "cube_pass";
@@ -345,9 +265,7 @@ describe("decisionFromRow / decisionFromRowForReplay — take/pass board frame a
     // ARmgAAAACAAE: dice owner white (the redoubler), turn black (the
     // user, taking), cube 2 owned by white.
     for (const build of [decisionFromRow, decisionFromRowForReplay]) {
-      const decision = build(
-        baseRow({ kind: "CUBE", cubeValue: 2, cubeConfident: true, raw: rawCubePass("ARmgAAAACAAE", true) })
-      );
+      const decision = build(baseRow({ kind: "CUBE", raw: rawCubePass("ARmgAAAACAAE", true) }));
       expect(decision?.positionFromOpponent).toBe(true);
       expect(decision?.doubleOffer).toEqual({ value: 4, redouble: true, took: true });
       // The list's cube square shows the offered value.
@@ -363,17 +281,13 @@ describe("decisionFromRow / decisionFromRowForReplay — take/pass board frame a
   });
 });
 
-describe("rollForRow — no dice on cube decisions", () => {
-  it("CUBE rows get no dice even when the roll column holds a neighbouring roll", () => {
-    expect(rollForRow({ kind: "CUBE", roll: [6, 2] })).toEqual([]);
-    expect(decisionFromRow(baseRow({ kind: "CUBE", roll: [6, 2] }))?.roll).toEqual([]);
-    expect(decisionFromRowForReplay(baseRow({ kind: "CUBE", roll: [6, 2] }))?.roll).toEqual([]);
-  });
-
-  it("CHECKER rows keep their roll; null becomes []", () => {
-    expect(rollForRow({ kind: "CHECKER", roll: [6, 2] })).toEqual([6, 2]);
-    expect(rollForRow({ kind: "CHECKER", roll: null })).toEqual([]);
-    expect(rollForRow({ kind: "RESIGNATION", roll: [3, 1] })).toEqual([3, 1]);
+describe("decisionFromRow / decisionFromRowForReplay — raw is never modified", () => {
+  it("building a decision leaves raw byte-identical", () => {
+    const raw = rawCubePass("ARmgAAAACAAE", true);
+    const before = JSON.stringify(raw);
+    decisionFromRow(baseRow({ kind: "CUBE", raw }));
+    decisionFromRowForReplay(baseRow({ kind: "CUBE", raw }));
+    expect(JSON.stringify(raw)).toBe(before);
   });
 });
 
@@ -392,14 +306,15 @@ describe("toDecisionListItems", () => {
     expect(item.decision.sourcePositionId).toBe("4HPwATDgc/ABMA");
   });
 
-  it("no external link for a match from a non-Galaxy source", () => {
-    const [item] = toDecisionListItems([row({ game: { gameIndex: 3, match: { source: "xg", sourceMatchId: "1" } } })]);
-    expect(item.externalMatchHref).toBeNull();
+  it("a row from a source with no reader is dropped (nothing to derive its labels from)", () => {
+    const items = toDecisionListItems([row({ game: { gameIndex: 3, match: { source: "xg", sourceMatchId: "1" } } })]);
+    expect(items).toEqual([]);
   });
 
-  it("reads roll from the row's own column, not a lookup — null becomes []", () => {
-    expect(toDecisionListItems([row({ roll: [5, 4] })])[0].decision.roll).toEqual([5, 4]);
-    expect(toDecisionListItems([row({ roll: null })])[0].decision.roll).toEqual([]);
+  it("reads the roll from each row's own raw", () => {
+    const raw = rawWithMatchId(matchIdWithDice([5, 4]));
+    expect(toDecisionListItems([row({ raw })])[0].decision.roll).toEqual([5, 4]);
+    expect(toDecisionListItems([row()])[0].decision.roll).toEqual([]);
   });
 
   it("drops rows decisionFromRow can't build, keeping the rest in order", () => {

@@ -293,9 +293,10 @@ writes into `bg_test`: the Match, its 3 Games, and 10 Decisions — the 5
 representative checker decisions plus each one's immediately preceding
 `dice_rolled` sibling row, kept for historical/snapshot fidelity (this is a
 real one-time capture, not hand-assembled) even though nothing reads them
-as siblings anymore — `roll`/`cubeOwnerUserId`/`cubeValue`/`cubeConfident`
-are all plain columns on each row directly, populated in the JSON itself
-(see `reports/2026-10-02-step4-dice-roll-column-design.md` and
-`reports/2026-10-02-step5-cube-value-confident-design.md`). Deliberately
+as siblings anymore — roll, cube, colour and labels all come from each
+row's own `raw` (its GNU Match ID and review). Since 2026-10-07 the
+snapshot holds only the columns the schema still has; the dropped,
+derivable ones were removed from it (`reports/2026-10-07-column-audit.md`,
+`docs/field-mapping.md`'s "Derived from raw"). Deliberately
 not a full match/account replica, just what these 5 tests
 render.

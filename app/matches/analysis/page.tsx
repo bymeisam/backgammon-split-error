@@ -67,8 +67,8 @@ function aggregateBy(stats: MistakeStat[], keyOf: (s: MistakeStat) => string): R
 
 // Which /mistakes query param this table's `key` values feed — classifications
 // use `classification=<value>` verbatim, categories use `category=<lowercased
-// enum value>` (app/mistakes/page.tsx maps "checker"/"cube"/"resignation"
-// back to the DecisionKind enum).
+// enum value>` (app/mistakes/page.tsx maps "checker"/"cube" back to the
+// DecisionKind enum; resignations aren't in MistakeStat at all).
 function mistakesHref(paramName: "classification" | "category", key: string, severity?: string): string {
   const value = paramName === "category" ? key.toLowerCase() : key;
   const sp = new URLSearchParams({ [paramName]: value });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildQueryString,
+  LISTED_KINDS,
   categoryFromParam,
   describeFilters,
   lowercaseOptions,
@@ -74,7 +75,12 @@ describe("severityFromParam / categoryFromParam", () => {
     expect(severityFromParam("blunder")).toBe("BLUNDER");
     expect(severityFromParam("none")).toBe("NONE");
     expect(categoryFromParam("cube")).toBe("CUBE");
-    expect(categoryFromParam("resignation")).toBe("RESIGNATION");
+    expect(categoryFromParam("checker")).toBe("CHECKER");
+  });
+
+  it("resignation is not a category (resignations are never listed): no filter, i.e. checker + cube", () => {
+    expect(categoryFromParam("resignation")).toBeUndefined();
+    expect(LISTED_KINDS).toEqual(["CHECKER", "CUBE"]);
   });
 
   it("returns undefined (no filter) for unknown or absent values", () => {

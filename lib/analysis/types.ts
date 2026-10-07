@@ -9,6 +9,8 @@
 // fills it, bumps `v` so consumers can tell. See docs/field-mapping.md,
 // "Normalized decision analysis (derived, not stored)".
 
+import type { DoubleOffer } from "@/lib/cubeState";
+
 export type AnalysisSource = "galaxy";
 
 // Outcome probabilities after a candidate move, from the mover's view.
@@ -60,3 +62,25 @@ export type CubeAnalysis = {
 };
 
 export type DecisionAnalysis = CheckerAnalysis | CubeAnalysis;
+
+// A decision's display labels, derived from `raw` by the source's reader
+// (lib/analysis/galaxyFields.ts for Galaxy) — not stored. `mine`/`best` are
+// what the lists and MoveDelta show (move notation for a checker move, the
+// source's wording for cube and resignation decisions); `bestDetail` is the
+// small secondary text after a cube decision's best action; the notations
+// are the played and best candidate moves (null outside checker moves).
+export type DecisionLabels = {
+  mine: string;
+  best: string;
+  bestDetail: string | null;
+  myMoveNotation: string | null;
+  bestMoveNotation: string | null;
+};
+
+// How the board frames a decision (see lib/mistakes.ts's Decision for each
+// field), derived from `raw`.
+export type DecisionBoardFrame = {
+  positionFromOpponent: boolean;
+  doubleOffer: DoubleOffer | null;
+  cubeSquareValue: number | null;
+};

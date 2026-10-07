@@ -6,8 +6,9 @@
 // doubling is graded BLUNDER −0.183). Galaxy's own site does the same: its
 // game review never shows the stored labels and derives the verdict from
 // the equities (reports/2026-10-07-galaxy-client-comparison.md).
-// Display-only: rawError/severity stay Galaxy's, and the stored
-// cubeActionBest column keeps Galaxy's own label.
+// Display-only: rawError/severity stay Galaxy's, and Galaxy's own label
+// stays in raw (nothing is stored; the cubeActionBest column that copied it
+// was dropped 2026-10-07).
 // See docs/field-mapping.md, "Cube action from the equities".
 //
 // The rule, from the doubler's side (ND = no_double, DT = double_take,
@@ -104,7 +105,7 @@ export function deriveCubeActionFromReview(review: Review): CubeAction | null {
 
 // ---------------------------------------------------------------------------
 // Display wording — Galaxy's own (since 2026-10-07). Display only: the
-// stored cubeActionPlayed/cubeActionBest values are unchanged.
+// short labels actionLabels() reads from raw are unchanged.
 
 // Galaxy's best-action words. "Too good" has a lowercase g, as on Galaxy.
 export type CubeBestLabel = "No Double" | "Double" | "Too good" | "Take" | "Pass";
@@ -131,9 +132,9 @@ export function cubeBestDisplay(action: CubeAction): { label: CubeBestLabel; det
   }
 }
 
-// Stored played labels (lib/mistakes.ts's actionLabels, the values in
-// Decision.cubeActionPlayed, plus "resigned" for a resignation) -> Galaxy's
-// words. Anything else passes through unchanged.
+// Played labels (lib/mistakes.ts's actionLabels, read from raw: "did not
+// double"/"doubled"/"took"/"passed", plus "resigned" for a resignation) ->
+// Galaxy's words. Anything else passes through unchanged.
 const PLAYED_LABELS: Record<string, string> = {
   "did not double": "No Double",
   doubled: "Double",

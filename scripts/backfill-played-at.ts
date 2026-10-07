@@ -1,27 +1,23 @@
-// One-time(ish) reconciliation: recomputes Game.playedAt/Match.playedAt for
-// every already-ingested match, entirely from data already in the DB — no
-// live Galaxy calls. Needed because lib/ingest.ts's playedAt rule changed
-// (see docs/field-mapping.md's playedAt section for the full story): every
-// match ingested before that change (essentially the entire 2026-09 backfill)
-// has a Match/Game.playedAt that reflects when this app happened to request
-// that match's analysis, not when it was actually played.
+// Reconciliation: recomputes Match.playedAt for every already-ingested match,
+// entirely from data already in the DB — no live Galaxy calls. Useful if
+// lib/ingest.ts's playedAt rule ever changes again (see docs/field-mapping.md's
+// playedAt section for the full story: the historical 2026-09 backfill's
+// dates reflect when this app requested each match's analysis, not when it
+// was played, and nothing can recover the real ones).
 //
 // Rule (matches lib/ingest.ts exactly, so re-running a live ingest and
 // running this script against the same underlying events produce the same
 // result):
-//   Game.playedAt  = metadata.timestamp of that game's first decision (by
-//                    eventId, not by timestamp value) with a populated
-//                    error_analysis.
-//   Match.playedAt = the Game.playedAt of the match's first game that has
-//                    one (normally gameIndex 1; only a different game if
-//                    game 1 itself has no valid decision at all — the same
-//                    semantics lib/ingest.ts uses, not treated as a special
-//                    case here).
+//   Match.playedAt = metadata.timestamp of the first decision (by eventId,
+//                    not by timestamp value) with a populated
+//                    error_analysis, in the match's first game (lowest
+//                    gameIndex) that has one.
+// Since 2026-10-07 only Match.playedAt is stored; the per-game
+// Game.playedAt this script used to reconcile too was dropped (nothing read
+// it).
 //
-// Reads Decision.raw JSON directly (the same source ingest.ts itself parses)
-// rather than trusting the already-materialized Decision.timestamp/eventId
-// columns, so this is an independent re-derivation, not just replaying
-// previously-computed values.
+// Reads Decision.raw JSON directly (the same source ingest.ts itself parses),
+// so this is an independent re-derivation, not a replay of stored values.
 //
 // Usage:
 //   npx tsx scripts/backfill-played-at.ts --dry-run   # compute + log only
@@ -46,12 +42,12 @@ function timestampOf(event: GameEvent): Date {
   return new Date(event.reviews[0].result.result.metadata.timestamp);
 }
 
-// Fetches this game's decisions ordered by eventId and returns the raw
-// timestamp of the first one with a populated error_analysis — or null if
-// none exist. The common case (true for every Decision row today, since
-// lib/ingest.ts never stores one otherwise) is answered by fetching just
-// the single lowest-eventId row; only falls back to loading the rest of the
-// game's decisions if that one somehow doesn't qualify.
+// The raw timestamp of this game's first decision by eventId with a
+// populated error_analysis, or null if none exists. The common case (true
+// for every Decision row today, since lib/ingest.ts never stores one
+// otherwise) is answered by fetching just the single lowest-eventId row;
+// only falls back to loading the rest of the game's decisions if that one
+// somehow doesn't qualify.
 async function firstValidDecisionTimestamp(gameId: number): Promise<Date | null> {
   const first = await prisma.decision.findFirst({
     where: { gameId },
@@ -100,50 +96,21 @@ async function main() {
   let matchesUnchanged = 0;
   let matchesNoValidDecision = 0;
 
-  let gamesProcessed = 0;
-  let gamesChanged = 0;
-  let gamesUnchanged = 0;
-  let gamesNoValidDecision = 0;
-
   for (const match of matches) {
     matchesProcessed++;
 
     const games = await prisma.game.findMany({
       where: { matchId: match.id },
-      select: { id: true, gameIndex: true, playedAt: true },
+      select: { id: true },
       orderBy: { gameIndex: "asc" },
     });
 
+    // First game (in gameIndex order) that produces a value drives
+    // Match.playedAt, exactly as lib/ingest.ts does.
     let matchPlayedAt: Date | null = null;
-
     for (const game of games) {
-      gamesProcessed++;
-
-      const newPlayedAt = await firstValidDecisionTimestamp(game.id);
-
-      if (newPlayedAt === null) {
-        gamesNoValidDecision++;
-        console.warn(
-          `[edge case] match ${match.sourceMatchId} game ${game.gameIndex}: no decision with a populated error_analysis found — Game.playedAt left as ${game.playedAt?.toISOString() ?? "null"}`
-        );
-        continue;
-      }
-
-      // First game (in gameIndex order) that produced a value drives
-      // Match.playedAt, exactly as lib/ingest.ts does.
-      if (matchPlayedAt === null) matchPlayedAt = newPlayedAt;
-
-      if (sameInstant(game.playedAt, newPlayedAt)) {
-        gamesUnchanged++;
-      } else {
-        gamesChanged++;
-        console.log(
-          `${DRY_RUN ? "[would change]" : "[changed]"} match ${match.sourceMatchId} game ${game.gameIndex}: ${game.playedAt?.toISOString() ?? "null"} -> ${newPlayedAt.toISOString()}`
-        );
-        if (!DRY_RUN) {
-          await prisma.game.update({ where: { id: game.id }, data: { playedAt: newPlayedAt } });
-        }
-      }
+      matchPlayedAt = await firstValidDecisionTimestamp(game.id);
+      if (matchPlayedAt !== null) break;
     }
 
     if (matchPlayedAt === null) {
@@ -175,9 +142,6 @@ async function main() {
   console.log(DRY_RUN ? "(dry run — nothing was written)" : "(live run — changes above were written)");
   console.log(
     `Matches: ${matchesProcessed} processed, ${matchesChanged} changed, ${matchesUnchanged} unchanged, ${matchesNoValidDecision} with no valid decision found`
-  );
-  console.log(
-    `Games:   ${gamesProcessed} processed, ${gamesChanged} changed, ${gamesUnchanged} unchanged, ${gamesNoValidDecision} with no valid decision found`
   );
 
   await prisma.$disconnect();

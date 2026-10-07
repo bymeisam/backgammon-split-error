@@ -31,10 +31,10 @@ model Match {
   id              Int          @id @default(autoincrement())
   source          String
   sourceMatchId   String       @db.VarChar(191)
-  // GNU Match ID length of the match's first decision (lowest gameIndex,
-  // then lowest eventId); 0 = money game. Null until detail-ingested. See
-  // docs/field-mapping.md, "GNU Match ID".
-  matchLength     Int?
+  // Match length isn't stored (dropped 2026-10-07): it's in every
+  // decision's own GNU Match ID (lib/gnuMatchId.ts's effectiveMatchLength).
+  // The list fields below come from Galaxy's analyses/list endpoint, not
+  // from raw, and the /matches list shows them without loading raw.
   opponentName    String
   opponentCountry String
   opponentRating  Float
@@ -43,6 +43,10 @@ model Match {
   userError       Float
   userRating      Float
   userScore       Int
+  // metadata.timestamp of the first decision (by eventId, with a populated
+  // error_analysis) of the match's first game that has one — computed in
+  // memory at ingest (lib/ingest.ts); no per-game copy is stored. Galaxy's
+  // serve time, not a real play date: see docs/field-mapping.md.
   playedAt        DateTime?
   createdAt       DateTime     @default(now())
   ingestStatus    IngestStatus @default(PENDING)
@@ -75,29 +79,15 @@ model PlayerIdentity {
 }
 
 model Game {
-  id            Int       @id @default(autoincrement())
-  matchId       Int
-  match         Match     @relation(fields: [matchId], references: [id])
-  gameIndex     Int
-  playedAt      DateTime?
-  // Score entering this specific game (not the match's current/final score
-  // — that's Match.userScore/opponentScore, from a separate endpoint).
-  // Decoded from the GNU Match ID (reviews[0].source_match.formatted_value)
-  // of the game's first decision by eventId, mapped through the user's own
-  // seat (PlayerIdentity.isMe; black = GNU player 1, white = player 0) —
-  // see docs/field-mapping.md, "GNU Match ID". Replaced (2026-10-06) the
-  // metadata.scores reading, which swapped the two scores on about half of
-  // all games (metadata.scores.white is the player on roll's score, not a
-  // colour's or the actor's) and is null on Galaxy's older analyses. Null
-  // for a money game (Match.matchLength 0) or until detail-ingested.
-  userScore     Int?
-  opponentScore Int?
-  // "crawford" (the Crawford game), "post_crawford" (a later game where a
-  // player still needs one point) or "none" — Galaxy's own
-  // metadata.crawford_state vocabulary, now derived from the same Match ID
-  // as the scores: the Crawford bit, plus scores and length for
-  // post-Crawford. "none" for a 1-point match. Null for a money game.
-  crawfordState String?
+  id        Int   @id @default(autoincrement())
+  matchId   Int
+  match     Match @relation(fields: [matchId], references: [id])
+  gameIndex Int
+  // playedAt/userScore/opponentScore/crawfordState were dropped 2026-10-07
+  // (reports/2026-10-07-column-audit.md): nothing in the app read them.
+  // Each decision's own GNU Match ID carries the score, Crawford flag and
+  // length at that decision (lib/gnuMatchId.ts) — see docs/field-mapping.md,
+  // "Derived from raw".
 
   decisions Decision[]
 
@@ -110,29 +100,11 @@ model Decision {
   game             Game          @relation(fields: [gameId], references: [id])
   eventId          BigInt
   userId           String        @db.VarChar(191)
-  color            String
   kind             DecisionKind
-  analysedEvent    String
   countAsDecision  Boolean
   rawError         Float?
   errorSeverity    ErrorSeverity
-  // isBlunder was dropped 2026-10-02 (reports/2026-10-02-raw-field-
-  // reverification.md) — confirmed 100% redundant with errorSeverity ===
-  // 'BLUNDER' (0 mismatches across 371 real rows), and never read anywhere
-  // (write-only). Use errorSeverity instead.
-  luck             Float?
-  luckMwc          Float?
-  equity           Float?
-  mwc              Float?
   classification   String
-  // matchScoreBlack/matchScoreWhite/crawfordState were dropped 2026-10-02
-  // (reports/2026-10-02-raw-field-reverification.md) — confirmed write-only
-  // (never read anywhere) and, worse, confirmed unreliable at this
-  // per-decision granularity (a subset of events in a game report
-  // metadata.scores as null while sibling events in the same game report
-  // the real value). Replaced by Game.userScore/opponentScore/
-  // crawfordState: one resolved, actor-relative value per game instead of
-  // an unreliable value per decision.
   // Ordinal position among this game's own CHECKER decisions, ordered by
   // eventId ascending: 1 for the first, 2 for the second, etc., up to 4 —
   // null beyond that (deeper plies aren't a useful filter dimension). Always
@@ -145,21 +117,6 @@ model Decision {
   // source's position-encoding format — see docs/field-mapping.md's "Ply
   // number" section for the full reasoning.
   plyNumber        Int?
-  // Cube owner entering this decision (before its own outcome), every kind:
-  // the userId in the GNU Match ID's cube-owner seat
-  // (reviews[0].source_match.formatted_value; black = player 1, white =
-  // player 0), null when centred. See docs/field-mapping.md, "GNU Match ID".
-  cubeOwnerUserId  String?       @db.VarChar(191)
-  // Cube value entering this decision, from the same Match ID (1 = centred
-  // and undoubled). Since 2026-10-06 both columns come from the Match ID;
-  // the old take-walk (lib/cubeState.ts's computeCubeStates, retired) missed
-  // takes on ~22% of rows, which it flagged with cubeConfident = false.
-  // cubeConfident is now true whenever the Match ID decodes and its owner
-  // seat maps to a userId — every local row at the time of the switch;
-  // false (with cubeValue/cubeOwnerUserId null) only if that ever fails.
-  // Kept as a column so that case stays visible.
-  cubeValue        Int?
-  cubeConfident    Boolean?
   // GNU Position ID (review.source_position.formatted_value) of the board
   // position this decision was made at. Populated at ingest going forward;
   // backfilled for pre-existing rows by scripts/backfill-source-position-id.ts.
@@ -174,44 +131,17 @@ model Decision {
   // positions.ts) — see reports/2026-10-02-step3-sourcepositionid-column-
   // design.md for the full index-design reasoning.
   sourcePositionId String?       @db.VarChar(191)
-  // The dice roll this decision was made with/under, computed once at
-  // ingest (lib/ingest.ts) via the exact same backward scan
-  // lib/mistakes.ts's findPrecedingRoll already implements (a move_commited
-  // event never carries its own roll; the nearest preceding dice_rolled/
-  // game_started event does) — replacing a read-time re-scan over sibling
-  // rows (lib/decisionFromRow.ts's old buildRollLookup) with a plain column
-  // read. Null for ~2.52% of rows, in three confirmed categories (see
-  // reports/2026-10-02-step4-dice-roll-column-design.md): a game's
-  // genuinely first decision (no roll precedes it at all); a dice_rolled
-  // event's own cube-check review (the backward scan looks past its own
-  // roll by design, a real pre-existing display quirk this column
-  // faithfully replicates rather than silently fixing); and a
-  // RESIGNATION/CUBE decision with no roll associated at all. Backfilled
-  // for pre-existing rows by scripts/backfill-decision-roll.ts.
-  roll             Json?
-  // For CHECKER kind: the played/best candidate move's own notation string
-  // (review.result.result.moves[], filtered by .move_played / .rank === 1).
-  // Renamed from notationPlayed/notationBest 2026-10-02 for parallel naming
-  // with cubeActionPlayed/cubeActionBest below (reports/2026-10-02-raw-
-  // field-reverification.md) — same values, same derivation, name only.
-  movePlayed       String?
-  moveBest         String?
-  // For CUBE kind: the same mine/best short labels lib/mistakes.ts's
-  // actionLabels() computes at read time for display (e.g. "doubled"/
-  // "double"), stored once at ingest instead — replaces cubeDetail (a
-  // single composed display string, confirmed 2026-10-02 never rendered
-  // anywhere) with a column pair parallel to movePlayed/moveBest. RESIGNATION
-  // kind deliberately excluded — stays read-time-computed via actionLabels(),
-  // no column (reports/2026-10-02-raw-field-reverification.md).
-  cubeActionPlayed String?
-  cubeActionBest   String?
-  resignError      Float?
-  shouldResign     Boolean?
-  resignationType  String?
-  equityBefore     Float?
-  equityAfter      Float?
-  timestamp        DateTime
-  myTag            String?
+  // The source's complete, untouched event — never modified. Everything
+  // else a decision shows (colour, event type, roll, cube, labels, move
+  // notations, the engine analysis) is derived from it on demand through
+  // the source's translator (lib/analysis/index.ts). The columns that used
+  // to duplicate those values (color, analysedEvent, luck, luckMwc, equity,
+  // mwc, cubeOwnerUserId, cubeValue, cubeConfident, roll, movePlayed,
+  // moveBest, cubeActionPlayed, cubeActionBest, the five resignation
+  // columns, timestamp, myTag) were dropped 2026-10-07
+  // (reports/2026-10-07-column-audit.md; docs/field-mapping.md, "Derived
+  // from raw"). Earlier drops: isBlunder, matchScoreBlack/matchScoreWhite/
+  // crawfordState (2026-10-02).
   raw              Json
 
   // The user's own free-text note on this decision, if any (see
@@ -305,8 +235,8 @@ model MistakeStat {
 // own GNU Position ID, via reviews[0].source_position.formatted_value —
 // NOT final.gnubgid, confirmed during investigation) — pinned to a
 // case-sensitive/binary collation by hand in the migration SQL, same as
-// Match.sourceMatchId/PlayerIdentity.sourceUserId/Decision.userId/
-// Decision.cubeOwnerUserId (see docs/field-mapping.md's "Collation for
+// Match.sourceMatchId/PlayerIdentity.sourceUserId/Decision.userId (and the
+// since-dropped Decision.cubeOwnerUserId) (see docs/field-mapping.md's "Collation for
 // externally-sourced identifiers" section, updated alongside this model).
 model RepeatedPosition {
   id               Int           @id @default(autoincrement())

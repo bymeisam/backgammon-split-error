@@ -9,13 +9,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GameEvent, GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import type { MatchIndexData } from "@/lib/ingest";
-import { Prisma } from "@/lib/generated/prisma/client";
 import { decodeGnuMatchId, encodeGnuMatchId, type DecodedMatchId } from "@/lib/gnuMatchId";
 
 import forcedMoveNotCounted from "./__fixtures__/galaxy-payloads/forced-move-not-counted.json";
 import doubleRejectedNullAnalysis from "./__fixtures__/galaxy-payloads/double-rejected-null-analysis.json";
 import lowConfidenceDoubtful from "./__fixtures__/galaxy-payloads/low-confidence-doubtful.json";
-import moneyGameMove from "./__fixtures__/galaxy-payloads/money-game-move.json";
 import resignation from "./__fixtures__/galaxy-payloads/resignation.json";
 import gameStartedGameOver from "./__fixtures__/galaxy-payloads/game-started-game-over.json";
 
@@ -148,6 +146,8 @@ function moveEvent(
     color?: "black" | "white" | "";
     // GNU Match ID (reviews[0].source_match.formatted_value); null = none.
     matchId?: string | null;
+    // metadata.timestamp (Galaxy's serve time).
+    timestamp?: string;
   } = {}
 ): GameEvent {
   return {
@@ -180,7 +180,7 @@ function moveEvent(
           result: {
             equity: 0,
             metadata: {
-              timestamp: "2026-09-18T02:49:15.400013Z",
+              timestamp: opts.timestamp ?? "2026-09-18T02:49:15.400013Z",
               analysis_level: 2,
               analysis_time_ms: 5,
               crawford_state: "none",
@@ -431,107 +431,110 @@ describe("ingestMatch", () => {
     expect(create.kind).toBe("CUBE");
   });
 
-  it("handles a money-game match (Match ID length 0): Match.matchLength 0, Game score/crawford null", async () => {
+  it("writes only the kept Decision columns — every derivable value stays in raw (2026-10-07)", async () => {
     playerIdentityFindFirst.mockResolvedValueOnce({ sourceUserId: "user_me" });
-    const fixture = structuredClone(moneyGameMove) as unknown as GameReviewsResponse;
-    fixture.data.events[0].reviews[0].source_match = { id: 1, formatted_value: "cAkAAAAAAAAA" };
-    serveSingleGame(fixture);
+    serveSingleGame(
+      gameReviewsResponse([
+        diceRolledEvent(5, [3, 4]),
+        moveEvent(10, { userId: "user_me", color: "black", matchId: mid() }),
+        doubleEvent(20, "user_opp", mid({ diceOwner: 0, turn: 0 })),
+        cubePassEvent(30, "user_me", true, mid({ diceOwner: 0, turn: 1, doubleOffered: true })),
+      ])
+    );
 
     const summary = await ingestMatch(90000004, indexData, "token");
 
-    expect(summary.errors).toHaveLength(0);
-    expect(summary.warnings).toHaveLength(0);
-    expect(summary.decisionsIngested).toBe(1);
-    const create = decisionUpsert.mock.calls[0][0].create;
-    expect(create).not.toHaveProperty("matchScoreBlack");
-    expect(create).not.toHaveProperty("matchScoreWhite");
-    expect(create).not.toHaveProperty("crawfordState");
-
-    const scoreUpdateCall = gameUpdate.mock.calls.find((call) => "userScore" in call[0].data);
-    expect(scoreUpdateCall![0].data).toEqual({ userScore: null, opponentScore: null, crawfordState: null });
-
-    expect(matchUpdate).toHaveBeenCalledTimes(1);
-    expect(matchUpdate.mock.calls[0][0].data).toMatchObject({ matchLength: 0 });
-    expect(matchUpdate.mock.calls[0][0].data).toHaveProperty("playedAt");
+    expect(summary.errors).toEqual([]);
+    expect(summary.decisionsIngested).toBe(4);
+    const KEPT = [
+      "classification",
+      "countAsDecision",
+      "errorSeverity",
+      "eventId",
+      "gameId",
+      "kind",
+      "plyNumber",
+      "raw",
+      "rawError",
+      "sourcePositionId",
+      "userId",
+    ];
+    for (const [{ create, update }] of decisionUpsert.mock.calls as unknown as [
+      { create: Record<string, unknown>; update: Record<string, unknown> },
+    ][]) {
+      expect(Object.keys(create).sort()).toEqual(KEPT);
+      expect(Object.keys(update).sort()).toEqual(KEPT.filter((k) => k !== "eventId" && k !== "gameId"));
+    }
+    // raw is the event exactly as Galaxy sent it.
+    const move = decisionUpsert.mock.calls.find(([{ create }]) => Number(create.eventId) === 10)![0].create;
+    expect(move.raw).toEqual(moveEvent(10, { userId: "user_me", color: "black", matchId: mid() }));
   });
 
-  it("an even decoded length is money (72588-shaped, length 8): Match.matchLength 0, Game score/crawford null", async () => {
+  it("writes nothing to Game beyond its key: no scores, Crawford or playedAt", async () => {
     playerIdentityFindFirst.mockResolvedValueOnce({ sourceUserId: "user_me" });
-    serveSingleGame(
-      gameReviewsResponse([
-        moveEvent(10, { userId: "user_me", color: "black", matchId: mid({ matchLength: 8, score: [0, 0] }) }),
-      ])
-    );
-
-    await ingestMatch(90000012, indexData, "token");
-
-    const scoreUpdateCall = gameUpdate.mock.calls.find((call) => "userScore" in call[0].data);
-    expect(scoreUpdateCall![0].data).toEqual({ userScore: null, opponentScore: null, crawfordState: null });
-    expect(matchUpdate.mock.calls[0][0].data).toMatchObject({ matchLength: 0 });
-  });
-
-  it("a game whose first decision has no Match ID sets no score/crawford/matchLength, and warns", async () => {
-    serveSingleGame(moneyGameMove as unknown as GameReviewsResponse);
-
-    const summary = await ingestMatch(90000004, indexData, "token");
-
-    expect(summary.errors).toHaveLength(0);
-    expect(summary.warnings).toHaveLength(1);
-    expect(gameUpdate).toHaveBeenCalledTimes(1);
-    expect(gameUpdate.mock.calls[0][0].data).not.toHaveProperty("userScore");
-    expect(matchUpdate.mock.calls[0][0].data).not.toHaveProperty("matchLength");
-  });
-
-  it("Game.userScore/opponentScore come from the first decision's Match ID through the user's seat — user black (H2: 45282503 g2)", async () => {
-    playerIdentityFindFirst.mockResolvedValueOnce({ sourceUserId: "user_me" });
-    // MAGzAAAACAAE: 5-point, player 0 (white) 0, player 1 (black) 1. The
-    // user is black. metadata.scores is deliberately misleading (it's the
-    // on-roll player's score, not the actor's) — no longer read.
-    serveSingleGame(
-      gameReviewsResponse([
-        moveEvent(20, { userId: "user_opp", color: "white", matchId: mid({ diceOwner: 0, turn: 0, score: [0, 1], matchLength: 5 }) }),
-        moveEvent(10, { userId: "user_me", color: "black", matchId: "MAGzAAAACAAE", scores: { black: 0, white: 1 } }),
-      ])
-    );
-
-    await ingestMatch(90000011, indexData, "token");
-
-    const scoreUpdateCall = gameUpdate.mock.calls.find((call) => "userScore" in call[0].data);
-    expect(scoreUpdateCall![0].data).toEqual({ userScore: 1, opponentScore: 0, crawfordState: "none" });
-    expect(matchUpdate.mock.calls[0][0].data).toMatchObject({ matchLength: 5 });
-  });
-
-  it("Game.userScore/opponentScore — user white, Crawford game", async () => {
-    playerIdentityFindFirst.mockResolvedValueOnce({ sourceUserId: "user_me" });
-    serveSingleGame(
-      gameReviewsResponse([
-        moveEvent(10, {
-          userId: "user_me",
-          color: "white",
-          matchId: mid({ diceOwner: 0, turn: 0, score: [6, 3], crawford: true }),
-        }),
-        moveEvent(20, { userId: "user_opp", color: "black", matchId: mid({ score: [6, 3], crawford: true }) }),
-      ])
-    );
-
-    await ingestMatch(90000016, indexData, "token");
-
-    const scoreUpdateCall = gameUpdate.mock.calls.find((call) => "userScore" in call[0].data);
-    expect(scoreUpdateCall![0].data).toEqual({ userScore: 6, opponentScore: 3, crawfordState: "crawford" });
-  });
-
-  it("Game crawford/scores without an isMe row: crawford set, scores left untouched", async () => {
     serveSingleGame(
       gameReviewsResponse([moveEvent(10, { userId: "user_me", color: "black", matchId: mid({ score: [3, 6] }) })])
     );
 
-    await ingestMatch(90000017, indexData, "token");
+    await ingestMatch(90000011, indexData, "token");
 
-    const call = gameUpdate.mock.calls.find((c) => "crawfordState" in c[0].data);
-    expect(call![0].data).toEqual({ crawfordState: "post_crawford" });
+    expect(gameUpdate).not.toHaveBeenCalled();
+    expect(gameUpsert).toHaveBeenCalledWith({
+      where: { matchId_gameIndex: { matchId: 1, gameIndex: 1 } },
+      create: { matchId: 1, gameIndex: 1 },
+      update: {},
+    });
   });
 
-  it("stores a RESIGNATION decision with the resign-specific fields populated", async () => {
+  it("Match.playedAt: the first game's first decision by eventId (not the earliest timestamp); no matchLength", async () => {
+    const games: Record<number, GameReviewsResponse> = {
+      1: gameReviewsResponse([
+        moveEvent(20, { timestamp: "2026-09-18T02:00:00.000Z" }),
+        moveEvent(10, { timestamp: "2026-09-18T03:00:00.000Z" }),
+      ]),
+      2: gameReviewsResponse([moveEvent(30, { timestamp: "2026-09-18T01:00:00.000Z" })]),
+    };
+    getGameReviews.mockImplementation(async (_matchId: number, gameIndex: number) => games[gameIndex] ?? null);
+
+    await ingestMatch(90000012, indexData, "token");
+
+    expect(matchUpdate).toHaveBeenCalledTimes(1);
+    expect(matchUpdate.mock.calls[0][0].data).toEqual({ playedAt: new Date("2026-09-18T03:00:00.000Z") });
+  });
+
+  it("Match.playedAt: a first game with no stored decision is skipped; no update when no game has one", async () => {
+    const games: Record<number, GameReviewsResponse> = {
+      1: gameReviewsResponse([moveEvent(10, { errorAnalysisNull: true })]),
+      2: gameReviewsResponse([moveEvent(30, { timestamp: "2026-09-18T01:00:00.000Z" })]),
+    };
+    getGameReviews.mockImplementation(async (_matchId: number, gameIndex: number) => games[gameIndex] ?? null);
+    await ingestMatch(90000013, indexData, "token");
+    expect(matchUpdate.mock.calls[0][0].data).toEqual({ playedAt: new Date("2026-09-18T01:00:00.000Z") });
+
+    matchUpdate.mockClear();
+    serveSingleGame(gameReviewsResponse([moveEvent(10, { errorAnalysisNull: true })]));
+    await ingestMatch(90000014, indexData, "token");
+    expect(matchUpdate).not.toHaveBeenCalled();
+  });
+
+  it("a decision with no decodable Match ID (no roll or cube will show) warns, and is still stored", async () => {
+    serveSingleGame(
+      gameReviewsResponse([
+        moveEvent(10, { userId: "user_a", color: "black", matchId: mid() }),
+        moveEvent(20, { userId: "user_b", color: "white", matchId: "not-a-match-id" }),
+        moveEvent(30, { userId: "user_a", color: "black", matchId: null }),
+      ])
+    );
+
+    const summary = await ingestMatch(90000015, indexData, "token");
+
+    expect(summary.decisionsIngested).toBe(3);
+    expect(summary.warnings).toHaveLength(2);
+    expect(summary.warnings[0]).toMatch(/event 20: GNU Match ID missing or undecodable/);
+    expect(summary.warnings[1]).toMatch(/event 30: GNU Match ID missing or undecodable/);
+  });
+
+  it("stores a RESIGNATION decision (its resignation detail stays in raw)", async () => {
     serveSingleGame(resignation as unknown as GameReviewsResponse);
 
     const summary = await ingestMatch(90000005, indexData, "token");
@@ -539,11 +542,10 @@ describe("ingestMatch", () => {
     expect(summary.decisionsIngested).toBe(1);
     const create = decisionUpsert.mock.calls[0][0].create;
     expect(create.kind).toBe("RESIGNATION");
-    expect(create.resignError).toBe(0.15);
-    expect(create.shouldResign).toBe(true);
-    expect(create.resignationType).toBe("gammon");
-    expect(create.equityBefore).toBe(-0.8);
-    expect(create.equityAfter).toBe(-1);
+    expect(create).not.toHaveProperty("resignError");
+    const result = (create.raw as { reviews: { result: { result: Record<string, unknown> } }[] }).reviews[0].result.result;
+    expect(result.resign_error).toBe(0.15);
+    expect(result.should_resign).toBe(true);
   });
 
   it("populates sourcePositionId from source_position.formatted_value", async () => {
@@ -554,121 +556,6 @@ describe("ingestMatch", () => {
     expect(summary.decisionsIngested).toBe(1);
     const create = decisionUpsert.mock.calls[0][0].create;
     expect(create.sourcePositionId).toBe("pos");
-  });
-
-  it("roll: null for a game's genuinely first stored decision (no roll precedes it at all)", async () => {
-    serveSingleGame(gameReviewsResponse([moveEvent(1)]));
-
-    await ingestMatch(90000009, indexData, "token");
-
-    expect(decisionUpsert.mock.calls[0][0].create.roll).toBe(Prisma.DbNull);
-  });
-
-  it("roll: the preceding dice_rolled event's own roll, for a CHECKER move", async () => {
-    serveSingleGame(gameReviewsResponse([diceRolledEvent(10, [3, 4]), moveEvent(20)]));
-
-    await ingestMatch(90000010, indexData, "token");
-
-    const rollByEventId = new Map(
-      decisionUpsert.mock.calls.map(([{ create }]) => [Number(create.eventId), create.roll])
-    );
-    expect(rollByEventId.get(20)).toEqual([3, 4]);
-  });
-
-  it("roll: null for a dice_rolled event's own cube-check row — the backward scan looks PAST its own roll by design, faithfully replicated here rather than fixed", async () => {
-    serveSingleGame(gameReviewsResponse([diceRolledEvent(10, [3, 4])]));
-
-    await ingestMatch(90000011, indexData, "token");
-
-    // Nothing precedes event 10 at all, so its own roll ([3,4]) is never
-    // surfaced — same as today's real DB-row read paths (see Decision.roll's
-    // schema comment / reports/2026-10-02-step4-dice-roll-column-design.md).
-    expect(decisionUpsert.mock.calls[0][0].create.roll).toBe(Prisma.DbNull);
-  });
-
-  it("roll: a LATER dice_rolled event resolves to the PRECEDING roll, not its own — confirms the backward-scan-past-itself quirk, not just a null case", async () => {
-    serveSingleGame(
-      gameReviewsResponse([diceRolledEvent(10, [3, 4]), moveEvent(20), diceRolledEvent(30, [5, 2])])
-    );
-
-    await ingestMatch(90000012, indexData, "token");
-
-    const rollByEventId = new Map(
-      decisionUpsert.mock.calls.map(([{ create }]) => [Number(create.eventId), create.roll])
-    );
-    expect(rollByEventId.get(30)).toEqual([3, 4]);
-  });
-
-  it("cube: value and owner come from each decision's own Match ID, every kind, owner seat -> userId (A2-shaped redouble)", async () => {
-    serveSingleGame(
-      gameReviewsResponse([
-        // user_a is black (player 1), user_b white (player 0).
-        moveEvent(10, { userId: "user_a", color: "black", matchId: mid() }), // centred 1-cube
-        // user_b owns a 2-cube and redoubles; user_a takes.
-        doubleEvent(20, "user_b", mid({ cubeValue: 2, cubeOwner: 0, diceOwner: 0, turn: 0 })),
-        cubePassEvent(30, "user_a", true, mid({ cubeValue: 2, cubeOwner: 0, diceOwner: 0, turn: 1, doubleOffered: true })),
-        moveEvent(40, { userId: "user_b", color: "white", matchId: mid({ cubeValue: 4, cubeOwner: 1, diceOwner: 0, turn: 0 }) }),
-      ])
-    );
-
-    const summary = await ingestMatch(90000013, indexData, "token");
-
-    expect(summary.warnings).toHaveLength(0);
-    const byEventId = new Map(
-      decisionUpsert.mock.calls.map(([{ create }]) => [
-        Number(create.eventId),
-        { value: create.cubeValue, owner: create.cubeOwnerUserId, confident: create.cubeConfident },
-      ])
-    );
-    expect(byEventId.get(10)).toEqual({ value: 1, owner: null, confident: true });
-    expect(byEventId.get(20)).toEqual({ value: 2, owner: "user_b", confident: true });
-    expect(byEventId.get(30)).toEqual({ value: 2, owner: "user_b", confident: true });
-    expect(byEventId.get(40)).toEqual({ value: 4, owner: "user_a", confident: true });
-  });
-
-  it("cube: cubeActionPlayed/cubeActionBest come from actionLabels(), gated to CUBE kind only", async () => {
-    serveSingleGame(
-      gameReviewsResponse([
-        moveEvent(10, { userId: "user_a" }),
-        doubleEvent(20, "user_a"), // double: true, doublers_best_action: "double"
-        cubePassEvent(30, "user_b", true), // take: true, receivers_best_action: "take"
-      ])
-    );
-
-    await ingestMatch(90000015, indexData, "token");
-
-    const byEventId = new Map(
-      decisionUpsert.mock.calls.map(([{ create }]) => [
-        Number(create.eventId),
-        { played: create.cubeActionPlayed, best: create.cubeActionBest },
-      ])
-    );
-    // CHECKER kind: no cube action labels, column stays null.
-    expect(byEventId.get(10)).toEqual({ played: null, best: null });
-    expect(byEventId.get(20)).toEqual({ played: "doubled", best: "double" });
-    expect(byEventId.get(30)).toEqual({ played: "took", best: "take" });
-  });
-
-  it("cube: a decision with no decodable Match ID stores no cube, cubeConfident false, and warns", async () => {
-    serveSingleGame(
-      gameReviewsResponse([
-        moveEvent(10, { userId: "user_a", color: "black", matchId: mid() }),
-        moveEvent(20, { userId: "user_b", color: "white", matchId: "not-a-match-id" }),
-      ])
-    );
-
-    const summary = await ingestMatch(90000014, indexData, "token");
-
-    const byEventId = new Map(
-      decisionUpsert.mock.calls.map(([{ create }]) => [
-        Number(create.eventId),
-        { value: create.cubeValue, owner: create.cubeOwnerUserId, confident: create.cubeConfident },
-      ])
-    );
-    expect(byEventId.get(10)).toEqual({ value: 1, owner: null, confident: true });
-    expect(byEventId.get(20)).toEqual({ value: null, owner: null, confident: false });
-    expect(summary.warnings).toHaveLength(1);
-    expect(summary.warnings[0]).toMatch(/event 20: GNU Match ID missing or undecodable/);
   });
 
   it("analysis check: a counted move with a malformed candidate list warns and counts, and is still stored", async () => {

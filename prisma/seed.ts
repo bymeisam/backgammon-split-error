@@ -181,18 +181,6 @@ function lerpScore(start: number, end: number, i: number, total: number): number
   return Math.round(start + ((end - start) * i) / (total - 1));
 }
 
-// Only ever builds cube_double-shaped recipes (no cube_pass ones in this
-// fake-data set) — mirrors lib/mistakes.ts's actionLabels() cube_double
-// branch, split into the two columns (cubeActionPlayed/cubeActionBest)
-// that replaced the old single composed cubeDetail string (2026-10-02, see
-// reports/2026-10-02-raw-field-reverification.md).
-function cubeActionLabelsFor(recipe: DecisionRecipe): { played: string; best: string | null } {
-  return {
-    played: recipe.cubeDoubled ? "doubled" : "did not double",
-    best: recipe.doublersBestAction?.replace(/_/g, " ") ?? null,
-  };
-}
-
 function buildRawEvent(params: {
   eventId: bigint;
   recipe: DecisionRecipe;
@@ -368,7 +356,6 @@ async function main() {
     data: {
       source: "galaxy",
       sourceMatchId: "1",
-      matchLength: 5,
       opponentName: "TEST Opponent Alpha",
       opponentCountry: "XX",
       opponentRating: 1523.4,
@@ -385,7 +372,6 @@ async function main() {
     data: {
       source: "galaxy",
       sourceMatchId: "2",
-      matchLength: 5,
       opponentName: "TEST Opponent Beta",
       opponentCountry: "ZZ",
       opponentRating: 1488.0,
@@ -415,30 +401,18 @@ async function main() {
   for (let gameIndex = 1; gameIndex <= 3; gameIndex++) {
     const gamePlayedAt = new Date(matchPlayedAt.getTime() + gameIndex * 20 * 60_000);
 
+    // Only the keys are stored on Game since 2026-10-07; scores/Crawford
+    // live in each decision's raw (here, its metadata.scores below — the
+    // synthetic events carry no GNU Match ID, so no dice or cube show).
     const game = await prisma.game.create({
       data: {
         matchId: match1.id,
         gameIndex,
-        playedAt: gamePlayedAt,
       },
     });
 
     const [scoreStartUser, scoreStartOpp, scoreEndUser, scoreEndOpp] =
       gameScoreWindows[gameIndex - 1];
-
-    // Score/crawford entering this game — same "first decision wins" rule
-    // real ingest uses (lib/ingest.ts's gameScoreByEventId), simplified here
-    // since every synthetic decision already carries non-null scores (no
-    // unreliable-event filtering needed): the first decision's own values
-    // are exactly scoreStartUser/scoreStartOpp/DECISION_RECIPES[0].crawfordState.
-    await prisma.game.update({
-      where: { id: game.id },
-      data: {
-        userScore: scoreStartUser,
-        opponentScore: scoreStartOpp,
-        crawfordState: DECISION_RECIPES[0].crawfordState,
-      },
-    });
 
     const decisions: Prisma.DecisionCreateManyInput[] = DECISION_RECIPES.map(
       (recipe, i) => {
@@ -456,28 +430,17 @@ async function main() {
           indexInGame: i,
         });
 
+        // Colour, event type, labels and notations live in raw only
+        // (derived on read, lib/analysis/index.ts) since 2026-10-07.
         const data: Prisma.DecisionCreateManyInput = {
           gameId: game.id,
           eventId: thisEventId,
           userId: YOU_USER_ID,
-          color: "black",
           kind: recipe.kind,
-          analysedEvent: recipe.kind === DecisionKind.CUBE ? "cube_double" : "move",
           countAsDecision: true,
           rawError: recipe.rawError,
           errorSeverity: recipe.severity,
-          luck: null,
-          luckMwc: null,
-          equity: recipe.rawError === 0 ? 0.5 : 0.5 - recipe.rawError,
-          mwc: 0.5,
           classification: recipe.classification,
-          cubeOwnerUserId: recipe.kind === DecisionKind.CUBE ? YOU_USER_ID : null,
-          movePlayed: recipe.notationPlayed,
-          moveBest: recipe.notationBest,
-          cubeActionPlayed: recipe.kind === DecisionKind.CUBE ? cubeActionLabelsFor(recipe).played : null,
-          cubeActionBest: recipe.kind === DecisionKind.CUBE ? cubeActionLabelsFor(recipe).best : null,
-          timestamp,
-          myTag: null,
           raw,
         };
         return data;

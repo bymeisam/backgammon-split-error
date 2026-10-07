@@ -7,25 +7,19 @@ import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { toDecisionListItems, type DecisionListItem, type DecisionListRow } from "@/lib/decisionFromRow";
 
 // Columns a DecisionListRow needs — every list query selects exactly this.
+// Colour, roll, cube and labels aren't columns: lib/decisionFromRow.ts
+// derives them from `raw` (lib/analysis/index.ts), picking the reader by the
+// match's source.
 export const DECISION_LIST_SELECT = {
   id: true,
   gameId: true,
   eventId: true,
   userId: true,
-  color: true,
   kind: true,
   rawError: true,
   errorSeverity: true,
   classification: true,
-  movePlayed: true,
-  moveBest: true,
-  cubeActionPlayed: true,
-  cubeActionBest: true,
   sourcePositionId: true,
-  roll: true,
-  cubeOwnerUserId: true,
-  cubeValue: true,
-  cubeConfident: true,
   raw: true,
   // The user's own note, if any (1:1 DecisionNote, null when absent) — a
   // unique-key lookup per returned row, so it only ever touches the page's
@@ -37,10 +31,8 @@ export const DECISION_LIST_SELECT = {
 // Used to need a second, unfiltered per-game query here to build roll/
 // cube-state lookups from sibling rows (a countAsDecision: true list query
 // alone never sees the countAsDecision: false rows those lookups needed) —
-// both are now plain columns on `rows` directly (see reports/2026-10-02-
-// step4-dice-roll-column-design.md and reports/2026-10-02-step5-cube-
-// value-confident-design.md), so this is just a synchronous mapping now,
-// no DB call. Kept as an async function (not changed to a plain export)
+// both now come from each row's own raw (its GNU Match ID), so this is just
+// a synchronous mapping, no DB call. Kept as an async function (not changed to a plain export)
 // so callers don't need updating if a future field ever needs this shape
 // of lookup again.
 export async function loadDecisionItems(rows: DecisionListRow[]): Promise<DecisionListItem[]> {

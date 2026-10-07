@@ -6,6 +6,7 @@
 // stored)".
 //
 // Reads only:
+//   reviews[0].result.analysed_event         (which shape to read)
 //   reviews[0].result.result.moves[]         (move rows)
 //     .notation, .rank, .equity, .move_played,
 //     .probabilities.{win, win_gammon, win_backgammon, lose_gammon, lose_backgammon}
@@ -27,6 +28,7 @@
 // Resignations and anything unrecognised (unknown analysed_event, missing or
 // malformed candidates/equities, not exactly one played candidate) -> null.
 import { doublerViewEquities } from "@/lib/cubeAction";
+import { galaxyAnalysedEvent } from "@/lib/analysis/galaxyFields";
 import type { CandidateProbs, CheckerCandidate, DecisionAnalysis } from "@/lib/analysis/types";
 
 // 4 decimals: Galaxy's equity precision (its probabilities are often given
@@ -112,11 +114,13 @@ function cubeAnalysis(analysedEvent: "cube_double" | "cube_pass", cube: unknown)
   };
 }
 
-// `raw` is the stored Galaxy event (Decision.raw); `analysedEvent` is its
-// reviews[0].result.analysed_event (Decision.analysedEvent).
-export function galaxyAnalysis(raw: unknown, analysedEvent: string): DecisionAnalysis | null {
+// `raw` is the stored Galaxy event (Decision.raw). The event type is read
+// from it (reviews[0].result.analysed_event) — the Decision.analysedEvent
+// column that used to be passed in was dropped 2026-10-07.
+export function galaxyAnalysis(raw: unknown): DecisionAnalysis | null {
   const result = analysisResult(raw);
   if (!result) return null;
+  const analysedEvent = galaxyAnalysedEvent(raw);
   if (analysedEvent === "move") return checkerAnalysis(result.moves);
   if (analysedEvent === "cube_double" || analysedEvent === "cube_pass") {
     return cubeAnalysis(analysedEvent, result.cube_analysis);

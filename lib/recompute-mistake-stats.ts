@@ -15,12 +15,18 @@
 // mistake" rows). So ABS(SUM(x)) and SUM(ABS(x)) are mathematically
 // identical for every severity bucket that actually matters (BLUNDER/ERROR/
 // DOUBTFUL), and negligibly different for NONE.
+//
+// Checker and cube decisions only (LISTED_KINDS): resignations are left out
+// of every stat and list since 2026-10-07 — they only appear as replay
+// steps. /mistakes' and /matches/analysis's category options come from this
+// table, so no RESIGNATION category is offered anywhere.
 import { prisma } from "@/lib/prisma";
+import { LISTED_KINDS } from "@/lib/listParams";
 
 export async function recomputeMistakeStats(): Promise<void> {
   const results = await prisma.decision.groupBy({
     by: ["classification", "kind", "errorSeverity"],
-    where: { countAsDecision: true, rawError: { not: null } },
+    where: { countAsDecision: true, rawError: { not: null }, kind: { in: [...LISTED_KINDS] } },
     _count: { _all: true },
     _sum: { rawError: true },
   });

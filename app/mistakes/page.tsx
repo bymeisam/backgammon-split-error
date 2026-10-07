@@ -4,6 +4,7 @@ import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { DECISION_LIST_SELECT, loadDecisionItems } from "@/lib/decisionQueries";
 import {
+  LISTED_KINDS,
   PAGE_SIZE_OPTIONS,
   categoryFromParam,
   describeFilters,
@@ -103,6 +104,9 @@ interface Filters {
 // ever renders at a time there, not once per row.
 async function DecisionListSection({ filters }: { filters: Filters }) {
   const { phase, categoryParam, severityParam, pageSize, page } = filters;
+  // An unrecognised ?category= (including a stale ?category=resignation,
+  // no longer a category) means no category filter, and isn't echoed in the
+  // count line below.
   const category = categoryFromParam(categoryParam);
   const errorSeverity = severityFromParam(severityParam);
 
@@ -110,12 +114,13 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   // is required too — a null rawError is an ungraded/partial analysis (see
   // docs/field-mapping.md), and decisionFromRow can't build a board card
   // from one (no absError to show), same exclusion lib/mistakes.ts's own
-  // extractDecisions already applies.
+  // extractDecisions already applies. Checker and cube decisions only:
+  // resignations are never listed (LISTED_KINDS).
   const where = {
     countAsDecision: true,
     rawError: { not: null },
     ...(phase ? resolvePhaseWhere(phase) : {}),
-    ...(category ? { kind: category } : {}),
+    kind: category ?? { in: [...LISTED_KINDS] },
     ...(errorSeverity ? { errorSeverity } : {}),
   };
 
@@ -135,7 +140,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   return (
     <>
       <p className={style.mutedText}>
-        {total.toLocaleString()} {describeFilters(phase, categoryParam, severityParamLabel(severityParam))} decision
+        {total.toLocaleString()} {describeFilters(phase, category ? categoryParam : undefined, severityParamLabel(severityParam))} decision
         {total === 1 ? "" : "s"}.
       </p>
 

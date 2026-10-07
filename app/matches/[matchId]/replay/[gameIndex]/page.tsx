@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { decisionFromRowForReplay } from "@/lib/decisionFromRow";
+import { decisionColor } from "@/lib/analysis";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
@@ -38,6 +39,7 @@ export default async function GameReplayPage({
 
   const match = await prisma.match.findUnique({
     where: { source_sourceMatchId: { source: SOURCE, sourceMatchId: matchId } },
+    select: { id: true, source: true, sourceMatchId: true },
   });
 
   if (!match) {
@@ -90,12 +92,9 @@ export default async function GameReplayPage({
   // Every Decision row for this game, in play order — fetched unfiltered
   // (no countAsDecision or rawError condition on the query itself) because
   // colorByUserId/myUserId below need to scan every row (including
-  // countAsDecision:false ones) to reliably find each player's color —
-  // roll and cube state are both plain columns now and no longer need the
-  // unfiltered superset themselves (see reports/2026-10-02-step4-dice-
-  // roll-column-design.md and reports/2026-10-02-step5-cube-value-
-  // confident-design.md), but this fetch still has to stay unfiltered for
-  // the color-resolution reason below.
+  // countAsDecision:false ones) to reliably find each player's color. Roll,
+  // cube, labels and colour all come from each row's own raw
+  // (lib/decisionFromRow.ts, through lib/analysis/index.ts).
   const rows = await prisma.decision.findMany({
     where: { gameId: game.id },
     orderBy: { eventId: "asc" },
@@ -104,28 +103,20 @@ export default async function GameReplayPage({
       gameId: true,
       eventId: true,
       userId: true,
-      color: true,
       kind: true,
       countAsDecision: true,
       rawError: true,
       errorSeverity: true,
-      movePlayed: true,
-      moveBest: true,
-      cubeActionPlayed: true,
-      cubeActionBest: true,
       sourcePositionId: true,
-      roll: true,
-      cubeOwnerUserId: true,
-      cubeValue: true,
-      cubeConfident: true,
       raw: true,
       // The user's own note on each decision, if any (1:1 DecisionNote).
       note: { select: { note: true, updatedAt: true } },
-      game: { select: { gameIndex: true } },
+      game: { select: { gameIndex: true, match: { select: { source: true } } } },
     },
   });
 
-  // Decision.color is unreliable read directly off a row — confirmed
+  // The actor's colour (raw.color; the Decision.color column that copied it
+  // was dropped 2026-10-07) is unreliable read directly off a row — confirmed
   // against real data, not assumed: most CUBE decisions (including at
   // least one genuine countAsDecision:true one seen in practice) store it
   // as an empty string, while Decision.userId is always populated.
@@ -138,8 +129,9 @@ export default async function GameReplayPage({
   // rather than trusting the raw (possibly blank) value.
   const colorByUserId = new Map<string, string>();
   for (const row of rows) {
-    if (row.color && !colorByUserId.has(row.userId)) {
-      colorByUserId.set(row.userId, row.color);
+    const color = decisionColor({ source: match.source, raw: row.raw });
+    if (color && !colorByUserId.has(row.userId)) {
+      colorByUserId.set(row.userId, color);
     }
   }
 

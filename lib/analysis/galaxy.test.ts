@@ -9,7 +9,7 @@ type Example = { decisionId: number; analysedEvent: string; raw: unknown };
 const ex = examples as unknown as Record<string, Example>;
 
 function translate(name: string): DecisionAnalysis | null {
-  return galaxyAnalysis(ex[name].raw, ex[name].analysedEvent);
+  return galaxyAnalysis(ex[name].raw);
 }
 
 function checker(name: string): CheckerAnalysis {
@@ -100,7 +100,7 @@ describe("galaxyAnalysis: checker", () => {
 
   it("probs is null when a candidate's probabilities are missing", () => {
     const raw = moveRaw([{ notation: "13/7", rank: 1, equity: 0.1, move_played: true }]);
-    expect(galaxyAnalysis(raw, "move")).toEqual({
+    expect(galaxyAnalysis(raw)).toEqual({
       v: 1,
       source: "galaxy",
       kind: "checker",
@@ -113,7 +113,7 @@ describe("galaxyAnalysis: checker", () => {
       { notation: "a", rank: 1, equity: 0.123456, move_played: false },
       { notation: "b", rank: 2, equity: 0.12344, move_played: true },
     ]);
-    const a = galaxyAnalysis(raw, "move") as CheckerAnalysis;
+    const a = galaxyAnalysis(raw) as CheckerAnalysis;
     expect(a.candidates.map((c) => [c.equity, c.loss])).toEqual([
       [0.1235, 0],
       [0.1234, -0.0001],
@@ -121,17 +121,16 @@ describe("galaxyAnalysis: checker", () => {
   });
 
   it("null for unrecognised checker data: no moves, a malformed candidate, or not exactly one played move", () => {
-    expect(galaxyAnalysis(moveRaw([]), "move")).toBeNull();
-    expect(galaxyAnalysis({ reviews: [{ result: { result: {} } }] }, "move")).toBeNull();
-    expect(galaxyAnalysis(moveRaw([{ notation: "a", rank: 1, equity: "x", move_played: true }]), "move")).toBeNull();
-    expect(galaxyAnalysis(moveRaw([{ notation: "a", rank: 1, equity: 0, move_played: false }]), "move")).toBeNull();
+    expect(galaxyAnalysis(moveRaw([]))).toBeNull();
+    expect(galaxyAnalysis({ reviews: [{ result: { analysed_event: "move", result: {} } }] })).toBeNull();
+    expect(galaxyAnalysis(moveRaw([{ notation: "a", rank: 1, equity: "x", move_played: true }]))).toBeNull();
+    expect(galaxyAnalysis(moveRaw([{ notation: "a", rank: 1, equity: 0, move_played: false }]))).toBeNull();
     expect(
       galaxyAnalysis(
         moveRaw([
           { notation: "a", rank: 1, equity: 0, move_played: true },
           { notation: "b", rank: 2, equity: 0, move_played: true },
-        ]),
-        "move"
+        ])
       )
     ).toBeNull();
   });
@@ -151,16 +150,16 @@ describe("galaxyAnalysis: cube", () => {
   });
 
   it("never stores -0 (a negated cube_pass with ND 0)", () => {
-    const raw = { reviews: [{ result: { result: { cube_analysis: { no_double: 0, double_take: -0.5, double_pass: -1 } } } }] };
-    const a = galaxyAnalysis(raw, "cube_pass");
+    const raw = cubeRaw("cube_pass", { no_double: 0, double_take: -0.5, double_pass: -1 });
+    const a = galaxyAnalysis(raw);
     expect(a).toEqual({ v: 1, source: "galaxy", kind: "cube", role: "receiver", nd: 0, dt: 0.5, dp: 1 });
     expect(Object.is((a as { nd: number }).nd, -0)).toBe(false);
   });
 
   it("null when the cube equities are missing", () => {
-    const raw = { reviews: [{ result: { result: { cube_analysis: { no_double: 0.5, double_take: null, double_pass: 1 } } } }] };
-    expect(galaxyAnalysis(raw, "cube_double")).toBeNull();
-    expect(galaxyAnalysis({ reviews: [{ result: { result: {} } }] }, "cube_pass")).toBeNull();
+    const raw = cubeRaw("cube_double", { no_double: 0.5, double_take: null, double_pass: 1 });
+    expect(galaxyAnalysis(raw)).toBeNull();
+    expect(galaxyAnalysis({ reviews: [{ result: { analysed_event: "cube_pass", result: {} } }] })).toBeNull();
   });
 });
 
@@ -169,14 +168,42 @@ describe("galaxyAnalysis: everything else is null", () => {
     expect(translate("resignation")).toBeNull();
   });
 
-  it("an unknown analysed_event, or a raw without reviews", () => {
-    expect(galaxyAnalysis(ex.C1.raw, "something_new")).toBeNull();
-    expect(galaxyAnalysis(null, "move")).toBeNull();
-    expect(galaxyAnalysis({}, "move")).toBeNull();
-    expect(galaxyAnalysis({ reviews: [] }, "cube_double")).toBeNull();
+  it("an unknown or missing analysed_event, or a raw without reviews", () => {
+    expect(galaxyAnalysis(withEvent(ex.C1.raw, "something_new"))).toBeNull();
+    expect(galaxyAnalysis(withEvent(ex.C1.raw, undefined))).toBeNull();
+    expect(galaxyAnalysis(null)).toBeNull();
+    expect(galaxyAnalysis({})).toBeNull();
+    expect(galaxyAnalysis({ reviews: [] })).toBeNull();
+  });
+});
+
+describe("galaxyAnalysis: the event type comes from raw", () => {
+  it("reads reviews[0].result.analysed_event (no longer passed in), matching each fixture's stored event", () => {
+    for (const name of ["C1", "E1", "cubeDouble", "cubePassNegated", "resignation"]) {
+      const raw = ex[name].raw as { reviews: { result: { analysed_event: string } }[] };
+      expect(raw.reviews[0].result.analysed_event).toBe(ex[name].analysedEvent);
+    }
+    // The same cube payload reads as the doubler's or the receiver's
+    // decision depending only on raw's own analysed_event.
+    const cube = { no_double: 0.4, double_take: 0.2, double_pass: 1 };
+    expect(galaxyAnalysis(cubeRaw("cube_double", cube))).toMatchObject({ role: "doubler" });
+    expect(galaxyAnalysis(cubeRaw("cube_pass", cube))).toMatchObject({ role: "receiver" });
   });
 });
 
 function moveRaw(moves: unknown[]): unknown {
   return { reviews: [{ result: { analysed_event: "move", result: { moves } } }] };
+}
+
+function cubeRaw(analysedEvent: string, cube_analysis: unknown): unknown {
+  return { reviews: [{ result: { analysed_event: analysedEvent, result: { cube_analysis } } }] };
+}
+
+// A deep copy of `raw` with reviews[0].result.analysed_event replaced
+// (or removed), leaving the fixture itself untouched.
+function withEvent(raw: unknown, analysedEvent: string | undefined): unknown {
+  const copy = JSON.parse(JSON.stringify(raw));
+  if (analysedEvent === undefined) delete copy.reviews[0].result.analysed_event;
+  else copy.reviews[0].result.analysed_event = analysedEvent;
+  return copy;
 }

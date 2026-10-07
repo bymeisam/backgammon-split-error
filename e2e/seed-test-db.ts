@@ -4,29 +4,20 @@
 // board-visual.spec.ts, plus each one's immediately preceding dice_rolled
 // sibling row. Those siblings are kept for historical/snapshot fidelity
 // (this is a real one-time capture, not hand-assembled), but nothing reads
-// them as siblings anymore — roll, cubeOwnerUserId, cubeValue, and
-// cubeConfident are all plain columns on each row directly now (see
-// reports/2026-10-02-step4-dice-roll-column-design.md and reports/2026-10-
-// 02-step5-cube-value-confident-design.md). Deliberately not a full
-// match/account replica, just what these 5 tests actually render.
+// them as siblings: roll, cube, colour and labels all come from each row's
+// own raw (its GNU Match ID and review; lib/analysis/index.ts). Deliberately
+// not a full match/account replica, just what these 5 tests actually render.
 //
 // Source data: e2e/fixtures/seed-data.json — a real, one-time snapshot of
 // these exact rows (opponent name anonymized), not re-derived or
 // hand-typed, so field values match what the app itself would have
-// produced via lib/ingest.ts — except sourcePositionId/roll/cubeOwnerUserId/
-// cubeValue/cubeConfident/cubeActionPlayed/cubeActionBest, added after the
-// fact (2026-10-02) once those became real columns (or, for
-// movePlayed/moveBest, renamed from notationPlayed/notationBest, same
-// date): computed directly from each row's own raw/sibling context, not
-// hand-typed either. Games' userScore/opponentScore/crawfordState match
-// what lib/ingest.ts derives since 2026-10-06: the GNU Match ID of each
-// game's first decision, through the user's seat (the user is black =
-// player 1 in this match; e.g. game 5's IDs decode to white 3, black 2 ->
-// user 2, opp 3). Re-checked against the IDs in the snapshot's own raw
-// (2026-10-06) — the earlier actor-relative metadata.scores reading happened
-// to give the same values here, so no seed value changed. cubeValue/
-// cubeOwnerUserId/cubeConfident also agree with each row's Match ID (all a
-// centred 1-cube).
+// produced via lib/ingest.ts. It holds only the columns the schema still
+// has: since 2026-10-07 the values derivable from raw (colour, event type,
+// roll, cube, labels, resignation detail, luck/equity, timestamp; Game's
+// scores/Crawford/playedAt; Match.matchLength) are no longer columns, and
+// were removed from the snapshot (reports/2026-10-07-column-audit.md).
+// sourcePositionId was added after the fact (2026-10-02), computed from
+// each row's own raw.
 //
 // Standalone by design: builds its own MySQL connection directly from
 // .env.test rather than importing lib/prisma.ts (which throws at import
@@ -45,7 +36,6 @@ interface SeedDecision {
   id: number;
   gameIndex: number;
   eventId: string;
-  timestamp: string;
   raw: unknown;
   [key: string]: unknown;
 }
@@ -54,7 +44,6 @@ interface SeedData {
   match: {
     source: string;
     sourceMatchId: string;
-    matchLength: number | null;
     opponentName: string;
     opponentCountry: string;
     opponentRating: number;
@@ -66,13 +55,7 @@ interface SeedData {
     playedAt: string | null;
     ingestStatus: string;
   };
-  games: {
-    gameIndex: number;
-    playedAt: string | null;
-    userScore: number | null;
-    opponentScore: number | null;
-    crawfordState: string | null;
-  }[];
+  games: { gameIndex: number }[];
   decisions: SeedDecision[];
 }
 
@@ -112,16 +95,10 @@ async function main() {
 
   const gameIdByIndex = new Map<number, number>();
   for (const g of seed.games) {
-    const gameData = {
-      playedAt: g.playedAt ? new Date(g.playedAt) : null,
-      userScore: g.userScore,
-      opponentScore: g.opponentScore,
-      crawfordState: g.crawfordState,
-    };
     const game = await prisma.game.upsert({
       where: { matchId_gameIndex: { matchId: match.id, gameIndex: g.gameIndex } },
-      create: { matchId: match.id, gameIndex: g.gameIndex, ...gameData },
-      update: gameData,
+      create: { matchId: match.id, gameIndex: g.gameIndex },
+      update: {},
     });
     gameIdByIndex.set(g.gameIndex, game.id);
   }
@@ -130,14 +107,13 @@ async function main() {
     const gameId = gameIdByIndex.get(d.gameIndex);
     if (!gameId) throw new Error(`No seeded game for gameIndex ${d.gameIndex} (decision ${d.id})`);
 
-    const { id, gameIndex, gameId: _staleGameId, eventId, timestamp, raw, ...rest } = d;
+    const { id, gameIndex, gameId: _staleGameId, eventId, raw, ...rest } = d;
     void gameIndex;
     void _staleGameId;
     const data: Record<string, unknown> = {
       ...rest,
       gameId,
       eventId: BigInt(eventId),
-      timestamp: new Date(timestamp),
       raw,
     };
 

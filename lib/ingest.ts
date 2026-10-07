@@ -6,18 +6,10 @@
 // matchIds is just a caller-side change).
 import { prisma } from "@/lib/prisma";
 import { createGalaxyClient } from "@/lib/galaxy-client";
-import { DecisionKind, ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
-import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
-import { actionLabels, findPrecedingRoll } from "@/lib/mistakes";
+import { DecisionKind, ErrorSeverity } from "@/lib/generated/prisma/client";
+import type { GameEvent } from "@/lib/gameReviewsTypes";
 import { getDecisionAnalysis } from "@/lib/analysis";
-import {
-  PlayerUserIds,
-  addSeatEvidence,
-  decodeGnuMatchId,
-  effectiveMatchLength,
-  gameScoreFromMatchId,
-  type DecodedMatchId,
-} from "@/lib/gnuMatchId";
+import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 // How many of a game's own CHECKER decisions get a plyNumber at all —
 // deeper plies aren't a useful filter dimension (see Decision.plyNumber's
@@ -63,8 +55,8 @@ const EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS = new Set([
 // The Match columns a caller supplies from Galaxy's analyses/list entry —
 // the only fields the /api/galaxy/matches/[matchId]/sync route accepts from
 // its request body. Everything else on Match (id, source, sourceMatchId,
-// ingestStatus, ingestError, matchLength, playedAt, createdAt) is set by
-// the server alone.
+// ingestStatus, ingestError, playedAt, createdAt) is set by the server
+// alone.
 export interface MatchIndexData {
   opponentName: string;
   opponentCountry: string;
@@ -154,45 +146,6 @@ function mapSeverity(severity: string): ErrorSeverity {
   }
 }
 
-function moveNotations(review: Review): { played: string | null; best: string | null } {
-  if (review.result.analysed_event !== "move") return { played: null, best: null };
-  const moves = review.result.result.moves;
-  const played = moves.find((m) => m.move_played);
-  const best = moves.find((m) => m.rank === 1) ?? moves[0];
-  return { played: played?.notation ?? null, best: best?.notation ?? null };
-}
-
-// Resignation-only fields (resign_error/should_resign/resignation_type/
-// equity_before/equity_after) — null for every other kind, same convention
-// as movePlayed/moveBest/cubeActionPlayed/cubeActionBest being null outside
-// their kind.
-function buildResignationDetail(review: Review): {
-  resignError: number | null;
-  shouldResign: boolean | null;
-  resignationType: string | null;
-  equityBefore: number | null;
-  equityAfter: number | null;
-} {
-  if (review.result.analysed_event !== "resignation") {
-    return {
-      resignError: null,
-      shouldResign: null,
-      resignationType: null,
-      equityBefore: null,
-      equityAfter: null,
-    };
-  }
-
-  const result = review.result.result;
-  return {
-    resignError: result.resign_error,
-    shouldResign: result.should_resign,
-    resignationType: result.resignation_type,
-    equityBefore: result.equity_before,
-    equityAfter: result.equity_after,
-  };
-}
-
 // The only place that decides what analysed_event values are known. Returns
 // null for anything outside the four confirmed shapes (move/cube_double/
 // cube_pass/resignation) so the caller can log and skip instead of guessing
@@ -243,37 +196,6 @@ function checkerPlyByEventId(events: GameEvent[]): Map<number, number> {
   return plyByEventId;
 }
 
-// Precomputes Decision.roll for every event in the game, using the exact
-// same findPrecedingRoll backward scan lib/mistakes.ts's extractDecisions/
-// lib/decisionFromRow.ts's (now-removed) buildRollLookup already used at
-// read time — see reports/2026-10-02-step4-dice-roll-column-design.md for
-// the full equivalence verification, including a confirmed-dead fallback
-// branch in the old read-time code that this intentionally does NOT
-// replicate (it was never actually live, so replicating it would be a
-// behavior change, not a faithful relocation).
-//
-// Applied unconditionally for every kind (not gated to CHECKER) — matches
-// the DB-row read paths' real current behavior, not extractDecisions' own
-// kind === "checker" gating (a separate, pre-existing divergence between
-// the two paths, not addressed here).
-//
-// Operates on the full in-memory events array (same one passed to
-// checkerPlyByEventId above) — includes game_started/game_over/
-// turn_forfeited events even though they're never stored as their own
-// Decision row, so a first move whose roll came from game_started.
-// rolled_dice (confirmed possible — see
-// lib/__fixtures__/galaxy-payloads/game-started-game-over.json) is
-// captured correctly here, unlike scripts/backfill-decision-roll.ts, which
-// can only see what's already stored.
-function rollByEventId(events: GameEvent[]): Map<number, number[] | null> {
-  const result = new Map<number, number[] | null>();
-  events.forEach((event, index) => {
-    const roll = findPrecedingRoll(events, index);
-    result.set(event.id, roll.length > 0 ? roll : null);
-  });
-  return result;
-}
-
 export async function ingestMatch(
   matchId: number,
   indexData: MatchIndexData,
@@ -286,18 +208,10 @@ export async function ingestMatch(
   let decisionsIngested = 0;
   let decisionsSkippedNotCounted = 0;
   let eventsSkippedNoReview = 0;
-  const gamePlayedAts: Date[] = [];
-  // Match.matchLength = the GNU Match ID length (0 = money) of the match's
-  // first decision: lowest gameIndex, then lowest eventId, with an even
-  // decoded length read as money (effectiveMatchLength) — see
-  // docs/field-mapping.md, "GNU Match ID". Built in ascending gameIndex
-  // order, one entry per game whose first decision decodes.
-  const gameMatchLengths: number[] = [];
-  // Which userId sits in which GNU player seat (1 = black, 0 = white),
-  // gathered across the whole match (colours are fixed per match) — maps
-  // the Match ID's cube owner to a userId, and the user's own seat to
-  // their scores.
-  const players = new PlayerUserIds();
+  // Match.playedAt, computed in memory (no per-game copy is stored since
+  // 2026-10-07): the first game, in gameIndex order, that has a decision
+  // sets it — see the per-game comment below.
+  let matchPlayedAt: Date | null = null;
 
   // matchId here is the Galaxy match ID (what the URL/UI use) — Match.id is
   // now an internal auto-increment key, resolved via the (source,
@@ -343,9 +257,11 @@ export async function ingestMatch(
       update: {},
     });
 
-    // Game.playedAt = metadata.timestamp of this game's first decision *by
+    // This game's playedAt = metadata.timestamp of its first decision *by
     // eventId* (not earliest timestamp value, and not assumed to already be
-    // in eventId order from the API) with a populated error_analysis.
+    // in eventId order from the API) with a populated error_analysis; the
+    // match's first such game sets Match.playedAt (Game.playedAt itself was
+    // dropped 2026-10-07 — nothing read it).
     // metadata.timestamp is NOT a real play-time source in general — it's
     // stamped with when Galaxy served that analysis, confirmed by re-fetching
     // the same event and watching it advance in real time (see
@@ -357,29 +273,8 @@ export async function ingestMatch(
     // backfill run months/years after the fact, which is exactly what
     // happened for this app's original 2026-09 backfill (see
     // scripts/backfill-played-at.ts for the one-time consequence of that).
-    const decisionTimestampsByEventId: { eventId: number; timestamp: Date }[] = [];
-    // Game.userScore/opponentScore/crawfordState and (via gameMatchLengths)
-    // Match.matchLength all come from the GNU Match ID of this game's first
-    // stored decision by eventId. Replaces the metadata.scores reading
-    // (2026-10-06): metadata.scores.white is the score of the player on
-    // roll, not a colour's or the actor's, and it's null on Galaxy's older
-    // analyses — see docs/field-mapping.md, "GNU Match ID".
-    let firstDecision: { eventId: number; matchId: DecodedMatchId | null } | null = null;
+    let firstDecision: { eventId: number; timestamp: Date } | null = null;
     const plyByEventId = checkerPlyByEventId(response.data.events);
-    const rollByEvent = rollByEventId(response.data.events);
-
-    // Seat evidence for `players`, from every event before any row is
-    // written, so a cube owner whose first appearance comes later in the
-    // game still resolves.
-    for (const event of response.data.events) {
-      const review = event.reviews?.[0];
-      addSeatEvidence(players, {
-        userId: event.user_id,
-        color: event.color,
-        analysedEvent: review?.result.analysed_event,
-        matchId: decodeGnuMatchId(review?.source_match?.formatted_value),
-      });
-    }
 
     for (const event of response.data.events) {
       if (me && opponentUserId === null && event.user_id && event.user_id !== me.sourceUserId) {
@@ -415,7 +310,6 @@ export async function ingestMatch(
 
         const metadata = review.result.result.metadata;
         const errorAnalysis = review.result.result.error_analysis;
-        const probabilities = review.result.result.probabilities;
 
         // Visibility only — the row is upserted below regardless of this
         // flag (filtering by it happens at read time, per
@@ -447,41 +341,19 @@ export async function ingestMatch(
           throw new Error("missing source_position.classification");
         }
 
-        // Cube entering this decision, every kind, straight from the
-        // decision's own GNU Match ID (2026-10-06; replaces the take-walk,
-        // which missed takes on ~22% of rows). Owner seat -> userId via
-        // `players`; centred -> null. A Match ID that doesn't decode, or an
-        // owner seat no userId can be matched to, stores no cube and
-        // cubeConfident = false, with a warning.
-        const matchState = decodeGnuMatchId(review.source_match?.formatted_value);
-        const cubeOwnerUserId =
-          matchState && matchState.cubeOwner !== null ? players.userIdFor(matchState.cubeOwner) : null;
-        const cubeConfident =
-          matchState !== null && (matchState.cubeOwner === null || cubeOwnerUserId !== null);
-        const cubeValue = cubeConfident ? matchState!.cubeValue : null;
-        if (!cubeConfident) {
-          const message = matchState
-            ? `match ${matchId} game ${gameIndex} event ${event.id}: cube owner seat ${matchState.cubeOwner} has no known userId, cube left unset`
-            : `match ${matchId} game ${gameIndex} event ${event.id}: GNU Match ID missing or undecodable, cube left unset`;
+        // The roll and cube a decision shows come from its own GNU Match ID
+        // at read time (lib/analysis/index.ts; nothing is stored). A Match ID
+        // that's missing or doesn't decode means no dice and no cube on the
+        // board, so flag it — a signal, the row is stored either way.
+        if (decodeGnuMatchId(review.source_match?.formatted_value) === null) {
+          const message = `match ${matchId} game ${gameIndex} event ${event.id}: GNU Match ID missing or undecodable (no roll or cube will show), stored anyway`;
           console.warn(message);
           warnings.push(message);
         }
 
-        // The same mine/best short labels lib/mistakes.ts's actionLabels()
-        // already computes at read time for display — reused directly
-        // (not reimplemented) rather than the old bespoke buildCubeDetail,
-        // which composed the same two raw fields into one string. Gated to
-        // CUBE kind only — RESIGNATION's own labels deliberately stay
-        // read-time-computed, no column (see Decision.cubeActionPlayed's
-        // schema comment / reports/2026-10-02-raw-field-reverification.md).
-        const cubeLabels = kind === DecisionKind.CUBE ? actionLabels(review) : null;
-
-        const { played, best } = moveNotations(review);
-        const resignation = buildResignationDetail(review);
         const timestamp = new Date(metadata.timestamp);
-        decisionTimestampsByEventId.push({ eventId: event.id, timestamp });
         if (firstDecision === null || event.id < firstDecision.eventId) {
-          firstDecision = { eventId: event.id, matchId: matchState };
+          firstDecision = { eventId: event.id, timestamp };
         }
 
         // The review cards derive a normalized analysis from `raw` on demand
@@ -496,7 +368,7 @@ export async function ingestMatch(
           metadata.count_as_decision &&
           errorAnalysis.raw_error !== null &&
           (kind === DecisionKind.CHECKER || kind === DecisionKind.CUBE) &&
-          getDecisionAnalysis({ source: SOURCE, raw: event, analysedEvent }) === null
+          getDecisionAnalysis({ source: SOURCE, raw: event }) === null
         ) {
           analysisMissing++;
           const message = `match ${matchId} game ${gameIndex} event ${event.id}: no normalized analysis for counted "${analysedEvent}" decision (raw unreadable by the translator), stored anyway`;
@@ -504,18 +376,18 @@ export async function ingestMatch(
           warnings.push(message);
         }
 
+        // Only what SQL filters, sorts, groups or counts by, plus raw. Every
+        // other value (colour, event type, roll, cube, labels, notations,
+        // resignation detail, luck/equity) is derived from raw on demand —
+        // the columns that duplicated them were dropped 2026-10-07
+        // (reports/2026-10-07-column-audit.md; docs/field-mapping.md,
+        // "Derived from raw").
         const decisionData = {
           userId: event.user_id,
-          color: event.color,
           kind,
-          analysedEvent,
           countAsDecision: metadata.count_as_decision,
           rawError: errorAnalysis.raw_error,
           errorSeverity: mapSeverity(errorAnalysis.error_severity),
-          luck: errorAnalysis.luck,
-          luckMwc: errorAnalysis.luck_mwc,
-          equity: review.result.result.equity,
-          mwc: probabilities.mwc_context !== null ? probabilities.mwc : null,
           classification,
           // Same source_position object classification is read from above;
           // GNU Position ID of the board before this decision. Confirmed
@@ -525,26 +397,7 @@ export async function ingestMatch(
           // access, just without the hard-fail — a column, not a required
           // domain fact ingest refuses to proceed without.
           sourcePositionId: review.source_position?.formatted_value ?? null,
-          // Prisma's Json input type needs Prisma.DbNull, not a plain
-          // `null`, to mean "set this column to SQL NULL" rather than
-          // storing the JSON literal null value — unlike every other
-          // nullable column on this model, which isn't Json-typed.
-          roll: rollByEvent.get(event.id) ?? Prisma.DbNull,
           plyNumber: plyByEventId.get(event.id) ?? null,
-          cubeOwnerUserId: cubeConfident ? cubeOwnerUserId : null,
-          cubeValue,
-          cubeConfident,
-          movePlayed: played,
-          moveBest: best,
-          cubeActionPlayed: cubeLabels?.mine ?? null,
-          cubeActionBest: cubeLabels?.best ?? null,
-          resignError: resignation.resignError,
-          shouldResign: resignation.shouldResign,
-          resignationType: resignation.resignationType,
-          equityBefore: resignation.equityBefore,
-          equityAfter: resignation.equityAfter,
-          timestamp,
-          myTag: null,
           // Round-trip through JSON so the value is a plain JSON-compatible
           // object, matching what Prisma's Json column input expects.
           raw: JSON.parse(JSON.stringify(event)),
@@ -564,37 +417,17 @@ export async function ingestMatch(
       }
     }
 
-    if (decisionTimestampsByEventId.length > 0) {
-      const first = decisionTimestampsByEventId.reduce((a, b) => (a.eventId < b.eventId ? a : b));
-      await prisma.game.update({ where: { id: game.id }, data: { playedAt: first.timestamp } });
-      gamePlayedAts.push(first.timestamp);
-    }
-
-    const firstState = firstDecision?.matchId ?? null;
-    if (firstState) {
-      await prisma.game.update({ where: { id: game.id }, data: gameScoreFromMatchId(firstState, players, me?.sourceUserId) });
-      gameMatchLengths.push(effectiveMatchLength(firstState));
+    if (firstDecision !== null && matchPlayedAt === null) {
+      matchPlayedAt = firstDecision.timestamp;
     }
 
     gamesIngested++;
   }
 
-  const matchUpdate: { matchLength?: number; playedAt?: Date } = {};
-  // gameMatchLengths is in ascending gameIndex order, so its first element
-  // is the first decision's length — including 0 for a money game, and for
-  // the ~30 single-game matches whose Match ID flips from 0 to 1 after a
-  // double (the user's call: store the first decision's value).
-  if (gameMatchLengths.length > 0) matchUpdate.matchLength = gameMatchLengths[0];
-  // Match.playedAt = the Game.playedAt of the match's first game (lowest
-  // gameIndex), not the earliest across all games — gamePlayedAts is built
-  // in ascending gameIndex order by the loop above (only pushed for a game
-  // that had at least one valid decision), so its first element is exactly
-  // that lowest-gameIndex value.
-  if (gamePlayedAts.length > 0) {
-    matchUpdate.playedAt = gamePlayedAts[0];
-  }
-  if (Object.keys(matchUpdate).length > 0) {
-    await prisma.match.update({ where: { id: match.id }, data: matchUpdate });
+  // Match.playedAt = the playedAt of the match's first game (lowest
+  // gameIndex) that had a decision, not the earliest across all games.
+  if (matchPlayedAt !== null) {
+    await prisma.match.update({ where: { id: match.id }, data: { playedAt: matchPlayedAt } });
   }
 
   // Reflects this match's own currently-known opponentName on every

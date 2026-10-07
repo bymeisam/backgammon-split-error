@@ -97,12 +97,22 @@ vi.mock("@/lib/prisma", () => ({
 
 import { recomputeMistakeStats } from "@/lib/recompute-mistake-stats";
 
+// Applies the query's `kind: { in: [...] }` filter the way SQL would, so
+// the RESIGNATION row in the synthetic data is only left out if the
+// production query actually asks for that.
+function applyKindFilter(rows: SyntheticDecision[], where: { kind?: { in?: string[] } } | undefined) {
+  const kinds = where?.kind?.in;
+  return kinds ? rows.filter((r) => kinds.includes(r.kind)) : rows;
+}
+
 beforeEach(() => {
   groupBy.mockReset();
   deleteMany.mockClear();
   createMany.mockClear();
   transaction.mockClear();
-  groupBy.mockImplementation(async () => sqlStyleGroupBy(SYNTHETIC_DECISIONS));
+  groupBy.mockImplementation(async (args: { where?: { kind?: { in?: string[] } } }) =>
+    sqlStyleGroupBy(applyKindFilter(SYNTHETIC_DECISIONS, args?.where))
+  );
 });
 
 describe("recomputeMistakeStats", () => {
@@ -118,11 +128,11 @@ describe("recomputeMistakeStats", () => {
       sumAbsRawError: number;
     }[];
 
-    // 5 distinct (classification, kind, errorSeverity) groups in the
-    // synthetic dataset above: opening_game/CHECKER/BLUNDER,
+    // 4 distinct (classification, kind, errorSeverity) groups once
+    // resignations are left out: opening_game/CHECKER/BLUNDER,
     // opening_game/CHECKER/ERROR, middle_game/CUBE/BLUNDER,
-    // middle_game/CUBE/NONE, race/RESIGNATION/NONE.
-    expect(rows).toHaveLength(5);
+    // middle_game/CUBE/NONE (race/RESIGNATION/NONE is excluded).
+    expect(rows).toHaveLength(4);
 
     for (const row of rows) {
       const expected = expectedSumAbsRawError(
@@ -160,6 +170,18 @@ describe("recomputeMistakeStats", () => {
     // 0.02 + 0.01 + 0.015 = 0.045, already positive, so ABS(SUM(x)) and
     // SUM(ABS(x)) trivially agree here too.
     expect(middleNone?.sumAbsRawError).toBeCloseTo(0.045, 10);
+  });
+
+  it("leaves resignations out (checker and cube only), still filtering countAsDecision/rawError", async () => {
+    await recomputeMistakeStats();
+
+    expect(groupBy.mock.calls[0][0].where).toEqual({
+      countAsDecision: true,
+      rawError: { not: null },
+      kind: { in: ["CHECKER", "CUBE"] },
+    });
+    const rows = createMany.mock.calls[0][0].data as { category: string }[];
+    expect(rows.some((r) => r.category === "RESIGNATION")).toBe(false);
   });
 
   it("deletes all existing rows before inserting the fresh set, inside one transaction", async () => {

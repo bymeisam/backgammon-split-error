@@ -1,5 +1,5 @@
 {
-  "_comment": "Real local app_dev rows (2026-10-07), trimmed to the raw paths lib/analysis/galaxy.ts reads: reviews[0].result.result.moves[] (notation, rank, equity, equity_error, move_played, probabilities) and .cube_analysis. Used by lib/analysis/galaxy.test.ts.",
+  "_comment": "Real local app_dev rows (2026-10-07), trimmed to the raw paths lib/analysis/galaxy.ts reads: reviews[0].result.analysed_event, reviews[0].result.result.moves[] (notation, rank, equity, equity_error, move_played, probabilities) and .cube_analysis. Used by lib/analysis/galaxy.test.ts.",
   "C1": {
     "decisionId": 1236446,
     "sourceMatchId": "46875560",

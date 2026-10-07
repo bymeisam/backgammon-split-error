@@ -65,10 +65,15 @@ export const SEVERITY_PARAM_MAP: Readonly<Record<string, ErrorSeverity>> = {
   none: ErrorSeverity.NONE,
 };
 
+// The kinds a decision list or filter ever shows. Resignations are left out
+// of every mistake list, filter and stat (since 2026-10-07): they only
+// appear as steps in the game replay. ?category=resignation is therefore an
+// unknown value, which means "no filter" — i.e. these two kinds.
+export const LISTED_KINDS: readonly DecisionKind[] = [DecisionKind.CHECKER, DecisionKind.CUBE];
+
 export const CATEGORY_PARAM_MAP: Readonly<Record<string, DecisionKind>> = {
   checker: DecisionKind.CHECKER,
   cube: DecisionKind.CUBE,
-  resignation: DecisionKind.RESIGNATION,
 };
 
 // Own-property lookups: these values come straight from the URL, and a
