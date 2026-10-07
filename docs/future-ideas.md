@@ -72,6 +72,12 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Idea:** once the app has auth, show a note (pages and `/api/decision-notes`) only to the owner of the match it belongs to. Today, notes on Oracle are readable by anyone on the public read-only site.
 - **Why deferred:** there's no auth yet. The user accepted public notes for now (2026-10-06).
 
+## Progress tracking
+
+### Rating over time
+- **Idea:** a chart of the user's Galaxy rating over time, built from each match's `Match.playedAt` and `Match.userRating`. Both are kept for this; they come from Galaxy's match list.
+- **Source:** user, 2026-10-07, during the column audit.
+
 ## Deployment and auth
 
 ### Vercel deploy behind auth
