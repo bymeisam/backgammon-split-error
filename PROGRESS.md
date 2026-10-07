@@ -712,3 +712,16 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - Verified: tsc, 351/351 tests, build, 15/15 visual tests (lint: `npx eslint --ignore-pattern 'galaxy-source/**'` clean; plain `npm run lint` runs out of memory on the gitignored 10 MB `galaxy-source/main.dart.js`). Baselines: `decision-card` and `mistake-row-list` updated (severity chips, "View on Galaxy"); 4 match-page board baselines removed (near-bearoff and both-arrows are Good tier, so no longer in those lists). Local recompute: MistakeStat 174 rows / 607,329 decisions and RepeatedPosition 4,816 rows / 51,280 occurrences, before and after, per-severity identical. Headless on a local `next start`: 45282503 g2 Move 15 2-cube in the top gutter, Move 16 offered 4 centred at the bottom edge, Move 17 4-cube in the bottom gutter; 29939852 g1 Move 14 "No Double" / "Double opponent should take", no badge; 662455 "Double" / "Double opponent should pass"; "View on Galaxy" URLs correct.
   - Not done (spec conflicts, reported): /mistakes has no Roll column, so its cube rows show no square.
   - Next: Oracle MistakeStat/RepeatedPosition recompute (expected no change), with the pending scores/cube backfills, after user approval.
+- **Oracle: GNU Match ID backfills applied and verified (2026-10-07).** The user ran these on Oracle:
+  - `backfill-game-scores-from-match-id.ts`: dry run first, then live. It wrote 15,360 games and 2,499 matches. Games with a null score fell from 15,402 to 324, and matches with a null length from 2,490 to 1. A second dry run showed 0 pending.
+  - `backfill-decision-cube-from-match-id.ts --accept-confident-changes=27`: wrote 275,363 rows. The 27 trusted rows were confirmed read-only beforehand as exactly ids 1172684–1172710, which is match 46000168 game 4, the same set as local. A second dry run showed 0 pending.
+  - `scripts/recompute-stats.ts` (new, `b0c26cf`): rebuilt MistakeStat and RepeatedPosition. Totals were unchanged.
+
+  The investigator then confirmed, read-only:
+  - All 1,266,751 cubes are confident and agree with the Match ID, including the owner seat.
+  - No length 8 or 16 remains. The 10 matches whose length changed from one value to another were most likely the ten `383xxxxx` flip matches, each going 1→0.
+  - Scores never exceed the final score and never decrease between games.
+  - A1–A5 are correct, and H2 is correct. H1 (47816592) isn't on Oracle yet.
+  - The stats match a fresh grouping of `Decision`.
+
+  Next: push, check the live site, then point `.env` back at local.
