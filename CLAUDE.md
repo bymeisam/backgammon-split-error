@@ -17,6 +17,15 @@ Any new column storing an externally-sourced string identifier (user ID, match I
 
 Note: MySQL collation cannot be set via Prisma's schema DSL — it must be hand-added as `COLLATE utf8mb4_bin` directly in the generated migration SQL, with a comment explaining why (see docs/field-mapping.md). Check that any migration touching these columns preserves this by hand.
 
+## Schema rule: columns must earn their place
+
+`raw` is the source's untouched payload. Never modify it. By default, any value the app needs is worked out from `raw` when it's needed, through that source's translator (the pattern is `lib/analysis/index.ts`'s `getDecisionAnalysis`). A value becomes a stored column only when at least one of these is true:
+1. SQL filters, sorts, groups or counts by it, including indexes and precomputed stats.
+2. Working it out needs other rows (e.g. `roll` and `plyNumber`), so storing it once at sync time avoids recomputing across rows.
+3. A view shows many rows without loading `raw`.
+
+When proposing a new column, say which of these it meets. Don't add columns ahead of a real need. Promote a value to a column deliberately when one of these appears (that means a migration plus a backfill, local first, then Oracle).
+
 `/galaxy/*` pages (and `/api/galaxy/*`) show data fetched live from Galaxy's website, not from our DB. They are read-only views: never attach user-authored data (notes, tags, etc.) or any other app write to them. User features go on DB-backed views only, such as /matches, /mistakes, /repeated-positions and the replay.
 
 `/status` (app/status/page.tsx) is a live snapshot — stack/DB versions, connection health, row counts, and latest migration are all read live and need no maintenance. After a change to the stack, DB engine, auth model, or overall architecture (not every feature — this is a much narrower trigger than the PROGRESS.md one above), update app/status/notes.ts so the page's "Notes" section stays accurate.
