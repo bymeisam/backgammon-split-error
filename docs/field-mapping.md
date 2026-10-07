@@ -969,11 +969,21 @@ is only for showing the back of the card.
   take/pass part right. The loss shown is the doubling loss plus −|DT − DP|
   when the take/pass part is the strictly wrong one. The best option shown
   is `doublerAction`'s (`lib/cubeAction.ts`: too good needs ND > DP
-  strictly, DT == ND is No Double, DT == DP is Take). Because the rule
-  grades parts, No Double / Take and Too good / Take always grade the same,
-  and on an ND == DP tie Too good / Pass grades correct alongside the shown
-  best Double / Pass. Decision 629849 (ND 0.7922, DT 0.9751, DP 1): best
-  Double / Take; Double / Pass loses 0.0249 (wrong); No Double loses 0.1829.
+  strictly, DT == ND is No Double, DT == DP is Take). Decision 629849 (ND
+  0.7922, DT 0.9751, DP 1): best Double / Take; Double / Pass loses 0.0249
+  (wrong); No Double loses 0.1829.
+
+  **Near-ties give more than one correct answer** (accepted by the user,
+  2026-10-08). The rule grades the two parts, not the five labels, so:
+  - **No Double / Take and Too good / Take always grade the same.** Both
+    mean "don't double, the opponent would take".
+  - **Too good / Pass and Double / Pass both grade correct when ND is
+    within 0.02 of DP and DT > DP** (pass is the right half). Either
+    doubling part is then within the threshold of the best, ND == DP
+    included.
+
+  The card still shows the single best answer (`doublerAction`'s); only
+  the grading accepts the others.
 - **Cube, receiver:** Take and Pass. Take right when the doubler-view DT ≤
   DP; the wrong one loses |DT − DP|; correct within 0.02.
 
@@ -981,6 +991,18 @@ A wrong answer is rated **Again** automatically; a right one is rated Hard,
 Good or Easy by the user. FSRS is `ts-fsrs` 5 with default parameters,
 behind `lib/review/fsrs.ts`. Daily limits, "today" (the server's local day)
 and the queue order are in `lib/settings.ts` and `lib/review/queue.ts`.
+
+**Review history is a deliberate record** (2026-10-08). Some `ReviewLog`
+columns are stored though nothing reads them yet:
+
+- `correct`, `loss` and `durationMs` record what the user was shown and did
+  at review time.
+- `correct` and `loss` could be recomputed from `chosen` plus the
+  decision's `raw`. They're kept as a snapshot because the grading rules
+  (the threshold, the cube rule above) can change, and the history can't
+  be rebuilt after the fact under the rules that applied then.
+- `durationMs` can't be derived at all.
+- `ReviewCard.createdAt`/`updatedAt` are standard audit timestamps.
 
 ## PlayerIdentity
 

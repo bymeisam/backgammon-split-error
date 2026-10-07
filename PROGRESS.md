@@ -793,3 +793,10 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
       - with write mode off, all 11 routes 404, /review shows the message, and the controls are hidden.
   - **Test data left in `app_dev`:** 193 cards, 68 logs, 2 tags ("review test", "cube test") and a test note on 629849.
   - **Next:** the user's manual check, then the Oracle migration (prepared, not run), then push.
+
+## 2026-10-08
+
+- **Phase B test data cleared from local `app_dev`; review-history doc.**
+  - **Cleared** (one-off SQL in one transaction, `docker exec` into the local MySQL as root): all `ReviewLog` (78), `ReviewCard` (193), `DecisionTag` (2) and `Tag` (2, "review test" and "cube test") rows, and the test note on decision 629849 ("Test note from the review back (rerun)…"). After: 0 / 0 / 0 / 0. The two other notes (1258195, 1258038) were left alone. `bg_test` had no review, tag or note rows.
+  - **Doc** (`docs/field-mapping.md`, "Review cards and tags"): why `ReviewLog.correct`/`loss`/`durationMs` are stored though nothing reads them yet (a snapshot of what was shown and done; grading rules can change; `durationMs` can't be derived), and the accepted near-tie grading: No Double / Take and Too good / Take always grade the same, and Too good / Pass and Double / Pass both grade correct when ND is within 0.02 of DP and DT > DP. The card still shows the single best answer.
+  - **Next:** the user's manual check of Phase B, then the Oracle migration (prepared, not run), then push.
