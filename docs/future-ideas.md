@@ -38,6 +38,22 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Period summary:** Checker Play vs Cube Play, "Error N (eq)" / "Blunder N (eq)", total Equity Loss, Error Rate.
 - **Source:** `reports/2026-10-07-galaxy-client-comparison.md` (Galaxy has no spaced repetition; its puzzles avoid repeats, the opposite of ours).
 
+### Don't add the same position twice
+- **Idea:** the same position (`sourcePositionId`) can come up in several games. When adding cards, especially in bulk, skip a decision if another card already has the same position, or group them, so one lesson doesn't become several cards.
+- **Why deferred:** the user isn't sure how often it happens (2026-10-08). Measure first, then decide how to handle it.
+
+### Bulk add: worst mistakes first
+- **Idea:** order "Add all to review" by error size, biggest first, instead of the list's newest-first order. The 100-card cap then picks the most valuable cards.
+- **Source:** user, 2026-10-08 ("keep it in mind").
+
+### Leech cards
+- **Idea:** auto-tag a card "leech" once it's been failed many times (Anki's default threshold is 8 lapses; maybe lower here). The user can then filter leeches, write a better note, or suspend them. This is likely most useful for cube decisions.
+- **Source:** user, 2026-10-08.
+
+### Review stats from the log
+- **Idea:** accuracy over time from `ReviewLog`, by phase, tag, and checker vs cube, to show whether weak areas are improving. It pairs with the rating-over-time chart.
+- **Source:** user, 2026-10-08.
+
 ### Win, gammon and backgammon chance cards
 - **Idea:** a second kind of review card. Show a position and ask you to estimate the win, gammon and backgammon chances, then reveal the engine's numbers. The point is to build your feel for these chances in different kinds of positions.
 - **Notes:** the chances are already in each candidate's `probabilities` in `raw`. The planned normalized-analysis column on `Decision` will store them too (decided 2026-10-06).
