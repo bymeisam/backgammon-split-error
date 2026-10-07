@@ -1,5 +1,14 @@
 @AGENTS.md
 
+## Purpose
+
+This app is a personal training tool. The user is building it to improve their own backgammon. It lets them:
+- review the games they've played;
+- find their repeated mistakes, and their mistakes at each stage of the game;
+- study those mistakes with an Anki-style spaced-repetition review, with their own notes giving the reasoning.
+
+New games are synced every day, so there's plenty of data. Judge features and data fixes by whether they help with that. Imperfect or unanalysed data that never shows up in the user's error and blunder lists doesn't need special handling (exclusion flags, filters, clean-up). Don't build machinery for it unless asked.
+
 See PROGRESS.md for session-by-session history before starting new work.
 
 After completing a meaningful piece of work — a schema change, a working feature, a fixed bug, not every small edit — append a dated entry to PROGRESS.md summarizing what changed and what's next. If today's date already has an entry, add to it rather than creating a duplicate heading.
