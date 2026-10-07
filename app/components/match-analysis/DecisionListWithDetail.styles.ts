@@ -22,6 +22,8 @@ export const style = {
   cardHeader: "flex flex-wrap items-center justify-between gap-2 text-xs",
   cardBadgeGroup: "flex flex-wrap items-center gap-2",
   cardErrorText: "text-zinc-500 dark:text-zinc-400",
+  cardLinkGroup: "flex flex-wrap items-center gap-3",
+  // Shared by "View match" and "View on Galaxy".
   cardMatchLink:
     "text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
 } as const;

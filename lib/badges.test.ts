@@ -9,8 +9,9 @@ import {
   badgeForSeverity,
   classificationBadges,
   severityBadges,
-  severityKey,
-  type SeverityKey,
+  severityLabel,
+  severityTier,
+  type SeverityTier,
 } from "@/lib/badges";
 import { ErrorSeverity } from "@/lib/generated/prisma/client";
 
@@ -65,37 +66,54 @@ describe("classificationBadges", () => {
 });
 
 describe("severityBadges", () => {
-  it("has a config entry for every real ErrorSeverity enum value (no missing mappings)", () => {
-    for (const value of Object.values(ErrorSeverity)) {
-      const key = value.toLowerCase();
-      expect(severityBadges).toHaveProperty(key);
+  it("has a config entry for every tier", () => {
+    for (const tier of ["best", "good", "error", "blunder"] as SeverityTier[]) {
+      expect(severityBadges).toHaveProperty(tier);
     }
   });
 
-  it("has no two severity values sharing the same code", () => {
+  it("shows Galaxy's names: Best, Good, Error, Blunder", () => {
+    expect(severityBadges.best.code).toBe("Best");
+    expect(severityBadges.good.code).toBe("Good");
+    expect(severityBadges.error.code).toBe("Error");
+    expect(severityBadges.blunder.code).toBe("Blunder");
+  });
+
+  it("has no two tiers sharing the same code", () => {
     const codes = Object.values(severityBadges).map((c) => c.code);
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it("colors blunder red and error/doubtful amber, matching MistakesSection.tsx's existing palette", () => {
-    expect(severityBadges.blunder.color).toContain("red");
-    expect(severityBadges.error.color).toContain("amber");
-    expect(severityBadges.doubtful.color).toContain("amber");
+  it("uses Galaxy's colours", () => {
+    expect(severityBadges.best.color).toContain("#36D399");
+    expect(severityBadges.good.color).toContain("#65758B");
+    expect(severityBadges.error.color).toContain("#FBBD23");
+    expect(severityBadges.blunder.color).toContain("#F43E5C");
   });
 });
 
-describe("severityKey", () => {
-  it("maps every ErrorSeverity enum value to its lowercase badge key", () => {
+describe("severityTier / severityLabel", () => {
+  it("maps every ErrorSeverity enum value to Galaxy's tier — DOUBTFUL is Good, not an error", () => {
+    expect(severityTier(ErrorSeverity.NONE)).toBe("best");
+    expect(severityTier(ErrorSeverity.DOUBTFUL)).toBe("good");
+    expect(severityTier(ErrorSeverity.ERROR)).toBe("error");
+    expect(severityTier(ErrorSeverity.BLUNDER)).toBe("blunder");
     for (const value of Object.values(ErrorSeverity)) {
-      expect(severityKey(value)).toBe(value.toLowerCase());
-      expect(severityBadges).toHaveProperty(severityKey(value));
+      expect(severityBadges).toHaveProperty(severityTier(value));
     }
+  });
+
+  it("names each stored value", () => {
+    expect(severityLabel(ErrorSeverity.NONE)).toBe("Best");
+    expect(severityLabel(ErrorSeverity.DOUBTFUL)).toBe("Good");
+    expect(severityLabel(ErrorSeverity.ERROR)).toBe("Error");
+    expect(severityLabel(ErrorSeverity.BLUNDER)).toBe("Blunder");
   });
 });
 
 describe("badgeForSeverity", () => {
-  it("returns the mapped config for every known key", () => {
-    for (const key of Object.keys(severityBadges) as SeverityKey[]) {
+  it("returns the mapped config for every known tier", () => {
+    for (const key of Object.keys(severityBadges) as SeverityTier[]) {
       expect(badgeForSeverity(key)).toBe(severityBadges[key]);
     }
   });
@@ -103,7 +121,7 @@ describe("badgeForSeverity", () => {
   it("falls back to the raw value instead of undefined for an unmapped key", () => {
     // Only reachable by bypassing the type (a cast or untyped JSON) — this
     // used to return undefined and make Badge throw on config.label.
-    expect(badgeForSeverity("bogus" as SeverityKey)).toEqual({ code: "bogus", label: "bogus" });
+    expect(badgeForSeverity("bogus" as SeverityTier)).toEqual({ code: "bogus", label: "bogus" });
   });
 });
 

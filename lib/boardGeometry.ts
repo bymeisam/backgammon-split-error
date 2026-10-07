@@ -221,3 +221,16 @@ export function cubeBadgeCenter(owner: CubeOwner): { x: number; y: number } {
   const y = owner === "mine" ? Y1 - CUBE_BADGE_R - 6 : Y0 + CUBE_BADGE_R + 6;
   return { x, y };
 }
+
+// Center of the OFFERED cube on a take/pass board: the value being offered
+// (twice the current cube), centred horizontally on the playing field (the
+// bar column — the field's centre, between the two 6-point halves) and
+// against the receiver's edge, as Galaxy's own board draws a pending double
+// (its cube painter centres the offered cube horizontally and puts it flush
+// with the frame on the receiver's side). `side` is the receiver's side as
+// drawn. Inset 2px from the field edge so the outline isn't clipped.
+export function offeredCubeCenter(side: Side): { x: number; y: number } {
+  const x = colCenterX(BAR_COL);
+  const y = side === "mine" ? Y1 - CUBE_BADGE_R - 2 : Y0 + CUBE_BADGE_R + 2;
+  return { x, y };
+}

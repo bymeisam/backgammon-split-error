@@ -3,6 +3,7 @@
 // React, so all of it is unit-testable.
 import { DecisionKind, ErrorSeverity } from "@/lib/generated/prisma/enums";
 import { getPhaseLabel } from "@/lib/classificationLabels";
+import { severityLabel } from "@/lib/badges";
 
 export type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -113,6 +114,32 @@ export function totalPagesFor(total: number, pageSize: number): number {
 // filter is set.
 export function describeFilters(phase: string | undefined, ...others: (string | undefined)[]): string {
   return [phase ? getPhaseLabel(phase) : undefined, ...others].filter(Boolean).join(" ") || "all";
+}
+
+// The severity filter's name for a ?severity= value (Galaxy's "Best"/"Good"/
+// "Error"/"Blunder"), or the value itself when it isn't a known one — for
+// each page's result-count line.
+export function severityParamLabel(param: string | undefined): string | undefined {
+  const severity = severityFromParam(param);
+  return severity ? severityLabel(severity) : param;
+}
+
+// Galaxy's order for the severity tiers, best first.
+const SEVERITY_ORDER: readonly ErrorSeverity[] = [
+  ErrorSeverity.NONE,
+  ErrorSeverity.DOUBTFUL,
+  ErrorSeverity.ERROR,
+  ErrorSeverity.BLUNDER,
+];
+
+// Severity dropdown options: still submitted as the lowercase enum value
+// (so existing links and filters keep working), shown with Galaxy's names,
+// in Galaxy's order (Best, Good, Error, Blunder).
+export function severityOptions(values: ErrorSeverity[]): { value: string; label: string }[] {
+  const rank = (v: ErrorSeverity) => SEVERITY_ORDER.indexOf(v);
+  return [...values]
+    .sort((a, b) => rank(a) - rank(b))
+    .map((v) => ({ value: v.toLowerCase(), label: severityLabel(v) }));
 }
 
 // Dropdown options for raw enum-ish DB values, shown and submitted

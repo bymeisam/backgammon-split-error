@@ -41,14 +41,18 @@ planned work.
   (added 2026-10-01, alongside that collapse behavior itself — see
   PROGRESS.md's entry for that date)
 
-The first four are screenshotted in all three page contexts; **clean-move
-only on `/mistakes`** — `MistakesSection.tsx`'s own tables
-(`/matches`/`/galaxy/matches`) only ever list `isMistake: true` decisions
-(`lib/mistakes.ts`'s `partitionMistakes`), so a decision with no error can
-never appear there, and `board-visual.spec.ts` uses a separate
-`MISTAKE_DECISIONS` (the first four only) for those two contexts' own
-loops rather than forcing all five through a uniform grid. 13 board
-screenshots total (4×2 + 5), each scoped to just the
+bar-checkers and normal-midgame are screenshotted in all three page
+contexts; **clean-move, near-bearoff and both-arrows only on `/mistakes`**
+— `MistakesSection.tsx`'s own tables (`/matches`/`/galaxy/matches`) only
+ever list `isMistake: true` decisions outside Galaxy's mild "Good" tier
+(`lib/mistakes.ts`'s `partitionMistakes`/`isListedMistake`; near-bearoff
+and both-arrows are stored DOUBTFUL = "Good", which stopped counting as an
+error on 2026-10-07), so none of those three can appear there, and
+`board-visual.spec.ts` uses a separate `MISTAKE_DECISIONS` (bar-checkers and
+normal-midgame) for those two contexts' own loops rather than forcing all
+five through a uniform grid. 9 board screenshots total (2×2 + 5; 13 before
+2026-10-07, when the two Good-tier decisions were also shot on `/matches`
+and `/galaxy/matches`), each scoped to just the
 `[data-testid="board-panel"]` element — never a
 full-page screenshot. `/matches/[matchId]` and `/galaxy/matches/[matchId]`
 are client components that fetch game data over the network; their fetches
@@ -76,7 +80,7 @@ selection technique as the other two contexts, not a special-cased deep
 link. `bg_test` is small enough (10 rows) that this needs no shortcut: two
 of the five decisions do share one filter combo, but the click-by-label
 step already disambiguates them, same as it does for the much larger real
-mistake lists on `/matches`/`/galaxy/matches`. All 13 board screenshots are now
+mistake lists on `/matches`/`/galaxy/matches`. All 9 board screenshots are now
 fully deterministic, independent of the real dev DB's live state — the
 *only* variable across all three contexts is the surrounding page.
 
@@ -215,7 +219,7 @@ Failures that survive all retries (see below) are real — check for a
 `-retry2` (or `-retryN`) suffix in the failing test's trace/output path to
 tell a genuine failure apart from noise that just hadn't been retried yet.
 
-- All 13 fail together → the bug is in `BoardPanel.tsx` or `Board.tsx`
+- All 9 fail together → the bug is in `BoardPanel.tsx` or `Board.tsx`
   themselves (shared by all three).
 - Only the `/mistakes` tests fail (5, since `clean-move` has no
   `/matches`/`/galaxy/matches` counterpart — see "What it does" above) →

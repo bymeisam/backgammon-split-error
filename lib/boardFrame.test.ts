@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardPositionFlipped } from "@/lib/boardFrame";
+import { boardCubeFor, boardPositionFlipped } from "@/lib/boardFrame";
 
 describe("boardPositionFlipped", () => {
   it("no flip when neither reason holds (a move, default view)", () => {
@@ -22,5 +22,55 @@ describe("boardPositionFlipped", () => {
   it("no decision -> follows the view flag", () => {
     expect(boardPositionFlipped(null, true)).toBe(true);
     expect(boardPositionFlipped(null, false)).toBe(false);
+  });
+});
+
+describe("boardCubeFor", () => {
+  const owned = { value: 2, owner: "mine" as const, confident: true };
+
+  it("a move: the owned cube, beside its owner", () => {
+    expect(
+      boardCubeFor({ cubeState: owned, doubleOffer: null, positionFromOpponent: false }, false)
+    ).toEqual({ kind: "owned", value: 2, owner: "mine" });
+  });
+
+  it("the owned cube flips with the position (fixed perspective on an opponent's move)", () => {
+    expect(
+      boardCubeFor({ cubeState: owned, doubleOffer: null, positionFromOpponent: false }, true)
+    ).toEqual({ kind: "owned", value: 2, owner: "opponent" });
+  });
+
+  it("a take/pass (45282503 g2 Move 16): the offered 4 at the receiver's (bottom) edge, not the current 2", () => {
+    expect(
+      boardCubeFor(
+        {
+          cubeState: { value: 2, owner: "opponent", confident: true },
+          doubleOffer: { value: 4, redouble: true, took: true },
+          positionFromOpponent: true,
+        },
+        false
+      )
+    ).toEqual({ kind: "offered", value: 4, side: "mine" });
+  });
+
+  it("fixed perspective on the opponent's take: the receiver (the opponent) is at the top", () => {
+    expect(
+      boardCubeFor(
+        {
+          cubeState: { value: 1, owner: "center", confident: true },
+          doubleOffer: { value: 2, redouble: false, took: false },
+          positionFromOpponent: true,
+        },
+        true
+      )
+    ).toEqual({ kind: "offered", value: 2, side: "opponent" });
+  });
+
+  it("no cube without a confident state, or without a decision", () => {
+    expect(
+      boardCubeFor({ cubeState: { ...owned, confident: false }, doubleOffer: null, positionFromOpponent: false }, false)
+    ).toBeNull();
+    expect(boardCubeFor({ cubeState: null, doubleOffer: null, positionFromOpponent: false }, false)).toBeNull();
+    expect(boardCubeFor(null, false)).toBeNull();
   });
 });

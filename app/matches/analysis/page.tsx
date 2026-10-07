@@ -101,7 +101,9 @@ function BreakdownTable({
             <th className={style.tableHeadCell}>{keyHeader}</th>
             <th className={style.tableHeadCell}>Blunders</th>
             <th className={style.tableHeadCell}>Errors</th>
-            <th className={style.tableHeadCell}>Doubtful</th>
+            {/* Galaxy's "Good" tier (stored DOUBTFUL): a mild tier, not an
+                error, but still broken out here. */}
+            <th className={style.tableHeadCell}>Good</th>
             <th className={style.tableHeadCell}>Total</th>
           </tr>
         </thead>
@@ -149,8 +151,8 @@ export default async function MatchesAnalysisPage() {
           <p className={style.subtitle}>
             Precomputed from every counted decision with a graded error,
             recomputed in full at the end of every sync run. Total includes
-            all severities (including no-mistake decisions); Blunders/
-            Errors/Doubtful break that down.
+            all severities (including Best decisions); Blunders/Errors/Good
+            break that down.
             {computedAt && <> Last computed {computedAt.toISOString()}.</>}{" "}
             <Link href="/matches" className={style.backLink}>
               ← back to matches

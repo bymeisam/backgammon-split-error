@@ -18,6 +18,7 @@ export default function DecisionCard({
   decision,
   classification,
   matchHref,
+  externalMatchHref,
   moveTab,
   onMoveTabChange,
   canEditNotes,
@@ -25,6 +26,9 @@ export default function DecisionCard({
   decision: Decision;
   classification: string;
   matchHref: string;
+  // "View on Galaxy" (lib/externalMatchUrl.ts) — null for a non-Galaxy
+  // match, which gets no link.
+  externalMatchHref: string | null;
   moveTab: "my" | "best";
   onMoveTabChange: (tab: "my" | "best") => void;
   canEditNotes: boolean;
@@ -34,14 +38,26 @@ export default function DecisionCard({
       <div className={style.cardHeader}>
         <div className={style.cardBadgeGroup}>
           <ClassificationBadge type={classification} />
-          <SeverityBadge type={decision.severity ?? "none"} />
+          <SeverityBadge type={decision.severity ?? "best"} />
           <span className={style.cardErrorText}>
             |error| {decision.absError.toFixed(3)}
           </span>
         </div>
-        <Link href={matchHref} className={style.cardMatchLink}>
-          View match →
-        </Link>
+        <div className={style.cardLinkGroup}>
+          <Link href={matchHref} className={style.cardMatchLink}>
+            View match →
+          </Link>
+          {externalMatchHref && (
+            <a
+              href={externalMatchHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={style.cardMatchLink}
+            >
+              View on Galaxy ↗
+            </a>
+          )}
+        </div>
       </div>
 
       <BoardPanel

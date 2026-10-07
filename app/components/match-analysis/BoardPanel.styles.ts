@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import type { Severity } from "@/lib/mistakes";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
 // used by /matches/[matchId], /galaxy/matches/[matchId] (via
@@ -29,7 +30,7 @@ export const style = {
   // clickable-button variant (onSelectTab provided) and the static-div
   // variant (not provided) for the my-move box, differing only in
   // interactivity (button vs div) and the active-state ring.
-  myMoveBadge: (opts: { severity: "blunder" | "error" | null; isActive: boolean }): string =>
+  myMoveBadge: (opts: { severity: Severity | null; isActive: boolean }): string =>
     clsx(
       "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 transition-colors",
       opts.severity === "blunder"
@@ -41,24 +42,19 @@ export const style = {
     ),
 
   // Function, 1 param -> passed directly. The green best-move box (the
-  // clickable variant): a box around the tab button plus, when present, the
-  // "Doesn't match Galaxy" badge — the badge is outside the <button> so its
-  // title tooltip shows in every browser (see BoardPanel.tsx).
-  bestMoveGroup: (isActive: boolean): string =>
+  // clickable variant).
+  bestMoveButton: (isActive: boolean): string =>
     clsx(
-      "flex items-center rounded-lg border border-green-300 bg-green-50 text-green-700 transition-colors dark:border-green-800 dark:bg-green-950 dark:text-green-300",
+      "flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-green-700 transition-colors dark:border-green-800 dark:bg-green-950 dark:text-green-300",
       isActive ? "ring-1 ring-inset ring-black/30 dark:ring-white/40" : "opacity-70 hover:opacity-100"
     ),
-  // The tab button inside bestMoveGroup — carries the padding the box used
-  // to, so the box looks the same without a badge.
-  bestMoveGroupButton: "flex items-center gap-1.5 self-stretch px-3 py-1.5",
-  // The badge's slot: -ml-1.5 pulls it back to the label's old gap-1.5
-  // spacing (the badge has its own ml-1.5), pr-3 is the box's right padding.
-  bestMoveGroupBadge: "-ml-1.5 flex items-center pr-3",
+  // The opponent's half of a Double/Too good best action ("opponent should
+  // take"), small and grey after the label.
+  bestDetail: "text-[10px] text-zinc-500 dark:text-zinc-400",
 
   // Function, 1 param -> passed directly. The static (non-interactive)
   // my-move box variant, used when onSelectTab isn't provided.
-  myMoveStatic: (severity: "blunder" | "error" | null): string =>
+  myMoveStatic: (severity: Severity | null): string =>
     clsx(
       "flex items-center gap-1.5 rounded-lg border px-3 py-1.5",
       severity === "blunder"

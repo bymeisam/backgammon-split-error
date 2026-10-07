@@ -31,7 +31,7 @@ export const DECISION_LIST_SELECT = {
   // unique-key lookup per returned row, so it only ever touches the page's
   // own rows, never the count query.
   note: { select: { note: true, updatedAt: true } },
-  game: { select: { gameIndex: true, match: { select: { sourceMatchId: true } } } },
+  game: { select: { gameIndex: true, match: { select: { source: true, sourceMatchId: true } } } },
 } satisfies Prisma.DecisionSelect;
 
 // Used to need a second, unfiltered per-game query here to build roll/

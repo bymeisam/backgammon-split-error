@@ -7,10 +7,11 @@ import {
   PAGE_SIZE_OPTIONS,
   buildQueryString,
   describeFilters,
-  lowercaseOptions,
   parseListParams,
   positiveIntParam,
   severityFromParam,
+  severityOptions,
+  severityParamLabel,
   totalPagesFor,
   type SearchParams,
 } from "@/lib/listParams";
@@ -19,7 +20,7 @@ import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
-import { severityKey } from "@/lib/badges";
+import { severityLabel, severityTier } from "@/lib/badges";
 import { getClassificationLabel, phaseOptionsFor, resolvePhaseWhere } from "@/lib/classificationLabels";
 import { style } from "./repeatedPositions.styles";
 
@@ -67,7 +68,7 @@ async function FilterSelects({
         label="Severity"
         name="severity"
         defaultValue={severityParam ?? ""}
-        options={lowercaseOptions(severities)}
+        options={severityOptions(severities)}
         emptyLabel="All"
       />
     </>
@@ -109,7 +110,7 @@ async function PositionListSection({ filters }: { filters: Filters }) {
   return (
     <>
       <p className={style.mutedText}>
-        {total.toLocaleString()} {describeFilters(phase, severityParam)} repeated position
+        {total.toLocaleString()} {describeFilters(phase, severityParamLabel(severityParam))} repeated position
         {total === 1 ? "" : "s"}.
       </p>
 
@@ -134,7 +135,7 @@ async function PositionListSection({ filters }: { filters: Filters }) {
                     <ClassificationBadge type={p.classification} />
                   </td>
                   <td className={style.positionBadgeCell}>
-                    <SeverityBadge type={severityKey(p.errorSeverity)} />
+                    <SeverityBadge type={severityTier(p.errorSeverity)} />
                   </td>
                   <td className={style.positionCell}>
                     <span className={style.positionIdText}>{p.sourcePositionId}</span>
@@ -213,7 +214,7 @@ async function PositionDetailSection({
       </div>
       <p className={style.mutedText}>
         {items.length} occurrence{items.length === 1 ? "" : "s"} of this position (
-        {getClassificationLabel(position.classification)}, {position.errorSeverity.toLowerCase()}
+        {getClassificationLabel(position.classification)}, {severityLabel(position.errorSeverity)}
         {position.plyNumber ? `, ply ${position.plyNumber}` : ""}).
       </p>
       <DecisionListWithDetail items={items} showClassification={false} canEditNotes={isGalaxyEnabled()} />

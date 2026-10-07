@@ -5,13 +5,14 @@ import type {
   Review,
 } from "@/lib/gameReviewsTypes";
 import {
+  cubeListValue,
   cubeStateFromMatchId,
   doubleOfferFor,
   positionFromOpponent,
   type CubeState,
   type DoubleOffer,
 } from "@/lib/cubeState";
-import { deriveCubeActionFromReview } from "@/lib/cubeAction";
+import { cubeBestDisplay, cubePlayedLabel, deriveCubeActionFromReview } from "@/lib/cubeAction";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 export interface FetchedGame {
@@ -20,7 +21,9 @@ export interface FetchedGame {
 }
 
 export type DecisionKind = "checker" | "cube" | "resignation";
-export type Severity = "error" | "blunder";
+// Galaxy's tiers, minus "Best" (error_severity none), which is null here:
+// "good" = doubtful, "error", "blunder". See severityFromErrorSeverity.
+export type Severity = "good" | "error" | "blunder";
 
 // The single mapping from Galaxy's own error_analysis.error_severity to
 // this app's Severity — both extractDecisions (live-fetch: /matches,
@@ -34,17 +37,20 @@ export type Severity = "error" | "blunder";
 // (just under 0.08, so the old threshold said "error") while Galaxy's own
 // error_severity is "blunder" (see lib/__fixtures__/galaxy-payloads/
 // blunder-below-0.08-threshold.json, reports/2026-10-01-decision-raw-
-// field-audit.md finding #1). DOUBTFUL maps to the same "error" bucket
-// ERROR does — lib/mistakes.ts's own Severity type only has "error"/
-// "blunder" (no separate mild-mistake tier), and nothing downstream
-// branches on DOUBTFUL vs ERROR specifically.
+// field-audit.md finding #1). Galaxy's own tiers, as its site names them:
+// none = "Best" (null here), doubtful = "Good", error = "Error", blunder =
+// "Blunder". Since 2026-10-07 DOUBTFUL is its own mild "good" tier, not an
+// error: it's left out of the per-match mistake lists (partitionMistakes
+// below). Before that it was folded into "error". PR math doesn't read
+// severity at all (it's equity-based), so it's unaffected.
 export function severityFromErrorSeverity(severity: RawErrorSeverity): Severity | null {
   switch (severity) {
     case "blunder":
       return "blunder";
     case "error":
-    case "doubtful":
       return "error";
+    case "doubtful":
+      return "good";
     case "none":
       return null;
   }
@@ -61,13 +67,18 @@ export interface Decision {
   severity: Severity | null;
   myLabel: string;
   // For a cube decision this is the action derived from Galaxy's equities
-  // (lib/cubeAction.ts), not Galaxy's own label — see displayLabels below.
+  // (lib/cubeAction.ts), not Galaxy's own label, in Galaxy's wording — see
+  // displayLabels below.
   bestLabel: string;
-  // Galaxy's own best-action label, set only when it disagrees with the
-  // derived bestLabel above (shown as a "Doesn't match Galaxy" badge).
-  // Null/absent otherwise, and always for checker/resignation decisions.
-  galaxyBestLabel?: string | null;
+  // Small grey secondary text after bestLabel: the opponent's half of a
+  // Double/Too good best action ("opponent should take"). Null/absent
+  // otherwise.
+  bestDetail?: string | null;
   roll: number[];
+  // The value in a cube row's square in the decision lists, shown instead of
+  // dice (lib/cubeState.ts's cubeListValue). Null/absent for checker and
+  // resignation rows, or when the Match ID doesn't decode.
+  cubeSquareValue?: number | null;
   sourcePositionId: string | null;
   myMoveNotation: string | null;
   bestMoveNotation: string | null;
@@ -153,24 +164,27 @@ export function actionLabels(review: Review): { mine: string; best: string } {
   return { mine, best: formatCubeAction(cube.receivers_best_action) };
 }
 
-// The labels a decision shows: actionLabels() above, except that a cube
-// decision's "best" is the action derived from Galaxy's own equities
-// (lib/cubeAction.ts) — Galaxy's best-action label is unreliable on old
-// analyses. galaxyBestLabel carries Galaxy's label when the two disagree.
-// actionLabels() itself stays Galaxy's: ingest stores it as
-// Decision.cubeActionBest. `labels` lets the DB-row path pass in the
-// labels it already read from columns.
+// The labels a decision shows: actionLabels() above, in Galaxy's wording
+// for cube and resignation decisions (lib/cubeAction.ts) — "No Double",
+// "Double", "Take", "Pass", "Resign", and "Too good" for a no-double check
+// that was too good to double. A cube decision's "best" is the action
+// derived from Galaxy's own equities (Galaxy's best-action label is
+// unreliable on old analyses), with the opponent's take/pass half as
+// bestDetail. actionLabels() itself stays as stored: ingest stores it as
+// Decision.cubeActionPlayed/cubeActionBest. `labels` and `severity` let the
+// DB-row path pass in the values it already read from columns.
 export function displayLabels(
   review: Review,
-  labels: { mine: string; best: string } = actionLabels(review)
-): { mine: string; best: string; galaxyBestLabel: string | null } {
+  labels: { mine: string; best: string } = actionLabels(review),
+  severity: RawErrorSeverity = review.result.result.error_analysis?.error_severity ?? "none"
+): { mine: string; best: string; bestDetail: string | null } {
+  const event = review.result.analysed_event;
+  if (event === "move") return { ...labels, bestDetail: null };
   const derived = deriveCubeActionFromReview(review);
-  if (!derived) return { ...labels, galaxyBestLabel: null };
-  return {
-    mine: labels.mine,
-    best: derived.action,
-    galaxyBestLabel: derived.matchesGalaxy ? null : derived.galaxyLabel,
-  };
+  const mine = cubePlayedLabel(labels.mine, derived, severity);
+  if (!derived) return { mine, best: labels.best, bestDetail: null };
+  const best = cubeBestDisplay(derived);
+  return { mine, best: best.label, bestDetail: best.detail };
 }
 
 // Exported for lib/decisionFromRow.ts, which builds a Decision straight
@@ -290,7 +304,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         severity: severityFromErrorSeverity(review.result.result.error_analysis.error_severity),
         myLabel: labels.mine,
         bestLabel: labels.best,
-        galaxyBestLabel: labels.galaxyBestLabel,
+        bestDetail: labels.bestDetail,
         // Cube decisions are made before any roll; checker decisions pull the
         // roll from the preceding dice_rolled/game_started event.
         roll: kind === "checker" ? findPrecedingRoll(events, index) : [],
@@ -300,6 +314,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         cubeState: cubeStateFromMatchId(matchId),
         positionFromOpponent: positionFromOpponent(review.result.analysed_event, matchId),
         doubleOffer: doubleOfferFor(review.result.analysed_event, matchId, review.take),
+        cubeSquareValue: cubeListValue(review.result.analysed_event, matchId, review.double),
       });
     }
   }
@@ -374,21 +389,31 @@ export function scopeDecisions(
 export interface PartitionedDecisions {
   checkerDecisions: Decision[];
   cubeDecisions: Decision[];
-  // Mistakes only, each sorted by absError descending.
+  // Listed mistakes only (isListedMistake: no Good tier), each sorted by
+  // absError descending.
   checkerMistakes: Decision[];
   cubeMistakes: Decision[];
   // Both kinds merged, absError descending (ties: checker before cube).
   allMistakes: Decision[];
 }
 
+// Whether a decision is listed as a mistake on the match pages: any error
+// at all, except Galaxy's mild "Good" tier (doubtful), which isn't an error
+// (since 2026-10-07). PR doesn't use this: computePR still counts every
+// isMistake decision, so hiding Good rows changes no PR.
+export function isListedMistake(d: Decision): boolean {
+  return d.isMistake && d.severity !== "good";
+}
+
 // Splits decisions into checker / cube (resignations belong to neither —
-// they don't count toward either PR), and each side's mistakes worst-first.
+// they don't count toward either PR), and each side's listed mistakes
+// (isListedMistake) worst-first.
 export function partitionMistakes(decisions: Decision[]): PartitionedDecisions {
   const byErrorDesc = (a: Decision, b: Decision) => b.absError - a.absError;
   const checkerDecisions = decisions.filter((d) => d.kind === "checker");
   const cubeDecisions = decisions.filter((d) => d.kind === "cube");
-  const checkerMistakes = checkerDecisions.filter((d) => d.isMistake).sort(byErrorDesc);
-  const cubeMistakes = cubeDecisions.filter((d) => d.isMistake).sort(byErrorDesc);
+  const checkerMistakes = checkerDecisions.filter(isListedMistake).sort(byErrorDesc);
+  const cubeMistakes = cubeDecisions.filter(isListedMistake).sort(byErrorDesc);
   return {
     checkerDecisions,
     cubeDecisions,

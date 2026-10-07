@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cubeListValue,
   cubeSide,
   cubeStateFromMatchId,
   doubleOfferFor,
@@ -141,5 +142,31 @@ describe("doubleOfferLabel", () => {
     expect(doubleOfferLabel({ value: 8, redouble: true, took: null }, true, "black")).toBe(
       "Opponent redoubles to 8"
     );
+  });
+});
+
+describe("cubeListValue — the cube square in the decision lists", () => {
+  const centred = decodeGnuMatchId("MAGzAAAACAAE"); // cube 1, centred
+  const owned2 = decodeGnuMatchId("ARmgAAAACAAE"); // cube 2, owned
+
+  it("a take/pass shows the offered value (twice the cube entering the decision)", () => {
+    expect(cubeListValue("cube_pass", owned2, null)).toBe(4);
+    expect(cubeListValue("cube_pass", centred, null)).toBe(2);
+  });
+
+  it("a double shows the offered value — never below 2", () => {
+    expect(cubeListValue("cube_double", centred, true)).toBe(2);
+    expect(cubeListValue("cube_double", owned2, true)).toBe(4);
+  });
+
+  it("a no-double check shows the current cube", () => {
+    expect(cubeListValue("cube_double", centred, false)).toBe(1);
+    expect(cubeListValue("cube_double", owned2, null)).toBe(2);
+  });
+
+  it("null for a checker move, a resignation, or no Match ID", () => {
+    expect(cubeListValue("move", owned2, null)).toBeNull();
+    expect(cubeListValue("resignation", owned2, null)).toBeNull();
+    expect(cubeListValue("cube_pass", null, true)).toBeNull();
   });
 });

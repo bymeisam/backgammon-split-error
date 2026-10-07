@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computePR,
   decodeRollFromMoves,
+  isListedMistake,
   extractDecisions,
   formatPR,
   partitionMistakes,
@@ -97,11 +98,34 @@ describe("formatPR", () => {
 });
 
 describe("severityFromErrorSeverity", () => {
-  it("maps blunder/error/doubtful/none to this app's narrower Severity", () => {
+  it("maps Galaxy's tiers: doubtful is its own mild Good tier, not an error", () => {
     expect(severityFromErrorSeverity("blunder")).toBe("blunder");
     expect(severityFromErrorSeverity("error")).toBe("error");
-    expect(severityFromErrorSeverity("doubtful")).toBe("error");
+    expect(severityFromErrorSeverity("doubtful")).toBe("good");
     expect(severityFromErrorSeverity("none")).toBeNull();
+  });
+});
+
+describe("partitionMistakes — Good (doubtful) decisions aren't listed as mistakes", () => {
+  const decisions = [
+    d("e", { kind: "checker", isMistake: true, absError: 0.05, severity: "error" }),
+    d("g", { kind: "checker", isMistake: true, absError: 0.01, severity: "good" }),
+    d("b", { kind: "cube", isMistake: true, absError: 0.2, severity: "blunder" }),
+    d("gc", { kind: "cube", isMistake: true, absError: 0.015, severity: "good" }),
+  ];
+  const p = partitionMistakes(decisions);
+
+  it("leaves them out of both mistake lists", () => {
+    expect(ids(p.checkerMistakes)).toEqual(["e"]);
+    expect(ids(p.cubeMistakes)).toEqual(["b"]);
+    expect(ids(p.allMistakes)).toEqual(["b", "e"]);
+    expect(isListedMistake(decisions[1])).toBe(false);
+    expect(isListedMistake(decisions[0])).toBe(true);
+  });
+
+  it("keeps them in the decisions PR is computed over, so PR is unchanged", () => {
+    expect(ids(p.checkerDecisions)).toEqual(["e", "g"]);
+    expect(computePR(p.checkerDecisions, () => true).pr).toBeCloseTo((0.06 / 2) * 500);
   });
 });
 

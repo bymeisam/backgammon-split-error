@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BAR_COL,
+  CUBE_BADGE_R,
   CUBE_COL_W,
   MARGIN,
   MAX_STACK,
@@ -13,6 +14,7 @@ import {
   colCenterX,
   colX,
   cubeBadgeCenter,
+  offeredCubeCenter,
   isOffSlotFilled,
   moveAnchor,
   nextOffSlotIndex,
@@ -330,5 +332,17 @@ describe("cube gutter / cubeBadgeCenter", () => {
     expect(x).toBeGreaterThan(MARGIN);
     expect(x).toBeLessThan(MARGIN + CUBE_COL_W);
     expect(x).toBeLessThan(colX(0));
+  });
+});
+
+describe("offeredCubeCenter — the offered cube on a take/pass board", () => {
+  it("is centred horizontally on the playing field (the bar column)", () => {
+    expect(offeredCubeCenter("mine").x).toBe(colCenterX(BAR_COL));
+    expect(offeredCubeCenter("opponent").x).toBe(colCenterX(BAR_COL));
+  });
+
+  it("sits flush against the receiver's edge: bottom for mine, top for opponent", () => {
+    expect(offeredCubeCenter("mine").y).toBe(Y1 - CUBE_BADGE_R - 2);
+    expect(offeredCubeCenter("opponent").y).toBe(Y0 + CUBE_BADGE_R + 2);
   });
 });

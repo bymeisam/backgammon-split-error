@@ -15,10 +15,13 @@
 // across its three real call sites. Not quite a uniform "N decisions x 3
 // contexts" grid: /matches/[matchId] and /galaxy/matches/[matchId] go
 // through MistakesSection.tsx's own tables, which only ever list
-// isMistake: true decisions (lib/mistakes.ts's partitionMistakes) — so
-// those two contexts use MISTAKE_DECISIONS (4), while /mistakes has no such
-// restriction and uses the full DECISIONS (5, including clean-move, the one
-// isMistake: false representative). 13 board screenshots total (4x2 + 5),
+// isMistake: true decisions outside the Good tier (lib/mistakes.ts's
+// partitionMistakes) — so those two contexts use MISTAKE_DECISIONS (2:
+// bar-checkers, normal-midgame), while /mistakes has no such restriction
+// and uses the full DECISIONS (5, including clean-move, the one
+// isMistake: false representative, and the two Good-tier ones). 9 board
+// screenshots total (2x2 + 5) since 2026-10-07 (13 before, when Good-tier
+// decisions were still listed on the match pages),
 // all run against one dedicated dev server (playwright.config.ts's
 // webServer, port 3100 — never the real dev server on :3000, and never
 // affected by whatever the real .env currently points at):
@@ -114,14 +117,19 @@ const DECISIONS: RepresentativeDecision[] = [
   },
 ];
 
-// MistakesSection.tsx's own tables (lib/mistakes.ts's partitionMistakes)
-// only ever list isMistake: true decisions — clean-move never appears
-// there by design, so it's excluded from the /matches and
-// /galaxy/matches loops below (clicking for it there would just time out).
-// /mistakes has no such restriction (its default/unfiltered view includes
-// clean decisions too — see lib/decisionQueries.ts/app/mistakes/page.tsx),
-// so it alone uses the full DECISIONS list.
-const MISTAKE_DECISIONS = DECISIONS.filter((d) => d.name !== "clean-move");
+// MistakesSection.tsx's own tables (lib/mistakes.ts's partitionMistakes /
+// isListedMistake) only ever list isMistake: true decisions that aren't in
+// Galaxy's mild "Good" tier (stored DOUBTFUL — not an error since
+// 2026-10-07). clean-move (no error) and near-bearoff/both-arrows (both
+// Good) never appear there by design, so they're excluded from the
+// /matches and /galaxy/matches loops below (clicking for them there would
+// just time out). /mistakes has no such restriction (its default/
+// unfiltered view includes clean decisions too, and its severity filter
+// still selects DOUBTFUL by value — see lib/decisionQueries.ts/
+// app/mistakes/page.tsx), so it alone uses the full DECISIONS list.
+const MISTAKE_DECISIONS = DECISIONS.filter(
+  (d) => d.name !== "clean-move" && d.mistakesFilter.severity !== "doubtful"
+);
 
 function gameIndexFromUrl(url: string): number | null {
   const segments = new URL(url).pathname.split("/").filter(Boolean);
@@ -305,6 +313,17 @@ test.describe("Shared markup visual regression", () => {
     // Same correctness-before-screenshot signal the board tests already
     // use for /mistakes — the click can land before hydration finishes.
     await expect(boardPanel(page)).toContainText(MULTI_ROW_DECISION.myLabel);
+    // Since 2026-10-07 the severity badges show full names ("Error", not
+    // "E"), which makes these two rows a few px wider than the 380px list,
+    // so its table scrolls horizontally — and the click above can leave it
+    // scrolled by a varying amount. Reset it to the left edge so the
+    // screenshot is deterministic.
+    await mistakeRowList(page)
+      .locator(".overflow-x-auto")
+      .first()
+      .evaluate((el) => {
+        el.scrollLeft = 0;
+      });
     await expect(mistakeRowList(page)).toHaveScreenshot("mistake-row-list.png");
   });
 

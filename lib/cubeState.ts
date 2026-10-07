@@ -106,6 +106,23 @@ export function doubleOfferLabel(
   return response ? `${offerText}: ${receiver} ${response}` : offerText;
 }
 
+// The value in a cube row's square in the decision lists (Galaxy's lists
+// show this square instead of dice on cube rows): the offered value — twice
+// the cube entering the decision, so never below 2 — on a double
+// (cube_double where the player doubled) and on a take/pass (cube_pass);
+// the current cube on a no-double check. Null for anything else, or when
+// the Match ID doesn't decode.
+export function cubeListValue(
+  analysedEvent: string,
+  m: DecodedMatchId | null,
+  doubled: boolean | null | undefined
+): number | null {
+  if (!m) return null;
+  if (analysedEvent === "cube_pass") return m.cubeValue * 2;
+  if (analysedEvent === "cube_double") return doubled ? m.cubeValue * 2 : m.cubeValue;
+  return null;
+}
+
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }

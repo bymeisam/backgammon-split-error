@@ -11,6 +11,8 @@ import {
   lowercaseParam,
   parseListParams,
   severityFromParam,
+  severityOptions,
+  severityParamLabel,
   totalPagesFor,
   type SearchParams,
 } from "@/lib/listParams";
@@ -78,7 +80,7 @@ async function FilterSelects({
         label="Severity"
         name="severity"
         defaultValue={severityParam ?? ""}
-        options={lowercaseOptions(severities)}
+        options={severityOptions(severities)}
         emptyLabel="All"
       />
     </>
@@ -133,7 +135,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   return (
     <>
       <p className={style.mutedText}>
-        {total.toLocaleString()} {describeFilters(phase, categoryParam, severityParam)} decision
+        {total.toLocaleString()} {describeFilters(phase, categoryParam, severityParamLabel(severityParam))} decision
         {total === 1 ? "" : "s"}.
       </p>
 

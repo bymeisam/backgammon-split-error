@@ -10,25 +10,35 @@
 // The 17 real classification values aren't guessed — confirmed live
 // earlier this session via /mistakes's MistakeStat-sourced filter dropdown
 // (see PROGRESS.md's 2026-09-24 badge entries).
+//
+// Labels are Galaxy's own display names for the same keys (since
+// 2026-10-07), from its web client's blunder-categories page
+// (reports/2026-10-07-galaxy-client-comparison.md), and listed here in
+// Galaxy's display order. Galaxy's client also accepts a few alternative
+// spellings of these keys (e.g. "blitz_early", "six_prime"); none occur in
+// our data, so they aren't mapped.
 export const CLASSIFICATION_LABELS_BY_RAW_VALUE: Record<string, string> = {
-  "6_prime": "6-Prime",
-  attacking_game: "Attacking Game",
-  blitz: "Blitz",
-  close_out: "Close Out",
-  crunching_game: "Crunching Game",
-  deep_anchor_game: "Deep Anchor Game",
-  early_backgame: "Early Backgame",
-  early_blitz: "Early Blitz",
-  end_game_contact: "End Game Contact",
-  holding_game: "Holding Game",
-  late_backgame: "Late Backgame",
-  late_game_hit: "Late Game Hit",
-  middle_game: "Middle Game",
-  mutual_holding_game: "Mutual Holding Game",
-  one_man_back: "One Man Back",
-  opening_game: "Opening",
+  opening_game: "Opening game",
+  middle_game: "Middle game",
   race: "Race",
+  early_blitz: "Blitz, early",
+  blitz: "Blitz, middle and late",
+  attacking_game: "Attacking game",
+  mutual_holding_game: "Mutual holding game",
+  one_man_back: "One man back",
+  holding_game: "Holding game",
+  deep_anchor_game: "Deep anchor game",
+  end_game_contact: "Endgame contact",
+  crunching_game: "Crunching game",
+  "6_prime": "6 prime",
+  early_backgame: "Backgame, early",
+  late_backgame: "Backgame, late",
+  late_game_hit: "Late game hit",
+  close_out: "Close out",
 };
+
+// Galaxy's display order, by key (the order of the map above).
+const GALAXY_ORDER = Object.keys(CLASSIFICATION_LABELS_BY_RAW_VALUE);
 
 // Falls back to the raw value itself rather than throwing — classification
 // values live in Galaxy's data, not this codebase, so a value outside the
@@ -79,16 +89,22 @@ const FIXED_PHASE_OPTIONS: PhaseOption[] = [
 
 const FIXED_PHASE_BY_VALUE = new Map(FIXED_PHASE_OPTIONS.map((o) => [o.value, o]));
 
-// Builds the full Phase dropdown: the 5 fixed options above, followed by
-// every OTHER classification actually present (opening_game excluded — it's
-// already covered by "Opening (both plies)") — sourced dynamically from
-// whatever the caller passes (a live distinct-values query against
-// MistakeStat/RepeatedPosition), not a hardcoded list, so a classification
-// Galaxy adds in the future shows up automatically without a code change.
+// Builds the full Phase dropdown: the 5 fixed options above (our own
+// buckets, which keep their own labels), followed by every OTHER
+// classification actually present (opening_game excluded — it's already
+// covered by "Opening (both plies)") — sourced dynamically from whatever the
+// caller passes (a live distinct-values query against MistakeStat/
+// RepeatedPosition), not a hardcoded list, so a classification Galaxy adds
+// in the future shows up automatically without a code change. Known keys
+// come in Galaxy's display order; unknown ones after them, alphabetically.
 export function phaseOptionsFor(rawClassifications: string[]): PhaseOption[] {
+  const rank = (c: string) => {
+    const i = GALAXY_ORDER.indexOf(c);
+    return i === -1 ? GALAXY_ORDER.length : i;
+  };
   const remaining = rawClassifications
     .filter((c) => c !== "opening_game")
-    .sort()
+    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
     .map((c) => ({ value: c, label: getClassificationLabel(c), where: { classification: c } }));
   return [...FIXED_PHASE_OPTIONS, ...remaining];
 }

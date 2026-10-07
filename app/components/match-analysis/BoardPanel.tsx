@@ -4,11 +4,9 @@ import { useMemo } from "react";
 import type { Decision } from "@/lib/mistakes";
 import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
 import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
-import { flipCubeState } from "@/lib/cubeState";
-import { boardPositionFlipped } from "@/lib/boardFrame";
+import { boardCubeFor, boardPositionFlipped } from "@/lib/boardFrame";
 import Board from "./Board";
 import DecisionNote from "./DecisionNote";
-import GalaxyMismatchBadge from "./GalaxyMismatchBadge";
 import { style } from "./BoardPanel.styles";
 
 const BLUNDER_COLOR = "#dc2626"; // red-600
@@ -74,10 +72,10 @@ export default function BoardPanel({
         ? BLUNDER_COLOR
         : ERROR_COLOR;
 
-  // Mirrors the decoded flip above — applied once, here, before Board ever
-  // sees it.
-  const cubeState =
-    selected?.cubeState && flipPosition ? flipCubeState(selected.cubeState) : (selected?.cubeState ?? null);
+  // The cube to draw: the owned cube, flipped with the position above, or on
+  // a take/pass the offered cube at the receiver's edge — worked out once,
+  // here, before Board ever sees it.
+  const cube = boardCubeFor(selected, flipped);
 
   return (
     <div className={style.panelStack}>
@@ -91,7 +89,7 @@ export default function BoardPanel({
             arrowColor={arrowColor}
             roll={selected.roll}
             flipped={flipped}
-            cubeState={cubeState}
+            cube={cube}
           />
         ) : (
           <p className={style.emptyState}>No position data for this decision.</p>
@@ -113,25 +111,14 @@ export default function BoardPanel({
                   <span className={style.moveNotation}>{selected.myLabel}</span>
                   <span className={style.mutedLabel}>({selected.absError.toFixed(3)})</span>
                 </button>
-                {/* The badge sits beside the button, inside the same green
-                    box, not inside the <button>: Firefox and Safari show
-                    a tooltip for the button itself on hover over its
-                    content, so a title on a child of a button never shows
-                    there. */}
-                <div className={style.bestMoveGroup(moveTab === "best")}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectTab("best")}
-                    className={style.bestMoveGroupButton}
-                  >
-                    <span className={style.moveNotation}>{selected.bestLabel}</span>
-                  </button>
-                  {selected.galaxyBestLabel != null && (
-                    <span className={style.bestMoveGroupBadge}>
-                      <GalaxyMismatchBadge galaxyLabel={selected.galaxyBestLabel} />
-                    </span>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("best")}
+                  className={style.bestMoveButton(moveTab === "best")}
+                >
+                  <span className={style.moveNotation}>{selected.bestLabel}</span>
+                  {selected.bestDetail && <span className={style.bestDetail}>{selected.bestDetail}</span>}
+                </button>
               </>
             ) : (
               <>
@@ -143,7 +130,7 @@ export default function BoardPanel({
                 <div className={style.bestMoveStatic}>
                   <span className={style.mutedLabel}>Best move</span>
                   <span className={style.moveNotation}>{selected.bestLabel}</span>
-                  <GalaxyMismatchBadge galaxyLabel={selected.galaxyBestLabel} />
+                  {selected.bestDetail && <span className={style.bestDetail}>{selected.bestDetail}</span>}
                 </div>
               </>
             )}

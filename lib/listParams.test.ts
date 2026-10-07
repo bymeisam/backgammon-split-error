@@ -4,6 +4,8 @@ import {
   categoryFromParam,
   describeFilters,
   lowercaseOptions,
+  severityOptions,
+  severityParamLabel,
   lowercaseParam,
   pageHref,
   parseListParams,
@@ -134,5 +136,23 @@ describe("lowercaseOptions", () => {
       { value: "checker", label: "checker" },
       { value: "cube", label: "cube" },
     ]);
+  });
+});
+
+describe("severityOptions / severityParamLabel — Galaxy's names, same values", () => {
+  it("submits the lowercase enum value, shows Galaxy's name, in Galaxy's order", () => {
+    expect(severityOptions(["BLUNDER", "DOUBTFUL", "ERROR", "NONE"])).toEqual([
+      { value: "none", label: "Best" },
+      { value: "doubtful", label: "Good" },
+      { value: "error", label: "Error" },
+      { value: "blunder", label: "Blunder" },
+    ]);
+  });
+
+  it("names a ?severity= value, passing an unknown one through", () => {
+    expect(severityParamLabel("doubtful")).toBe("Good");
+    expect(severityParamLabel("none")).toBe("Best");
+    expect(severityParamLabel("bogus")).toBe("bogus");
+    expect(severityParamLabel(undefined)).toBeUndefined();
   });
 });

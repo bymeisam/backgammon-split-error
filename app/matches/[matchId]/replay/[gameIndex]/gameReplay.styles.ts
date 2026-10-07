@@ -10,6 +10,9 @@ export const style = {
 
   headerBlock: "flex w-full flex-wrap items-baseline justify-between gap-2",
   title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
+  // "← Back to match" and "View on Galaxy", side by side.
+  headerLinks: "flex flex-wrap items-baseline gap-4",
+  // Shared by both header links.
   backLink:
     "text-sm text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
   notFoundBox:

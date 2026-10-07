@@ -27,9 +27,8 @@ import type {
   DecisionKind as PrismaDecisionKind,
   ErrorSeverity as PrismaErrorSeverity,
 } from "@/lib/generated/prisma/client";
-import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
+import type { ErrorSeverity as RawErrorSeverity, GameEvent, Review } from "@/lib/gameReviewsTypes";
 import {
-  actionLabels,
   displayLabels,
   severityFromErrorSeverity,
   type Decision,
@@ -37,6 +36,7 @@ import {
   type Severity,
 } from "@/lib/mistakes";
 import {
+  cubeListValue,
   cubeSide,
   doubleOfferFor,
   positionFromOpponent,
@@ -44,6 +44,7 @@ import {
   type DoubleOffer,
 } from "@/lib/cubeState";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
+import { externalMatchUrl } from "@/lib/externalMatchUrl";
 
 // myLabel/bestLabel for CHECKER/CUBE kind come straight from the row's own
 // columns (same values actionLabels(review) would compute — confirmed
@@ -54,20 +55,26 @@ import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 // the same treatment.
 //
 // CUBE kind's displayed "best" is then replaced by the action derived from
-// the row's own cube equities (displayLabels, lib/cubeAction.ts) —
-// cubeActionBest stays Galaxy's label, which is unreliable on old analyses;
-// it's surfaced as galaxyBestLabel when the two disagree.
+// the row's own cube equities, and CUBE/RESIGNATION labels are put in
+// Galaxy's wording (displayLabels, lib/cubeAction.ts) — cubeActionBest
+// stays Galaxy's stored label, which is unreliable on old analyses and
+// isn't displayed.
 function labelsFor(
   row: DecisionRow,
   review: Review
-): { mine: string; best: string; galaxyBestLabel: string | null } {
+): { mine: string; best: string; bestDetail: string | null } {
   if (row.kind === "CHECKER") {
-    return { mine: row.movePlayed ?? "?", best: row.moveBest ?? "?", galaxyBestLabel: null };
+    return { mine: row.movePlayed ?? "?", best: row.moveBest ?? "?", bestDetail: null };
   }
+  const severity = row.errorSeverity.toLowerCase() as RawErrorSeverity;
   if (row.kind === "CUBE") {
-    return displayLabels(review, { mine: row.cubeActionPlayed ?? "?", best: row.cubeActionBest ?? "?" });
+    return displayLabels(
+      review,
+      { mine: row.cubeActionPlayed ?? "?", best: row.cubeActionBest ?? "?" },
+      severity
+    );
   }
-  return { ...actionLabels(review), galaxyBestLabel: null };
+  return displayLabels(review, undefined, severity);
 }
 
 // The board's cube for this row. cubeValue/cubeConfident are the stored
@@ -85,14 +92,20 @@ function cubeStateFor(row: DecisionRow, review: Review): CubeState | null {
   return { value: row.cubeValue, owner: cubeSide(m.cubeOwner, m.diceOwner), confident: true };
 }
 
-// The board-frame and take/pass fields shared by both builders below — see
-// Decision.positionFromOpponent/doubleOffer in lib/mistakes.ts.
-function boardFrameFor(review: Review): { positionFromOpponent: boolean; doubleOffer: DoubleOffer | null } {
+// The board-frame, take/pass and list-square fields shared by both
+// builders below — see Decision.positionFromOpponent/doubleOffer/
+// cubeSquareValue in lib/mistakes.ts.
+function boardFrameFor(review: Review): {
+  positionFromOpponent: boolean;
+  doubleOffer: DoubleOffer | null;
+  cubeSquareValue: number | null;
+} {
   const m = decodeGnuMatchId(review.source_match?.formatted_value);
   const event = review.result.analysed_event;
   return {
     positionFromOpponent: positionFromOpponent(event, m),
     doubleOffer: doubleOfferFor(event, m, review.take),
+    cubeSquareValue: cubeListValue(event, m, review.double),
   };
 }
 
@@ -122,7 +135,7 @@ export const KIND_MAP: Record<PrismaDecisionKind, DecisionKind> = {
 // comment for the real example that proved it). Exported for the same
 // reason as KIND_MAP above.
 export function severityFor(severity: PrismaErrorSeverity): Severity | null {
-  return severityFromErrorSeverity(severity.toLowerCase() as "none" | "doubtful" | "error" | "blunder");
+  return severityFromErrorSeverity(severity.toLowerCase() as RawErrorSeverity);
 }
 
 export interface DecisionRow {
@@ -185,7 +198,7 @@ export function decisionFromRow(row: DecisionRow): Decision | null {
   const review = event.reviews?.[0];
   if (!review) return null;
 
-  const { mine, best, galaxyBestLabel } = labelsFor(row, review);
+  const { mine, best, bestDetail } = labelsFor(row, review);
   const myMoveNotation = row.movePlayed;
   const bestMoveNotation = row.moveBest;
   const absError = Math.abs(row.rawError);
@@ -201,7 +214,7 @@ export function decisionFromRow(row: DecisionRow): Decision | null {
     severity: severityFor(row.errorSeverity),
     myLabel: mine,
     bestLabel: best,
-    galaxyBestLabel,
+    bestDetail,
     roll: rollForRow(row),
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
@@ -232,7 +245,7 @@ export function decisionFromRowForReplay(row: DecisionRow): Decision | null {
   const review = event.reviews?.[0];
   if (!review) return null;
 
-  const { mine, best, galaxyBestLabel } = labelsFor(row, review);
+  const { mine, best, bestDetail } = labelsFor(row, review);
   const myMoveNotation = row.movePlayed;
   const bestMoveNotation = row.moveBest;
   const absError = row.rawError === null ? 0 : Math.abs(row.rawError);
@@ -248,7 +261,7 @@ export function decisionFromRowForReplay(row: DecisionRow): Decision | null {
     severity: severityFor(row.errorSeverity),
     myLabel: mine,
     bestLabel: best,
-    galaxyBestLabel,
+    bestDetail,
     roll: rollForRow(row),
     sourcePositionId: row.sourcePositionId,
     myMoveNotation,
@@ -266,12 +279,15 @@ export interface DecisionListItem {
   decision: Decision;
   classification: string;
   matchHref: string;
+  // The match on its source platform ("View on Galaxy"), or null for a
+  // source with no such page — lib/externalMatchUrl.ts.
+  externalMatchHref: string | null;
 }
 
-// A DecisionRow plus the two extra fields a list item needs.
+// A DecisionRow plus the extra fields a list item needs.
 export interface DecisionListRow extends DecisionRow {
   classification: string;
-  game: { gameIndex: number; match: { sourceMatchId: string } };
+  game: { gameIndex: number; match: { source: string; sourceMatchId: string } };
 }
 
 // Rows (in display order) -> list items, dropping any row decisionFromRow
@@ -285,6 +301,7 @@ export function toDecisionListItems(rows: DecisionListRow[]): DecisionListItem[]
       decision,
       classification: row.classification,
       matchHref: `/matches/${row.game.match.sourceMatchId}`,
+      externalMatchHref: externalMatchUrl(row.game.match.source, row.game.match.sourceMatchId),
     });
   }
   return items;

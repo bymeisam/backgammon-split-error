@@ -4,6 +4,7 @@ import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { decisionFromRowForReplay } from "@/lib/decisionFromRow";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
+import { externalMatchUrl } from "@/lib/externalMatchUrl";
 import GameReplay from "./GameReplay";
 import { style } from "./gameReplay.styles";
 
@@ -170,6 +171,8 @@ export default async function GameReplayPage({
     .map((d) => ({ ...d, color: colorByUserId.get(d.userId) ?? d.color }));
 
   const initialIndex = position === "last" ? Math.max(0, decisions.length - 1) : 0;
+  // "View on Galaxy" — null (no link) for a non-Galaxy match.
+  const externalHref = externalMatchUrl(match.source, match.sourceMatchId);
 
   return (
     <div className={style.pageContainer}>
@@ -178,9 +181,16 @@ export default async function GameReplayPage({
           <h1 className={style.title}>
             Match {matchId} — Game {gameIndex} replay
           </h1>
-          <Link href={`/matches/${matchId}`} className={style.backLink}>
-            ← Back to match
-          </Link>
+          <div className={style.headerLinks}>
+            <Link href={`/matches/${matchId}`} className={style.backLink}>
+              ← Back to match
+            </Link>
+            {externalHref && (
+              <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.backLink}>
+                View on Galaxy ↗
+              </a>
+            )}
+          </div>
         </div>
 
         {decisions.length === 0 ? (

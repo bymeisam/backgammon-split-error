@@ -45,7 +45,7 @@ function row(overrides: Partial<DecisionListRow> = {}): DecisionListRow {
     raw: event,
     classification: "opening_game",
     note: null,
-    game: { gameIndex: 3, match: { sourceMatchId: "46576635" } },
+    game: { gameIndex: 3, match: { source: "galaxy", sourceMatchId: "46576635" } },
     ...overrides,
   };
 }
@@ -142,14 +142,14 @@ describe("decisionFromRow / decisionFromRowForReplay — notation from the colum
   });
 });
 
-describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: column for CHECKER/CUBE (CUBE best derived from equities), actionLabels() for RESIGNATION", () => {
+describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: column for CHECKER/CUBE (CUBE best derived from equities, Galaxy's wording), actionLabels() for RESIGNATION", () => {
   it("CHECKER kind: myLabel/bestLabel come from movePlayed/moveBest (same column as myMoveNotation/bestMoveNotation)", () => {
     const decision = decisionFromRow(baseRow({ movePlayed: "13/7", moveBest: "13/9" }));
     expect(decision?.myLabel).toBe("13/7");
     expect(decision?.bestLabel).toBe("13/9");
   });
 
-  it("CUBE kind: myLabel comes from cubeActionPlayed, not re-parsed raw", () => {
+  it("CUBE kind: myLabel comes from cubeActionPlayed (in Galaxy's wording), not re-parsed raw", () => {
     // Real cube_double event from the fixture (low-confidence-doubtful.json)
     // — deliberately different literal values than actionLabels(review)
     // would derive from it, so a silent raw-reparse would be caught.
@@ -170,15 +170,15 @@ describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: colu
         raw: cubeEvent,
       })
     );
-    expect(decision?.myLabel).toBe("doubled");
+    // "doubled" -> Galaxy's "Double".
+    expect(decision?.myLabel).toBe("Double");
     // bestLabel is derived from the row's own cube equities (ND −0.02,
-    // DT −0.12, DP 1 -> No double/take), not cubeActionBest — Galaxy's
-    // label agrees here ("no double" + "take"), so no mismatch badge.
-    expect(decision?.bestLabel).toBe("No double/take");
-    expect(decision?.galaxyBestLabel).toBeNull();
+    // DT −0.12, DP 1 -> No double/take -> "No Double"), not cubeActionBest.
+    expect(decision?.bestLabel).toBe("No Double");
+    expect(decision?.bestDetail).toBeNull();
   });
 
-  it("CUBE kind: a derived action Galaxy's label disagrees with carries Galaxy's label (C2, decision 629849)", () => {
+  it("CUBE kind: the derived action wins over Galaxy's stuck 'roll' label (C2, decision 629849, 29939852 g1 Move 14)", () => {
     const cubeEvent = lowConfidenceDoubtful.data.events.find(
       (e: { reviews?: { result: { analysed_event: string } }[] }) =>
         e.reviews?.[0]?.result.analysed_event === "cube_double"
@@ -204,9 +204,36 @@ describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: colu
         raw,
       })
     );
-    expect(decision?.myLabel).toBe("did not double");
-    expect(decision?.bestLabel).toBe("Double/take");
-    expect(decision?.galaxyBestLabel).toBe("roll");
+    expect(decision?.myLabel).toBe("No Double");
+    expect(decision?.bestLabel).toBe("Double");
+    expect(decision?.bestDetail).toBe("opponent should take");
+    expect(decision?.severity).toBe("blunder");
+  });
+
+  it("CUBE kind: a no-double check too good to double, graded none, reads Too good", () => {
+    const cubeEvent = lowConfidenceDoubtful.data.events.find(
+      (e: { reviews?: { result: { analysed_event: string } }[] }) =>
+        e.reviews?.[0]?.result.analysed_event === "cube_double"
+    )!;
+    const raw = structuredClone(cubeEvent) as typeof cubeEvent;
+    Object.assign(raw.reviews[0].result.result.cube_analysis, { no_double: 1.2, double_take: 1.5, double_pass: 1 });
+    Object.assign(raw.reviews[0].result.result.error_analysis, { error_severity: "none" });
+    const decision = decisionFromRow(
+      baseRow({
+        kind: "CUBE",
+        eventId: BigInt(cubeEvent.id),
+        rawError: 0,
+        errorSeverity: "NONE",
+        movePlayed: null,
+        moveBest: null,
+        cubeActionPlayed: "did not double",
+        cubeActionBest: "roll",
+        raw,
+      })
+    );
+    expect(decision?.myLabel).toBe("Too good");
+    expect(decision?.bestLabel).toBe("Too good");
+    expect(decision?.bestDetail).toBe("opponent should pass");
   });
 
   it("RESIGNATION kind: myLabel/bestLabel still call actionLabels() against raw — no column for this kind, deliberately", () => {
@@ -222,7 +249,7 @@ describe("decisionFromRow / decisionFromRowForReplay — myLabel/bestLabel: colu
         raw: resignEvent,
       })
     );
-    expect(decision?.myLabel).toBe("resigned");
+    expect(decision?.myLabel).toBe("Resign");
     expect(decision?.bestLabel).toBe("should resign"); // this fixture's should_resign: true
   });
 });
@@ -323,6 +350,8 @@ describe("decisionFromRow / decisionFromRowForReplay — take/pass board frame a
       );
       expect(decision?.positionFromOpponent).toBe(true);
       expect(decision?.doubleOffer).toEqual({ value: 4, redouble: true, took: true });
+      // The list's cube square shows the offered value.
+      expect(decision?.cubeSquareValue).toBe(4);
     }
   });
 
@@ -330,6 +359,7 @@ describe("decisionFromRow / decisionFromRowForReplay — take/pass board frame a
     const decision = decisionFromRow(baseRow({ raw: rawWithMatchId("QQmxAAAACAAE") }));
     expect(decision?.positionFromOpponent).toBe(false);
     expect(decision?.doubleOffer).toBeNull();
+    expect(decision?.cubeSquareValue).toBeNull();
   });
 });
 
@@ -352,11 +382,19 @@ describe("toDecisionListItems", () => {
     const [item] = toDecisionListItems([row()]);
     expect(item.classification).toBe("opening_game");
     expect(item.matchHref).toBe("/matches/46576635");
+    expect(item.externalMatchHref).toBe(
+      "https://www.backgammongalaxy.com/play/page_analysis_match_details?match_id=46576635"
+    );
     expect(item.decision.id).toBe("1");
     expect(item.decision.gameIndex).toBe(3);
     expect(item.decision.severity).toBe("blunder");
     expect(item.decision.absError).toBeCloseTo(0.12);
     expect(item.decision.sourcePositionId).toBe("4HPwATDgc/ABMA");
+  });
+
+  it("no external link for a match from a non-Galaxy source", () => {
+    const [item] = toDecisionListItems([row({ game: { gameIndex: 3, match: { source: "xg", sourceMatchId: "1" } } })]);
+    expect(item.externalMatchHref).toBeNull();
   });
 
   it("reads roll from the row's own column, not a lookup — null becomes []", () => {

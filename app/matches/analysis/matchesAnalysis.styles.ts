@@ -14,11 +14,11 @@ export const style = {
   table: "w-full border-collapse text-left text-sm",
   tableHeadRow:
     "border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400",
-  // Shared by all 5 head cells (keyHeader/Blunders/Errors/Doubtful/Total).
+  // Shared by all 5 head cells (keyHeader/Blunders/Errors/Good/Total).
   tableHeadCell: "px-3 py-2",
   tableRow: "border-b border-black/5 last:border-b-0 dark:border-white/10",
   tableKeyCell: "px-3 py-2 text-black dark:text-zinc-100",
-  // Shared by all 4 numeric cells (Blunders/Errors/Doubtful/Total) in a row.
+  // Shared by all 4 numeric cells (Blunders/Errors/Good/Total) in a row.
   tableNumberCell: "px-3 py-2 font-mono text-xs text-black dark:text-zinc-100",
 
   // MatchesAnalysisPage's own top-level markup.

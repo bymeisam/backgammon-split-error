@@ -135,7 +135,7 @@ own decisions/games (`matchLength`, `playedAt`).
 |---|---|
 | `id` | Internal auto-increment key — **not** a platform match ID. |
 | `source` | Hardcoded per ingest module (`"galaxy"` in `lib/ingest.ts`) — identifies which platform this row came from. |
-| `sourceMatchId` | The platform's own match ID, as a string (`String(matchId)` in `ingestMatch`). Combined with `source`, this is the real natural key — routes resolve a Match by `(source, sourceMatchId)`, never by `id` directly. |
+| `sourceMatchId` | The platform's own match ID, as a string (`String(matchId)` in `ingestMatch`). Combined with `source`, this is the real natural key — routes resolve a Match by `(source, sourceMatchId)`, never by `id` directly. Also builds the "View on Galaxy" link (since 2026-10-07): `https://www.backgammongalaxy.com/play/page_analysis_match_details?match_id=<sourceMatchId>`, match-level only (Galaxy's review page has no game or move parameter). One helper, `lib/externalMatchUrl.ts`'s `externalMatchUrl(source, sourceMatchId)`, returns it only for `source === "galaxy"` and null for any other source, so a future XG import gets no link. Shown on `DecisionCard` (/mistakes, /repeated-positions), `/matches/[matchId]` and the replay; opens in a new tab (`rel="noopener noreferrer"`). |
 | `opponentName` | `MatchAnalysis.opponentName` |
 | `opponentCountry` | `MatchAnalysis.opponentCountry` |
 | `opponentRating` | `MatchAnalysis.opponentRating` |
@@ -271,7 +271,7 @@ receiver had a decision, so the replay labels each `cube_pass` step with it
 `doubleOfferFor` reads it from the row's own `raw`: the offered value is
 twice the Match ID's cube value (the cube entering the decision), it's a
 redouble when the Match ID's cube owner is set, and took/passed is
-`reviews[0].take`. No column; nothing else reads it.
+`reviews[0].take`. No column. **The board draws it too** (since 2026-10-07): on a take/pass, the offered value is drawn centred horizontally on the receiver's edge of the playing field (on the bar column, flush with the edge), as Galaxy's own board draws a pending double, instead of the current cube beside its owner — `lib/boardFrame.ts`'s `boardCubeFor` / `lib/boardGeometry.ts`'s `offeredCubeCenter`. The receiver is at the bottom, except in the replay's fixed perspective on an opponent's take/pass (then at the top). Every other decision keeps the owned-cube placement.
 
 **Evidence it's right:** the decoded length equals `metadata.match_length`
 on every row where that's set; the decoded cube agrees with every row the
@@ -346,22 +346,22 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `analysedEvent` | `review.result.analysed_event` verbatim (`"move"` / `"cube_double"` / `"cube_pass"` / `"resignation"`). |
 | `countAsDecision` | `metadata.count_as_decision` |
 | `rawError` | `error_analysis.raw_error`, unmodified (not absolute-valued — the app layer takes `Math.abs()` where it needs magnitude). **Nullable** — confirmed against real data (match `32699544`): some events have a non-null `error_analysis` (real `error_severity`/`is_blunder`/`luck` values) but a null `raw_error` — `analysis_level: 1`, `error_severity: "doubtful"`, `event_type: "dice_rolled"` paired with `analysed_event: "cube_double"` — a partial/low-confidence analysis that grades severity without computing an equity-error magnitude. `lib/mistakes.ts`'s `extractDecisions` excludes `rawError: null` decisions entirely from PR (both numerator and denominator) — same treatment as `count_as_decision: false` and an unrecognized `analysed_event` — rather than letting `Math.abs(null)` silently coerce to `0` and count an ungraded decision as a zero-error clean play. |
-| `errorSeverity` | `error_analysis.error_severity`, mapped from the payload's lowercase string to the `NONE`/`DOUBTFUL`/`ERROR`/`BLUNDER` enum. |
+| `errorSeverity` | `error_analysis.error_severity`, mapped from the payload's lowercase string to the `NONE`/`DOUBTFUL`/`ERROR`/`BLUNDER` enum. **Displayed with Galaxy's names and colours** (since 2026-10-07): `NONE` "Best" (green `#36D399`), `DOUBTFUL` "Good" (slate `#65758B`), `ERROR` "Error" (amber `#FBBD23`), `BLUNDER` "Blunder" (red `#F43E5C`) — `lib/badges.ts`'s `severityTier`/`severityLabel`, colours in `lib/styles/shared.styles.ts`. **`DOUBTFUL` is a mild "Good" tier, not an error** (`lib/mistakes.ts`'s `severityFromErrorSeverity`: doubtful → `"good"`; before 2026-10-07 it was folded into `"error"`): the per-match mistake lists leave Good rows out (`isListedMistake`), while PR math is unchanged (equity-based; it never read severity). The stored values, the /mistakes and /repeated-positions severity filter values (`?severity=doubtful` etc.) and `MistakeStat`/`RepeatedPosition` (which group by the stored value, one bucket per severity, and never folded DOUBTFUL into ERROR) are unchanged; only labels and colours changed. |
 | ~~`isBlunder`~~ | **Dropped 2026-10-02** (`reports/2026-10-02-raw-field-reverification.md`) — confirmed 100% redundant with `errorSeverity === 'BLUNDER'` (0 mismatches across 371 real rows checked) and never read anywhere (write-only). Use `errorSeverity` instead. |
 | `luck` | `error_analysis.luck` |
 | `luckMwc` | `error_analysis.luck_mwc` |
 | `equity` | `result.result.equity` (the decision-level equity, not a per-candidate-move one). |
 | `mwc` | `probabilities.mwc`, but only when `probabilities.mwc_context` is non-null — forced to `null` otherwise. |
-| `classification` | **`review.source_position.classification` only — never `destination_position`.** The analysis is about the quality of a decision made *at* a position, so the phase that matters is the board state before the move (source), not after (destination); falling back to destination would silently mislabel the decision's phase. If `source_position`/`.classification` is ever actually missing, ingest throws for that one decision (caught, recorded in the ingest summary's `errors`) rather than silently substituting destination. |
+| `classification` | Displayed with Galaxy's own names (since 2026-10-07, `lib/classificationLabels.ts`'s `CLASSIFICATION_LABELS_BY_RAW_VALUE`, from Galaxy's web client's blunder-categories page): `opening_game` "Opening game", `middle_game` "Middle game", `race` "Race", `early_blitz` "Blitz, early", `blitz` "Blitz, middle and late", `attacking_game` "Attacking game", `mutual_holding_game` "Mutual holding game", `one_man_back` "One man back", `holding_game` "Holding game", `deep_anchor_game` "Deep anchor game", `end_game_contact` "Endgame contact", `crunching_game` "Crunching game", `6_prime` "6 prime", `early_backgame` "Backgame, early", `late_backgame` "Backgame, late", `late_game_hit` "Late game hit", `close_out` "Close out" (Galaxy's display order). Our own Phase buckets ("Opening (both plies)", "1st roll", …) keep their labels; an unknown key shows as itself. **`review.source_position.classification` only — never `destination_position`.** The analysis is about the quality of a decision made *at* a position, so the phase that matters is the board state before the move (source), not after (destination); falling back to destination would silently mislabel the decision's phase. If `source_position`/`.classification` is ever actually missing, ingest throws for that one decision (caught, recorded in the ingest summary's `errors`) rather than silently substituting destination. |
 | `sourcePositionId` | `review.source_position.formatted_value` (the GNU Position ID of the board *before* this decision — same source object `classification` reads from, just not hard-failing if missing). Added as a real column (previously re-parsed from `raw` on every read) specifically to replace two unindexed `JSON_EXTRACT` call sites — see `findPositionOccurrences` (`lib/decisionQueries.ts`) and "Collation for externally-sourced identifiers" above, and `reports/2026-10-02-step3-sourcepositionid-column-design.md` for the full before/after measurements (unforced ~28.4s / `FORCE INDEX`-forced ~21.2s / new column+index ~0.3s, same real worst-case literal). Confirmed 100% real-data coverage; nullable only for migration-sequencing reasons, same as `plyNumber`. |
 | `plyNumber` | Not in the payload directly — computed at ingest from `eventId` order alone (see "Ply number" below). `1`-`4` for a game's first four `CHECKER` decisions (by `eventId` ascending), `null` beyond that and always `null` for `CUBE`/`RESIGNATION` kind. |
-| `roll` | Not in the payload directly on *this* event — computed at ingest by walking the game's full event list backward from this one for the nearest preceding `dice_rolled`/`game_started` event's own `rolled_dice` (a checker's own `move_commited` event never carries its roll). Added as a real `Json?` column (previously re-scanned on every read via a now-removed `buildRollLookup`) — see `reports/2026-10-02-step4-dice-roll-column-design.md`. Null for ~2.52% of rows at the time the column was added, in three categories: a game's genuinely first decision; a `dice_rolled` event's own cube-check review (the scan looks past its own roll by design — a real, deliberately-unfixed pre-existing display quirk, not a data gap); a `RESIGNATION`/`CUBE` decision with no roll associated at all. **The first category was subsequently fixed** (2026-10-02, same day) — independently verified against Galaxy's live site that this was recoverable, not a genuine gap, and backfilled from each row's own already-stored `raw.moves` field via `lib/mistakes.ts`'s `decodeRollFromMoves` + `scripts/backfill-first-move-roll.ts` (100% reliable for a game's first move specifically — bear-off/bar-entry, which break this decode method in general, can't occur there). The other two categories remain null by design, unchanged. **Not shown on `CUBE` rows** (since 2026-10-07): a cube decision is made before the roll, and the stored value there is a neighbouring event's roll, so `lib/decisionFromRow.ts`'s `rollForRow` gives `CUBE` rows no dice (board and list) — the rule the live path (`extractDecisions`) already had. The column itself is unchanged. |
+| `roll` | Not in the payload directly on *this* event — computed at ingest by walking the game's full event list backward from this one for the nearest preceding `dice_rolled`/`game_started` event's own `rolled_dice` (a checker's own `move_commited` event never carries its roll). Added as a real `Json?` column (previously re-scanned on every read via a now-removed `buildRollLookup`) — see `reports/2026-10-02-step4-dice-roll-column-design.md`. Null for ~2.52% of rows at the time the column was added, in three categories: a game's genuinely first decision; a `dice_rolled` event's own cube-check review (the scan looks past its own roll by design — a real, deliberately-unfixed pre-existing display quirk, not a data gap); a `RESIGNATION`/`CUBE` decision with no roll associated at all. **The first category was subsequently fixed** (2026-10-02, same day) — independently verified against Galaxy's live site that this was recoverable, not a genuine gap, and backfilled from each row's own already-stored `raw.moves` field via `lib/mistakes.ts`'s `decodeRollFromMoves` + `scripts/backfill-first-move-roll.ts` (100% reliable for a game's first move specifically — bear-off/bar-entry, which break this decode method in general, can't occur there). The other two categories remain null by design, unchanged. **Not shown on `CUBE` rows** (since 2026-10-07): a cube decision is made before the roll, and the stored value there is a neighbouring event's roll, so `lib/decisionFromRow.ts`'s `rollForRow` gives `CUBE` rows no dice (board and list) — the rule the live path (`extractDecisions`) already had. The column itself is unchanged. **Instead, cube rows show a cube square** in the decision lists' Roll column (since 2026-10-07, as Galaxy's own lists do): `Decision.cubeSquareValue` (`lib/cubeState.ts`'s `cubeListValue`, read from the row's own `raw`: the GNU Match ID's cube value and `reviews[0].double`) is the offered value — 2 × the cube entering the decision, so at least 2 — on a double (`cube_double` with `double: true`) and on a take/pass (`cube_pass`), and the current cube on a no-double check. Coloured by severity: red for blunder, amber for error, blue `#2C44FF` otherwise. No column. |
 | ~~`matchScoreBlack`~~ / ~~`matchScoreWhite`~~ / ~~`crawfordState`~~ | **Dropped 2026-10-02** (`reports/2026-10-02-raw-field-reverification.md`) — confirmed write-only (never read anywhere) and, worse, confirmed unreliable at this per-decision granularity: a subset of events in a game report `metadata.scores` as null while sibling events in the same game report the real value — the earlier claim here that `scores`/`match_length` are null "consistently across every decision" in a money-game match was true for that one case checked, but wrong as a general rule once more matches were checked. Replaced by `Game.userScore`/`opponentScore`/`crawfordState` — one resolved, actor-relative value per game instead of an unreliable value per decision. See `docs/field-mapping.md`'s `Game` section ("`userScore`/`opponentScore`/`crawfordState`: resolution and the bug they fixed") for the full story. |
 | `cubeOwnerUserId` | The userId in the GNU Match ID's cube-owner seat (see "GNU Match ID" above), null when centred — who owned the cube *entering* this decision. Every kind. Seats resolve per match exactly as for `Game.userScore`. **Since 2026-10-06**; before that a walk over each game's takes, retired (see below). |
-| `cubeValue`/`cubeConfident` | `cubeValue` is the GNU Match ID's cube value entering this decision (1 = centred). **`cubeConfident` is now always true when the Match ID decodes and its owner seat maps to a userId**; false (with `cubeValue`/`cubeOwnerUserId` null, and an ingest warning) only if that ever fails — the backfill dry run found no such local row (0 undecodable, 0 unmapped owners). Kept as a column so that case stays visible. **Since 2026-10-06.** Before that both came from `lib/cubeState.ts`'s `computeCubeStates`, a walk over each game's `cube_pass` takes, which missed takes on ~21.9% of rows (the take events are often stored with a null `error_analysis` and skipped) and flagged them `cubeConfident = false` (drawn with no cube). The walk is retired. Backfill: `scripts/backfill-decision-cube-from-match-id.ts` (replaces the deleted walk-based `scripts/backfill-decision-cube-state.ts`). Its 2026-10-06 local dry run found 27 `cubeConfident = 1` rows that would change — all of match `46000168` game 4, where the Match ID says a 2-cube from the first stored row on and the walk saw no take (the first stored eventId comes well after game 3's last); the user won that game for exactly 2 points, and the start of the game is missing from Galaxy's stored events, so the Match ID is very likely right. On 2026-10-07, with the user's approval, the local run applied them (`--accept-confident-changes=27`, after a read-only SQL check that the confident rows disagreeing with the Match ID were exactly ids 1172684–1172710) together with the 275,336 `cubeConfident = 0` rows; every local row is now `cubeConfident = 1` (1,268,047). **Board side:** `CubeState.owner` is relative to the stored position's on-roll player (the Match ID's dice owner), not the decision's actor (`lib/decisionFromRow.ts`'s `cubeStateFor` / `lib/cubeState.ts`'s `cubeStateFromMatchId`). On a `cube_pass` row the stored position is the doubler's (6,997 of 6,999 local rows share the preceding `cube_double` row's position ID), so **since 2026-10-07 the board flips it**: `Decision.positionFromOpponent` (`lib/cubeState.ts`'s `positionFromOpponent`: `cube_pass` and the Match ID's dice owner ≠ turn; `cube_pass` alone when there's no Match ID) makes `BoardPanel` flip the position and the cube together (`lib/boardFrame.ts`), so the receiver — the decision-maker — is at the bottom on every view, as Galaxy's own site draws a take, and the cube stays beside its real owner. The replay's fixed-perspective flip composes with it (the two cancel on an opponent's take). Before that the receiver was drawn at the top. |
+| `cubeValue`/`cubeConfident` | `cubeValue` is the GNU Match ID's cube value entering this decision (1 = centred). **`cubeConfident` is now always true when the Match ID decodes and its owner seat maps to a userId**; false (with `cubeValue`/`cubeOwnerUserId` null, and an ingest warning) only if that ever fails — the backfill dry run found no such local row (0 undecodable, 0 unmapped owners). Kept as a column so that case stays visible. **Since 2026-10-06.** Before that both came from `lib/cubeState.ts`'s `computeCubeStates`, a walk over each game's `cube_pass` takes, which missed takes on ~21.9% of rows (the take events are often stored with a null `error_analysis` and skipped) and flagged them `cubeConfident = false` (drawn with no cube). The walk is retired. Backfill: `scripts/backfill-decision-cube-from-match-id.ts` (replaces the deleted walk-based `scripts/backfill-decision-cube-state.ts`). Its 2026-10-06 local dry run found 27 `cubeConfident = 1` rows that would change — all of match `46000168` game 4, where the Match ID says a 2-cube from the first stored row on and the walk saw no take (the first stored eventId comes well after game 3's last); the user won that game for exactly 2 points, and the start of the game is missing from Galaxy's stored events, so the Match ID is very likely right. On 2026-10-07, with the user's approval, the local run applied them (`--accept-confident-changes=27`, after a read-only SQL check that the confident rows disagreeing with the Match ID were exactly ids 1172684–1172710) together with the 275,336 `cubeConfident = 0` rows; every local row is now `cubeConfident = 1` (1,268,047). **Board side:** `CubeState.owner` is relative to the stored position's on-roll player (the Match ID's dice owner), not the decision's actor (`lib/decisionFromRow.ts`'s `cubeStateFor` / `lib/cubeState.ts`'s `cubeStateFromMatchId`). On a `cube_pass` row the stored position is the doubler's (6,997 of 6,999 local rows share the preceding `cube_double` row's position ID), so **since 2026-10-07 the board flips it**: `Decision.positionFromOpponent` (`lib/cubeState.ts`'s `positionFromOpponent`: `cube_pass` and the Match ID's dice owner ≠ turn; `cube_pass` alone when there's no Match ID) makes `BoardPanel` flip the position and the cube together (`lib/boardFrame.ts`), so the receiver — the decision-maker — is at the bottom on every view, as Galaxy's own site draws a take, and the cube stays beside its real owner. The replay's fixed-perspective flip composes with it (the two cancel on an opponent's take). Before that the receiver was drawn at the top. Since 2026-10-07 a take/pass board draws the offered cube at the receiver's edge instead of this owned cube (see "The double a take/pass answers" above). |
 | `movePlayed` | For `CHECKER` kind: the candidate move with `move_played: true`. Null for `CUBE`/`RESIGNATION` kind. **Renamed from `notationPlayed` 2026-10-02** (`reports/2026-10-02-raw-field-reverification.md`) for parallel naming with `cubeActionPlayed`/`cubeActionBest` below — same values, same derivation, name only (the rename migration preserved all existing data via `CHANGE COLUMN`, not a drop+recreate). |
 | `moveBest` | For `CHECKER` kind: the candidate move with `rank === 1` (falls back to the first move if none has rank 1). Null for `CUBE`/`RESIGNATION` kind. Renamed from `notationBest`, same as `movePlayed` above. |
-| `cubeActionPlayed`/`cubeActionBest` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): the same `mine`/`best` short labels `lib/mistakes.ts`'s `actionLabels()` computes (e.g. `"doubled"`/`"double"`), stored once at ingest. **`cubeActionBest` stays Galaxy's own label; the app no longer displays it as "best"** — since 2026-10-06 the displayed best is derived from the equities (see "Cube action from the equities" below), and `cubeActionBest` is shown only in the "Doesn't match Galaxy" badge's tooltip when the two disagree. **Replaces the old `cubeDetail` column** (a single composed display string, confirmed 2026-10-02 never rendered anywhere) with a column pair parallel to `movePlayed`/`moveBest`. `RESIGNATION` kind's own labels deliberately excluded from this treatment — stays read-time-computed via `actionLabels()`, no column (a scope decision, not an oversight). Null for `CHECKER`/`RESIGNATION` kind. |
+| `cubeActionPlayed`/`cubeActionBest` | For `CUBE` kind only (`analysed_event` exactly `"cube_double"` or `"cube_pass"` — never a fallback/else): the same `mine`/`best` short labels `lib/mistakes.ts`'s `actionLabels()` computes (e.g. `"doubled"`/`"double"`), stored once at ingest. **`cubeActionBest` stays Galaxy's own label and isn't displayed** — since 2026-10-06 the displayed best is derived from the equities (see "Cube action from the equities" below); the "Doesn't match Galaxy" badge that showed it was removed 2026-10-07, since Galaxy's own site never shows these labels either. **`cubeActionPlayed` is displayed in Galaxy's wording** (since 2026-10-07; see "Cube wording" below), stored values unchanged. **Replaces the old `cubeDetail` column** (a single composed display string, confirmed 2026-10-02 never rendered anywhere) with a column pair parallel to `movePlayed`/`moveBest`. `RESIGNATION` kind's own labels deliberately excluded from this treatment — stays read-time-computed via `actionLabels()`, no column (a scope decision, not an oversight). Null for `CHECKER`/`RESIGNATION` kind. |
 | `resignError` | For `RESIGNATION` kind: `result.result.resign_error`. Null otherwise. |
 | `shouldResign` | For `RESIGNATION` kind: `result.result.should_resign`. Null otherwise. |
 | `resignationType` | For `RESIGNATION` kind: `result.result.resignation_type` — **confirmed nullable even for `RESIGNATION` rows**, not just absent for other kinds (seen `null` on a real blunder-severity resignation, match `2856675` event `440889365`). Null for other kinds too. |
@@ -662,17 +662,23 @@ is graded BLUNDER −0.183. So the app works out the correct action itself
 column, no backfill).
 
 The user's table for the **doubler's** decision (`cube_double` rows; ND =
-`no_double`, DT = `double_take`, DP = `double_pass`):
+`no_double`, DT = `double_take`, DP = `double_pass`), which is also
+Galaxy's own rule ("Too good" if ND > DP, otherwise "Double" if DT > ND,
+otherwise "No Double" — `reports/2026-10-07-galaxy-client-comparison.md`):
 
 | ND | DT | Correct action |
 |---|---|---|
-| < DP | ≤ DP | Double/take if DT > ND, otherwise No double/take |
-| < DP | > DP | Double/pass |
-| ≥ DP | > DP | Too good/pass |
-| ≥ DP | ≤ DP | Too good/take |
+| ≤ DP | ≤ DP | Double/take if DT > ND, otherwise No double/take |
+| ≤ DP | > DP | Double/pass |
+| > DP | > DP | Too good/pass |
+| > DP | ≤ DP | Too good/take |
 
-Tie rules: DT == ND (both < DP) → No double/take; ND == DP → the "too good"
-branch; DT == DP → the take side.
+Tie rules: DT == ND (both < DP) → No double/take; **ND == DP is not too
+good** → Double/pass when DT > DP, No double/take otherwise; DT == DP → the
+take side. The ND == DP rule follows Galaxy since 2026-10-07 (before that,
+ND == DP was the too-good branch): 542 counted local `cube_double` rows have
+ND == DP, e.g. decision `662455` (match `33173703` g2: ND = DP = 1, DT
+2.8281), now Double/pass where it was Too good/pass.
 
 The code compares against DP rather than a literal 1. **DP is 1 on every
 counted `cube_double` row** locally; it differs (0.18–0.91) only on 89,593
@@ -684,37 +690,46 @@ doubler-view DT ≤ DP, pass otherwise. 4 local `cube_pass` rows (matches
 `33002925`, `33013316`) aren't negated (DP = +1); multiplying by the sign of
 DP handles both. The derived action is "Take" or "Pass".
 
-**"Doesn't match Galaxy":** `doublers_best_action` "roll" corresponds to
-No double/take, Too good/pass and Too good/take; "double" to Double/take and
-Double/pass. Where `receivers_best_action` is set it must also agree: "take"
-with No double/take, Double/take, Too good/take (and Take); "pass" with
-Double/pass, Too good/pass (and Pass). `cube_pass` rows compare against
-`receivers_best_action` only.
+**No comparison with Galaxy's stored labels** (since 2026-10-07). Galaxy's
+own site never shows `doublers_best_action`/`receivers_best_action`; it
+derives the verdict from the equities, as the app now does. The "Doesn't
+match Galaxy" badge (`GalaxyMismatchBadge`) and the comparison behind it
+were removed.
 
-**Exact ties count as matching** (since 2026-10-07; about 324 counted local
-rows). A disagreement caused only by a tie isn't a mismatch — exact
-equality on the stored numbers, as the tie rules above use:
+### Cube wording
 
-- **ND == min(DT, DP)** (since 2026-10-07; before, any ND == DP): not
-  doubling equals what doubling yields, so "roll" and "double" both match
-  on the doubling part. That's ND == DP when DT ≥ DP (e.g. decision
-  `662455`, match `33173703` g2: ND = DP = 1, DT 2.83, Galaxy "double,
-  pass"; the user doubled for 0 error — the take/pass part is still
-  checked: "pass" matches here), and DT == ND below DP (e.g. `1020878`,
-  `42234245` g2: ND = DT = 0.5242, Galaxy "double, take"). DT < DP == ND
-  is **not** a tie: doubling yields DT < ND there (0 counted local rows
-  were affected by this tightening).
-- **DT == DP:** take and pass are equal, so both match (e.g. `1228774`,
-  `33887678` g4: ND 0.7293, DT = DP = 1, Galaxy "double, pass"). Applies to
-  `cube_pass` rows too.
+Display only (since 2026-10-07; `lib/cubeAction.ts`'s `cubePlayedLabel`/
+`cubeBestDisplay`, applied in `lib/mistakes.ts`'s `displayLabels` — shared by
+the live path and `lib/decisionFromRow.ts`, so every view shows the same
+words: BoardPanel, MoveDelta, the decision lists, the replay, /mistakes,
+/matches and /galaxy). Galaxy's own words and casing:
 
-Only the badge changes; the derived action keeps the tie rules above (so
-`662455` still shows Too good/pass as best). When they disagree, the UI shows the derived
-action as "best" plus a small "Doesn't match Galaxy" badge with Galaxy's own
-label in its tooltip (`GalaxyMismatchBadge`, on /mistakes, the replay,
-/matches and /galaxy — `lib/mistakes.ts`'s `displayLabels`, used by both
-`extractDecisions` and `lib/decisionFromRow.ts`). On /galaxy this is a
-display computation over Galaxy's own data, not stored user data.
+| Stored played label | Shown |
+|---|---|
+| `did not double` | No Double — or **Too good** when ND > DP (the derived action is a Too good one) and the severity is none or doubtful, as Galaxy shows it |
+| `doubled` | Double |
+| `took` | Take |
+| `passed` | Pass |
+| `resigned` (resignation) | Resign |
+
+| Derived best action | Shown | Small grey secondary text |
+|---|---|---|
+| No double/take | No Double | — |
+| Double/take | Double | opponent should take |
+| Double/pass | Double | opponent should pass |
+| Too good/take | Too good | opponent should take |
+| Too good/pass | Too good | opponent should pass |
+| Take / Pass | Take / Pass | — |
+
+"Too good" has a lowercase g, as on Galaxy. The secondary text is the
+opponent's half of the action, which Galaxy shows only in its cube table;
+the user wants it kept (`Decision.bestDetail`). Values read from `raw` for
+this: `cube_analysis.no_double`/`double_take`/`double_pass` (the derived
+action) and `error_analysis.error_severity` (the "Too good" exception — the
+DB path passes the row's `errorSeverity` column instead, the same value).
+When the equities are missing the best label falls back to Galaxy's stored
+label, unchanged. The replay's take/pass sentence ("Opponent redoubles to
+4: you took") stays.
 
 ### Unrecognized `analysed_event`
 

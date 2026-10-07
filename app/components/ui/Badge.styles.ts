@@ -17,8 +17,10 @@ export const style = {
   // position, if a caller ever does pass one.
   badge: (color: string | undefined, className: string): string =>
     clsx(
-      "inline-flex items-center justify-center rounded border border-current px-1 py-0.5 font-mono text-[10px] font-semibold leading-none",
-      color ?? "text-zinc-500 dark:text-zinc-400",
+      "inline-flex items-center justify-center rounded border px-1 py-0.5 font-mono text-[10px] font-semibold leading-none",
+      // A config color sets its own border (the severity badges are filled
+      // chips); the neutral default is outlined in its own text colour.
+      color ?? "border-current text-zinc-500 dark:text-zinc-400",
       className
     ),
 } as const;

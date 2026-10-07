@@ -1,4 +1,6 @@
 import clsx from "clsx";
+import type { Severity } from "@/lib/mistakes";
+import { style as shared } from "@/lib/styles/shared.styles";
 
 // Shared by MistakesSection's two tables, DecisionListWithDetail's list,
 // and GameReplay's list — these were byte-identical Tailwind strings
@@ -29,6 +31,19 @@ export const style = {
   indexCell: "px-3 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400",
   // "Has note" marker, inline before the detail cell's own content.
   noteDot: "mr-1.5 inline-block h-2 w-2 rounded-full bg-blue-500 align-middle dark:bg-blue-400",
+
+  // Function, 1 param -> passed directly. A cube row's square in the Roll
+  // column, coloured as Galaxy colours it: red for a blunder, amber for an
+  // error, blue otherwise (Galaxy's colours, lib/styles/shared.styles.ts).
+  cubeSquare: (severity: Severity | null): string =>
+    clsx(
+      "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border px-0.5 font-mono text-[10px] font-bold leading-none",
+      severity === "blunder"
+        ? shared.severityBlunder
+        : severity === "error"
+          ? shared.severityError
+          : shared.cubeSquareDefault
+    ),
 
   // Function, 1 param -> passed directly.
   row: (isSelected: boolean): string =>

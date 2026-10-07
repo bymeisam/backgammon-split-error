@@ -1,5 +1,6 @@
 import type { ErrorSeverity } from "@/lib/generated/prisma/enums";
 import { CLASSIFICATION_LABELS_BY_RAW_VALUE } from "@/lib/classificationLabels";
+import { style as shared } from "@/lib/styles/shared.styles";
 
 // What app/components/ui/Badge.tsx renders. Lives here, with the config
 // maps built from it, rather than in the component file — lib/ shouldn't
@@ -7,32 +8,53 @@ import { CLASSIFICATION_LABELS_BY_RAW_VALUE } from "@/lib/classificationLabels";
 export type BadgeConfig = {
   code: string; // short display text, e.g. "B" or "OMB"
   label: string; // full text for the tooltip, e.g. "Blunder" or "One Man Back"
-  color?: string; // Tailwind text-color classes; border reuses it via border-current
+  // Tailwind color classes (text, and border/background when set); unset
+  // means Badge's neutral outlined default.
+  color?: string;
 };
 
-// Severity is a closed set — Prisma's ErrorSeverity enum, lowercased — so
-// it's typed as one: severityBadges must cover every key (a new enum value
-// fails to compile until it's mapped), and SeverityBadge only accepts these.
-export type SeverityKey = Lowercase<ErrorSeverity>;
+// Galaxy's four severity tiers, as its site names them. A closed set, one
+// per Prisma ErrorSeverity value — severityBadges must cover every tier (a
+// new one fails to compile until it's mapped), and SeverityBadge only
+// accepts these. lib/mistakes.ts's Decision.severity is the same set minus
+// "best" (null there).
+export type SeverityTier = "best" | "good" | "error" | "blunder";
 
-export function severityKey(severity: ErrorSeverity): SeverityKey {
-  // toLowerCase() is typed as plain string; the result is a SeverityKey by
-  // construction.
-  return severity.toLowerCase() as SeverityKey;
+const TIER_BY_ERROR_SEVERITY = {
+  NONE: "best",
+  DOUBTFUL: "good",
+  ERROR: "error",
+  BLUNDER: "blunder",
+} as const satisfies Record<ErrorSeverity, SeverityTier>;
+
+export function severityTier(severity: ErrorSeverity): SeverityTier {
+  return TIER_BY_ERROR_SEVERITY[severity];
 }
 
-// Reuses MoveDelta.styles.ts's two-tone my-move/best-move palette
-// exactly (red for blunder, amber for anything else) rather than inventing
-// a third color for "doubtful" — DOUBTFUL already collapses into the amber
-// "error" bucket everywhere else in this codebase (see
-// lib/decisionFromRow.ts's severityFor), so it gets the same amber here,
-// distinguished only by its "D" code.
+// Galaxy's names: none "Best", doubtful "Good", error "Error", blunder
+// "Blunder". In Galaxy's order, best first.
+export const SEVERITY_TIER_LABELS = {
+  best: "Best",
+  good: "Good",
+  error: "Error",
+  blunder: "Blunder",
+} as const satisfies Record<SeverityTier, string>;
+
+// The severity name for a stored ErrorSeverity value — what the /mistakes
+// and /repeated-positions severity filters and result lines show.
+export function severityLabel(severity: ErrorSeverity): string {
+  return SEVERITY_TIER_LABELS[severityTier(severity)];
+}
+
+// Full names on the badge itself (not one-letter codes: "Best" and
+// "Blunder" would both be "B"), in Galaxy's colours
+// (lib/styles/shared.styles.ts).
 export const severityBadges = {
-  blunder: { code: "B", label: "Blunder", color: "text-red-600 dark:text-red-400" },
-  error: { code: "E", label: "Error", color: "text-amber-600 dark:text-amber-400" },
-  doubtful: { code: "D", label: "Doubtful", color: "text-amber-600 dark:text-amber-400" },
-  none: { code: "-", label: "No mistake" },
-} satisfies Record<SeverityKey, BadgeConfig>;
+  best: { code: "Best", label: "Best", color: shared.severityBest },
+  good: { code: "Good", label: "Good", color: shared.severityGood },
+  error: { code: "Error", label: "Error", color: shared.severityError },
+  blunder: { code: "Blunder", label: "Blunder", color: shared.severityBlunder },
+} satisfies Record<SeverityTier, BadgeConfig>;
 
 // Short 2-4 char codes for the compact badge itself — a Badge-display-only
 // concern (collision-avoidance within a small visual footprint), not
@@ -91,8 +113,8 @@ function lookupBadge(map: Record<string, BadgeConfig>, value: string): BadgeConf
   return Object.hasOwn(map, value) ? map[value] : { code: value, label: value };
 }
 
-export function badgeForSeverity(key: SeverityKey): BadgeConfig {
-  return lookupBadge(severityBadges, key);
+export function badgeForSeverity(tier: SeverityTier): BadgeConfig {
+  return lookupBadge(severityBadges, tier);
 }
 
 export function badgeForClassification(value: string): BadgeConfig {

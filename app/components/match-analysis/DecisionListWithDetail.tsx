@@ -58,6 +58,7 @@ export default function DecisionListWithDetail({
             decision={selected.decision}
             classification={selected.classification}
             matchHref={selected.matchHref}
+            externalMatchHref={selected.externalMatchHref}
             moveTab={moveTab}
             onMoveTabChange={setMoveTab}
             canEditNotes={canEditNotes}

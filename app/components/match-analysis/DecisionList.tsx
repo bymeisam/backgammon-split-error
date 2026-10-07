@@ -29,7 +29,8 @@ interface DecisionListProps {
   // different sizes (18 vs 16), so this is explicit rather than inferred
   // from any other prop.
   rollDiceSize?: number;
-  // What to show in the Roll cell when a row's own roll is empty —
+  // What to show in the Roll cell when a row's own roll is empty (and it
+  // isn't a cube row, which shows its cube square instead) —
   // MistakesSection shows a muted "—"; GameReplay shows nothing at all
   // (matches DiceRoll's own null-for-empty behavior exactly when omitted).
   rollEmptyPlaceholder?: ReactNode;
@@ -151,7 +152,20 @@ export default function DecisionList({
                     {showIndexColumn && <td className={style.indexCell}>{index + 1}</td>}
                     {showRollColumn && (
                       <td className={style.cell}>
-                        {row.roll.length > 0 ? (
+                        {/* Cube rows have no dice (a cube decision comes
+                            before the roll); like Galaxy's own lists they
+                            get a square with the cube value instead —
+                            lib/cubeState.ts's cubeListValue. */}
+                        {row.kind === "cube" && row.cubeSquareValue != null ? (
+                          <span
+                            role="img"
+                            aria-label={`Cube ${row.cubeSquareValue}`}
+                            title={`Cube ${row.cubeSquareValue}`}
+                            className={style.cubeSquare(row.severity)}
+                          >
+                            {row.cubeSquareValue}
+                          </span>
+                        ) : row.roll.length > 0 ? (
                           <DiceRoll roll={row.roll} size={rollDiceSize} />
                         ) : (
                           rollEmptyPlaceholder
