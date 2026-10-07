@@ -9,6 +9,7 @@ import { createGalaxyClient } from "@/lib/galaxy-client";
 import { DecisionKind, ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
 import type { GameEvent, Review } from "@/lib/gameReviewsTypes";
 import { actionLabels, findPrecedingRoll } from "@/lib/mistakes";
+import { galaxyAnalysis } from "@/lib/analysis/galaxy";
 import {
   PlayerUserIds,
   addSeatEvidence,
@@ -477,6 +478,16 @@ export async function ingestMatch(
           firstDecision = { eventId: event.id, matchId: matchState };
         }
 
+        // Source-neutral analysis for the review cards (lib/analysis/
+        // galaxy.ts), only for counted decisions — the same scope as
+        // scripts/backfill-decision-analysis.ts. Resignations and
+        // unrecognised shapes come back null. See docs/field-mapping.md,
+        // "Decision.analysis".
+        const analysis =
+          metadata.count_as_decision && errorAnalysis.raw_error !== null
+            ? galaxyAnalysis(event, analysedEvent)
+            : null;
+
         const decisionData = {
           userId: event.user_id,
           color: event.color,
@@ -518,6 +529,8 @@ export async function ingestMatch(
           equityAfter: resignation.equityAfter,
           timestamp,
           myTag: null,
+          // Prisma.DbNull for SQL NULL, as for roll above.
+          analysis: analysis ?? Prisma.DbNull,
           // Round-trip through JSON so the value is a plain JSON-compatible
           // object, matching what Prisma's Json column input expects.
           raw: JSON.parse(JSON.stringify(event)),

@@ -54,26 +54,43 @@ function isNum(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
-// The derived action for a cube decision, or null when the equities are
-// missing (then callers fall back to Galaxy's own label).
+// A cube decision's ND/DT/DP in the doubler's view, or null when the
+// equities are missing or the event isn't a cube decision. The one place the
+// receiver-sign rule lives: deriveCubeAction below and lib/analysis/galaxy.ts
+// (Decision.analysis) both use it.
 //
-// cube_double rows hold the doubler's view. cube_pass rows hold the
-// receiver's view, i.e. the doubler's values negated (DP = −1); a handful
-// (4 locally, all in matches 33002925/33013316) aren't negated (DP = +1).
-// Multiplying by the sign of DP brings both back to the doubler's view, so
-// "take if −DT <= −DP" on a negated row is the same test as DT <= DP here.
-export function deriveCubeAction(analysedEvent: string, cube: Partial<Equities>): CubeAction | null {
+// cube_double rows hold the doubler's view, returned as they are. cube_pass
+// rows hold the receiver's view, i.e. the doubler's values negated (DP = −1);
+// a handful (4 locally, all in matches 33002925/33013316) aren't negated
+// (DP = +1). Multiplying by the sign of DP brings both back to the doubler's
+// view, so "take if −DT <= −DP" on a negated row is the same test as
+// DT <= DP here.
+export function doublerViewEquities(
+  analysedEvent: string,
+  cube: Partial<Equities>
+): { nd: number; dt: number; dp: number } | null {
   const { no_double: nd, double_take: dt, double_pass: dp } = cube;
   if (!isNum(nd) || !isNum(dt) || !isNum(dp) || dp === 0) return null;
 
-  if (analysedEvent === "cube_double") return doublerAction(nd, dt, dp);
+  if (analysedEvent === "cube_double") return { nd, dt, dp };
 
   if (analysedEvent === "cube_pass") {
     const sign = Math.sign(dp);
-    return receiverAction(dt * sign, dp * sign);
+    return { nd: nd * sign, dt: dt * sign, dp: dp * sign };
   }
 
   return null;
+}
+
+// The derived action for a cube decision, or null when the equities are
+// missing (then callers fall back to Galaxy's own label). Equities are
+// brought to the doubler's view by doublerViewEquities above.
+export function deriveCubeAction(analysedEvent: string, cube: Partial<Equities>): CubeAction | null {
+  const view = doublerViewEquities(analysedEvent, cube);
+  if (!view) return null;
+  return analysedEvent === "cube_double"
+    ? doublerAction(view.nd, view.dt, view.dp)
+    : receiverAction(view.dt, view.dp);
 }
 
 // The derived action for a review, if it's a cube review with equities.

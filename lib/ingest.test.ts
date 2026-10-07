@@ -657,6 +657,68 @@ describe("ingestMatch", () => {
     expect(summary.warnings[0]).toMatch(/event 20: GNU Match ID missing or undecodable/);
   });
 
+  it("analysis: filled for counted CHECKER and CUBE rows by lib/analysis/galaxy.ts, DbNull for uncounted ones", async () => {
+    const cubeDouble = doubleEvent(20, "user_a");
+    const cubeResult = (cubeDouble.reviews[0].result as unknown as { result: { cube_analysis: object } }).result;
+    Object.assign(cubeResult.cube_analysis, { no_double: 0.7922, double_take: 0.9751, double_pass: 1 });
+    const cubePass = cubePassEvent(30, "user_b", true);
+    Object.assign((cubePass.reviews[0].result as unknown as { result: { cube_analysis: object } }).result.cube_analysis, {
+      no_double: -0.3838,
+      double_take: -0.2057,
+      double_pass: -1,
+    });
+    serveSingleGame(
+      gameReviewsResponse([
+        diceRolledEvent(5, [3, 4]), // count_as_decision: false
+        moveEvent(10, { userId: "user_a" }),
+        cubeDouble,
+        cubePass,
+      ])
+    );
+
+    await ingestMatch(90000016, indexData, "token");
+
+    const byEventId = new Map(
+      decisionUpsert.mock.calls.map(([{ create }]) => [Number(create.eventId), create.analysis])
+    );
+    expect(byEventId.get(5)).toBe(Prisma.DbNull);
+    expect(byEventId.get(10)).toEqual({
+      v: 1,
+      source: "galaxy",
+      kind: "checker",
+      candidates: [
+        {
+          move: "13/7",
+          rank: 1,
+          equity: 0,
+          loss: 0,
+          played: true,
+          probs: { win: 0.5, winG: 0, winBG: 0, loseG: 0, loseBG: 0 },
+        },
+      ],
+    });
+    expect(byEventId.get(20)).toEqual({ v: 1, source: "galaxy", kind: "cube", role: "doubler", nd: 0.7922, dt: 0.9751, dp: 1 });
+    // Receiver row: stored in the doubler's view.
+    expect(byEventId.get(30)).toEqual({ v: 1, source: "galaxy", kind: "cube", role: "receiver", nd: 0.3838, dt: 0.2057, dp: 1 });
+    // The update path writes the same value as create.
+    for (const [{ create, update }] of decisionUpsert.mock.calls as unknown as [{ create: Record<string, unknown>; update: Record<string, unknown> }][]) {
+      expect(update.analysis).toBe(create.analysis);
+    }
+  });
+
+  it("analysis: DbNull for a counted row with rawError null, and for a resignation", async () => {
+    serveSingleGame(lowConfidenceDoubtful as unknown as GameReviewsResponse);
+    await ingestMatch(90000017, indexData, "token");
+    expect(decisionUpsert.mock.calls[0][0].create.rawError).toBeNull();
+    expect(decisionUpsert.mock.calls[0][0].create.analysis).toBe(Prisma.DbNull);
+
+    decisionUpsert.mockClear();
+    serveSingleGame(resignation as unknown as GameReviewsResponse);
+    await ingestMatch(90000018, indexData, "token");
+    expect(decisionUpsert.mock.calls[0][0].create.kind).toBe("RESIGNATION");
+    expect(decisionUpsert.mock.calls[0][0].create.analysis).toBe(Prisma.DbNull);
+  });
+
   it("assigns plyNumber 1-4 by eventId ascending regardless of array order, null beyond ply 4, and skips ineligible events", async () => {
     // Deliberately shuffled and with a gap: eventIds 50/10/90/20/30/40/70/60,
     // one of which (30) has a null error_analysis and must not consume a ply

@@ -68,7 +68,7 @@ a code change.
 
 | Client | Used by |
 |---|---|
-| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts` |
+| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts`, `scripts/backfill-decision-analysis.ts` |
 | `prismaReadOnly` (read-only) | `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
 
 **`prisma migrate deploy` itself is a separate concern from these two app
@@ -370,6 +370,80 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `timestamp` | `metadata.timestamp` |
 | `myTag` | No source field yet — always `null`. |
 | `raw` | The complete original `event` object (not just `reviews[0]`) — the zero-blind-spot archive `getGameReviews` reconstructs a game's events array from. |
+| `analysis` | Source-neutral, versioned engine analysis for the review cards (since 2026-10-07): the checker candidates sorted by equity, or the cube's ND/DT/DP in the doubler's view. Galaxy's translator (`lib/analysis/galaxy.ts`) fills it from this row's own `raw` (`reviews[0].result.result.moves[]` / `.cube_analysis`), only for counted decisions (`countAsDecision` and `rawError` not null); null otherwise and for resignations. `JSON`, so no collation pin. See "`Decision.analysis`" below. |
+
+### `Decision.analysis`
+
+A source-neutral copy of a decision's engine analysis, so the review cards
+(Phase B of `reports/2026-10-07-review-feature-plan.md`) never read a
+source's own `raw`. Each source gets its own translator that fills the same
+shape: `lib/analysis/galaxy.ts`'s `galaxyAnalysis(raw, analysedEvent)` for
+Galaxy; a future XG import would add its own. Types in
+`lib/analysis/types.ts`; read it back with `lib/analysis/read.ts`'s
+`readAnalysis`, which validates the shape and version at runtime and returns
+null for anything wrong or unknown.
+
+```ts
+type DecisionAnalysis =
+  | { v: 1; source: "galaxy"; kind: "checker";
+      candidates: { move: string; rank: number; equity: number; loss: number; played: boolean;
+                    probs: { win: number; winG: number; winBG: number; loseG: number; loseBG: number } | null }[] }
+  | { v: 1; source: "galaxy"; kind: "cube"; role: "doubler" | "receiver"; nd: number; dt: number; dp: number };
+```
+
+**`v` versions the shape.** Changing the shape, or how a translator fills
+it, bumps `v`. `readAnalysis` returns null for an unknown version, and
+`scripts/backfill-decision-analysis.ts` rewrites every row whose stored
+value differs from the translator's (NULL, an older `v`, or different
+content), so re-running it after a bump migrates the column.
+
+**Checker** (`analysedEvent` `move`), from `reviews[0].result.result.moves[]`:
+
+| Field | From Galaxy |
+|---|---|
+| `move` | `notation`, unchanged (e.g. `"14/12* 12/8"`, `"Bar/22*"`) |
+| `rank` | `rank`, for reference only — not the sort key |
+| `equity` | `equity` |
+| `loss` | `equity` − the best candidate's `equity`: ≤ 0, and 0 for the best. Computed, not read from `equity_error` |
+| `played` | `move_played` |
+| `probs` | `probabilities.win`/`win_gammon`/`win_backgammon`/`lose_gammon`/`lose_backgammon` → `win`/`winG`/`winBG`/`loseG`/`loseBG`; null if any is missing |
+
+`candidates` is sorted by equity, best first, with exact-equity ties broken
+by Galaxy's rank ascending. Galaxy's rank isn't always in equity order: in
+148 local cases a lower rank has higher equity (e.g. match `46875560` g4,
+roll 4-2: rank 3 `20/14` is best), and Galaxy's own UI keeps rank order. The
+decision-level `rawError` can also disagree with the candidates (124 old
+cases; match `33015498` g7, roll 1-3, decision `668067`: the played rank-1
+`17/14*/13` is 0.3089 worse than rank 2 `17/14* 4/3*`). The user's decision:
+the equities decide. Lists hold 1–5 candidates and always include the played
+move, which Galaxy appends as "rank 4" when it isn't in its top 3 (e.g.
+`47816592` g1, roll 3-3). A list that is empty, has a malformed candidate, or
+doesn't have exactly one played move gives null.
+
+**Cube** (`cube_double` → `role: "doubler"`, `cube_pass` → `role:
+"receiver"`), from `reviews[0].result.result.cube_analysis`'s `no_double`/
+`double_take`/`double_pass`, **always in the doubler's view**. `cube_pass`
+rows are stored negated (DP = −1, the receiver's view) except 4 local rows in
+matches `33002925`/`33013316` (DP = +1); `lib/cubeAction.ts`'s
+`doublerViewEquities` multiplies by the sign of DP, once, at translation —
+the same function the cube action display uses (see "Cube action from the
+equities" above). So every stored cube value has DP = 1 locally (84,743
+doubler and 6,999 receiver rows). Missing equities give null.
+
+**Everything else is null:** resignations, and any unknown `analysedEvent`.
+Numbers are rounded to 4 decimals (Galaxy's own precision), `loss` from the
+rounded equities, and never stored as −0.
+
+**Scope:** counted decisions only (`countAsDecision = 1 AND rawError IS NOT
+NULL`), at ingest (`lib/ingest.ts`, `Prisma.DbNull` otherwise) and in the
+backfill alike.
+
+**Local backfill (2026-10-07):** 607,329 counted rows scanned; 514,453
+checker and 91,742 cube rows written, 1,134 resignations left null; a second
+dry run shows 0 to write. Storage (`JSON_STORAGE_SIZE`): checker average 753
+bytes (max 1,154), cube 111 (max 112), about 398 MB in total. `Decision`'s
+`data_length` went from 4,306 MB to 5,754 MB, more than the JSON itself,
+most likely because growing existing rows in place split InnoDB pages.
 
 ### Ply number
 

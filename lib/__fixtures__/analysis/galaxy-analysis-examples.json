@@ -1,0 +1,672 @@
+{
+  "_comment": "Real local app_dev rows (2026-10-07), trimmed to the raw paths lib/analysis/galaxy.ts reads: reviews[0].result.result.moves[] (notation, rank, equity, equity_error, move_played, probabilities) and .cube_analysis. Used by lib/analysis/galaxy.test.ts.",
+  "C1": {
+    "decisionId": 1236446,
+    "sourceMatchId": "46875560",
+    "gameIndex": 4,
+    "roll": [
+      4,
+      2
+    ],
+    "analysedEvent": "move",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "move",
+            "result": {
+              "moves": [
+                {
+                  "notation": "8/6* 5/1",
+                  "rank": 1,
+                  "equity": 0.4995,
+                  "equity_error": 0,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.4399,
+                    "win": 0.6231,
+                    "lose": 0.3769,
+                    "volatility": null,
+                    "win_gammon": 0.3743,
+                    "lose_gammon": 0.0785,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.016,
+                    "lose_backgammon": 0.0012,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "20/18 8/4",
+                  "rank": 2,
+                  "equity": 0.4877,
+                  "equity_error": -0.011799999999999975,
+                  "move_played": true,
+                  "probabilities": {
+                    "mwc": 0.4375,
+                    "win": 0.6306,
+                    "lose": 0.3693999999999999,
+                    "volatility": null,
+                    "win_gammon": 0.3475,
+                    "lose_gammon": 0.077,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.015,
+                    "lose_backgammon": 0.0016,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "20/14",
+                  "rank": 3,
+                  "equity": 0.5058,
+                  "equity_error": 0.006300000000000028,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.4382,
+                    "win": 0.6381,
+                    "lose": 0.3619,
+                    "volatility": null,
+                    "win_gammon": 0.3496,
+                    "lose_gammon": 0.0924,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0185,
+                    "lose_backgammon": 0.003,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "C2": {
+    "decisionId": 1255547,
+    "sourceMatchId": "47406300",
+    "gameIndex": 5,
+    "roll": [
+      3,
+      2
+    ],
+    "analysedEvent": "move",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "move",
+            "result": {
+              "moves": [
+                {
+                  "notation": "6/4 6/3",
+                  "rank": 1,
+                  "equity": -0.9331,
+                  "equity_error": 0,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.3736,
+                    "win": 0.2593,
+                    "lose": 0.7407,
+                    "volatility": null,
+                    "win_gammon": 0.0031,
+                    "lose_gammon": 0.0248,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0.0001,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "20/15",
+                  "rank": 2,
+                  "equity": -0.9558,
+                  "equity_error": -0.022699999999999942,
+                  "move_played": true,
+                  "probabilities": {
+                    "mwc": 0.3442,
+                    "win": 0.1755,
+                    "lose": 0.8245,
+                    "volatility": null,
+                    "win_gammon": 0.0052,
+                    "lose_gammon": 0.1177,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0.0013,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "6/1",
+                  "rank": 3,
+                  "equity": -0.9286,
+                  "equity_error": 0.0045000000000000595,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.3715,
+                    "win": 0.2596,
+                    "lose": 0.7404,
+                    "volatility": null,
+                    "win_gammon": 0.0031,
+                    "lose_gammon": 0.0268,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0.0002,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "C3": {
+    "decisionId": 183214,
+    "sourceMatchId": "5818762",
+    "gameIndex": 1,
+    "roll": [
+      3,
+      6
+    ],
+    "analysedEvent": "move",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "move",
+            "result": {
+              "moves": [
+                {
+                  "notation": "12/6 11/8",
+                  "rank": 1,
+                  "equity": -1.4629,
+                  "equity_error": 0,
+                  "move_played": true,
+                  "probabilities": {
+                    "mwc": null,
+                    "win": 0,
+                    "lose": 1,
+                    "volatility": null,
+                    "win_gammon": 0,
+                    "lose_gammon": 1,
+                    "mwc_context": null,
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "12/9 11/5",
+                  "rank": 2,
+                  "equity": -1.4629,
+                  "equity_error": 0,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": null,
+                    "win": 0,
+                    "lose": 1,
+                    "volatility": null,
+                    "win_gammon": 0,
+                    "lose_gammon": 1,
+                    "mwc_context": null,
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "12/6 4/1",
+                  "rank": 3,
+                  "equity": -1.4611,
+                  "equity_error": 0.0018,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": null,
+                    "win": 0.00024,
+                    "lose": 0.99976,
+                    "volatility": null,
+                    "win_gammon": 0,
+                    "lose_gammon": 0.99731,
+                    "mwc_context": null,
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "C4": {
+    "decisionId": 189112,
+    "sourceMatchId": "5643381",
+    "gameIndex": 2,
+    "roll": [
+      3,
+      6
+    ],
+    "analysedEvent": "move",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "move",
+            "result": {
+              "moves": [
+                {
+                  "notation": "15/6",
+                  "rank": 1,
+                  "equity": -2.4673,
+                  "equity_error": 0,
+                  "move_played": true,
+                  "probabilities": {
+                    "mwc": null,
+                    "win": 0,
+                    "lose": 1,
+                    "volatility": null,
+                    "win_gammon": 0,
+                    "lose_gammon": 1,
+                    "mwc_context": null,
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "15/9 4/1",
+                  "rank": 2,
+                  "equity": -2.4673,
+                  "equity_error": 0,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": null,
+                    "win": 0,
+                    "lose": 1,
+                    "volatility": null,
+                    "win_gammon": 0,
+                    "lose_gammon": 1,
+                    "mwc_context": null,
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "15/9 5/2",
+                  "rank": 3,
+                  "equity": -2.4635,
+                  "equity_error": 0.0038,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": null,
+                    "win": 0.00024,
+                    "lose": 0.99976,
+                    "volatility": null,
+                    "win_gammon": 0,
+                    "lose_gammon": 0.9978,
+                    "mwc_context": null,
+                    "win_backgammon": 0,
+                    "lose_backgammon": 0,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "E1": {
+    "decisionId": 668067,
+    "sourceMatchId": "33015498",
+    "gameIndex": 7,
+    "roll": [
+      1,
+      3
+    ],
+    "analysedEvent": "move",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "move",
+            "result": {
+              "moves": [
+                {
+                  "notation": "17/14*/13",
+                  "rank": 1,
+                  "equity": 1.4246,
+                  "equity_error": 0,
+                  "move_played": true,
+                  "probabilities": {
+                    "mwc": 0.6061,
+                    "win": 0.8768,
+                    "lose": 0.12319999999999998,
+                    "volatility": null,
+                    "win_gammon": 0.3355,
+                    "lose_gammon": 0.0088,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.005,
+                    "lose_backgammon": 0,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "17/14* 4/3*",
+                  "rank": 2,
+                  "equity": 1.7335,
+                  "equity_error": 0.30889999999999995,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.6834,
+                    "win": 0.8727,
+                    "lose": 0.12729999999999997,
+                    "volatility": null,
+                    "win_gammon": 0.4941,
+                    "lose_gammon": 0.031,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0088,
+                    "lose_backgammon": 0.0008,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "17/14* 13/12",
+                  "rank": 3,
+                  "equity": 1.5035,
+                  "equity_error": 0.07889999999999997,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.6259,
+                    "win": 0.9034,
+                    "lose": 0.09660000000000002,
+                    "volatility": null,
+                    "win_gammon": 0.3483,
+                    "lose_gammon": 0.0099,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0062,
+                    "lose_backgammon": 0.0001,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "17/14* 5/4",
+                  "rank": 4,
+                  "equity": 1.4803,
+                  "equity_error": 0.05569999999999986,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.6201,
+                    "win": 0.8984,
+                    "lose": 0.10160000000000002,
+                    "volatility": null,
+                    "win_gammon": 0.3417,
+                    "lose_gammon": 0.0104,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0058,
+                    "lose_backgammon": 0.0001,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "F1": {
+    "decisionId": 1257877,
+    "sourceMatchId": "47816592",
+    "gameIndex": 1,
+    "roll": [
+      3,
+      3
+    ],
+    "analysedEvent": "move",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "move",
+            "result": {
+              "moves": [
+                {
+                  "notation": "24/21(2) 13/10(2)",
+                  "rank": 1,
+                  "equity": 0.1337,
+                  "equity_error": 0,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.5078,
+                    "win": 0.5201,
+                    "lose": 0.4799,
+                    "volatility": null,
+                    "win_gammon": 0.1333,
+                    "lose_gammon": 0.0708,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0033,
+                    "lose_backgammon": 0.0007,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "8/5(2) 6/3(2)",
+                  "rank": 2,
+                  "equity": 0.1327,
+                  "equity_error": -0.0010000000000000009,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.5077,
+                    "win": 0.5173,
+                    "lose": 0.4827,
+                    "volatility": null,
+                    "win_gammon": 0.1756,
+                    "lose_gammon": 0.1053,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0041,
+                    "lose_backgammon": 0.004,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "24/21(2) 6/3(2)",
+                  "rank": 3,
+                  "equity": 0.1195,
+                  "equity_error": -0.014200000000000018,
+                  "move_played": false,
+                  "probabilities": {
+                    "mwc": 0.507,
+                    "win": 0.516,
+                    "lose": 0.484,
+                    "volatility": null,
+                    "win_gammon": 0.1273,
+                    "lose_gammon": 0.0662,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0025,
+                    "lose_backgammon": 0.0005,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                },
+                {
+                  "notation": "13/10(2) 6/3(2)",
+                  "rank": 4,
+                  "equity": 0.0963,
+                  "equity_error": -0.03740000000000002,
+                  "move_played": true,
+                  "probabilities": {
+                    "mwc": 0.5056,
+                    "win": 0.5122,
+                    "lose": 0.4878,
+                    "volatility": null,
+                    "win_gammon": 0.1671,
+                    "lose_gammon": 0.115,
+                    "mwc_context": "cubeless",
+                    "win_backgammon": 0.0047,
+                    "lose_backgammon": 0.0048,
+                    "market_losing_probability": null,
+                    "market_gaining_probability": null
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "cubeDouble": {
+    "decisionId": 629849,
+    "sourceMatchId": "29939852",
+    "gameIndex": 1,
+    "roll": [
+      4,
+      1
+    ],
+    "analysedEvent": "cube_double",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "cube_double",
+            "result": {
+              "cube_analysis": {
+                "optimal": 0.7922,
+                "cubeless": null,
+                "no_double": 0.7922,
+                "cube_level": null,
+                "double_pass": 1,
+                "double_take": 0.9751,
+                "diff_no_double": 0,
+                "diff_double_pass": 0.2078,
+                "diff_double_take": 0.18289999999999995,
+                "too_good_meaningful": null,
+                "doublers_best_action": "roll",
+                "receivers_best_action": null,
+                "cube_decision_meaningful": null,
+                "receiver_diff_double_pass": null,
+                "receiver_diff_double_take": null
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "cubePassNegated": {
+    "decisionId": 666976,
+    "sourceMatchId": "33013316",
+    "gameIndex": 2,
+    "roll": [
+      5,
+      4
+    ],
+    "analysedEvent": "cube_pass",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "cube_pass",
+            "result": {
+              "cube_analysis": {
+                "optimal": -0.2057,
+                "cubeless": -0.2402,
+                "no_double": -0.3838,
+                "cube_level": 1,
+                "double_pass": -1,
+                "double_take": -0.2057,
+                "diff_no_double": null,
+                "diff_double_pass": null,
+                "diff_double_take": null,
+                "too_good_meaningful": false,
+                "doublers_best_action": "double",
+                "receivers_best_action": "take",
+                "cube_decision_meaningful": true,
+                "receiver_diff_double_pass": -0.7943,
+                "receiver_diff_double_take": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "cubePassNotNegated": {
+    "decisionId": 652116,
+    "sourceMatchId": "33002925",
+    "gameIndex": 1,
+    "roll": [
+      2,
+      1
+    ],
+    "analysedEvent": "cube_pass",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "cube_pass",
+            "result": {
+              "cube_analysis": {
+                "optimal": 1,
+                "cubeless": 0.6239,
+                "no_double": 0.885,
+                "cube_level": 3,
+                "double_pass": 1,
+                "double_take": 1.1137,
+                "diff_no_double": null,
+                "diff_double_pass": null,
+                "diff_double_take": null,
+                "too_good_meaningful": true,
+                "doublers_best_action": "roll",
+                "receivers_best_action": "pass",
+                "cube_decision_meaningful": false,
+                "receiver_diff_double_pass": 0,
+                "receiver_diff_double_take": -0.1137
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "resignation": {
+    "decisionId": 1849,
+    "sourceMatchId": "725908",
+    "gameIndex": 1,
+    "roll": null,
+    "analysedEvent": "resignation",
+    "raw": {
+      "reviews": [
+        {
+          "result": {
+            "analysed_event": "resignation",
+            "result": {}
+          }
+        }
+      ]
+    }
+  }
+}
