@@ -73,8 +73,8 @@ a code change.
 
 | Client | Used by |
 |---|---|
-| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts` |
-| `prismaReadOnly` (read-only) | `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
+| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts`, the review and tag writes (`app/api/review/cards`, `app/api/review/cards/[id]`, `app/api/review/cards/[id]/answer`, `app/api/review/bulk`, `app/api/tags/attach`, `app/api/tags/detach`) |
+| `prismaReadOnly` (read-only) | `app/api/review/queue`, `app/api/review/summary`, `app/api/tags` (GET), `app/review/page.tsx`, `app/review/cards/page.tsx`, `app/page.tsx` (the due count), `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
 
 **`prisma migrate deploy` itself is a separate concern from these two app
 runtime clients.** It's configured in `prisma7.config.ts`, which reads
@@ -380,7 +380,7 @@ never modified.
 
 | Value | Derivation | Replaces |
 |---|---|---|
-| Roll | The Match ID's dice (bits 15–20), in its order — **checker moves only**; cube decisions (made before the roll) and resignations show no dice. Empty when the Match ID is missing or its dice aren't 1–6. `lib/gnuMatchId.ts`'s `diceRollFor` (dispatcher: `decisionRoll`). | `Decision.roll` |
+| Roll | The Match ID's dice (bits 15–20), shown **higher die first** (6-3, never 3-6, as Galaxy's client shows them; display only, since 2026-10-07 — before that the Match ID's own order) — **checker moves only**; cube decisions (made before the roll) and resignations show no dice. Empty when the Match ID is missing or its dice aren't 1–6. `lib/gnuMatchId.ts`'s `diceRollFor` (dispatcher: `decisionRoll`). | `Decision.roll` |
 | Cube | The Match ID's cube value and owner, the owner relative to the stored position's on-roll player (the dice owner): `lib/cubeState.ts`'s `cubeStateFromMatchId` (`decisionCubeState`). No cube when the Match ID is missing or doesn't decode. | `cubeValue`, `cubeOwnerUserId`, `cubeConfident` |
 | Labels and move notations | Played/best candidate (`move_played`; `rank === 1`, else the first) for a move; `actionLabels` for cube (`reviews[0].double`/`take`) and resignation decisions, put in Galaxy's wording with the best cube action derived from the equities (`displayLabels`, see "Cube action from the equities" and "Cube wording"); `moveNotations` for the notations (`decisionLabels`). | `movePlayed`, `moveBest`, `cubeActionPlayed`, `cubeActionBest` |
 | Colour | `raw.color` (often blank on cube rows; the replay resolves each player's colour from any of their rows) (`decisionColor`). | `Decision.color` (equal to `raw.color` on every row) |
@@ -388,6 +388,7 @@ never modified.
 | Board frame | Take/pass flip, the double a take/pass answers, and the cube square a cube row shows in the lists' Roll column instead of dice (the offered value on a double or take/pass, the current cube on a no-double check; red for blunder, amber for error, blue `#2C44FF` otherwise): `positionFromOpponent`/`doubleOfferFor`/`cubeListValue` on the Match ID (`decisionBoardFrame`). | (never columns) |
 | Score and Crawford at a decision | The Match ID's scores through the user's seat, and its Crawford bit: `gameScoreFromMatchId` / `crawfordStateFor` (pass a game's first decision for the score entering the game). No view reads them today. | `Game.userScore`, `Game.opponentScore`, `Game.crawfordState` |
 | Match length | The Match ID's length through `effectiveMatchLength` (an even decoded length means money, 0). | `Match.matchLength` |
+| Match context (review cards) | Length, both scores from the **decision-maker's** seat (`actorPlayerFor`: the dice owner on a move, the turn on a cube decision, so the receiver on a take/pass) and the Crawford state, all from the decision's own Match ID: `galaxyMatchContext` (`decisionMatchContext`). Null for a resignation or no Match ID. Shown as "5-point match · you 3 – opp 2 · Crawford" / "money game" (`lib/review/format.ts`). | (never a column) |
 | Play order | `eventId`. `lib/local-client.ts`'s `getGameReviews` (the /matches DB path) sorted by `timestamp, id` until 2026-10-07; `timestamp` is Galaxy's serve time, which disagreed with `eventId` order on 116,682 rows in 10,769 local games. | `Decision.timestamp` |
 | Resignation detail, luck, equity, mwc | `reviews[0].result.result.resign_error`/`should_resign`/`resignation_type`/`equity_before`/`equity_after`, `error_analysis.luck`/`luck_mwc`, `result.equity`, `probabilities.mwc`. Nothing reads them. | the same-named columns (`myTag` was always null) |
 
@@ -908,6 +909,78 @@ doesn't actually exist. Since 2026-10-06 the signal is a Match ID length of
 `effectiveMatchLength`, see "GNU Match ID"), read from any decision's
 `raw`; nothing is stored for it (the `Match.matchLength` column was dropped
 2026-10-07). A real category flag can be added later if it's ever needed.
+
+## Review cards and tags (since 2026-10-07)
+
+Phase B of `reports/2026-10-07-review-feature-plan.md`: spaced-repetition
+review ("Anki for my mistakes"). Four new tables. Each holds **user-authored
+state that can't be derived from `raw`** (CLAUDE.md's schema rule), so each
+earns its place; none copies anything a decision shows.
+
+| Table | What it holds | Why it's stored |
+|---|---|---|
+| `ReviewCard` | One per `Decision` (`decisionId` unique, FK RESTRICT): the FSRS schedule (`due`, `stability`, `difficulty`, `elapsedDays`, `scheduledDays`, `learningSteps`, `reps`, `lapses`, `state` 0 New / 1 Learning / 2 Review / 3 Relearning, `lastReview`) plus `suspended`. Index `(suspended, due)` for the due queue. | The user's choice to study the decision, and the outcome of their own answers. |
+| `ReviewLog` | One row per answer (`cardId` FK **CASCADE**: deleting a card deletes its history): `rating` (1 Again … 4 Easy), `correct`, `chosen` (the option key), `loss`, `stateBefore` (JSON snapshot of the card's schedule, so schedules can be recomputed later), `reviewedAt`, `durationMs`. Indexes `(cardId, reviewedAt)`, `(reviewedAt)` (today's counts). | The user's answer history. |
+| `Tag` | `name`, unique, trimmed user text. The table's default case-insensitive collation is kept on purpose: "Prime" and "prime" are one tag. | User text. |
+| `DecisionTag` | `(decisionId, tagId)` primary key, `@@index([tagId])`. FK to Decision RESTRICT, to Tag CASCADE. Tags attach to the **decision**, like notes, not to the card. | User text. |
+
+No `utf8mb4_bin` anywhere: no column stores an externally-sourced string
+identifier (keys are internal ints; `chosen` is the app's own option key;
+`Tag.name` is user text). Migration `20261007200000_add_review_cards_tags`,
+whose header says so.
+
+**Cards derive everything from `raw`, through the dispatchers.** A card
+stores nothing about the position. The board, dice, cube, options, equities,
+labels and match context come from the decision's `raw` through
+`lib/analysis/index.ts` (`getDecisionAnalysis`, `decisionLabels`,
+`decisionMatchContext`, `decisionRoll`, and the board values via
+`lib/decisionFromRow.ts`) each time a card is shown
+(`lib/review/cardPayload.ts`). Review code never reads Galaxy's format, and
+`raw` is never modified.
+
+**Eligibility** (`lib/review/eligibility.ts`): counted (`countAsDecision`
+and `rawError` not null); `kind` CHECKER or CUBE (resignations never); the
+match's source has a translator (`hasAnalysisTranslator`);
+`getDecisionAnalysis` returns non-null of the matching kind; a checker move
+has ≥ 2 candidates (a forced move has nothing to choose). Any player's
+decision qualifies.
+
+**Grading** (`lib/review/options.ts`; threshold `CORRECT_LOSS_THRESHOLD` =
+0.02 in `lib/settings.ts`, Galaxy's good/error boundary; the edge counts as
+correct). The server grades every saved answer itself; the client's grading
+is only for showing the back of the card.
+
+- **Checker:** every candidate (3–5, always including the move played),
+  shuffled, keyed by its notation. Correct when the candidate's `loss` ≥
+  −0.02 (loss against the true best by equity).
+- **Cube, doubler** (`role` doubler), fixed order:
+
+  | Option | Key | Doubling part | Take/pass part |
+  |---|---|---|---|
+  | No Double / Take | `nd_take` | no double | take |
+  | Double / Take | `dt` | double | take |
+  | Double / Pass | `dp` | double | pass |
+  | Too good / Pass | `tg_pass` | no double | pass |
+  | Too good / Take | `tg_take` | no double | take |
+
+  Not doubling is worth ND; doubling min(DT, DP). Doubling loss = chosen −
+  max of the two. Take is right when DT ≤ DP, pass otherwise; within 0.02 of
+  each other either is right. Correct = doubling loss ≥ −0.02 **and** the
+  take/pass part right. The loss shown is the doubling loss plus −|DT − DP|
+  when the take/pass part is the strictly wrong one. The best option shown
+  is `doublerAction`'s (`lib/cubeAction.ts`: too good needs ND > DP
+  strictly, DT == ND is No Double, DT == DP is Take). Because the rule
+  grades parts, No Double / Take and Too good / Take always grade the same,
+  and on an ND == DP tie Too good / Pass grades correct alongside the shown
+  best Double / Pass. Decision 629849 (ND 0.7922, DT 0.9751, DP 1): best
+  Double / Take; Double / Pass loses 0.0249 (wrong); No Double loses 0.1829.
+- **Cube, receiver:** Take and Pass. Take right when the doubler-view DT ≤
+  DP; the wrong one loses |DT − DP|; correct within 0.02.
+
+A wrong answer is rated **Again** automatically; a right one is rated Hard,
+Good or Easy by the user. FSRS is `ts-fsrs` 5 with default parameters,
+behind `lib/review/fsrs.ts`. Daily limits, "today" (the server's local day)
+and the queue order are in `lib/settings.ts` and `lib/review/queue.ts`.
 
 ## PlayerIdentity
 

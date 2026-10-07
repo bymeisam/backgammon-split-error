@@ -3,6 +3,7 @@
 // read route (app/api/decision-notes), the client UI and the notes sync
 // scripts. No Prisma import here, so client components can use it too.
 import type { Decision } from "@/lib/mistakes";
+import type { DecisionReviewStatus, DecisionTagRef } from "@/lib/review/types";
 
 // A sensible cap for a personal free-text note. Checked against the trimmed
 // note on the server; the textarea's maxLength mirrors it on the client.
@@ -40,6 +41,12 @@ export interface MatchDecisionNoteEntry {
   eventId: string;
   dbDecisionId: number;
   note: string | null;
+  // Review feature (since 2026-10-07): the decision's tags, and — only when
+  // canEdit — its card and whether it can become one. Optional so an older
+  // response shape still parses.
+  tags?: DecisionTagRef[];
+  reviewCard?: DecisionReviewStatus | null;
+  reviewEligible?: boolean;
 }
 
 export interface MatchDecisionNotesResponse {
@@ -67,7 +74,14 @@ export function attachNotes(decisions: Decision[], entries: MatchDecisionNoteEnt
   const byKey = new Map(entries.map((e) => [liveDecisionKey(e.gameIndex, e.eventId), e]));
   return decisions.map((d) => {
     const entry = byKey.get(d.id);
-    return { ...d, note: entry?.note ?? null, dbDecisionId: entry?.dbDecisionId ?? null };
+    return {
+      ...d,
+      note: entry?.note ?? null,
+      dbDecisionId: entry?.dbDecisionId ?? null,
+      tags: entry?.tags ?? [],
+      reviewCard: entry?.reviewCard ?? null,
+      reviewEligible: entry?.reviewEligible ?? false,
+    };
   });
 }
 

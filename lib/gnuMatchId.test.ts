@@ -250,9 +250,11 @@ describe("PlayerUserIds", () => {
 describe("diceRollFor — the roll a decision shows", () => {
   const base = decodeGnuMatchId("QQmxAAAACAAE")!;
 
-  it("a checker move: the Match ID's dice, in its order", () => {
+  it("a checker move: the Match ID's dice, higher die first (as Galaxy shows them)", () => {
     expect(diceRollFor("move", { ...base, dice: [5, 2] })).toEqual([5, 2]);
-    expect(diceRollFor("move", { ...base, dice: [2, 5] })).toEqual([2, 5]);
+    expect(diceRollFor("move", { ...base, dice: [2, 5] })).toEqual([5, 2]);
+    expect(diceRollFor("move", { ...base, dice: [3, 6] })).toEqual([6, 3]);
+    expect(diceRollFor("move", { ...base, dice: [1, 2] })).toEqual([2, 1]);
     expect(diceRollFor("move", { ...base, dice: [4, 4] })).toEqual([4, 4]);
   });
 

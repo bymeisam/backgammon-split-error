@@ -84,3 +84,15 @@ export type DecisionBoardFrame = {
   doubleOffer: DoubleOffer | null;
   cubeSquareValue: number | null;
 };
+
+// The match situation at a decision, from the decision-maker's view, derived
+// from `raw` (the Galaxy reader decodes the decision's own GNU Match ID) —
+// not stored. The review cards show it ("5-point match · you 3 – opp 2 ·
+// Crawford"). matchLength 0 = money game, with both scores null and
+// crawford "none".
+export type DecisionMatchContext = {
+  matchLength: number;
+  deciderScore: number | null;
+  opponentScore: number | null;
+  crawford: "none" | "crawford" | "post_crawford";
+};

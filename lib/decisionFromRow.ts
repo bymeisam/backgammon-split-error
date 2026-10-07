@@ -33,6 +33,7 @@ import {
   decisionRoll,
 } from "@/lib/analysis";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
+import { isReviewEligible } from "@/lib/review/eligibility";
 
 // Exported for lib/decisionFromRow.ts's own decisionFromRowForReplay below
 // to reuse verbatim, rather than re-declaring the same mapping twice.
@@ -73,6 +74,13 @@ export interface DecisionRow {
   // every query that feeds a board selects it (DECISION_LIST_SELECT in
   // lib/decisionQueries.ts, the replay page's own select).
   note: { note: string; updatedAt: Date } | null;
+  // Review feature (optional: only the board queries select them —
+  // DECISION_LIST_SELECT and the replay's own select). countAsDecision
+  // feeds the eligibility rule (lib/review/eligibility.ts); without it the
+  // decision isn't offered for review.
+  countAsDecision?: boolean;
+  reviewCard?: { id: number; due: Date; suspended: boolean } | null;
+  tags?: { tag: { id: number; name: string } }[];
   // match.source picks the reader for `raw` (lib/analysis/index.ts).
   game: { gameIndex: number; match: { source: string } };
 }
@@ -132,6 +140,19 @@ function buildDecision(row: DecisionRow, absError: number): Decision | null {
     ...decisionBoardFrame(input),
     note: row.note?.note ?? null,
     dbDecisionId: row.id,
+    reviewCard: row.reviewCard
+      ? { cardId: row.reviewCard.id, due: row.reviewCard.due.toISOString(), suspended: row.reviewCard.suspended }
+      : null,
+    reviewEligible:
+      row.countAsDecision !== undefined &&
+      isReviewEligible({
+        kind: row.kind,
+        countAsDecision: row.countAsDecision,
+        rawError: row.rawError,
+        source: row.game.match.source,
+        raw: row.raw,
+      }),
+    tags: (row.tags ?? []).map((t) => ({ id: t.tag.id, name: t.tag.name })),
   };
 }
 

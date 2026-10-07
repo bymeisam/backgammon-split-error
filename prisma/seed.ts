@@ -332,8 +332,15 @@ async function main() {
   // FK-safe order: children before parents. PlayerIdentity is standalone,
   // order relative to the others doesn't matter. DecisionNote first: its FK
   // to Decision is ON DELETE RESTRICT, so a decision with a note can't be
-  // deleted until the note is.
+  // deleted until the note is. The review tables likewise: ReviewCard and
+  // DecisionTag are RESTRICT to Decision (ReviewLog goes with its card by
+  // CASCADE, but is deleted explicitly anyway), and Tag goes once nothing
+  // links to it.
   await prisma.decisionNote.deleteMany();
+  await prisma.reviewLog.deleteMany();
+  await prisma.reviewCard.deleteMany();
+  await prisma.decisionTag.deleteMany();
+  await prisma.tag.deleteMany();
   await prisma.decision.deleteMany();
   await prisma.game.deleteMany();
   await prisma.match.deleteMany();

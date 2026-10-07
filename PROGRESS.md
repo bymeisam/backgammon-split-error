@@ -760,3 +760,36 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - **Verified read-only:** the migration is finished, with 1 step and no rollback. Decision has 12 columns, Game 3 and Match 15, matching local.
   - **Stats recomputed:** `scripts/recompute-stats.ts` brought MistakeStat from 174 to 136 rows (34 per severity, checker and cube only). The 1,133 counted resignation decisions dropped out. RepeatedPosition is unchanged.
   - **Next:** point `.env` back at local. Dice display order (high die first, as Galaxy's client shows) is pending the user's OK. Then Phase B (review cards).
+- **Phase B: spaced-repetition review, plus dice high-first (local).** Spec approved by the user (`reports/2026-10-07-review-feature-plan.md`).
+  - **Dice:** `lib/gnuMatchId.ts`'s `diceRollFor` returns the higher die first (6-3, as Galaxy's client). This is the one place every dice display passes through (DB and live paths). Display only. Tests in `gnuMatchId.test.ts` and `galaxyFields.test.ts`.
+  - **Schema:** migration `20261007200000_add_review_cards_tags` adds `ReviewCard` (FSRS state, `suspended`, `(suspended, due)` index, RESTRICT to Decision), `ReviewLog` (CASCADE from its card), `Tag` (unique case-insensitive name) and `DecisionTag` (RESTRICT to Decision, CASCADE from Tag). It went through `migrate diff` → hand-check → `migrate deploy` on `app_dev` and `bg_test`; `migrate status` is clean on both. There's no `utf8mb4_bin`; the header says why. `prisma/seed.ts` deletes the new tables first.
+  - **Logic** (`lib/review/`, pure, 68 tests):
+    - Eligibility, options and grading follow the spec's tables, including ties, threshold edges, C2 629849 → Double/Take, and receivers.
+    - FSRS is `ts-fsrs` 5.4.2 with default parameters, behind `fsrs.ts`.
+    - The queue (`queue.ts`) works by the server's local day: 20 new and 200 reviews a day, learning cards not limited, an Again card requeued after 3 cards.
+    - Bulk add (`bulk.ts`), tags, filters and request validation are here too.
+    - Settings live in `lib/settings.ts`.
+    - New dispatchers: `decisionMatchContext` and `hasAnalysisTranslator`.
+  - **Writes:** these routes use the read-write client and are added to the `proxy.ts` matcher, so they 404 without write mode:
+    - `/api/review/cards` (POST), `/api/review/cards/[id]` (PATCH suspend, DELETE) and `/api/review/cards/[id]/answer`, which grades on the server and writes the log and the schedule in one transaction;
+    - `/api/review/bulk` (dry run, then a real run in one transaction);
+    - `/api/review/queue` and `/api/review/summary`, which only read, with the read-only client;
+    - `/api/tags`, `/api/tags/attach` and `/api/tags/detach`.
+  - **UI:**
+    - **Below the note on every DB-backed board** (`DecisionReviewTools`): "Add to review" or "In review · due …", plus the tag editor (`TagEditor`). This covers /mistakes, /repeated-positions, the replay, and /matches/[matchId] through `/api/decision-notes`, which now also returns tags and, with write mode on, card and eligibility. Never /galaxy.
+    - **/mistakes:** "Add all to review" with a confirmation.
+    - **/review:** the session. `BoardPanel` gets a new `quiz` mode, and the back of the card has the note, tags, links and rating.
+    - **/review/cards:** the card list.
+    - **Home:** a Review link with the due count, write mode only.
+    - The replay accepts `?decision=<id>`.
+  - **Verified:**
+    - lint, tsc, 458/458 tests and the build pass.
+    - Visual: 15/15. Only `decision-card.png` changed, from the new review/tags card below the note.
+    - Headless on a local `next start` against `app_dev`:
+      - add from /mistakes and from the replay;
+      - bulk add of 91 (1 skipped), then 100 capped from a filter of 1,008;
+      - in a session, a wrong checker answer is recorded as Again and comes back after 3 cards; C2 is Correct for Double / Take; a receiver card has the receiver at the bottom; the note and tag save; the summary shows;
+      - on /review/cards, the tag filter, suspend (the card leaves the queue) and delete (its logs are gone);
+      - with write mode off, all 11 routes 404, /review shows the message, and the controls are hidden.
+  - **Test data left in `app_dev`:** 193 cards, 68 logs, 2 tags ("review test", "cube test") and a test note on 629849.
+  - **Next:** the user's manual check, then the Oracle migration (prepared, not run), then push.

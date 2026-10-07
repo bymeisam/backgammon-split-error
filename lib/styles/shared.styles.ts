@@ -16,4 +16,19 @@ export const style = {
   severityError: "border-[#FBBD23] bg-[#FBBD23] text-zinc-950",
   severityBlunder: "border-[#F43E5C] bg-[#F43E5C] text-zinc-950",
   cubeSquareDefault: "border-[#2C44FF] bg-[#2C44FF] text-white",
+
+  // A centred confirmation dialog over a dimmed page — /mistakes' "Add all
+  // to review" and /review/cards' delete confirmation (same look as
+  // /galaxy/matches' TokenModal, which keeps its own copy).
+  modalOverlay: "fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6",
+  modalPanel:
+    "flex w-full max-w-lg flex-col gap-4 rounded-xl border border-black/10 bg-white p-6 shadow-xl dark:border-white/15 dark:bg-zinc-900",
+  modalHeading: "text-lg font-semibold text-black dark:text-zinc-50",
+  modalText: "text-sm text-zinc-700 dark:text-zinc-300",
+  modalError: "text-sm text-red-600 dark:text-red-400",
+  modalButtons: "flex justify-end gap-2",
+  modalPrimaryButton:
+    "rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black dark:hover:bg-zinc-200",
+  modalSecondaryButton:
+    "rounded-full border border-black/10 px-4 py-1.5 text-sm font-medium text-black hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
 } as const;

@@ -10,6 +10,8 @@
 //   labels     lib/mistakes.ts's displayLabels + moveNotations
 //   board frame  lib/cubeState.ts's positionFromOpponent / doubleOfferFor /
 //              cubeListValue
+//   match context  the Match ID's length (effectiveMatchLength), scores
+//              (seen from the actor, actorPlayerFor) and crawfordStateFor
 // Called only through lib/analysis/index.ts's dispatchers, which pick these
 // for Match.source "galaxy". Pure: no DB, no network.
 //
@@ -18,10 +20,17 @@
 // cubeActionPlayed/cubeActionBest (2026-10-07; reports/2026-10-07-column-
 // audit.md, docs/field-mapping.md "Derived from raw").
 import type { Review } from "@/lib/gameReviewsTypes";
-import { decodeGnuMatchId, diceRollFor, type DecodedMatchId } from "@/lib/gnuMatchId";
+import {
+  actorPlayerFor,
+  crawfordStateFor,
+  decodeGnuMatchId,
+  diceRollFor,
+  effectiveMatchLength,
+  type DecodedMatchId,
+} from "@/lib/gnuMatchId";
 import { cubeListValue, cubeStateFromMatchId, doubleOfferFor, positionFromOpponent, type CubeState } from "@/lib/cubeState";
 import { displayLabels, moveNotations } from "@/lib/mistakes";
-import type { DecisionBoardFrame, DecisionLabels } from "@/lib/analysis/types";
+import type { DecisionBoardFrame, DecisionLabels, DecisionMatchContext } from "@/lib/analysis/types";
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -79,5 +88,27 @@ export function galaxyBoardFrame(raw: unknown): DecisionBoardFrame {
     positionFromOpponent: positionFromOpponent(event, m),
     doubleOffer: doubleOfferFor(event, m, review?.take),
     cubeSquareValue: cubeListValue(event, m, review?.double),
+  };
+}
+
+// The match situation from the decision-maker's view: the actor is the dice
+// owner on a move and the turn on a cube decision (lib/gnuMatchId.ts's
+// actorPlayerFor — on a take/pass the turn is the receiver). Null without a
+// decodable Match ID or for a resignation (no reliable actor).
+export function galaxyMatchContext(raw: unknown): DecisionMatchContext | null {
+  const m = galaxyMatchState(raw);
+  const event = galaxyAnalysedEvent(raw);
+  if (!m || !event) return null;
+  const actor = actorPlayerFor(event, m);
+  if (actor === null) return null;
+  const matchLength = effectiveMatchLength(m);
+  if (matchLength === 0) {
+    return { matchLength: 0, deciderScore: null, opponentScore: null, crawford: "none" };
+  }
+  return {
+    matchLength,
+    deciderScore: m.score[actor],
+    opponentScore: m.score[actor === 0 ? 1 : 0],
+    crawford: crawfordStateFor(m),
   };
 }

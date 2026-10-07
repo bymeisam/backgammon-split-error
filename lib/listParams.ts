@@ -2,7 +2,7 @@
 // pages — /mistakes and /repeated-positions. Pure: no Prisma client, no
 // React, so all of it is unit-testable.
 import { DecisionKind, ErrorSeverity } from "@/lib/generated/prisma/enums";
-import { getPhaseLabel } from "@/lib/classificationLabels";
+import { getPhaseLabel, resolvePhaseWhere } from "@/lib/classificationLabels";
 import { severityLabel } from "@/lib/badges";
 
 export type SearchParams = { [key: string]: string | string[] | undefined };
@@ -151,4 +151,27 @@ export function severityOptions(values: ErrorSeverity[]): { value: string; label
 // lowercase (matching what lowercaseParam reads back).
 export function lowercaseOptions(values: string[]): { value: string; label: string }[] {
   return values.map((v) => ({ value: v.toLowerCase(), label: v.toLowerCase() }));
+}
+
+// /mistakes' decision filter, as a Prisma where — shared by the page's own
+// list and "Add all to review" (app/api/review/bulk), so the bulk add takes
+// exactly the decisions the list shows. Only decisions Galaxy counts
+// (countAsDecision: true) with a rawError (a null one is an ungraded,
+// partial analysis — see docs/field-mapping.md); checker and cube only
+// (LISTED_KINDS). An unrecognised ?category= (including a stale
+// ?category=resignation) means no category filter.
+export function mistakesWhere(filters: {
+  phase: string | undefined;
+  categoryParam: string | undefined;
+  severityParam: string | undefined;
+}) {
+  const category = categoryFromParam(filters.categoryParam);
+  const errorSeverity = severityFromParam(filters.severityParam);
+  return {
+    countAsDecision: true,
+    rawError: { not: null },
+    ...(filters.phase ? resolvePhaseWhere(filters.phase) : {}),
+    kind: category ?? { in: [...LISTED_KINDS] },
+    ...(errorSeverity ? { errorSeverity } : {}),
+  };
 }

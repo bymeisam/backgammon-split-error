@@ -13,6 +13,7 @@ import {
 } from "@/lib/cubeState";
 import { cubeBestDisplay, cubePlayedLabel, deriveCubeActionFromReview } from "@/lib/cubeAction";
 import { decodeGnuMatchId, diceRollFor } from "@/lib/gnuMatchId";
+import type { DecisionReviewStatus, DecisionTagRef } from "@/lib/review/types";
 
 export interface FetchedGame {
   gameIndex: number;
@@ -107,6 +108,14 @@ export interface Decision {
   // when the decision isn't in the DB (live path, match not ingested), in
   // which case no note UI renders.
   dbDecisionId?: number | null;
+  // The decision's spaced-repetition card (ReviewCard), null/absent when it
+  // isn't in review. Set only on DB-backed paths, never on /galaxy.
+  reviewCard?: DecisionReviewStatus | null;
+  // Whether it can become a card (lib/review/eligibility.ts). Absent/false
+  // where it wasn't worked out.
+  reviewEligible?: boolean;
+  // The user's tags on this decision (DecisionTag), absent/empty when none.
+  tags?: DecisionTagRef[];
 }
 
 export interface PlayerOption {

@@ -21,9 +21,15 @@ import {
   galaxyColor,
   galaxyCubeState,
   galaxyLabels,
+  galaxyMatchContext,
   galaxyRoll,
 } from "@/lib/analysis/galaxyFields";
-import type { DecisionAnalysis, DecisionBoardFrame, DecisionLabels } from "@/lib/analysis/types";
+import type {
+  DecisionAnalysis,
+  DecisionBoardFrame,
+  DecisionLabels,
+  DecisionMatchContext,
+} from "@/lib/analysis/types";
 import type { CubeState } from "@/lib/cubeState";
 
 export type DecisionRawInput = {
@@ -32,6 +38,13 @@ export type DecisionRawInput = {
   // Decision.raw, the source's stored event.
   raw: unknown;
 };
+
+// Whether a source has a translator (getDecisionAnalysis below) at all.
+// The review feature's eligibility rule checks it (lib/review/eligibility.ts).
+// Keep in step with the switch in getDecisionAnalysis.
+export function hasAnalysisTranslator(source: string): boolean {
+  return source === "galaxy";
+}
 
 // Null for an unknown source, a resignation, or a payload the translator
 // can't read.
@@ -55,7 +68,8 @@ export function decisionColor({ source, raw }: DecisionRawInput): string {
   }
 }
 
-// The dice a checker move was played with; [] for cube decisions (made
+// The dice a checker move was played with, higher die first (6-3, as
+// Galaxy's client shows them — display only); [] for cube decisions (made
 // before the roll), resignations, an unknown source, or an unreadable roll.
 export function decisionRoll({ source, raw }: DecisionRawInput): number[] {
   switch (source) {
@@ -96,5 +110,16 @@ export function decisionBoardFrame({ source, raw }: DecisionRawInput): DecisionB
       return galaxyBoardFrame(raw);
     default:
       return { positionFromOpponent: false, doubleOffer: null, cubeSquareValue: null };
+  }
+}
+
+// The match situation at the decision from the decision-maker's view
+// (length, scores, Crawford). Null when unknown.
+export function decisionMatchContext({ source, raw }: DecisionRawInput): DecisionMatchContext | null {
+  switch (source) {
+    case "galaxy":
+      return galaxyMatchContext(raw);
+    default:
+      return null;
   }
 }

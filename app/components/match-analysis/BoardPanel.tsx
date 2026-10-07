@@ -7,6 +7,7 @@ import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
 import { boardCubeFor, boardPositionFlipped } from "@/lib/boardFrame";
 import Board from "./Board";
 import DecisionNote from "./DecisionNote";
+import DecisionReviewTools from "./DecisionReviewTools";
 import { style } from "./BoardPanel.styles";
 
 const BLUNDER_COLOR = "#dc2626"; // red-600
@@ -19,6 +20,7 @@ export default function BoardPanel({
   onSelectTab,
   flipped,
   canEditNotes = false,
+  quiz = false,
 }: {
   selected: Decision | null;
   moveTab: "my" | "best";
@@ -31,8 +33,14 @@ export default function BoardPanel({
   // mirrorSubMoves, once, in one place — before Board sees them.
   flipped?: boolean;
   // Whether the selected decision's note is editable here (isGalaxyEnabled()
-  // on the server — see DecisionNote). Default false: read-only.
+  // on the server — see DecisionNote). Default false: read-only. Also
+  // decides whether the review controls and the tag editor below the note
+  // are offered (DecisionReviewTools).
   canEditNotes?: boolean;
+  // Review-card front (app/review): just the position, dice and cube —
+  // no move arrows, no my/best boxes, no note or review tools, nothing
+  // that gives the answer away.
+  quiz?: boolean;
 }) {
   // The position (and its cube) is flipped when exactly one of these holds:
   // the view asks for it (`flipped`), or the stored position is drawn from
@@ -61,9 +69,9 @@ export default function BoardPanel({
       : null;
 
   const subMoves = useMemo(() => {
-    const parsed = notation ? parseNotation(notation) : [];
+    const parsed = notation && !quiz ? parseNotation(notation) : [];
     return flipped ? mirrorSubMoves(parsed) : parsed;
-  }, [notation, flipped]);
+  }, [notation, flipped, quiz]);
 
   const arrowColor =
     moveTab === "best"
@@ -95,7 +103,7 @@ export default function BoardPanel({
           <p className={style.emptyState}>No position data for this decision.</p>
         )}
 
-        {selected && (
+        {selected && !quiz && (
           <div className={style.infoRow}>
             <div className={style.gameBadge}>
               <span className={style.gameBadgeLabel}>Game</span>
@@ -141,12 +149,21 @@ export default function BoardPanel({
       {/* Outside the board-panel testid'd box on purpose: the note is its
           own card below the board, so e2e's board-panel screenshots stay
           about the board itself. */}
-      {selected && (
+      {selected && !quiz && (
         <DecisionNote
           key={selected.dbDecisionId ?? selected.id}
           note={selected.note}
           dbDecisionId={selected.dbDecisionId}
           canEditNotes={canEditNotes}
+        />
+      )}
+      {/* "Add to review" and tags, next to the note — DB-backed decisions
+          only (nothing renders without a dbDecisionId, e.g. on /galaxy). */}
+      {selected && !quiz && (
+        <DecisionReviewTools
+          key={`review-${selected.dbDecisionId ?? selected.id}`}
+          decision={selected}
+          canEdit={canEditNotes}
         />
       )}
     </div>

@@ -31,5 +31,12 @@ export const config = {
     // Decision-note writes (POST /api/decisions/[id]/note) — the app's
     // first write path outside sync/ingest, gated the same way.
     "/api/decisions/:path*",
+    // Spaced-repetition review and tags (app/api/review/*, app/api/tags/*):
+    // card create/answer/suspend/delete, bulk add, tag attach/detach, and
+    // the queue/summary/tag-list reads only the write-mode UI uses.
+    "/api/review",
+    "/api/review/:path*",
+    "/api/tags",
+    "/api/tags/:path*",
   ],
 };

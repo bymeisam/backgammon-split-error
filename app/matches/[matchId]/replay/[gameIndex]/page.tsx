@@ -21,10 +21,10 @@ export default async function GameReplayPage({
   searchParams,
 }: {
   params: Promise<{ matchId: string; gameIndex: string }>;
-  searchParams: Promise<{ position?: string }>;
+  searchParams: Promise<{ position?: string; decision?: string }>;
 }) {
   const { matchId, gameIndex: gameIndexParam } = await params;
-  const { position } = await searchParams;
+  const { position, decision: decisionParam } = await searchParams;
   const gameIndex = Number(gameIndexParam);
 
   if (!Number.isInteger(gameIndex) || gameIndex < 1) {
@@ -111,6 +111,10 @@ export default async function GameReplayPage({
       raw: true,
       // The user's own note on each decision, if any (1:1 DecisionNote).
       note: { select: { note: true, updatedAt: true } },
+      // Review feature: the decision's card and tags (eligibility also
+      // reads countAsDecision, selected above).
+      reviewCard: { select: { id: true, due: true, suspended: true } },
+      tags: { select: { tag: { select: { id: true, name: true } } }, orderBy: { tag: { name: "asc" } } },
       game: { select: { gameIndex: true, match: { select: { source: true } } } },
     },
   });
@@ -162,7 +166,12 @@ export default async function GameReplayPage({
     // happened to have it populated.
     .map((d) => ({ ...d, color: colorByUserId.get(d.userId) ?? d.color }));
 
-  const initialIndex = position === "last" ? Math.max(0, decisions.length - 1) : 0;
+  // ?decision=<Decision.id> opens the replay on that decision (the review
+  // card's "Open in replay"); ?position=last on the game's last decision.
+  const linkedIndex =
+    typeof decisionParam === "string" ? decisions.findIndex((d) => String(d.dbDecisionId) === decisionParam) : -1;
+  const initialIndex =
+    linkedIndex !== -1 ? linkedIndex : position === "last" ? Math.max(0, decisions.length - 1) : 0;
   // "View on Galaxy" — null (no link) for a non-Galaxy match.
   const externalHref = externalMatchUrl(match.source, match.sourceMatchId);
 

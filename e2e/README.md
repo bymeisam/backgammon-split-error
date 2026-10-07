@@ -64,7 +64,9 @@ in the real DB right now. `/matches/[matchId]`'s decision-notes lookup
 so no note UI renders there and its arrival can't race a screenshot.
 `/galaxy/matches/[matchId]` never fetches notes (it's live Galaxy data and
 read-only). The note UI itself is covered by the `/mistakes`
-`decision-card` screenshot, which shows the editable note card: that needs
+`decision-card` screenshot, which shows the editable note card (and, since
+2026-10-07, the review card below it: "Add to review" and the empty tag
+editor — `bg_test` has no review cards or tags): that needs
 write mode, so `playwright.config.ts` pins `ENABLE_WRITE_MODE=true` on the
 :3100 server instead of depending on `.env`. `/mistakes` is a server component reading Prisma
 directly — no fetch to mock — so it's made deterministic a different way:

@@ -4,14 +4,13 @@ import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { DECISION_LIST_SELECT, loadDecisionItems } from "@/lib/decisionQueries";
 import {
-  LISTED_KINDS,
   PAGE_SIZE_OPTIONS,
   categoryFromParam,
   describeFilters,
   lowercaseOptions,
   lowercaseParam,
   parseListParams,
-  severityFromParam,
+  mistakesWhere,
   severityOptions,
   severityParamLabel,
   totalPagesFor,
@@ -20,7 +19,8 @@ import {
 import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
 import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
-import { phaseOptionsFor, resolvePhaseWhere } from "@/lib/classificationLabels";
+import { phaseOptionsFor } from "@/lib/classificationLabels";
+import BulkAddToReview from "./BulkAddToReview";
 import { style } from "./mistakes.styles";
 
 // Server component, queried fresh on every request (no caching) — same
@@ -108,21 +108,15 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   // no longer a category) means no category filter, and isn't echoed in the
   // count line below.
   const category = categoryFromParam(categoryParam);
-  const errorSeverity = severityFromParam(severityParam);
 
   // Only decisions Galaxy counts (countAsDecision: true); rawError not null
   // is required too — a null rawError is an ungraded/partial analysis (see
   // docs/field-mapping.md), and decisionFromRow can't build a board card
   // from one (no absError to show), same exclusion lib/mistakes.ts's own
   // extractDecisions already applies. Checker and cube decisions only:
-  // resignations are never listed (LISTED_KINDS).
-  const where = {
-    countAsDecision: true,
-    rawError: { not: null },
-    ...(phase ? resolvePhaseWhere(phase) : {}),
-    kind: category ?? { in: [...LISTED_KINDS] },
-    ...(errorSeverity ? { errorSeverity } : {}),
-  };
+  // resignations are never listed (LISTED_KINDS). One where, shared with
+  // "Add all to review" (lib/listParams.ts's mistakesWhere).
+  const where = mistakesWhere({ phase, categoryParam, severityParam });
 
   const [total, rows] = await Promise.all([
     prisma.decision.count({ where }),
@@ -139,10 +133,16 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
 
   return (
     <>
-      <p className={style.mutedText}>
-        {total.toLocaleString()} {describeFilters(phase, category ? categoryParam : undefined, severityParamLabel(severityParam))} decision
-        {total === 1 ? "" : "s"}.
-      </p>
+      <div className={style.countRow}>
+        <p className={style.mutedText}>
+          {total.toLocaleString()} {describeFilters(phase, category ? categoryParam : undefined, severityParamLabel(severityParam))} decision
+          {total === 1 ? "" : "s"}.
+        </p>
+        {/* Write mode only (the bulk route is gated by proxy.ts anyway). */}
+        {isGalaxyEnabled() && total > 0 && (
+          <BulkAddToReview phase={phase} category={categoryParam} severity={severityParam} />
+        )}
+      </div>
 
       <DecisionListWithDetail
         items={items}

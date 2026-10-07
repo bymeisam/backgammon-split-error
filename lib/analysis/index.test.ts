@@ -4,8 +4,10 @@ import {
   decisionColor,
   decisionCubeState,
   decisionLabels,
+  decisionMatchContext,
   decisionRoll,
   getDecisionAnalysis,
+  hasAnalysisTranslator,
 } from "@/lib/analysis";
 import { galaxyAnalysis } from "@/lib/analysis/galaxy";
 import examples from "@/lib/__fixtures__/analysis/galaxy-analysis-examples.json";
@@ -48,6 +50,13 @@ describe("display-value dispatchers", () => {
     expect(decisionCubeState(input)).toBeNull();
     expect(decisionLabels(input)).toBeNull();
     expect(decisionBoardFrame(input)).toEqual({ positionFromOpponent: false, doubleOffer: null, cubeSquareValue: null });
+    expect(decisionMatchContext(input)).toBeNull();
+  });
+
+  it("hasAnalysisTranslator: galaxy only", () => {
+    expect(hasAnalysisTranslator("galaxy")).toBe(true);
+    expect(hasAnalysisTranslator("xg")).toBe(false);
+    expect(hasAnalysisTranslator("")).toBe(false);
   });
 
   it("source 'galaxy' reads the payload", () => {

@@ -184,8 +184,11 @@ export function encodeGnuMatchId(m: DecodedMatchId): string {
 
 // The roll a decision shows, from its own Match ID's dice (bits 15–20) —
 // the one rule for it (since 2026-10-07; the old Decision.roll column is
-// dropped). A checker move ("move") shows the dice it was played with, in
-// the Match ID's order (die 1, die 2; a double is two equal dice). Every
+// dropped). A checker move ("move") shows the dice it was played with,
+// higher die first (6-3, never 3-6), as Galaxy's own client shows them —
+// display only: the Match ID's own die order (die 1, die 2) carries no
+// meaning the app uses, and nothing is stored (since 2026-10-07; before
+// that the Match ID's order was shown). A double is two equal dice. Every
 // other decision shows none: a cube decision is made before the roll, and a
 // resignation isn't a move. Empty too when the Match ID is missing or its
 // dice aren't 1–6. The Match ID's dice match the move played on every local
@@ -198,7 +201,7 @@ export function diceRollFor(analysedEvent: string | null | undefined, m: Decoded
   if (analysedEvent !== "move" || !m) return [];
   const [a, b] = m.dice;
   if (a < 1 || a > 6 || b < 1 || b > 6) return [];
-  return [a, b];
+  return a >= b ? [a, b] : [b, a];
 }
 
 // The player index a decision's actor (event.user_id) is, read from that

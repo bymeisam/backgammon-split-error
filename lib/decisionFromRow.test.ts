@@ -8,6 +8,7 @@ import {
 } from "@/lib/decisionFromRow";
 import { decodeGnuMatchId, encodeGnuMatchId } from "@/lib/gnuMatchId";
 import moneyGameMove from "./__fixtures__/galaxy-payloads/money-game-move.json";
+import examplesJson from "./__fixtures__/analysis/galaxy-analysis-examples.json";
 import resignation from "./__fixtures__/galaxy-payloads/resignation.json";
 import lowConfidenceDoubtful from "./__fixtures__/galaxy-payloads/low-confidence-doubtful.json";
 
@@ -346,5 +347,42 @@ describe("note and dbDecisionId", () => {
     const decision = decisionFromRow(baseRow({ id: 7, note: null }));
     expect(decision?.note).toBeNull();
     expect(decision?.dbDecisionId).toBe(7);
+  });
+});
+
+// Review feature fields (since 2026-10-07): the card, eligibility and tags
+// a board's review controls read.
+describe("review card, eligibility and tags on the built Decision", () => {
+  const examples = examplesJson as unknown as Record<string, { raw: unknown }>;
+
+  it("no card, not eligible and no tags when the query didn't select them", () => {
+    const d = decisionFromRow(baseRow())!;
+    expect(d.reviewCard).toBeNull();
+    expect(d.reviewEligible).toBe(false);
+    expect(d.tags).toEqual([]);
+  });
+
+  it("eligibility follows lib/review/eligibility.ts (a counted move with candidates)", () => {
+    expect(decisionFromRow(baseRow({ countAsDecision: true, raw: examples.C1.raw }))!.reviewEligible).toBe(true);
+    expect(decisionFromRow(baseRow({ countAsDecision: false, raw: examples.C1.raw }))!.reviewEligible).toBe(false);
+    expect(
+      decisionFromRowForReplay(baseRow({ kind: "RESIGNATION", countAsDecision: true, raw: resignation.data.events[0] }))
+        ?.reviewEligible ?? false
+    ).toBe(false);
+  });
+
+  it("the card (due as ISO) and the tags pass through", () => {
+    const due = new Date("2026-10-09T08:00:00Z");
+    const d = decisionFromRow(
+      baseRow({
+        reviewCard: { id: 7, due, suspended: false },
+        tags: [{ tag: { id: 2, name: "prime" } }, { tag: { id: 5, name: "race" } }],
+      })
+    )!;
+    expect(d.reviewCard).toEqual({ cardId: 7, due: due.toISOString(), suspended: false });
+    expect(d.tags).toEqual([
+      { id: 2, name: "prime" },
+      { id: 5, name: "race" },
+    ]);
   });
 });

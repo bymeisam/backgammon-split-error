@@ -25,6 +25,12 @@ export const DECISION_LIST_SELECT = {
   // unique-key lookup per returned row, so it only ever touches the page's
   // own rows, never the count query.
   note: { select: { note: true, updatedAt: true } },
+  // Review feature: countAsDecision for the eligibility rule, the decision's
+  // card (1:1, null when not in review) and its tags — unique-key / small
+  // per-row lookups on the page's own rows, like the note.
+  countAsDecision: true,
+  reviewCard: { select: { id: true, due: true, suspended: true } },
+  tags: { select: { tag: { select: { id: true, name: true } } }, orderBy: { tag: { name: "asc" } } },
   game: { select: { gameIndex: true, match: { select: { source: true, sourceMatchId: true } } } },
 } satisfies Prisma.DecisionSelect;
 

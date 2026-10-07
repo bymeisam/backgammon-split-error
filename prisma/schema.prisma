@@ -146,7 +146,11 @@ model Decision {
 
   // The user's own free-text note on this decision, if any (see
   // DecisionNote below).
-  note DecisionNote?
+  note       DecisionNote?
+  // The spaced-repetition card for this decision, if it's in review, and
+  // the user's tags on it (see ReviewCard / DecisionTag below).
+  reviewCard ReviewCard?
+  tags       DecisionTag[]
 
   @@unique([gameId, eventId])
   @@index([kind, classification])
@@ -284,4 +288,103 @@ model DecisionNote {
   note       String   @db.Text
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// Spaced-repetition review ("Anki for my mistakes"): one card per Decision,
+// holding its FSRS schedule (ts-fsrs, behind lib/review/fsrs.ts). Genuinely
+// new state that can't be derived from raw (CLAUDE.md's schema rule): the
+// user chose to study this decision, and the schedule is the outcome of
+// their own answers. Everything the card SHOWS (position, dice, cube,
+// options, equities, labels) is derived from the decision's raw through
+// lib/analysis/index.ts's dispatchers — nothing of that is copied here.
+//
+// The FSRS fields mirror ts-fsrs's Card: due, stability, difficulty,
+// elapsedDays (deprecated by ts-fsrs 5, removed in 6 — kept so a stored
+// card round-trips through the library unchanged), scheduledDays,
+// learningSteps, reps, lapses, state (0 New, 1 Learning, 2 Review,
+// 3 Relearning) and lastReview. `suspended` takes a card out of the queue
+// without losing its history. Same RESTRICT FK as DecisionNote: a decision
+// in review can't be deleted out from under its card.
+//
+// No utf8mb4_bin anywhere: every column is an internal Int key, a number,
+// a date or a boolean (docs/field-mapping.md, "Collation for externally-
+// sourced identifiers").
+model ReviewCard {
+  id            Int       @id @default(autoincrement())
+  decisionId    Int       @unique
+  decision      Decision  @relation(fields: [decisionId], references: [id])
+  due           DateTime
+  stability     Float
+  difficulty    Float
+  elapsedDays   Int
+  scheduledDays Int
+  learningSteps Int
+  reps          Int
+  lapses        Int
+  state         Int
+  lastReview    DateTime?
+  suspended     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  logs ReviewLog[]
+
+  // The due queue: WHERE suspended = false AND due < <end of today>,
+  // ORDER BY due.
+  @@index([suspended, due])
+}
+
+// One row per answer to a ReviewCard: what was chosen, whether it was
+// right, the equity loss, the FSRS rating, and the card's FSRS state just
+// before (stateBefore, a JSON snapshot of the ReviewCard's schedule
+// fields) so schedules can be recomputed later, e.g. with fitted FSRS
+// parameters. User-authored history, not derivable from raw. Deleting a
+// card deletes its logs (ON DELETE CASCADE) — the one non-RESTRICT FK,
+// deliberately: "delete" on /review/cards means the card and its history.
+//
+// `chosen` is the option's stable key (lib/review/options.ts): the move
+// notation for a checker card, or a fixed cube key (nd_take, dt, dp,
+// tg_pass, tg_take, take, pass). Not an externally-sourced identifier, so
+// no utf8mb4_bin.
+model ReviewLog {
+  id          Int        @id @default(autoincrement())
+  cardId      Int
+  card        ReviewCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  // ts-fsrs Rating: 1 Again, 2 Hard, 3 Good, 4 Easy.
+  rating      Int
+  correct     Boolean
+  chosen      String     @db.VarChar(191)
+  loss        Float?
+  stateBefore Json
+  reviewedAt  DateTime
+  durationMs  Int?
+
+  @@index([cardId, reviewedAt])
+  // Today's answers, for the daily new/review limits (lib/settings.ts).
+  @@index([reviewedAt])
+}
+
+// A free-form tag the user puts on decisions (e.g. "prime vs prime").
+// `name` is user text, trimmed; unique under the table's default
+// case-insensitive collation (utf8mb4_unicode_ci), deliberately, so
+// "Prime" and "prime" are one tag. Not an externally-sourced identifier.
+model Tag {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(64)
+
+  decisions DecisionTag[]
+}
+
+// Tags attach to the decision (like DecisionNote), not to its review card,
+// so a decision keeps its tags whether or not it's in review. Deleting a
+// Tag deletes its links (CASCADE); a Decision with tags can't be deleted
+// (RESTRICT), same as notes.
+model DecisionTag {
+  decisionId Int
+  decision   Decision @relation(fields: [decisionId], references: [id])
+  tagId      Int
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([decisionId, tagId])
+  @@index([tagId])
 }
