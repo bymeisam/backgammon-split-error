@@ -213,15 +213,6 @@ model Decision {
   timestamp        DateTime
   myTag            String?
   raw              Json
-  // Source-neutral, versioned engine analysis (lib/analysis/types.ts's
-  // DecisionAnalysis: checker candidates sorted by equity, or cube ND/DT/DP
-  // in the doubler's view). Filled by a per-source translator
-  // (lib/analysis/galaxy.ts) at ingest, only for counted decisions
-  // (countAsDecision and rawError not null); null otherwise, and for
-  // resignations. Backfilled by scripts/backfill-decision-analysis.ts. Read
-  // through lib/analysis/read.ts. JSON, so no collation pin. See
-  // docs/field-mapping.md, "Decision.analysis".
-  analysis         Json?
 
   // The user's own free-text note on this decision, if any (see
   // DecisionNote below).

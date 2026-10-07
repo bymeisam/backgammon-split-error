@@ -68,7 +68,7 @@ a code change.
 
 | Client | Used by |
 |---|---|
-| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts`, `scripts/backfill-decision-analysis.ts` |
+| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts` |
 | `prismaReadOnly` (read-only) | `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
 
 **`prisma migrate deploy` itself is a separate concern from these two app
@@ -370,18 +370,34 @@ skipped via null error_analysis" below). Rows are stored regardless of
 | `timestamp` | `metadata.timestamp` |
 | `myTag` | No source field yet — always `null`. |
 | `raw` | The complete original `event` object (not just `reviews[0]`) — the zero-blind-spot archive `getGameReviews` reconstructs a game's events array from. |
-| `analysis` | Source-neutral, versioned engine analysis for the review cards (since 2026-10-07): the checker candidates sorted by equity, or the cube's ND/DT/DP in the doubler's view. Galaxy's translator (`lib/analysis/galaxy.ts`) fills it from this row's own `raw` (`reviews[0].result.result.moves[]` / `.cube_analysis`), only for counted decisions (`countAsDecision` and `rawError` not null); null otherwise and for resignations. `JSON`, so no collation pin. See "`Decision.analysis`" below. |
 
-### `Decision.analysis`
+### Normalized decision analysis (derived, not stored)
 
-A source-neutral copy of a decision's engine analysis, so the review cards
-(Phase B of `reports/2026-10-07-review-feature-plan.md`) never read a
-source's own `raw`. Each source gets its own translator that fills the same
-shape: `lib/analysis/galaxy.ts`'s `galaxyAnalysis(raw, analysedEvent)` for
-Galaxy; a future XG import would add its own. Types in
-`lib/analysis/types.ts`; read it back with `lib/analysis/read.ts`'s
-`readAnalysis`, which validates the shape and version at runtime and returns
-null for anything wrong or unknown.
+A source-neutral view of a decision's engine analysis for the review cards
+(Phase B of `reports/2026-10-07-review-feature-plan.md`), so the cards never
+read a source's own `raw`. **It isn't stored.** It's derived on demand from
+the decision's own `raw` each time it's needed. The user decided this on
+2026-10-07: only the review cards need it, and they load about 20 decisions
+at a time. Storing it would have added about 1.5 GB to `Decision` and needed
+a 600k-row backfill on Oracle, with its binlog volume. (Phase A briefly
+stored it as a `Decision.analysis` column, locally only; Phase A01 removed
+the column and its migration before either reached Oracle.)
+
+**`raw` is never modified.** It stays Galaxy's untouched payload. Nothing of
+ours is written into it, the normalized analysis included.
+
+**One entry point:** `lib/analysis/index.ts`'s
+`getDecisionAnalysis({ source, raw, analysedEvent })`, where `source` is the
+match's `Match.source`. It picks the translator for that source and returns
+null for an unknown one:
+
+| `Match.source` | Translator |
+|---|---|
+| `galaxy` | `lib/analysis/galaxy.ts`'s `galaxyAnalysis(raw, analysedEvent)` |
+
+A future source (e.g. an XG import) adds its own translator, filling the
+same shape, and a case in `getDecisionAnalysis`. Translators are pure (no
+DB, no network) and only read `raw`. Types are in `lib/analysis/types.ts`.
 
 ```ts
 type DecisionAnalysis =
@@ -392,10 +408,7 @@ type DecisionAnalysis =
 ```
 
 **`v` versions the shape.** Changing the shape, or how a translator fills
-it, bumps `v`. `readAnalysis` returns null for an unknown version, and
-`scripts/backfill-decision-analysis.ts` rewrites every row whose stored
-value differs from the translator's (NULL, an older `v`, or different
-content), so re-running it after a bump migrates the column.
+it, bumps `v`.
 
 **Checker** (`analysedEvent` `move`), from `reviews[0].result.result.moves[]`:
 
@@ -409,16 +422,31 @@ content), so re-running it after a bump migrates the column.
 | `probs` | `probabilities.win`/`win_gammon`/`win_backgammon`/`lose_gammon`/`lose_backgammon` → `win`/`winG`/`winBG`/`loseG`/`loseBG`; null if any is missing |
 
 `candidates` is sorted by equity, best first, with exact-equity ties broken
-by Galaxy's rank ascending. Galaxy's rank isn't always in equity order: in
-148 local cases a lower rank has higher equity (e.g. match `46875560` g4,
-roll 4-2: rank 3 `20/14` is best), and Galaxy's own UI keeps rank order. The
-decision-level `rawError` can also disagree with the candidates (124 old
-cases; match `33015498` g7, roll 1-3, decision `668067`: the played rank-1
-`17/14*/13` is 0.3089 worse than rank 2 `17/14* 4/3*`). The user's decision:
-the equities decide. Lists hold 1–5 candidates and always include the played
-move, which Galaxy appends as "rank 4" when it isn't in its top 3 (e.g.
-`47816592` g1, roll 3-3). A list that is empty, has a malformed candidate, or
-doesn't have exactly one played move gives null.
+by Galaxy's rank ascending. Galaxy's rank isn't always in equity order:
+on 2,188 counted local rows rank 1 isn't the best candidate (1,367 of them
+a rank-4/5 candidate). E.g. match `46875560` g4,
+roll 4-2 (decision `1236446`): rank 3 `20/14` is best. Galaxy's own UI keeps
+rank order. The user's decision: the equities decide.
+
+Galaxy's decision-level `rawError` can also disagree with the candidates. On
+99 rows the played move is rank 1 but `rawError` is negative, measured
+against a better candidate (e.g. match `33015498` g7, roll 1-3, decision
+`668067`: the played rank-1 `17/14*/13` is 0.3089 worse than rank 2
+`17/14* 4/3*`). On 13 more, `rawError` is positive while the played move is
+the best.
+
+**Our `loss` vs Galaxy's `rawError`.** `loss` is measured against the true
+best candidate by equity; Galaxy's `rawError` against its rank 1. The two
+differ on 2,016 counted checker rows. Galaxy's `rawError` and severity are
+still what the app uses for the decision lists and PR. The user is fine with
+a review card showing our `loss` without comment.
+
+Lists hold 1–5 candidates and always include the played move. Ranks 4 and 5
+appear both when Galaxy appends the played move because it isn't in its top
+3 (e.g. `47816592` g1, roll 3-3) and when the played move is in the top 3
+(e.g. decision `668067` above: played rank 1, plus ranks 2–4). A list that
+is empty, has a malformed candidate, or doesn't have exactly one played move
+gives null.
 
 **Cube** (`cube_double` → `role: "doubler"`, `cube_pass` → `role:
 "receiver"`), from `reviews[0].result.result.cube_analysis`'s `no_double`/
@@ -427,23 +455,25 @@ rows are stored negated (DP = −1, the receiver's view) except 4 local rows in
 matches `33002925`/`33013316` (DP = +1); `lib/cubeAction.ts`'s
 `doublerViewEquities` multiplies by the sign of DP, once, at translation —
 the same function the cube action display uses (see "Cube action from the
-equities" above). So every stored cube value has DP = 1 locally (84,743
-doubler and 6,999 receiver rows). Missing equities give null.
+equities" below). So every counted cube decision translates with DP = 1
+locally (84,743 doubler and 6,999 receiver rows, measured while Phase A
+stored it). Missing equities give null.
 
 **Everything else is null:** resignations, and any unknown `analysedEvent`.
-Numbers are rounded to 4 decimals (Galaxy's own precision), `loss` from the
-rounded equities, and never stored as −0.
 
-**Scope:** counted decisions only (`countAsDecision = 1 AND rawError IS NOT
-NULL`), at ingest (`lib/ingest.ts`, `Prisma.DbNull` otherwise) and in the
-backfill alike.
+**Precision.** Galaxy gives equities to 4 decimals but probabilities often
+to 5. Both are rounded to 4; `loss` is computed from the rounded equities,
+and nothing is ever −0.
 
-**Local backfill (2026-10-07):** 607,329 counted rows scanned; 514,453
-checker and 91,742 cube rows written, 1,134 resignations left null; a second
-dry run shows 0 to write. Storage (`JSON_STORAGE_SIZE`): checker average 753
-bytes (max 1,154), cube 111 (max 112), about 398 MB in total. `Decision`'s
-`data_length` went from 4,306 MB to 5,754 MB, more than the JSON itself,
-most likely because growing existing rows in place split InnoDB pages.
+**Ingest check.** Since nothing is stored, `lib/ingest.ts` checks instead:
+for every counted decision (`count_as_decision` true and `raw_error` not
+null) of kind `CHECKER` or `CUBE`, it runs `getDecisionAnalysis` on the
+event. A null result logs a warning (`console.warn` +
+`IngestSummary.warnings`: match id, game index, event id and
+`analysedEvent`) and counts in `IngestSummary.analysisMissing`, which
+`lib/sync.ts` prints on its per-match line (`… N analysis-missing`). It's a
+signal, not a blocker: the decision is stored as usual. Resignations are
+expected to be null and aren't checked.
 
 ### Ply number
 

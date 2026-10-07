@@ -202,10 +202,12 @@ export async function runSync({
       // One line per match accounting for every event encountered: ingested
       // decisions, events skipped only because count_as_decision was false
       // (still upserted — see IngestSummary), and events with no review at
-      // all. Unconfirmed analysed_event/event_type cases are logged
-      // separately by ingestMatch itself as they're encountered.
+      // all, plus counted decisions the normalized-analysis translator
+      // couldn't read (still stored). Unconfirmed analysed_event/event_type
+      // cases are logged separately by ingestMatch itself as they're
+      // encountered.
       console.log(
-        `match ${externalMatchId}: ${summary.gamesIngested} games, ${summary.decisionsIngested} decisions upserted, ${summary.decisionsSkippedNotCounted} not-counted, ${summary.eventsSkippedNoReview} no-review`
+        `match ${externalMatchId}: ${summary.gamesIngested} games, ${summary.decisionsIngested} decisions upserted, ${summary.decisionsSkippedNotCounted} not-counted, ${summary.eventsSkippedNoReview} no-review, ${summary.analysisMissing} analysis-missing`
       );
 
       if (summary.errors.length > 0) {

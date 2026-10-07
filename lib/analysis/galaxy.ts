@@ -1,8 +1,9 @@
-// Galaxy's translator for Decision.analysis (lib/analysis/types.ts): turns a
-// stored Galaxy event (`Decision.raw`) into the source-neutral shape. Pure —
-// no DB, no network. Used by lib/ingest.ts (new rows) and
-// scripts/backfill-decision-analysis.ts (existing rows), so both fill the
-// column the same way. See docs/field-mapping.md, "Decision.analysis".
+// Galaxy's translator for the normalized decision analysis
+// (lib/analysis/types.ts): turns a stored Galaxy event (`Decision.raw`) into
+// the source-neutral shape. Pure — no DB, no network — and it never modifies
+// `raw`. Called only through lib/analysis/index.ts's getDecisionAnalysis.
+// See docs/field-mapping.md, "Normalized decision analysis (derived, not
+// stored)".
 //
 // Reads only:
 //   reviews[0].result.result.moves[]         (move rows)
@@ -13,13 +14,13 @@
 //
 // Checker: candidates are sorted by equity, best first, with exact ties
 // broken by Galaxy's rank. Galaxy's own rank isn't always in equity order
-// (148 local cases where a lower rank has higher equity), and its
-// decision-level raw_error can disagree with the candidates (124 old cases,
-// e.g. 33015498 g7, where the played rank-1 move is 0.309 worse than
-// rank 2), so the shape is built from the candidates' own equities only.
+// (2,188 counted local rows where rank 1 isn't the best), and its
+// decision-level raw_error can disagree with the candidates (e.g. 33015498
+// g7, where the played rank-1 move is 0.309 worse than rank 2), so the shape
+// is built from the candidates' own equities only.
 // `loss` is recomputed from those equities, not read from equity_error.
 //
-// Cube: the equities are stored in the doubler's view, sign-normalized once
+// Cube: the equities are returned in the doubler's view, sign-normalized once
 // here by lib/cubeAction.ts's doublerViewEquities (the same rule the cube
 // action display uses).
 //
@@ -28,10 +29,11 @@
 import { doublerViewEquities } from "@/lib/cubeAction";
 import type { CandidateProbs, CheckerCandidate, DecisionAnalysis } from "@/lib/analysis/types";
 
-// 4 decimals: Galaxy's own precision, and keeps the JSON compact.
+// 4 decimals: Galaxy's equity precision (its probabilities are often given
+// to 5; they're rounded to 4 too).
 function round4(x: number): number {
   const r = Math.round(x * 1e4) / 1e4;
-  return r === 0 ? 0 : r; // no -0 in the JSON
+  return r === 0 ? 0 : r; // never -0
 }
 
 function isNum(v: unknown): v is number {
@@ -81,7 +83,7 @@ function checkerAnalysis(moves: unknown): DecisionAnalysis | null {
   if (parsed.filter((c) => c.played).length !== 1) return null;
 
   parsed.sort((a, b) => b.equity - a.equity || a.rank - b.rank);
-  // loss from the rounded equities, so the stored numbers agree exactly
+  // loss from the rounded equities, so the returned numbers agree exactly
   // (Galaxy's equities are already 4 decimals, so this changes nothing there).
   const best = round4(parsed[0].equity);
   const candidates: CheckerCandidate[] = parsed.map((c) => ({

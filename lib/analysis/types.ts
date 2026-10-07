@@ -1,16 +1,13 @@
-// Decision.analysis: a source-neutral, versioned copy of a decision's engine
-// analysis (checker candidates, or cube equities). The review cards read
-// only this, never a source's own `raw` payload. Each data source gets its
-// own translator that fills this same shape — lib/analysis/galaxy.ts for
-// Galaxy; a future XG import would add its own. Read it back through
-// lib/analysis/read.ts's readAnalysis, which validates the shape and `v`.
+// Normalized decision analysis: a source-neutral, versioned view of a
+// decision's engine analysis (checker candidates, or cube equities) for the
+// review cards. Not stored: it's derived on demand from the decision's own
+// `raw` by lib/analysis/index.ts's getDecisionAnalysis, which picks the
+// translator for the match's source (lib/analysis/galaxy.ts for Galaxy; a
+// future XG import adds its own, filling this same shape).
 //
-// `v` versions the shape. A change to the shape (or to how a translator
-// fills it) bumps `v`; the backfill (scripts/backfill-decision-analysis.ts)
-// rewrites every row whose stored value differs, and readAnalysis returns
-// null for an unknown version. See docs/field-mapping.md, "Decision.analysis".
-
-export const ANALYSIS_VERSION = 1;
+// `v` versions the shape. A change to the shape, or to how a translator
+// fills it, bumps `v` so consumers can tell. See docs/field-mapping.md,
+// "Normalized decision analysis (derived, not stored)".
 
 export type AnalysisSource = "galaxy";
 

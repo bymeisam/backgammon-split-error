@@ -18,7 +18,7 @@ function checker(name: string): CheckerAnalysis {
   return a as CheckerAnalysis;
 }
 
-// [move, rank, loss, played] per candidate, in stored order.
+// [move, rank, loss, played] per candidate, in returned order.
 function summary(a: CheckerAnalysis): [string, number, number, boolean][] {
   return a.candidates.map((c) => [c.move, c.rank, c.loss, c.played]);
 }

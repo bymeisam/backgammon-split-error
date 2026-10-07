@@ -57,7 +57,7 @@ function isNum(v: unknown): v is number {
 // A cube decision's ND/DT/DP in the doubler's view, or null when the
 // equities are missing or the event isn't a cube decision. The one place the
 // receiver-sign rule lives: deriveCubeAction below and lib/analysis/galaxy.ts
-// (Decision.analysis) both use it.
+// (the normalized decision analysis) both use it.
 //
 // cube_double rows hold the doubler's view, returned as they are. cube_pass
 // rows hold the receiver's view, i.e. the doubler's values negated (DP = −1);
