@@ -54,10 +54,11 @@ function WidgetError({ title, error }: { title: string; error: unknown }) {
 }
 
 // Write mode only (Home doesn't render it otherwise): the read-only site
-// never queries the review tables. The split is the /review header's own
-// "N new · N review" for an unfiltered session (today's daily limits
-// applied; lib/review/queuePlan.ts), so it can be less than the total when
-// more cards are due than today's limits allow.
+// never queries the review tables. The number is the /review header's own
+// "N new · N review" for an unfiltered session, summed (today's daily
+// limits applied; lib/review/queuePlan.ts), so it's what a session will
+// serve and matches the navbar badge. Cards due but held back by today's
+// limits (countDueCards, before the limits, minus that) get a faint line.
 async function DueCardsWidget() {
   const title = "Due today";
   let due: number;
@@ -68,11 +69,13 @@ async function DueCardsWidget() {
   } catch (error) {
     return <WidgetError title={title} error={error} />;
   }
+  const shown = split.new + split.review;
+  const held = due - shown;
   return (
     <Widget title={title}>
       <p className={style.bigNumber} data-testid="dashboard-due">
-        {due.toLocaleString()}
-        <small className={style.bigNumberUnit}>{due === 1 ? "card" : "cards"}</small>
+        {shown.toLocaleString()}
+        <small className={style.bigNumberUnit}>{shown === 1 ? "card" : "cards"}</small>
       </p>
       <p className={style.dueSplit} data-testid="dashboard-due-split">
         <span>
@@ -82,9 +85,14 @@ async function DueCardsWidget() {
           <b className={style.dueSplitCount}>{split.review.toLocaleString()}</b> review
         </span>
       </p>
+      {held > 0 && (
+        <p className={style.dueHeld} data-testid="dashboard-due-held">
+          {held.toLocaleString()} more held back by today&apos;s limits
+        </p>
+      )}
       <div className={style.widgetActions}>
         <Link href="/review" className={style.reviewButton}>
-          {due > 0 ? "Start review →" : "Open review →"}
+          {shown > 0 ? "Start review →" : "Open review →"}
         </Link>
         <Link href="/review/cards" className={style.widgetLink}>
           Manage cards
@@ -284,7 +292,7 @@ export default function Home() {
     <PageShell
       overline={<TodayOverline />}
       title="Dashboard"
-      subtitle="PR and mistake breakdowns for your Backgammon Galaxy matches."
+      subtitle="PR and mistake breakdowns for your matches."
     >
       <div className={style.widgetGrid(galaxyEnabled)}>
         {galaxyEnabled && (

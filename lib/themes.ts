@@ -5,7 +5,8 @@
 //
 // Adding a theme: a new app/themes/<id>.css (same variables as
 // clubroom.css), its @import in globals.css, an entry in THEMES, and, if it
-// uses a new font, that font loaded in app/layout.tsx.
+// uses a new font, that font loaded in app/layout.tsx (with preload: false
+// unless it's the default theme's).
 //
 // Pure, so it's unit-tested.
 
@@ -22,6 +23,17 @@ export const THEMES = [
     id: "clubroom",
     label: "Clubroom",
     fonts: { sans: "Geist", serif: "Newsreader", mono: "Geist Mono" },
+  },
+  {
+    id: "quiet-ink",
+    label: "Quiet Ink",
+    // One family: titles are Geist too (the serif slot points at Geist).
+    fonts: { sans: "Geist", serif: null, mono: "Geist Mono" },
+  },
+  {
+    id: "midnight-felt",
+    label: "Midnight Felt",
+    fonts: { sans: "Inter", serif: "Playfair Display", mono: "JetBrains Mono" },
   },
 ] as const satisfies readonly ThemeDefinition[];
 

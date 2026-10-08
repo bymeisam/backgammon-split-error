@@ -74,7 +74,9 @@ export const style = {
       opts.isBest && "shadow-[inset_3px_0_0_var(--color-best)]",
       opts.chosenWrong && "shadow-[inset_3px_0_0_var(--color-blunder)]"
     ),
-  optionTag: "ml-2.5 whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-faint",
+  // On its own line below md, so neither the move nor the tag breaks.
+  optionTag:
+    "whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-faint max-md:mt-1 max-md:block md:ml-2.5",
   // Function, 1 param -> passed directly. The loss; Blunder's ink on the
   // chosen wrong row.
   optionLoss: (chosenWrong: boolean): string =>
@@ -89,8 +91,10 @@ export const style = {
   equityValue: "font-mono text-[15px] font-medium text-ink",
 
   // Sticky at the bottom of the screen below md, so rating never needs a
-  // scroll.
-  grade: "z-10 grid grid-cols-3 gap-2 max-md:sticky max-md:bottom-3",
+  // scroll, on a solid band (paper at 95%, blurred) so the options don't
+  // show through the gaps between the buttons.
+  grade:
+    "z-10 grid grid-cols-3 gap-2 max-md:sticky max-md:bottom-0 max-md:-mx-4 max-md:border-t max-md:border-line max-md:bg-paper/95 max-md:px-4 max-md:py-3 max-md:backdrop-blur",
   // Function, 1 param (options object). `primary`: Good, and Next card;
   // `wide`: spans the row (after a wrong answer).
   gradeButton: (opts: { primary: boolean; wide: boolean }): string =>

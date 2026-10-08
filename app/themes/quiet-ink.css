@@ -1,0 +1,164 @@
+/*
+ * Quiet Ink theme (reports/2026-10-08-design-review.md, section 2, B; the
+ * .ink swatches in design/mockups/directions.html): cool neutrals, one
+ * typeface family (Geist for titles too), an indigo accent and a graphite
+ * board with slate points and monochrome checkers.
+ *
+ * Same variables as app/themes/clubroom.css (its header lists them).
+ * Values the swatch sheet doesn't give (sunken, focus, tints, the Good
+ * and Blunder arrows, rings, scrim, nav) are derived from this palette the
+ * way Clubroom derives its own; the arrows are darkened until they are at
+ * least 3:1 on this theme's bone. Galaxy's severity hues are unchanged.
+ * Keep the two dark blocks identical (lib/themes.test.ts checks it).
+ */
+
+[data-theme="quiet-ink"] {
+  /* surfaces */
+  --paper: #f7f7f8; /* page */
+  --surface: #ffffff; /* cards, inputs */
+  --sunken: #efeff2; /* hover rows, kbd, segmented tracks */
+  --line: #e5e5ea; /* hairlines */
+  --line-strong: #d2d2d9; /* control borders */
+  /* text */
+  --ink: #111114;
+  --ink-muted: #5b5b66;
+  --ink-faint: #6e6e79; /* don't use on --sunken */
+  /* accent and focus */
+  --accent: #3d4ed8; /* indigo: due count, selected row */
+  --on-accent: #ffffff;
+  --focus: #3d4ed8;
+  /* Galaxy severity fills, same in both modes */
+  --best: #36d399;
+  --good: #65758b;
+  --error: #fbbd23;
+  --blunder: #f43e5c;
+  --on-best: #062116;
+  --on-good: #ffffff;
+  --on-error: #231a02;
+  --on-blunder: #1a0a0e;
+  /* severity as text */
+  --best-ink: #0b7a55;
+  --good-ink: #55657a;
+  --error-ink: #8f5f00;
+  --blunder-ink: #c81e40;
+  /* severity row tints (Good has none on purpose) */
+  --best-tint: #e5f7ef;
+  --error-tint: #fdf2d6;
+  --blunder-tint: #fde7eb;
+  /* Galaxy's cube square, for a cube row that isn't an error or blunder */
+  --cube-default: #2c44ff;
+  --on-cube-default: #ffffff;
+  /* board: graphite frame, light grey surface, slate points */
+  --board-frame: #2b2d33;
+  --board-bone: #ecedef;
+  --board-point-dark: #8e96a3;
+  --board-point-light: #c9cdd4;
+  --board-tray: #202227;
+  --board-number: #c9cdd4;
+  --board-shadow: rgb(20 20 30 / 0.22);
+  --checker-mine: #15171b;
+  --checker-mine-rim: #000000;
+  --checker-opp: #f4f4f6;
+  --checker-opp-rim: #7a7f89;
+  --checker-mine-ring: rgb(255 255 255 / 0.16); /* the turned ring */
+  --checker-opp-ring: rgb(0 0 0 / 0.12);
+  --arrow-best: #0f8a5f;
+  --arrow-good: #4e5d72; /* Good's slate, darkened for the bone */
+  --arrow-error: #b07400;
+  --arrow-blunder: #d3203f;
+  --die-stroke: rgb(0 0 0 / 0.35);
+  /* elevation */
+  --shadow-color: rgb(20 20 30 / 0.06);
+  --scrim: rgb(17 17 20 / 0.4); /* behind a modal */
+  /* primary actions and the navbar */
+  --primary: var(--ink);
+  --on-primary: #ffffff;
+  --nav-bg: color-mix(in srgb, var(--surface) 88%, transparent);
+  /* the navbar's mode dot */
+  --mode-ok: #0b7a55;
+  --mode-warn: #8f5f00;
+  /* fonts: Geist everywhere, titles included (the "serif" slot is Geist) */
+  --theme-font-sans: var(--font-geist-sans);
+  --theme-font-serif: var(--font-geist-sans);
+  --theme-font-mono: var(--font-geist-mono);
+}
+
+[data-theme="quiet-ink"][data-mode="dark"] {
+  --paper: #0d0d10;
+  --surface: #16161a;
+  --sunken: #1c1c21;
+  --line: #27272d;
+  --line-strong: #3a3a42;
+  --ink: #ededf0;
+  --ink-muted: #a0a0ab;
+  --ink-faint: #85858f;
+  --accent: #8c97ff;
+  --on-accent: #0d0d10;
+  --focus: #8c97ff;
+  --best-ink: #4ade9f;
+  --good-ink: #9aa8ba;
+  --error-ink: #fbbd23;
+  --blunder-ink: #ff6b82;
+  --best-tint: #10271f;
+  --error-tint: #29220f;
+  --blunder-tint: #2c141b;
+  --board-frame: #1a1b1f;
+  --board-bone: #9ea3ac;
+  --board-point-dark: #4a505b;
+  --board-point-light: #c2c6cd;
+  --board-tray: #111215;
+  --board-number: #7d828c;
+  --board-shadow: rgb(0 0 0 / 0.6);
+  --checker-mine-rim: #6a6f78; /* lighter, so a mine checker shows on the dark bar */
+  /* darkened to about 3.5:1 on the dimmed grey bone */
+  --arrow-best: #09543a;
+  --arrow-good: #3f4b5c;
+  --arrow-error: #654300;
+  --arrow-blunder: #92162b;
+  --shadow-color: rgb(0 0 0 / 0.45);
+  --scrim: rgb(0 0 0 / 0.6);
+  --on-primary: var(--paper);
+  --mode-ok: #4ade9f;
+  --mode-warn: #fbbd23;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="quiet-ink"][data-mode="system"] {
+    --paper: #0d0d10;
+    --surface: #16161a;
+    --sunken: #1c1c21;
+    --line: #27272d;
+    --line-strong: #3a3a42;
+    --ink: #ededf0;
+    --ink-muted: #a0a0ab;
+    --ink-faint: #85858f;
+    --accent: #8c97ff;
+    --on-accent: #0d0d10;
+    --focus: #8c97ff;
+    --best-ink: #4ade9f;
+    --good-ink: #9aa8ba;
+    --error-ink: #fbbd23;
+    --blunder-ink: #ff6b82;
+    --best-tint: #10271f;
+    --error-tint: #29220f;
+    --blunder-tint: #2c141b;
+    --board-frame: #1a1b1f;
+    --board-bone: #9ea3ac;
+    --board-point-dark: #4a505b;
+    --board-point-light: #c2c6cd;
+    --board-tray: #111215;
+    --board-number: #7d828c;
+    --board-shadow: rgb(0 0 0 / 0.6);
+    --checker-mine-rim: #6a6f78; /* lighter, so a mine checker shows on the dark bar */
+    /* darkened to about 3.5:1 on the dimmed grey bone */
+    --arrow-best: #09543a;
+    --arrow-good: #3f4b5c;
+    --arrow-error: #654300;
+    --arrow-blunder: #92162b;
+    --shadow-color: rgb(0 0 0 / 0.45);
+    --scrim: rgb(0 0 0 / 0.6);
+    --on-primary: var(--paper);
+    --mode-ok: #4ade9f;
+    --mode-warn: #fbbd23;
+  }
+}

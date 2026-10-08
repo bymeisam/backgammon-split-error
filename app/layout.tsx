@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { Geist, Geist_Mono, Inter, JetBrains_Mono, Newsreader, Playfair_Display } from "next/font/google";
 import { GameStatsAuthProvider } from "./providers/GameStatsAuthProvider";
 import { DecisionNotesProvider } from "./providers/DecisionNotesProvider";
 import { ReviewStateProvider } from "./providers/ReviewStateProvider";
@@ -27,6 +27,30 @@ const newsreader = Newsreader({
   style: ["normal", "italic"],
 });
 
+// Midnight Felt's fonts (app/themes/midnight-felt.css). Not preloaded: a
+// page only downloads them when the active theme points --theme-font-* at
+// them, so Clubroom and Quiet Ink pages don't fetch fonts they never use.
+// (Quiet Ink uses Geist and Geist Mono, above.) Clubroom, the default, keeps
+// its fonts preloaded.
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  preload: false,
+});
+
+const playfairDisplay = Playfair_Display({
+  variable: "--font-playfair-display",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  preload: false,
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: "Game Review",
   description: "Review and study the decisions from your Backgammon Galaxy matches",
@@ -45,7 +69,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       data-theme={theme}
       data-mode={mode}
-      className={style.html([geistSans.variable, geistMono.variable, newsreader.variable])}
+      className={style.html([
+        geistSans.variable,
+        geistMono.variable,
+        newsreader.variable,
+        inter.variable,
+        playfairDisplay.variable,
+        jetbrainsMono.variable,
+      ])}
     >
       <body className={style.body}>
         <GameStatsAuthProvider>

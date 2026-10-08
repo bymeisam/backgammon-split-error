@@ -2,8 +2,9 @@
 // before the next local midnight, in the filter) and today's answers, fed
 // to lib/review/queue.ts's planQueue. One copy, shared by
 // /api/review/queue (the /review session's batches and its "N new · N
-// review" header) and the dashboard's due widget, so both show the same
-// counts. Read-only client.
+// review" header), the dashboard's due widget and the navbar's due badge
+// (both the sum of the split), so all three show the same counts.
+// Read-only client.
 import { prismaReadOnly } from "@/lib/prisma";
 import { NEW_CARDS_PER_DAY, REVIEWS_PER_DAY } from "@/lib/settings";
 import { reviewDecisionWhere, reviewFiltersFrom, type ReviewFilters } from "@/lib/review/filters";
@@ -40,7 +41,7 @@ export async function loadQueuePlan(opts: {
 }
 
 // The /review header's "N new · N review" for an unfiltered session, before
-// any card is loaded: the dashboard's due widget.
+// any card is loaded: the dashboard's due widget and the navbar's badge.
 export async function dueSplit(now: Date): Promise<QueuePlan["due"]> {
   const plan = await loadQueuePlan({ filters: reviewFiltersFrom(() => undefined), exclude: new Set(), batchSize: 0, now });
   return plan.due;

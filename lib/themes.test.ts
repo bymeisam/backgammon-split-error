@@ -46,6 +46,29 @@ describe("theme files", () => {
     }
   });
 
+  // Every --font-* a theme points its --theme-font-* at is a next/font
+  // variable app/layout.tsx loads. Fonts only another theme uses are not
+  // preloaded, so the default theme's pages don't fetch them.
+  it("wires each theme's fonts to fonts the layout loads", () => {
+    const layout = readFileSync(path.resolve(__dirname, "../app/layout.tsx"), "utf8");
+    const loaded = new Map<string, string>();
+    for (const m of layout.matchAll(/=\s*[A-Za-z_]+\(\{([^}]*)\}\)/g)) {
+      const variable = m[1].match(/variable:\s*"--([a-z-]+)"/)?.[1];
+      if (variable) loaded.set(variable, m[1]);
+    }
+    const defaultCss = readFileSync(path.resolve(__dirname, `../app/themes/${DEFAULT_THEME}.css`), "utf8");
+    const defaultFonts = new Set([...defaultCss.matchAll(/--theme-font-[a-z]+:\s*var\(--([a-z-]+)\)/g)].map((m) => m[1]));
+    for (const theme of THEMES) {
+      const css = readFileSync(path.resolve(__dirname, `../app/themes/${theme.id}.css`), "utf8");
+      const refs = [...css.matchAll(/--theme-font-[a-z]+:\s*var\(--([a-z-]+)\)/g)].map((m) => m[1]);
+      expect(refs.length, `${theme.id} sets its fonts`).toBeGreaterThanOrEqual(3);
+      for (const ref of refs) {
+        expect(loaded.has(ref), `${theme.id}: --${ref} is loaded in app/layout.tsx`).toBe(true);
+        if (!defaultFonts.has(ref)) expect(loaded.get(ref), `--${ref} has preload: false`).toMatch(/preload:\s*false/);
+      }
+    }
+  });
+
   // The dark values appear twice in each theme file (explicit dark mode, and
   // system mode on a dark OS); plain CSS can't share one block between a
   // selector and a media query, so this keeps the copies in step.

@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { currentRuntimeModeLabel } from "@/lib/runtimeMode";
 import { navItems } from "@/lib/navItems";
-import { countDueCards } from "@/lib/review/dueCount";
+import { dueSplit } from "@/lib/review/queuePlan";
 import { latestFinishedSyncRun } from "@/lib/dashboardQueries";
 import { lastSyncedLabel } from "@/lib/dashboardStats";
 import NavLinks from "./NavLinks";
@@ -11,13 +11,16 @@ import SyncControl from "./SyncControl";
 import ShortcutsHelp from "./ShortcutsHelp";
 import { style } from "./AppNav.styles";
 
-// The navbar's due-count badge. Write mode only (AppNav doesn't render it
-// otherwise), so the read-only site never queries the review tables here.
-// A DB error hides the badge instead of failing every page.
+// The navbar's due-count badge: the /review header's "N new · N review"
+// summed (today's daily limits applied, lib/review/queuePlan.ts), the same
+// number as the dashboard's due widget. Write mode only (AppNav doesn't
+// render it otherwise), so the read-only site never queries the review
+// tables here. A DB error hides the badge instead of failing every page.
 async function DueBadge() {
   let due: number;
   try {
-    due = await countDueCards(new Date());
+    const split = await dueSplit(new Date());
+    due = split.new + split.review;
   } catch (error) {
     console.error("[nav] due count failed:", error);
     return null;

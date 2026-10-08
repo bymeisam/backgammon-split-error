@@ -13,6 +13,13 @@
 // Options:
 //   --base-url=<url>          default http://localhost:3300
 //   --date=<YYYY-MM-DD>       output folder name; default today (local time)
+//   --theme=<id>              a theme from lib/themes.ts (e.g. quiet-ink),
+//                             set as data-theme on <html> in the browser
+//                             before every page's own scripts run (there's
+//                             no user-facing switch yet). The shots then go
+//                             to design/screenshots/<date>/<id>/. Without
+//                             it the app's own default is shot, into
+//                             design/screenshots/<date>/.
 //   --review-decisions=a,b,c  Decision ids to put into review for the /review
 //                             shots. Each is added with POST /api/review/cards
 //                             before the shots and removed with
@@ -29,6 +36,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { isThemeId, THEMES } from "../lib/themes";
 
 type Theme = "light" | "dark";
 interface Variant {
@@ -67,7 +75,12 @@ function today(): string {
 
 const BASE_URL = (arg("base-url") ?? "http://localhost:3300").replace(/\/$/, "");
 const DATE = arg("date") ?? today();
-const OUT_DIR = path.resolve(process.cwd(), "design", "screenshots", DATE);
+const THEME = arg("theme");
+if (THEME !== undefined && !isThemeId(THEME)) {
+  console.error(`Unknown --theme=${THEME}; known: ${THEMES.map((t) => t.id).join(", ")}`);
+  process.exit(1);
+}
+const OUT_DIR = path.resolve(process.cwd(), "design", "screenshots", DATE, ...(THEME ? [THEME] : []));
 const REVIEW_DECISIONS = (arg("review-decisions") ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -279,6 +292,23 @@ const SHOTS: Shot[] = [
   },
 ];
 
+function themeInitScript(theme: string): string {
+  return `(() => {
+    const theme = ${JSON.stringify(theme)};
+    const apply = () => {
+      const html = document.documentElement;
+      if (html && html.getAttribute("data-theme") !== theme) html.setAttribute("data-theme", theme);
+    };
+    apply();
+    new MutationObserver(apply).observe(document, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+  })();`;
+}
+
 // Pushes each new card id into `created` as soon as it exists, so a failure
 // part-way still lets the caller remove the ones already added.
 async function addReviewCards(created: number[]): Promise<void> {
@@ -310,7 +340,9 @@ async function removeReviewCards(cardIds: number[]): Promise<void> {
 
 async function main(): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true });
-  console.log(`Screenshots of ${BASE_URL} → ${path.relative(process.cwd(), OUT_DIR)}/`);
+  console.log(
+    `Screenshots of ${BASE_URL}${THEME ? ` (theme ${THEME})` : ""} → ${path.relative(process.cwd(), OUT_DIR)}/`
+  );
 
   let browser: Browser | null = null;
   const created: number[] = [];
@@ -325,6 +357,11 @@ async function main(): Promise<void> {
         deviceScaleFactor: variant.width === 390 ? 2 : 1,
         colorScheme: variant.theme,
       });
+      // The theme on <html>, before the page's scripts, and again if
+      // anything resets it (React's hydration of <html>, a client
+      // navigation). A string, not a function: tsx compiles functions with
+      // esbuild's __name helper, which doesn't exist in the page.
+      if (THEME) await context.addInitScript({ content: themeInitScript(THEME) });
       for (const shot of SHOTS) {
         if (shot.only && shot.only !== variant.width) continue;
         const page = await context.newPage();

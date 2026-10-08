@@ -885,3 +885,35 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - Visual 15/15, with 12 baselines updated for three causes. Nine board panels (`matches-*`, `galaxy-matches-*`, `mistakes-*` ×5) changed for the chip casing in the Played/Best labels. `decision-card` changed for the same chips. The two `mistakes-section-*` baselines are 2px taller because the Game select went from 36px to 38px. The two "flaky" ones (mistake-row-list, move-delta-collapsed) passed on retry and weren't updated.
     - Design screenshots are in `design/screenshots/2026-10-08-phase1c/` (114 PNGs, local `next start` :3300 in write mode, cards for 1258038/629849/1149353 added and removed by the script). Afterwards `ReviewCard`/`ReviewLog`/`Tag`/`DecisionTag` are 0/0/0/0, and `DecisionNote` is unchanged (2 rows, max `updatedAt` 2026-10-05T13:29:49.824Z).
   - **Next:** the investigator's check of the B4 count and B1/B2 values; the designer's look at the phase-1c shots; phase 2.
+
+## 2026-10-09
+
+- **Phase 1c leftovers (six fixes) and Phase 2: the Quiet Ink and Midnight Felt themes** (`reports/2026-10-08-design-review-phase1c.md`, directions B and C in `reports/2026-10-08-design-review.md`, values from `design/mockups/directions.html`). Approved by the user. No DB or schema change. The only logic change is A6's display sum, which reuses the existing reads.
+  - **Six fixes:**
+    1. /review/cards at 390: the mono line wraps only at its "·" separators, with each part in a nowrap `positionSegment` span. Suspend and Delete now fit inside the card, at their full size.
+    2. The review `optionTag` sits on its own line below md.
+    3. The sticky grade row has a solid band: `bg-paper/95`, a backdrop blur and a top border, running full width.
+    4. The dashboard subtitle is now "PR and mistake breakdowns for your matches."
+    5. /galaxy/matches: Rating and both PRs use `toLocaleString` to 2 decimals in right-aligned tabular cells (`tableCellNumeric`, numeric headers).
+    6. **Due count.** The dashboard's big number, its plural and Start/Open now use `split.new + split.review`. The nav badge shows the same sum, through `dueSplit` (write mode only, as before). When `countDueCards − shown > 0`, a faint line reads "{n} more held back by today's limits" (`dueHeld`). Checked locally by adding 21 cards with the limit at 20: the dashboard showed 20 with "1 more held back…" and the nav showed 20. The 21 cards were then deleted.
+  - **Themes:** `app/themes/quiet-ink.css` and `app/themes/midnight-felt.css` each define every variable for light, dark and system, with identical dark blocks. They're imported in `globals.css` and registered in `lib/themes.ts`. Values come from the swatch sheet; the missing ones (sunken, focus, tints, Good/Blunder arrows, rings, scrim, nav) are derived the way Clubroom's are. The severity fills, on-fill colours and the cube blue are unchanged.
+    - **Quiet Ink deviations from the sheet:** the dark arrows are darkened to about 3.5:1 on the dimmed grey bone.
+    - **Midnight Felt deviations from the sheet:**
+      - light `ink-faint` #636D66 (the sheet's was 4.2:1);
+      - light accent #5F5530, an olive antique brass (the sheet's #8A6A2B was 4.3:1 on paper and CIEDE2000 6.1 from Error's ink, now 15.7);
+      - dark accent and primary #C8B48A, a champagne brass (ΔE 12.5 from Error's amber, now 17.1);
+      - the mine checker rim is #6E6A5E in both modes, so dark checkers show on the felt;
+      - the arrows are light shades of Galaxy's hues on the dark felt, with Blunder lifted (#FFA3B2 light, #FF889B dark) to 3:1 over the halo on an ivory point.
+  - **Fonts:** Inter, Playfair Display (normal and italic) and JetBrains Mono load through `next/font/google` with `preload: false`. Quiet Ink points all three font slots at Geist and Geist Mono. The served `Link` preload header still lists only the four Clubroom files. A Quiet Ink page loads only Geist and Geist Mono, and a Midnight Felt page loads Inter, Playfair and JetBrains Mono. `lib/themes.test.ts` has a new check: every theme font is loaded in the layout, and any font outside the default theme has `preload: false`.
+  - **Leftover sweep:** no hex, `rgb()`, raw palette class, SVG colour attribute or font-family name is left in any `.styles.ts`, component or lib file. The only hex is a comment in `shared.styles.ts`. The two checker-ring strokes the Phase 1c report mentioned were already tokens (`stroke-checker-mine-ring`/`-opp-ring`).
+  - **`scripts/design-screenshots.ts --theme=<id>`:** an init script sets `data-theme` on `<html>` and re-applies it if anything resets it. It's passed as a string because tsx's `__name` helper broke a function init script in the page. Shots go to `<date>/<id>/`. There's no user-facing switch.
+  - **Verified:**
+    - lint, tsc, 522/522 tests and build all pass.
+    - Visual 15/15 with no baseline changes. None of the six fixes is inside an element the suite captures, and Clubroom stays the default.
+    - Screenshots: `design/screenshots/2026-10-09-phase2/{clubroom,quiet-ink,midnight-felt}/`, 114 each, from local `next start` :3300 in write mode. Cards for 1258038, 629849 and 1149353 were added and removed on each run. Afterwards `ReviewCard`/`ReviewLog`/`Tag`/`DecisionTag` are 0/0/0/0 and `DecisionNote` is unchanged (2 rows, same max `updatedAt`).
+    - Contrast per theme and mode: text pairs, chips, the due badge, focus, primary, checkbox, the grade band and arrows on bone all pass. The full table is in the developer report.
+  - `app/status/notes.ts` now lists the three themes.
+  - **Next:**
+    - the designer's look at the phase-2 shots;
+    - Phase 3 (the Settings page and the cookie);
+    - the arrow-over-dark-point contrast, which is below 3:1 in Clubroom and Quiet Ink (see the report).

@@ -1,0 +1,173 @@
+/*
+ * Midnight Felt theme (reports/2026-10-08-design-review.md, section 2, C;
+ * the .felt swatches in design/mockups/directions.html): a casino salon,
+ * dark first. Green baize, brass, oxblood points, a walnut frame with
+ * brass numbers, and a high-contrast display serif.
+ *
+ * Same variables as app/themes/clubroom.css (its header lists them).
+ * Values the swatch sheet doesn't give (sunken, focus, tints, the Good and
+ * Blunder arrows, rings, scrim, nav) are derived from this palette the way
+ * Clubroom derives its own. The board's playing surface is dark felt in
+ * both modes, so the arrows are light shades of Galaxy's hues. Galaxy's
+ * severity hues are unchanged.
+ * Keep the two dark blocks identical (lib/themes.test.ts checks it).
+ */
+
+[data-theme="midnight-felt"] {
+  /* surfaces ("parchment") */
+  --paper: #f2ede0; /* page */
+  --surface: #faf7ee; /* cards, inputs */
+  --sunken: #e9e2d2; /* hover rows, kbd, segmented tracks */
+  --line: #ddd5c1; /* hairlines */
+  --line-strong: #c7bca2; /* control borders */
+  /* text */
+  --ink: #18231e;
+  --ink-muted: #56615a;
+  --ink-faint: #636d66; /* don't use on --sunken; the sheet's #69736C is 4.2:1 on paper */
+  /* accent and focus */
+  /* antique brass: due count, selected row. Olive and darker than the
+     sheet's #8A6A2B, which is 4.3:1 on paper and nearly Error's ink
+     (CIEDE2000 6.1, now 15.7). */
+  --accent: #5f5530;
+  --on-accent: #faf7ee;
+  --focus: #2a6b52;
+  /* Galaxy severity fills, same in both modes */
+  --best: #36d399;
+  --good: #65758b;
+  --error: #fbbd23;
+  --blunder: #f43e5c;
+  --on-best: #062116;
+  --on-good: #ffffff;
+  --on-error: #231a02;
+  --on-blunder: #1a0a0e;
+  /* severity as text */
+  --best-ink: #0b7a55;
+  --good-ink: #55657a;
+  --error-ink: #8f5f00;
+  --blunder-ink: #c81e40;
+  /* severity row tints (Good has none on purpose) */
+  --best-tint: #e1f2e3;
+  --error-tint: #faedc9;
+  --blunder-tint: #f9e1dc;
+  /* Galaxy's cube square, for a cube row that isn't an error or blunder */
+  --cube-default: #2c44ff;
+  --on-cube-default: #ffffff;
+  /* board: walnut frame, green felt, oxblood and ivory points */
+  --board-frame: #2b1d14;
+  --board-bone: #1e4636; /* the felt */
+  --board-point-dark: #7b2d2d;
+  --board-point-light: #e8dfc6;
+  --board-tray: #1d130d;
+  --board-number: #c9a45c;
+  --board-shadow: rgb(30 20 10 / 0.35);
+  --checker-mine: #17191c;
+  --checker-mine-rim: #6e6a5e; /* light, so a mine checker shows on the felt and the bar */
+  --checker-opp: #f3ecda;
+  --checker-opp-rim: #8f8366;
+  --checker-mine-ring: rgb(255 255 255 / 0.16); /* the turned ring */
+  --checker-opp-ring: rgb(0 0 0 / 0.12);
+  /* light shades on the dark felt */
+  --arrow-best: #5be3a8;
+  --arrow-good: #b4c0cf;
+  --arrow-error: #ffc94a;
+  --arrow-blunder: #ffa3b2; /* light enough for 3:1 over the halo on an ivory point */
+  --die-stroke: rgb(0 0 0 / 0.35);
+  /* elevation */
+  --shadow-color: rgb(40 30 15 / 0.08);
+  --scrim: rgb(24 35 30 / 0.45); /* behind a modal */
+  /* primary actions and the navbar */
+  --primary: #1e4636; /* felt green */
+  --on-primary: #f3ecda;
+  --nav-bg: color-mix(in srgb, var(--surface) 88%, transparent);
+  /* the navbar's mode dot */
+  --mode-ok: #0b7a55;
+  --mode-warn: #8f5f00;
+  /* fonts */
+  --theme-font-sans: var(--font-inter);
+  --theme-font-serif: var(--font-playfair-display);
+  --theme-font-mono: var(--font-jetbrains-mono);
+}
+
+[data-theme="midnight-felt"][data-mode="dark"] {
+  /* the accent and primary are a paler champagne brass than the sheet's
+     #C9A45C, which sat close to Error's amber (CIEDE2000 12.5, now 17.1) */
+  --paper: #0e1714;
+  --surface: #13201c;
+  --sunken: #182521;
+  --line: #22332d;
+  --line-strong: #2f463e;
+  --ink: #ece5d3;
+  --ink-muted: #a9b3a9;
+  --ink-faint: #869088;
+  --accent: #c8b48a;
+  --on-accent: #0e1714;
+  --focus: #e3cf9f;
+  --best-ink: #4ade9f;
+  --good-ink: #9aa8ba;
+  --error-ink: #fbbd23;
+  --blunder-ink: #ff6b82;
+  --best-tint: #10301f;
+  --error-tint: #2c2a10;
+  --blunder-tint: #33161b;
+  --board-frame: #1d130d;
+  --board-bone: #173a2d;
+  --board-point-dark: #6a2626;
+  --board-point-light: #d9cfb4;
+  --board-tray: #120c08;
+  --board-number: #b38f4e;
+  --board-shadow: rgb(0 0 0 / 0.6);
+  --checker-mine-rim: #6e6a5e;
+  --arrow-best: #5be3a8;
+  --arrow-good: #b4c0cf;
+  --arrow-error: #ffc94a;
+  --arrow-blunder: #ff889b;
+  --shadow-color: rgb(0 0 0 / 0.45);
+  --scrim: rgb(0 0 0 / 0.6);
+  --primary: #c8b48a;
+  --on-primary: #0e1714;
+  --mode-ok: #4ade9f;
+  --mode-warn: #fbbd23;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="midnight-felt"][data-mode="system"] {
+    /* the accent and primary are a paler champagne brass than the sheet's
+       #C9A45C, which sat close to Error's amber (CIEDE2000 12.5, now 17.1) */
+    --paper: #0e1714;
+    --surface: #13201c;
+    --sunken: #182521;
+    --line: #22332d;
+    --line-strong: #2f463e;
+    --ink: #ece5d3;
+    --ink-muted: #a9b3a9;
+    --ink-faint: #869088;
+    --accent: #c8b48a;
+    --on-accent: #0e1714;
+    --focus: #e3cf9f;
+    --best-ink: #4ade9f;
+    --good-ink: #9aa8ba;
+    --error-ink: #fbbd23;
+    --blunder-ink: #ff6b82;
+    --best-tint: #10301f;
+    --error-tint: #2c2a10;
+    --blunder-tint: #33161b;
+    --board-frame: #1d130d;
+    --board-bone: #173a2d;
+    --board-point-dark: #6a2626;
+    --board-point-light: #d9cfb4;
+    --board-tray: #120c08;
+    --board-number: #b38f4e;
+    --board-shadow: rgb(0 0 0 / 0.6);
+    --checker-mine-rim: #6e6a5e;
+    --arrow-best: #5be3a8;
+    --arrow-good: #b4c0cf;
+    --arrow-error: #ffc94a;
+    --arrow-blunder: #ff889b;
+    --shadow-color: rgb(0 0 0 / 0.45);
+    --scrim: rgb(0 0 0 / 0.6);
+    --primary: #c8b48a;
+    --on-primary: #0e1714;
+    --mode-ok: #4ade9f;
+    --mode-warn: #fbbd23;
+  }
+}

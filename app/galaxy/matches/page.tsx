@@ -20,6 +20,12 @@ import TokenModal from "./TokenModal";
 
 const NO_DONE_IDS: ReadonlySet<string> = new Set();
 
+// Ratings and PRs with two decimals and a thousands separator ("2,077.21",
+// "4.30"), as on /matches.
+function formatTwoDecimals(value: number): string {
+  return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function GalaxyMatchesPage() {
   const router = useRouter();
   const { token } = useGameStatsAuth();
@@ -201,14 +207,14 @@ export default function GalaxyMatchesPage() {
                   <thead>
                     <tr className={style.theadRow}>
                       <th className={style.headCell}>Opponent</th>
-                      <th className={style.headCell}>Rating</th>
+                      <th className={style.headCellNumeric}>Rating</th>
                       <th className={style.headCell}>Score</th>
-                      <th className={style.headCell}>
+                      <th className={style.headCellNumeric}>
                         <span title={SOURCE_PR_HINT} className={style.prHint}>
                           Your PR
                         </span>
                       </th>
-                      <th className={style.headCell}>
+                      <th className={style.headCellNumeric}>
                         <span title={SOURCE_PR_HINT} className={style.prHint}>
                           Opponent PR
                         </span>
@@ -226,17 +232,17 @@ export default function GalaxyMatchesPage() {
                           className={style.bodyRow}
                         >
                           <td className={style.opponentCell}>{m.opponentName}</td>
-                          <td className={style.monoCell}>
-                            {m.opponentRating}
+                          <td className={style.numericCell}>
+                            {formatTwoDecimals(m.opponentRating)}
                           </td>
                           <td className={style.monoCell}>
                             {m.userScore}–{m.opponentScore}
                           </td>
-                          <td className={style.monoCell}>
-                            {m.userError.toFixed(2)}
+                          <td className={style.numericCell}>
+                            {formatTwoDecimals(m.userError)}
                           </td>
-                          <td className={style.monoCell}>
-                            {m.opponentError.toFixed(2)}
+                          <td className={style.numericCell}>
+                            {formatTwoDecimals(m.opponentError)}
                           </td>
                           <td className={style.actionCell}>
                             {syncState?.status === "syncing" ? (

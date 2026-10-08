@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
@@ -178,7 +179,14 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
                   return (
                     <tr key={c.id} data-card-id={c.id} className={style.row(c.suspended)}>
                       <td className={style.cell}>
-                        <div className={style.positionText}>{summary.text}</div>
+                        <div className={style.positionText}>
+                          {summary.text.split(" · ").map((part, i) => (
+                            <Fragment key={i}>
+                              {i > 0 && " · "}
+                              <span className={style.positionSegment}>{part}</span>
+                            </Fragment>
+                          ))}
+                        </div>
                         <Link
                           href={`/matches/${encodeURIComponent(m.sourceMatchId)}/replay/${c.decision.game.gameIndex}?decision=${c.decision.id}`}
                           className={style.positionLink}

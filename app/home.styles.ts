@@ -24,6 +24,8 @@ export const style = {
   // The due widget's "3 new · 0 review" (the /review header's counts).
   dueSplit: "flex gap-4 text-[13px] text-ink-muted",
   dueSplitCount: "font-semibold text-ink",
+  // "N more held back by today's limits": due cards beyond the daily limits.
+  dueHeld: "text-xs text-ink-faint",
   widgetLink: shared.textLink,
   widgetActions: "mt-auto flex items-center gap-3.5",
   // The due widget's action: the app's main loop, a real button.

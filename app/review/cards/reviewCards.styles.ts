@@ -31,7 +31,11 @@ export const style = {
   // The move played: notation, so mono.
   monoCell: clsx(shared.tableCell, "font-mono text-[13px]"),
   numCell: shared.tableCellNumeric,
-  positionText: "whitespace-nowrap font-mono text-[12.5px] text-ink-muted",
+  // The mono summary ("6-5 · played 22/11"): below md it may wrap, but
+  // only at the "·" separators (each part is a nowrap positionSegment), so
+  // the actions column fits at 390.
+  positionText: "font-mono text-[12.5px] text-ink-muted md:whitespace-nowrap",
+  positionSegment: "whitespace-nowrap",
   // Wraps as one unit, below the mono line.
   positionLink: clsx(shared.textLink, "inline-block text-xs"),
   tagChip: clsx(shared.tagChip, "mr-1"),

@@ -11,6 +11,8 @@
    sets the same variables under [data-theme="<id>"] and the mode
    selectors; see the header of app/themes/clubroom.css for the list. */
 @import "./themes/clubroom.css";
+@import "./themes/quiet-ink.css";
+@import "./themes/midnight-felt.css";
 
 /* Tailwind's dark: variant follows the mode on <html> (app/layout.tsx), not
    only the OS: dark mode always, system mode when the OS is dark. Most

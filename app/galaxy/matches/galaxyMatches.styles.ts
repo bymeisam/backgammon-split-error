@@ -27,12 +27,16 @@ export const style = {
   table: shared.table,
   theadRow: shared.tableHeadRow,
   headCell: shared.tableHeadCell,
+  // Rating and the two PRs: right-aligned tabular figures, as on /matches.
+  headCellNumeric: shared.tableHeadCellNumeric,
   // "Your PR" / "Opponent PR": the label carries the hint (lib/sourcePr.ts).
   prHint: shared.hintLabel,
   bodyRow: shared.tableRowClickable,
   opponentCell: clsx(shared.tableCell, "font-medium"),
-  // Shared by the rating/score/your-error/opponent-error cells.
+  // The score cell.
   monoCell: shared.tableCellMuted,
+  // Shared by the rating, your-PR and opponent-PR cells.
+  numericCell: shared.tableCellNumeric,
   actionCell: "px-4 py-2.5 text-right",
   syncingLabel: "inline-flex items-center gap-1.5 text-xs text-ink-faint",
   spinner: shared.spinner,

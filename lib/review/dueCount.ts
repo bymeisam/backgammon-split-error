@@ -1,8 +1,9 @@
 // Unsuspended review cards due today: the (suspended, due) index, before
-// today's daily limits (the /review header shows the limited counts). The
-// query the home page's Review button used, shared by the navbar badge and
-// the dashboard. Write mode only: callers check isGalaxyEnabled() first, so
-// the read-only site never queries the review tables from the shell.
+// today's daily limits (the /review header, the navbar badge and the
+// dashboard's big number show the limited counts, lib/review/queuePlan.ts).
+// The dashboard uses it for "N more held back by today's limits". Write mode
+// only: callers check isGalaxyEnabled() first, so the read-only site never
+// queries the review tables from the shell.
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { startOfNextLocalDay } from "@/lib/review/queue";
 
