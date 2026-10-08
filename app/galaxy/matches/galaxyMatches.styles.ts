@@ -6,11 +6,8 @@ import clsx from "clsx";
 // shared verbatim between both components (identical original string in
 // both files) rather than duplicated under two keys.
 export const style = {
-  // --- page.tsx ---
-  pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
-  main: "flex w-full max-w-4xl flex-col gap-6 px-6 py-12",
-  headerRow: "flex flex-wrap items-center justify-between gap-3",
-  title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
+  // --- page.tsx --- (the page container, width and title row are
+  // PageShell's)
   jumpForm: "flex flex-wrap items-center gap-2",
   matchIdInput:
     "w-32 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30",

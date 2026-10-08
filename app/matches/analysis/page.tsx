@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { ErrorSeverity, type MistakeStat } from "@/lib/generated/prisma/client";
 import { getClassificationLabel } from "@/lib/classificationLabels";
+import PageShell from "@/app/components/ui/PageShell";
 import { style } from "./matchesAnalysis.styles";
 
 // Server component, queried fresh on every request (no caching) — same
@@ -142,38 +143,35 @@ export default async function MatchesAnalysisPage() {
   const computedAt = stats[0]?.computedAt ?? null;
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div>
-          <h1 className={style.title}>
-            Mistake pattern analysis
-          </h1>
-          <p className={style.subtitle}>
-            Precomputed from every counted decision with a graded error,
-            recomputed in full at the end of every sync run. Total includes
-            all severities (including Best decisions); Blunders/Errors/Good
-            break that down.
-            {computedAt && <> Last computed {computedAt.toISOString()}.</>}{" "}
-            <Link href="/matches" className={style.backLink}>
-              ← back to matches
-            </Link>
-          </p>
-        </div>
+    <PageShell
+      width="medium"
+      title="Mistake pattern analysis"
+      subtitle={
+        <>
+          Precomputed from every counted decision with a graded error,
+          recomputed in full at the end of every sync run. Total includes
+          all severities (including Best decisions); Blunders/Errors/Good
+          break that down.
+          {computedAt && <> Last computed {computedAt.toISOString()}.</>}{" "}
+          <Link href="/matches" className={style.backLink}>
+            ← back to matches
+          </Link>
+        </>
+      }
+    >
+      <section className={style.section}>
+        <h2 className={style.sectionTitle}>
+          Error concentration by game phase
+        </h2>
+        <BreakdownTable keyHeader="Classification" paramName="classification" rows={byClassification} />
+      </section>
 
-        <section className={style.section}>
-          <h2 className={style.sectionTitle}>
-            Error concentration by game phase
-          </h2>
-          <BreakdownTable keyHeader="Classification" paramName="classification" rows={byClassification} />
-        </section>
-
-        <section className={style.section}>
-          <h2 className={style.sectionTitle}>
-            Cube errors vs. checker-play errors
-          </h2>
-          <BreakdownTable keyHeader="Category" paramName="category" rows={byCategory} />
-        </section>
-      </main>
-    </div>
+      <section className={style.section}>
+        <h2 className={style.sectionTitle}>
+          Cube errors vs. checker-play errors
+        </h2>
+        <BreakdownTable keyHeader="Category" paramName="category" rows={byCategory} />
+      </section>
+    </PageShell>
   );
 }

@@ -4,11 +4,8 @@ import clsx from "clsx";
 // (page.tsx) and ReviewSession.tsx, which lives in this same folder and is
 // only used here. BoardPanel, DecisionNote and TagEditor are shared
 // components with their own styles.
+// The page container, width and title are PageShell's.
 export const style = {
-  pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
-  main: "flex w-full max-w-7xl flex-col gap-6 px-6 py-12",
-  title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
-  subtitle: "mt-1 text-sm text-zinc-600 dark:text-zinc-400",
   link: "underline hover:text-black dark:hover:text-zinc-100",
   form: "flex flex-wrap items-end gap-3 rounded-lg border border-black/10 bg-white p-3 dark:border-white/15 dark:bg-zinc-900",
   applyButton:

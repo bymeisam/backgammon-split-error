@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveMyIdentity, type PlayerIdentity } from "@/lib/playerIdentity";
+import { resolveMyIdentity, resolveOpponentIdentity, type PlayerIdentity } from "@/lib/playerIdentity";
 
 function identity(sourceUserId: string, isMe: boolean): PlayerIdentity {
   return { source: "galaxy", sourceUserId, displayName: `name-${sourceUserId}`, isMe };
@@ -55,5 +55,18 @@ describe("resolveMyIdentity", () => {
     // Galaxy ids are pinned to utf8mb4_bin (docs/field-mapping.md) — the
     // resolver must not be looser than the DB.
     expect(resolveMyIdentity([identity("AbC", true)], ["abc"])).toBeNull();
+  });
+});
+
+describe("resolveOpponentIdentity", () => {
+  it("returns the present identity that isn't isMe", () => {
+    const opp = identity("u2", false);
+    expect(resolveOpponentIdentity([identity("u1", true), opp, identity("u3", false)], ["u1", "u2"])).toBe(opp);
+  });
+
+  it("returns null when no present identity is an opponent", () => {
+    expect(resolveOpponentIdentity([identity("u1", true)], ["u1"])).toBeNull();
+    expect(resolveOpponentIdentity([identity("u2", false)], ["u1"])).toBeNull();
+    expect(resolveOpponentIdentity([], ["u1"])).toBeNull();
   });
 });

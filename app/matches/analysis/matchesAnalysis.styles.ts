@@ -21,11 +21,8 @@ export const style = {
   // Shared by all 4 numeric cells (Blunders/Errors/Good/Total) in a row.
   tableNumberCell: "px-3 py-2 font-mono text-xs text-black dark:text-zinc-100",
 
-  // MatchesAnalysisPage's own top-level markup.
-  pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
-  main: "flex w-full max-w-4xl flex-col gap-8 px-6 py-12",
-  title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
-  subtitle: "mt-1 text-sm text-zinc-600 dark:text-zinc-400",
+  // MatchesAnalysisPage's own top-level markup (the page container, width
+  // and title are PageShell's).
   backLink: "underline hover:text-black dark:hover:text-zinc-100",
   // Shared by both sections (classification and category breakdowns).
   section: "flex flex-col gap-3",

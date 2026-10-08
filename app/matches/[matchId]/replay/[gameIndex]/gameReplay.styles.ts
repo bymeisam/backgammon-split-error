@@ -4,15 +4,10 @@
 // as part of the 2026-10-03 consolidation of the three decision-list
 // implementations — listWrapper (the [380px]/overflow sizing) stays here,
 // since that stays caller-owned per DecisionList's own design.
+// The page container, width, breadcrumbs and title row are PageShell's.
 export const style = {
-  pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
-  main: "flex w-full max-w-7xl flex-col gap-6 px-6 py-12",
-
-  headerBlock: "flex w-full flex-wrap items-baseline justify-between gap-2",
-  title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
-  // "← Back to match" and "View on Galaxy", side by side.
-  headerLinks: "flex flex-wrap items-baseline gap-4",
-  // Shared by both header links.
+  // Shared by both header links ("← Back to match", "View on Galaxy"), in
+  // PageShell's actions slot.
   backLink:
     "text-sm text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
   notFoundBox:

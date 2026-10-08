@@ -3,6 +3,7 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { buildConnectionConfig } from "@/lib/prisma";
 import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
+import PageShell from "@/app/components/ui/PageShell";
 import { STATUS_NOTES } from "./notes";
 import { style } from "./status.styles";
 
@@ -99,67 +100,64 @@ export default async function StatusPage() {
   const db = await getDbStatus();
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div>
-          <h1 className={style.title}>
-            Status
-          </h1>
-          <p className={style.subtitle}>
-            Live stack/DB snapshot. Versions and counts below are read directly from
-            package.json and the database on every load — nothing here is manually
-            maintained except the notes at the bottom.
-          </p>
-        </div>
+    <PageShell
+      width="narrow"
+      title="Status"
+      subtitle={
+        <>
+          Live stack/DB snapshot. Versions and counts below are read directly from
+          package.json and the database on every load — nothing here is manually
+          maintained except the notes at the bottom.
+        </>
+      }
+    >
+      <section className={style.section}>
+        <h2 className={style.sectionTitle}>
+          Stack
+        </h2>
+        <Row label="Next.js" value={nextPkg.version} />
+        <Row label="React" value={reactPkg.version} />
+        <Row label="TypeScript" value={typescriptPkg.version} />
+        <Row label="Prisma CLI" value={prismaPkg.version} />
+        <Row label="@prisma/client" value={prismaClientPkg.version} />
+        <Row label="Node.js" value={process.version} />
+      </section>
 
-        <section className={style.section}>
-          <h2 className={style.sectionTitle}>
-            Stack
-          </h2>
-          <Row label="Next.js" value={nextPkg.version} />
-          <Row label="React" value={reactPkg.version} />
-          <Row label="TypeScript" value={typescriptPkg.version} />
-          <Row label="Prisma CLI" value={prismaPkg.version} />
-          <Row label="@prisma/client" value={prismaClientPkg.version} />
-          <Row label="Node.js" value={process.version} />
-        </section>
+      <section className={style.section}>
+        <h2 className={style.sectionTitle}>
+          Database
+        </h2>
+        <Row label="Engine" value={db.engine} />
+        <Row
+          label="Connection"
+          value={
+            <span className={style.connectionStatus(db.connected)}>
+              {db.connected ? "OK" : "FAILED"}
+            </span>
+          }
+        />
+        {db.error && <Row label="Error" value={db.error} />}
+        <Row label="Latest migration" value={db.latestMigration ?? "—"} />
+        {db.counts && (
+          <>
+            <Row label="Matches" value={db.counts.match} />
+            <Row label="Games" value={db.counts.game} />
+            <Row label="Decisions" value={db.counts.decision} />
+            <Row label="Player identities" value={db.counts.playerIdentity} />
+          </>
+        )}
+      </section>
 
-        <section className={style.section}>
-          <h2 className={style.sectionTitle}>
-            Database
-          </h2>
-          <Row label="Engine" value={db.engine} />
-          <Row
-            label="Connection"
-            value={
-              <span className={style.connectionStatus(db.connected)}>
-                {db.connected ? "OK" : "FAILED"}
-              </span>
-            }
-          />
-          {db.error && <Row label="Error" value={db.error} />}
-          <Row label="Latest migration" value={db.latestMigration ?? "—"} />
-          {db.counts && (
-            <>
-              <Row label="Matches" value={db.counts.match} />
-              <Row label="Games" value={db.counts.game} />
-              <Row label="Decisions" value={db.counts.decision} />
-              <Row label="Player identities" value={db.counts.playerIdentity} />
-            </>
-          )}
-        </section>
-
-        <section className={style.section}>
-          <h2 className={style.sectionTitle}>
-            Notes
-          </h2>
-          <ul className={style.notesList}>
-            {STATUS_NOTES.map((note, i) => (
-              <li key={i}>{note}</li>
-            ))}
-          </ul>
-        </section>
-      </main>
-    </div>
+      <section className={style.section}>
+        <h2 className={style.sectionTitle}>
+          Notes
+        </h2>
+        <ul className={style.notesList}>
+          {STATUS_NOTES.map((note, i) => (
+            <li key={i}>{note}</li>
+          ))}
+        </ul>
+      </section>
+    </PageShell>
   );
 }

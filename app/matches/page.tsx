@@ -7,6 +7,7 @@ import type { AnalysesListResponse } from "@/lib/analysesTypes";
 import { formatMatchDate } from "@/lib/formatDate";
 import { jsonOrThrow } from "@/lib/galaxyPost";
 import Pager from "@/app/components/ui/Pager";
+import PageShell from "@/app/components/ui/PageShell";
 import { style } from "./matches.styles";
 
 export default function MatchesPage() {
@@ -42,85 +43,82 @@ export default function MatchesPage() {
   }, [page]);
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div className={style.headerRow}>
-          <h1 className={style.title}>
-            Matches
-          </h1>
-          <Link href="/matches/analysis" className={style.analysisLink}>
-            Mistake pattern analysis →
-          </Link>
-        </div>
+    <PageShell
+      width="medium"
+      title="Matches"
+      actions={
+        <Link href="/matches/analysis" className={style.analysisLink}>
+          Mistake pattern analysis →
+        </Link>
+      }
+    >
+      {loading && <p className={style.mutedText}>Loading…</p>}
+      {error && (
+        <p className={style.errorBox}>
+          {error}
+        </p>
+      )}
 
-        {loading && <p className={style.mutedText}>Loading…</p>}
-        {error && (
-          <p className={style.errorBox}>
-            {error}
-          </p>
-        )}
-
-        {data && (
-          <>
-            <div className={style.tableWrapper}>
-              <table className={style.table}>
-                <thead>
-                  <tr className={style.tableHeadRow}>
-                    <th className={style.tableHeadCell}>Match ID</th>
-                    <th className={style.tableHeadCell}>Date</th>
-                    <th className={style.tableHeadCell}>Opponent</th>
-                    <th className={style.tableHeadCell}>Rating</th>
-                    <th className={style.tableHeadCell}>Score</th>
-                    <th className={style.tableHeadCell}>Your error</th>
-                    <th className={style.tableHeadCell}>Opponent error</th>
-                    <th className={style.tableHeadCell}></th>
+      {data && (
+        <>
+          <div className={style.tableWrapper}>
+            <table className={style.table}>
+              <thead>
+                <tr className={style.tableHeadRow}>
+                  <th className={style.tableHeadCell}>Match ID</th>
+                  <th className={style.tableHeadCell}>Date</th>
+                  <th className={style.tableHeadCell}>Opponent</th>
+                  <th className={style.tableHeadCell}>Rating</th>
+                  <th className={style.tableHeadCell}>Score</th>
+                  <th className={style.tableHeadCell}>Your error</th>
+                  <th className={style.tableHeadCell}>Opponent error</th>
+                  <th className={style.tableHeadCell}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.analyses.map((m) => (
+                  <tr
+                    key={m.matchId}
+                    onClick={() => router.push(`/matches/${m.matchId}`)}
+                    className={style.tableRow}
+                  >
+                    <td className={style.tableCell}>
+                      {m.matchId}
+                    </td>
+                    <td className={style.tableCell}>
+                      {m.playedAt ? formatMatchDate(m.playedAt) : "—"}
+                    </td>
+                    <td className={style.opponentCell}>{m.opponentName}</td>
+                    <td className={style.tableCell}>
+                      {m.opponentRating}
+                    </td>
+                    <td className={style.tableCell}>
+                      {m.userScore}–{m.opponentScore}
+                    </td>
+                    <td className={style.tableCell}>
+                      {m.userError.toFixed(3)}
+                    </td>
+                    <td className={style.tableCell}>
+                      {m.opponentError.toFixed(3)}
+                    </td>
+                    <td className={style.replayCell}>
+                      <Link
+                        href={`/matches/${m.matchId}/replay/1`}
+                        onClick={(e) => e.stopPropagation()}
+                        className={style.replayLink}
+                      >
+                        Replay
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {data.analyses.map((m) => (
-                    <tr
-                      key={m.matchId}
-                      onClick={() => router.push(`/matches/${m.matchId}`)}
-                      className={style.tableRow}
-                    >
-                      <td className={style.tableCell}>
-                        {m.matchId}
-                      </td>
-                      <td className={style.tableCell}>
-                        {m.playedAt ? formatMatchDate(m.playedAt) : "—"}
-                      </td>
-                      <td className={style.opponentCell}>{m.opponentName}</td>
-                      <td className={style.tableCell}>
-                        {m.opponentRating}
-                      </td>
-                      <td className={style.tableCell}>
-                        {m.userScore}–{m.opponentScore}
-                      </td>
-                      <td className={style.tableCell}>
-                        {m.userError.toFixed(3)}
-                      </td>
-                      <td className={style.tableCell}>
-                        {m.opponentError.toFixed(3)}
-                      </td>
-                      <td className={style.replayCell}>
-                        <Link
-                          href={`/matches/${m.matchId}/replay/1`}
-                          onClick={(e) => e.stopPropagation()}
-                          className={style.replayLink}
-                        >
-                          Replay
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-            <Pager page={page} shownPage={data.page} totalPages={data.totalPages} setPage={setPage} />
-          </>
-        )}
-      </main>
-    </div>
+          <Pager page={page} shownPage={data.page} totalPages={data.totalPages} setPage={setPage} />
+        </>
+      )}
+    </PageShell>
   );
 }

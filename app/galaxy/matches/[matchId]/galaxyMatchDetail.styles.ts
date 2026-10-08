@@ -1,11 +1,9 @@
 // Page-local (see .claude/skills/styling-conventions) —
 // GalaxyMatchAnalysisPage is the only component defined in this route
-// folder.
+// folder. The page container, width, breadcrumbs and title are PageShell's.
 export const style = {
-  pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
-  main: "flex w-full max-w-7xl flex-col gap-6 px-6 py-12",
-  headerBlock: "flex w-full max-w-2xl flex-col gap-2",
-  title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
+  // The loading status and any error, under the title.
+  statusBlock: "flex w-full max-w-2xl flex-col gap-2",
   statusText: "text-sm text-zinc-600 dark:text-zinc-400",
   errorBox:
     "rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300",

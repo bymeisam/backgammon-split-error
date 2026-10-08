@@ -7,6 +7,7 @@ import { galaxyPost } from "@/lib/galaxyPost";
 import { galaxyGamesError, galaxyGamesStatus } from "@/lib/sequentialGames";
 import { useSequentialGames } from "@/app/hooks/useSequentialGames";
 import MistakesSection from "@/app/components/match-analysis/MistakesSection";
+import PageShell from "@/app/components/ui/PageShell";
 import { style } from "./galaxyMatchDetail.styles";
 
 export default function GalaxyMatchAnalysisPage() {
@@ -36,18 +37,18 @@ export default function GalaxyMatchAnalysisPage() {
   if (!token) return null;
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div className={style.headerBlock}>
-          <h1 className={style.title}>Match {matchId}</h1>
-          <p className={style.statusText}>{loading || (!error && status) ? status : null}</p>
-          {error && <p className={style.errorBox}>{error}</p>}
-        </div>
+    <PageShell
+      breadcrumbs={[{ label: "Galaxy", href: "/galaxy/matches" }, { label: `Match ${matchId}` }]}
+      title={`Match ${matchId}`}
+    >
+      <div className={style.statusBlock}>
+        <p className={style.statusText}>{loading || (!error && status) ? status : null}</p>
+        {error && <p className={style.errorBox}>{error}</p>}
+      </div>
 
-        {/* No matchId: /galaxy is live Galaxy data and read-only, so no
-            notes (see CLAUDE.md). */}
-        <MistakesSection games={games} />
-      </main>
-    </div>
+      {/* No matchId: /galaxy is live Galaxy data and read-only, so no
+          notes (see CLAUDE.md). */}
+      <MistakesSection games={games} />
+    </PageShell>
   );
 }

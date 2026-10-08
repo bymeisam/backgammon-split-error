@@ -5,6 +5,7 @@ import { lowercaseOptions, severityOptions, stringParam, type SearchParams } fro
 import { phaseOptionsFor } from "@/lib/classificationLabels";
 import { reviewFiltersFrom } from "@/lib/review/filters";
 import { FilterSelect } from "@/app/components/ui/FilterSelect";
+import PageShell from "@/app/components/ui/PageShell";
 import ReviewSession from "./ReviewSession";
 import { style } from "./review.styles";
 
@@ -18,17 +19,14 @@ export const dynamic = "force-dynamic";
 export default async function ReviewPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   if (!isGalaxyEnabled()) {
     return (
-      <div className={style.pageContainer}>
-        <main className={style.main}>
-          <h1 className={style.title}>Review</h1>
-          <p data-testid="review-read-only" className={style.readOnlyBox}>
-            Reviewing is available in the local app (write mode).{" "}
-            <Link href="/review/cards" className={style.link}>
-              Browse the cards
-            </Link>
-          </p>
-        </main>
-      </div>
+      <PageShell title="Review">
+        <p data-testid="review-read-only" className={style.readOnlyBox}>
+          Reviewing is available in the local app (write mode).{" "}
+          <Link href="/review/cards" className={style.link}>
+            Browse the cards
+          </Link>
+        </p>
+      </PageShell>
     );
   }
 
@@ -45,55 +43,53 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const severities = [...new Set(stats.map((r) => r.errorSeverity))].sort();
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div>
-          <h1 className={style.title}>Review</h1>
-          <p className={style.subtitle}>
-            Your due cards, one at a time.{" "}
-            <Link href="/review/cards" className={style.link}>
-              Manage cards
-            </Link>
-          </p>
-        </div>
+    <PageShell
+      title="Review"
+      subtitle={
+        <>
+          Your due cards, one at a time.{" "}
+          <Link href="/review/cards" className={style.link}>
+            Manage cards
+          </Link>
+        </>
+      }
+    >
+      <form method="get" className={style.form}>
+        <FilterSelect
+          label="Tag"
+          name="tag"
+          defaultValue={filters.tag ?? ""}
+          options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
+          emptyLabel="Any"
+        />
+        <FilterSelect
+          label="Phase"
+          name="phase"
+          defaultValue={filters.phase ?? ""}
+          options={phaseOptionsFor(classifications)}
+          emptyLabel="Any"
+        />
+        <FilterSelect
+          label="Type"
+          name="category"
+          defaultValue={filters.category ?? ""}
+          options={lowercaseOptions(categories)}
+          emptyLabel="All"
+        />
+        <FilterSelect
+          label="Severity"
+          name="severity"
+          defaultValue={filters.severity ?? ""}
+          options={severityOptions(severities)}
+          emptyLabel="All"
+        />
+        <button type="submit" className={style.applyButton}>
+          Apply
+        </button>
+      </form>
 
-        <form method="get" className={style.form}>
-          <FilterSelect
-            label="Tag"
-            name="tag"
-            defaultValue={filters.tag ?? ""}
-            options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
-            emptyLabel="Any"
-          />
-          <FilterSelect
-            label="Phase"
-            name="phase"
-            defaultValue={filters.phase ?? ""}
-            options={phaseOptionsFor(classifications)}
-            emptyLabel="Any"
-          />
-          <FilterSelect
-            label="Type"
-            name="category"
-            defaultValue={filters.category ?? ""}
-            options={lowercaseOptions(categories)}
-            emptyLabel="All"
-          />
-          <FilterSelect
-            label="Severity"
-            name="severity"
-            defaultValue={filters.severity ?? ""}
-            options={severityOptions(severities)}
-            emptyLabel="All"
-          />
-          <button type="submit" className={style.applyButton}>
-            Apply
-          </button>
-        </form>
-
-        {/* Keyed by the filters: a new filter starts a new session. */}
-        <ReviewSession key={JSON.stringify(filters)} filters={filters} />
-      </main>
-    </div>
+      {/* Keyed by the filters: a new filter starts a new session. */}
+      <ReviewSession key={JSON.stringify(filters)} filters={filters} />
+    </PageShell>
   );
 }

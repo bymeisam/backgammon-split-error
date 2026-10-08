@@ -6,6 +6,7 @@ import { decisionColor } from "@/lib/analysis";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
+import PageShell from "@/app/components/ui/PageShell";
 import GameReplay from "./GameReplay";
 import { style } from "./gameReplay.styles";
 
@@ -29,28 +30,25 @@ export default async function GameReplayPage({
 
   if (!Number.isInteger(gameIndex) || gameIndex < 1) {
     return (
-      <div className={style.pageContainer}>
-        <main className={style.main}>
-          <p className={style.notFoundBox}>Invalid game number.</p>
-        </main>
-      </div>
+      <PageShell breadcrumbs={[{ label: "Matches", href: "/matches" }, { label: `Match ${matchId}` }]}>
+        <p className={style.notFoundBox}>Invalid game number.</p>
+      </PageShell>
     );
   }
 
   const match = await prisma.match.findUnique({
     where: { source_sourceMatchId: { source: SOURCE, sourceMatchId: matchId } },
-    select: { id: true, source: true, sourceMatchId: true },
+    // opponentName: the breadcrumb's label (same row, no extra query).
+    select: { id: true, source: true, sourceMatchId: true, opponentName: true },
   });
 
   if (!match) {
     return (
-      <div className={style.pageContainer}>
-        <main className={style.main}>
-          <p className={style.notFoundBox}>
-            Match {matchId} hasn&apos;t been ingested yet.
-          </p>
-        </main>
-      </div>
+      <PageShell breadcrumbs={[{ label: "Matches", href: "/matches" }, { label: `Match ${matchId}` }]}>
+        <p className={style.notFoundBox}>
+          Match {matchId} hasn&apos;t been ingested yet.
+        </p>
+      </PageShell>
     );
   }
 
@@ -63,25 +61,28 @@ export default async function GameReplayPage({
     orderBy: { gameIndex: "asc" },
   });
 
+  // Matches › {opponent} › Game N, from the match row loaded above.
+  const matchCrumb = { label: match.opponentName, href: `/matches/${matchId}` };
+
   const gamePosition = allGames.findIndex((g) => g.gameIndex === gameIndex);
   const game = gamePosition === -1 ? null : allGames[gamePosition];
 
   if (!game) {
     return (
-      <div className={style.pageContainer}>
-        <main className={style.main}>
-          <div className={style.headerBlock}>
-            <h1 className={style.title}>Match {matchId}</h1>
-            <Link href={`/matches/${matchId}`} className={style.backLink}>
-              ← Back to match
-            </Link>
-          </div>
-          <p className={style.notFoundBox}>
-            Game {gameIndex} doesn&apos;t exist for this match
-            {allGames.length > 0 && ` (it has ${allGames.length} game${allGames.length === 1 ? "" : "s"})`}.
-          </p>
-        </main>
-      </div>
+      <PageShell
+        breadcrumbs={[{ label: "Matches", href: "/matches" }, matchCrumb, { label: `Game ${gameIndex}` }]}
+        title={`Match ${matchId}`}
+        actions={
+          <Link href={`/matches/${matchId}`} className={style.backLink}>
+            ← Back to match
+          </Link>
+        }
+      >
+        <p className={style.notFoundBox}>
+          Game {gameIndex} doesn&apos;t exist for this match
+          {allGames.length > 0 && ` (it has ${allGames.length} game${allGames.length === 1 ? "" : "s"})`}.
+        </p>
+      </PageShell>
     );
   }
 
@@ -176,38 +177,35 @@ export default async function GameReplayPage({
   const externalHref = externalMatchUrl(match.source, match.sourceMatchId);
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div className={style.headerBlock}>
-          <h1 className={style.title}>
-            Match {matchId} — Game {gameIndex} replay
-          </h1>
-          <div className={style.headerLinks}>
-            <Link href={`/matches/${matchId}`} className={style.backLink}>
-              ← Back to match
-            </Link>
-            {externalHref && (
-              <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.backLink}>
-                View on Galaxy ↗
-              </a>
-            )}
-          </div>
-        </div>
-
-        {decisions.length === 0 ? (
-          <p className={style.emptyState}>No decisions recorded for this game.</p>
-        ) : (
-          <GameReplay
-            matchId={matchId}
-            decisions={decisions}
-            prevGameIndex={prevGameIndex}
-            nextGameIndex={nextGameIndex}
-            initialIndex={initialIndex}
-            myColor={myColor}
-            canEditNotes={isGalaxyEnabled()}
-          />
-        )}
-      </main>
-    </div>
+    <PageShell
+      breadcrumbs={[{ label: "Matches", href: "/matches" }, matchCrumb, { label: `Game ${gameIndex}` }]}
+      title={`Match ${matchId} — Game ${gameIndex} replay`}
+      actions={
+        <>
+          <Link href={`/matches/${matchId}`} className={style.backLink}>
+            ← Back to match
+          </Link>
+          {externalHref && (
+            <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.backLink}>
+              View on Galaxy ↗
+            </a>
+          )}
+        </>
+      }
+    >
+      {decisions.length === 0 ? (
+        <p className={style.emptyState}>No decisions recorded for this game.</p>
+      ) : (
+        <GameReplay
+          matchId={matchId}
+          decisions={decisions}
+          prevGameIndex={prevGameIndex}
+          nextGameIndex={nextGameIndex}
+          initialIndex={initialIndex}
+          myColor={myColor}
+          canEditNotes={isGalaxyEnabled()}
+        />
+      )}
+    </PageShell>
   );
 }

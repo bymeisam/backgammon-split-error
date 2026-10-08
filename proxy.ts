@@ -6,7 +6,8 @@ import { isGalaxyEnabled } from "@/lib/galaxyGate";
 // section. One choke point (this file's matcher) rather than a check
 // repeated in each handler, so there's exactly one place that can forget to
 // gate a new Galaxy-related route. isGalaxyEnabled() (lib/galaxyGate.ts) is
-// the single source of truth this reads — app/page.tsx's link-hiding reads
+// the single source of truth this reads — the navbar's link-hiding
+// (app/components/ui/AppNav.tsx) reads
 // the same function, so the two can never disagree.
 //
 // `middleware.ts` is deprecated as of Next.js 16 in favor of this file

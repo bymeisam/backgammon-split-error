@@ -22,3 +22,15 @@ export function resolveMyIdentity<T extends Pick<PlayerIdentity, "isMe" | "sourc
   const present = new Set(presentUserIds);
   return identities.find((i) => i.isMe && present.has(i.sourceUserId)) ?? null;
 }
+
+// "Who is the opponent" for a match's user ids: the first identity present
+// in them that isn't isMe, or null. Used only for
+// the match page's breadcrumb label; the per-match lists keep using
+// resolveMyIdentity above.
+export function resolveOpponentIdentity<T extends Pick<PlayerIdentity, "isMe" | "sourceUserId">>(
+  identities: readonly T[],
+  presentUserIds: Iterable<string>
+): T | null {
+  const present = new Set(presentUserIds);
+  return identities.find((i) => !i.isMe && present.has(i.sourceUserId)) ?? null;
+}

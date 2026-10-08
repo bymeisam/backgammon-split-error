@@ -19,6 +19,7 @@ import {
 import DecisionListWithDetail from "@/app/components/match-analysis/DecisionListWithDetail";
 import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
+import PageShell from "@/app/components/ui/PageShell";
 import { phaseOptionsFor } from "@/lib/classificationLabels";
 import BulkAddToReview from "./BulkAddToReview";
 import { style } from "./mistakes.styles";
@@ -183,41 +184,39 @@ export default async function MistakesPage({
   const hasFilter = Boolean(phase || categoryParam || severityParam);
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div>
-          <h1 className={style.title}>Mistakes</h1>
-          <p className={style.subtitle}>
-            Browse individual decisions matching a filter.{" "}
-            <Link href="/matches/analysis" className={style.backLink}>
-              ← back to analysis
-            </Link>
-          </p>
-        </div>
+    <PageShell
+      title="Mistakes"
+      subtitle={
+        <>
+          Browse individual decisions matching a filter.{" "}
+          <Link href="/matches/analysis" className={style.backLink}>
+            ← back to analysis
+          </Link>
+        </>
+      }
+    >
+      <form method="get" className={style.form}>
+        <Suspense fallback={<FilterSelectFallback labels={["Phase", "Category", "Severity"]} />}>
+          <FilterSelects phase={phase} categoryParam={categoryParam} severityParam={severityParam} />
+        </Suspense>
+        <FilterSelect
+          label="Per page"
+          name="pageSize"
+          defaultValue={String(pageSize)}
+          options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+        />
+        <button type="submit" className={style.applyButton}>
+          Apply
+        </button>
+      </form>
 
-        <form method="get" className={style.form}>
-          <Suspense fallback={<FilterSelectFallback labels={["Phase", "Category", "Severity"]} />}>
-            <FilterSelects phase={phase} categoryParam={categoryParam} severityParam={severityParam} />
-          </Suspense>
-          <FilterSelect
-            label="Per page"
-            name="pageSize"
-            defaultValue={String(pageSize)}
-            options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
-          />
-          <button type="submit" className={style.applyButton}>
-            Apply
-          </button>
-        </form>
-
-        {hasFilter ? (
-          <Suspense fallback={<DecisionListFallback />}>
-            <DecisionListSection filters={{ phase, categoryParam, severityParam, pageSize, page }} />
-          </Suspense>
-        ) : (
-          <p className={style.noFilterText}>Select a filter above to see matching decisions.</p>
-        )}
-      </main>
-    </div>
+      {hasFilter ? (
+        <Suspense fallback={<DecisionListFallback />}>
+          <DecisionListSection filters={{ phase, categoryParam, severityParam, pageSize, page }} />
+        </Suspense>
+      ) : (
+        <p className={style.noFilterText}>Select a filter above to see matching decisions.</p>
+      )}
+    </PageShell>
   );
 }

@@ -12,6 +12,7 @@ import {
   type SyncState,
 } from "@/lib/galaxyMatchList";
 import Pager from "@/app/components/ui/Pager";
+import PageShell from "@/app/components/ui/PageShell";
 import { style } from "./galaxyMatches.styles";
 import JsonDumpPanel, { useJsonDump } from "./JsonDumpPanel";
 import TokenModal from "./TokenModal";
@@ -129,148 +130,144 @@ export default function GalaxyMatchesPage() {
   }
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div className={style.headerRow}>
-          <h1 className={style.title}>
-            Matches
-          </h1>
+    <PageShell
+      width="medium"
+      title="Matches"
+      actions={
+        token && (
+          <form onSubmit={onJumpToMatch} className={style.jumpForm}>
+            <input
+              type="text"
+              value={jumpToMatchId}
+              onChange={(e) => setJumpToMatchId(e.target.value)}
+              placeholder="Match ID"
+              className={style.matchIdInput}
+            />
+            <button
+              type="submit"
+              className={style.pillButton}
+            >
+              Jump to match
+            </button>
+            <span className={style.divider} />
+            <input
+              type="text"
+              value={jsonGameIndex}
+              onChange={(e) => setJsonGameIndex(e.target.value)}
+              placeholder="Game"
+              title="Game index"
+              className={style.gameIndexInput}
+            />
+            <button
+              type="button"
+              onClick={() => jsonDump.show(jumpToMatchId, jsonGameIndex)}
+              className={style.pillButton}
+            >
+              Show JSON
+            </button>
+          </form>
+        )
+      }
+    >
+      {jsonDump.dump && (
+        <JsonDumpPanel
+          dump={jsonDump.dump}
+          copied={jsonDump.copied}
+          onCopy={jsonDump.copy}
+          onClose={jsonDump.close}
+          matchId={jumpToMatchId}
+          gameIndex={jsonGameIndex}
+        />
+      )}
 
-          {token && (
-            <form onSubmit={onJumpToMatch} className={style.jumpForm}>
-              <input
-                type="text"
-                value={jumpToMatchId}
-                onChange={(e) => setJumpToMatchId(e.target.value)}
-                placeholder="Match ID"
-                className={style.matchIdInput}
-              />
-              <button
-                type="submit"
-                className={style.pillButton}
-              >
-                Jump to match
-              </button>
-              <span className={style.divider} />
-              <input
-                type="text"
-                value={jsonGameIndex}
-                onChange={(e) => setJsonGameIndex(e.target.value)}
-                placeholder="Game"
-                title="Game index"
-                className={style.gameIndexInput}
-              />
-              <button
-                type="button"
-                onClick={() => jsonDump.show(jumpToMatchId, jsonGameIndex)}
-                className={style.pillButton}
-              >
-                Show JSON
-              </button>
-            </form>
+      {!token ? (
+        <TokenModal />
+      ) : (
+        <>
+          {loading && (
+            <p className={style.mutedText}>Loading…</p>
           )}
-        </div>
+          {error && (
+            <p className={style.errorBox}>
+              {error}
+            </p>
+          )}
 
-        {jsonDump.dump && (
-          <JsonDumpPanel
-            dump={jsonDump.dump}
-            copied={jsonDump.copied}
-            onCopy={jsonDump.copy}
-            onClose={jsonDump.close}
-            matchId={jumpToMatchId}
-            gameIndex={jsonGameIndex}
-          />
-        )}
+          {data && (
+            <>
+              <div className={style.tableWrapper}>
+                <table className={style.table}>
+                  <thead>
+                    <tr className={style.theadRow}>
+                      <th className={style.headCell}>Opponent</th>
+                      <th className={style.headCell}>Rating</th>
+                      <th className={style.headCell}>Score</th>
+                      <th className={style.headCell}>Your error</th>
+                      <th className={style.headCell}>Opponent error</th>
+                      <th className={style.headCell}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortNewestFirst(data.analyses).map((m) => {
+                      const syncState = resolveSyncState(syncStates, doneMatchIds, m.matchId);
+                      return (
+                        <tr
+                          key={m.matchId}
+                          onClick={() => router.push(`/galaxy/matches/${m.matchId}`)}
+                          className={style.bodyRow}
+                        >
+                          <td className={style.opponentCell}>{m.opponentName}</td>
+                          <td className={style.monoCell}>
+                            {m.opponentRating}
+                          </td>
+                          <td className={style.monoCell}>
+                            {m.userScore}–{m.opponentScore}
+                          </td>
+                          <td className={style.monoCell}>
+                            {m.userError.toFixed(3)}
+                          </td>
+                          <td className={style.monoCell}>
+                            {m.opponentError.toFixed(3)}
+                          </td>
+                          <td className={style.actionCell}>
+                            {syncState?.status === "syncing" ? (
+                              <span className={style.syncingLabel}>
+                                <span className={style.spinner} />
+                                Syncing…
+                              </span>
+                            ) : syncState?.status === "synced" ? (
+                              <span
+                                className={style.syncedLabel}
+                                title="Already synced"
+                              >
+                                ✓ Synced
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSyncMatch(m);
+                                }}
+                                className={style.syncButton}
+                                title={syncState?.status === "error" ? syncState.message : "Sync this match to the local DB"}
+                              >
+                                {syncState?.status === "error" ? "Retry sync" : "Sync"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-        {!token ? (
-          <TokenModal />
-        ) : (
-          <>
-            {loading && (
-              <p className={style.mutedText}>Loading…</p>
-            )}
-            {error && (
-              <p className={style.errorBox}>
-                {error}
-              </p>
-            )}
-
-            {data && (
-              <>
-                <div className={style.tableWrapper}>
-                  <table className={style.table}>
-                    <thead>
-                      <tr className={style.theadRow}>
-                        <th className={style.headCell}>Opponent</th>
-                        <th className={style.headCell}>Rating</th>
-                        <th className={style.headCell}>Score</th>
-                        <th className={style.headCell}>Your error</th>
-                        <th className={style.headCell}>Opponent error</th>
-                        <th className={style.headCell}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortNewestFirst(data.analyses).map((m) => {
-                        const syncState = resolveSyncState(syncStates, doneMatchIds, m.matchId);
-                        return (
-                          <tr
-                            key={m.matchId}
-                            onClick={() => router.push(`/galaxy/matches/${m.matchId}`)}
-                            className={style.bodyRow}
-                          >
-                            <td className={style.opponentCell}>{m.opponentName}</td>
-                            <td className={style.monoCell}>
-                              {m.opponentRating}
-                            </td>
-                            <td className={style.monoCell}>
-                              {m.userScore}–{m.opponentScore}
-                            </td>
-                            <td className={style.monoCell}>
-                              {m.userError.toFixed(3)}
-                            </td>
-                            <td className={style.monoCell}>
-                              {m.opponentError.toFixed(3)}
-                            </td>
-                            <td className={style.actionCell}>
-                              {syncState?.status === "syncing" ? (
-                                <span className={style.syncingLabel}>
-                                  <span className={style.spinner} />
-                                  Syncing…
-                                </span>
-                              ) : syncState?.status === "synced" ? (
-                                <span
-                                  className={style.syncedLabel}
-                                  title="Already synced"
-                                >
-                                  ✓ Synced
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSyncMatch(m);
-                                  }}
-                                  className={style.syncButton}
-                                  title={syncState?.status === "error" ? syncState.message : "Sync this match to the local DB"}
-                                >
-                                  {syncState?.status === "error" ? "Retry sync" : "Sync"}
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <Pager page={page} shownPage={data.page} totalPages={data.totalPages} setPage={setPage} />
-              </>
-            )}
-          </>
-        )}
-      </main>
-    </div>
+              <Pager page={page} shownPage={data.page} totalPages={data.totalPages} setPage={setPage} />
+            </>
+          )}
+        </>
+      )}
+    </PageShell>
   );
 }

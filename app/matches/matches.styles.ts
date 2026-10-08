@@ -4,11 +4,8 @@
 // comes from the static `disabled:opacity-40` Tailwind variant plus the
 // HTML `disabled` attribute, not a JS-computed className) — every entry
 // here is a plain string, no clsx needed.
+// The page container, width and title row are PageShell's.
 export const style = {
-  pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
-  main: "flex w-full max-w-4xl flex-col gap-6 px-6 py-12",
-  headerRow: "flex flex-wrap items-center justify-between gap-3",
-  title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
   analysisLink:
     "text-sm text-zinc-600 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
   // The "Loading…" text. (The "Page N of M" indicator is the shared Pager's.)

@@ -1,7 +1,8 @@
 // Temporary stopgap — see docs/deploy.md's "Lifting the Galaxy gate" section
 // for the one-place change that lifts this once the app sits behind a real
 // auth wall admitting only the site owner. Everything that decides whether
-// Galaxy-backed routes/links are reachable (proxy.ts, app/page.tsx) reads
+// Galaxy-backed routes/links are reachable (proxy.ts, the navbar and home
+// dashboard: app/components/ui/AppNav.tsx, app/page.tsx) reads
 // this single function; nothing else re-derives the same condition.
 //
 // Fails closed by construction: safe (writes disabled) is the *default*

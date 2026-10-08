@@ -20,6 +20,7 @@ import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
+import PageShell from "@/app/components/ui/PageShell";
 import { severityLabel, severityTier } from "@/lib/badges";
 import { getClassificationLabel, phaseOptionsFor, resolvePhaseWhere } from "@/lib/classificationLabels";
 import { style } from "./repeatedPositions.styles";
@@ -245,45 +246,43 @@ export default async function RepeatedPositionsPage({
   const hasFilter = Boolean(phase || severityParam);
 
   return (
-    <div className={style.pageContainer}>
-      <main className={style.main}>
-        <div>
-          <h1 className={style.title}>Repeated positions</h1>
-          <p className={style.subtitle}>
-            Positions you&apos;ve faced more than once, and how you did each time.{" "}
-            <Link href="/matches/analysis" className={style.backLink}>
-              ← back to analysis
-            </Link>
-          </p>
-        </div>
+    <PageShell
+      title="Repeated positions"
+      subtitle={
+        <>
+          Positions you&apos;ve faced more than once, and how you did each time.{" "}
+          <Link href="/matches/analysis" className={style.backLink}>
+            ← back to analysis
+          </Link>
+        </>
+      }
+    >
+      <form method="get" className={style.form}>
+        <Suspense fallback={<FilterSelectFallback labels={["Phase", "Severity"]} />}>
+          <FilterSelects phase={phase} severityParam={severityParam} />
+        </Suspense>
+        <FilterSelect
+          label="Per page"
+          name="pageSize"
+          defaultValue={String(pageSize)}
+          options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+        />
+        <button type="submit" className={style.applyButton}>
+          Apply
+        </button>
+      </form>
 
-        <form method="get" className={style.form}>
-          <Suspense fallback={<FilterSelectFallback labels={["Phase", "Severity"]} />}>
-            <FilterSelects phase={phase} severityParam={severityParam} />
-          </Suspense>
-          <FilterSelect
-            label="Per page"
-            name="pageSize"
-            defaultValue={String(pageSize)}
-            options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
-          />
-          <button type="submit" className={style.applyButton}>
-            Apply
-          </button>
-        </form>
-
-        {positionId ? (
-          <Suspense fallback={<PositionListFallback />}>
-            <PositionDetailSection positionId={positionId} baseParams={baseParams} />
-          </Suspense>
-        ) : hasFilter ? (
-          <Suspense fallback={<PositionListFallback />}>
-            <PositionListSection filters={{ phase, severityParam, pageSize, page }} />
-          </Suspense>
-        ) : (
-          <p className={style.noFilterText}>Select a filter above to see repeated positions.</p>
-        )}
-      </main>
-    </div>
+      {positionId ? (
+        <Suspense fallback={<PositionListFallback />}>
+          <PositionDetailSection positionId={positionId} baseParams={baseParams} />
+        </Suspense>
+      ) : hasFilter ? (
+        <Suspense fallback={<PositionListFallback />}>
+          <PositionListSection filters={{ phase, severityParam, pageSize, page }} />
+        </Suspense>
+      ) : (
+        <p className={style.noFilterText}>Select a filter above to see repeated positions.</p>
+      )}
+    </PageShell>
   );
 }
