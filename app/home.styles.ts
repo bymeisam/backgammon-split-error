@@ -29,7 +29,6 @@ export const style = {
   widgetLink: shared.textLink,
   widgetActions: "mt-auto flex items-center gap-3.5",
   // The due widget's action: the app's main loop, a real button.
-  reviewButton: shared.buttonPrimary,
   errorText: shared.errorText,
   mutedText: shared.mutedText,
   srOnly: "sr-only",

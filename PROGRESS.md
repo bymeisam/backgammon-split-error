@@ -970,3 +970,27 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - Nothing overflows at any width, theme or mode.
     - Slack at 1440 in write mode, without a token (so "Add token to sync" shows instead of the narrower Sync button): Clubroom 73px, Quiet Ink 58px, Felt 46px. In read-only: 405, 390 and 389px.
   - **Next:** the designer's sign-off on the phase-3b shots. The post-sync message swap hasn't been seen live, because that needs a Galaxy token and a real sync.
+
+- **Phase 4: design-system guardrails** (approved by the user). No DB, logic or visual change.
+  - **`docs/design-system.md`:** the one UI reference, written from the code as it is now. It covers the principles, every token (grouped, which ones are per theme or per mode, and the Tailwind names), the type rules (mono only for notation, equities, IDs and kbd), severity (one source; NONE is Best and never listed, DOUBTFUL is Good), the component patterns with "use this, not that", the themes (adding one, the completeness test, the cookie), accessibility, do and don't, and the screenshot and designer-review workflow.
+  - **`styling-conventions` skill:** it now makes `docs/design-system.md` required reading and requires tokens and the shared components and primitives. The examples use tokens (no more `bg-blue-50`/`border-black/10`), and the stale `myMoveBadge` reference is now `decisionChip`. The `.styles.ts` convention is unchanged.
+  - **New shared components (`app/components/ui/`):**
+    - `Button`: primary, secondary or quiet, in md, compact or small; a `Link` when given `href`. Every look maps onto an existing `shared.styles.ts` primitive. The new `shared.buttonSmallPrimary` covers the one missing combination.
+    - `Card`.
+    - `Table`, `TableHead`, `TableHeadCell`, `TableBody`, `TableRow`, `TableCell`, with cell kinds text, muted, numeric and chevron.
+    - `FilterBar`: `FilterDisclosure` plus the GET form plus Apply.
+    - The severity chip stays `SeverityBadge`/`Badge`; nothing new was added for it.
+  - **Migrated, class-for-class:**
+    - the filter forms on /mistakes, /repeated-positions, /review and /review/cards → `FilterBar`;
+    - `Pager` and `PaginationLinks` → `Button`;
+    - the dashboard's "Start review" → `Button`;
+    - /matches/analysis's tables → `Table*`;
+    - the /status and /settings sections → `Card`.
+  - **`lib/styleGuard.test.ts`:** scans `app/**/*.styles.ts`, `app/**/*.tsx` and `lib/**/*.ts`, with comments stripped. It fails on a hex or rgb/hsl colour, a raw palette class, `bg-black`/`text-white` and the like, an arbitrary colour, or a font-family name. It also fails on "Galaxy" in UI text outside an allowlist (the /galaxy pages, the Galaxy and sync API routes, the navbar's sync control, the "View on Galaxy" link helper and label, ingest, sync, the Galaxy translator, the `lib/galaxy*` modules, the /status notes, the navbar's Galaxy item, and `galaxyGamesError`'s messages). Each allowlist entry has a reason and is checked for staleness. The current code needed no fixes.
+  - **Verified:**
+    - lint, tsc, 538/538 tests and build all pass.
+    - Visual 15/15 with no baseline changes.
+    - Clubroom screenshots are in `design/screenshots/2026-10-09-phase4/clubroom/`, 130 of them, from local `next start` :3300 in write mode. Cards for 1258038, 629849 and 1149353 were added and removed.
+    - 125 of 130 shots are byte-identical to phase3b, including every migrated page. The other 5 are 4 review fronts (the options are shuffled per session) and one replay viewport (its move list scrolled 2px differently).
+    - Afterwards ReviewCard/ReviewLog/Tag/DecisionTag are 0/0/0/0, and DecisionNote is unchanged (2 rows, same max `updatedAt`).
+  - **Next:** move the remaining hand-composed buttons, tables and cards onto the components as those files are touched (for example the modal buttons, BulkAddToReview, and the matches and dashboard tables).

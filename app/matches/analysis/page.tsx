@@ -3,6 +3,7 @@ import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { ErrorSeverity, type MistakeStat } from "@/lib/generated/prisma/client";
 import { getClassificationLabel } from "@/lib/classificationLabels";
 import PageShell from "@/app/components/ui/PageShell";
+import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "@/app/components/ui/Table";
 import { categoryLabel } from "@/lib/listParams";
 import { formatDateTime } from "@/lib/formatDate";
 import { style } from "./matchesAnalysis.styles";
@@ -97,42 +98,38 @@ function BreakdownTable({
   rows: Row[];
 }) {
   return (
-    <div className={style.tableWrapper}>
-      <table className={style.table}>
-        <thead>
-          <tr>
-            <th className={style.tableHeadCell}>{keyHeader}</th>
-            <th className={style.tableHeadCellNumeric}>Blunders</th>
-            <th className={style.tableHeadCellNumeric}>Errors</th>
-            {/* Galaxy's "Good" tier (stored DOUBTFUL): a mild tier, not an
-                error, but still broken out here. */}
-            <th className={style.tableHeadCellNumeric}>Good</th>
-            <th className={style.tableHeadCellNumeric}>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.key} className={style.tableRow}>
-              <td className={style.tableKeyCell}>
-                {paramName === "classification" ? getClassificationLabel(r.key) : categoryLabel(r.key)}
-              </td>
-              <td className={style.tableNumberCell}>
-                <CountLink href={mistakesHref(paramName, r.key, "blunder")} count={r.blunderCount} />
-              </td>
-              <td className={style.tableNumberCell}>
-                <CountLink href={mistakesHref(paramName, r.key, "error")} count={r.errorCount} />
-              </td>
-              <td className={style.tableNumberCell}>
-                <CountLink href={mistakesHref(paramName, r.key, "doubtful")} count={r.doubtfulCount} />
-              </td>
-              <td className={style.tableNumberCell}>
-                <CountLink href={mistakesHref(paramName, r.key)} count={r.total} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <TableHead>
+        <TableHeadCell>{keyHeader}</TableHeadCell>
+        <TableHeadCell numeric>Blunders</TableHeadCell>
+        <TableHeadCell numeric>Errors</TableHeadCell>
+        {/* Galaxy's "Good" tier (stored DOUBTFUL): a mild tier, not an
+            error, but still broken out here. */}
+        <TableHeadCell numeric>Good</TableHeadCell>
+        <TableHeadCell numeric>Total</TableHeadCell>
+      </TableHead>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.key} className={style.rowHover}>
+            <TableCell>
+              {paramName === "classification" ? getClassificationLabel(r.key) : categoryLabel(r.key)}
+            </TableCell>
+            <TableCell kind="numeric">
+              <CountLink href={mistakesHref(paramName, r.key, "blunder")} count={r.blunderCount} />
+            </TableCell>
+            <TableCell kind="numeric">
+              <CountLink href={mistakesHref(paramName, r.key, "error")} count={r.errorCount} />
+            </TableCell>
+            <TableCell kind="numeric">
+              <CountLink href={mistakesHref(paramName, r.key, "doubtful")} count={r.doubtfulCount} />
+            </TableCell>
+            <TableCell kind="numeric">
+              <CountLink href={mistakesHref(paramName, r.key)} count={r.total} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
+import Button from "./Button";
 import { style } from "./Pager.styles";
 
 // Prev / "Page N of M" / Next buttons for a client-side paged list (the
@@ -21,25 +22,15 @@ export default function Pager({
 }) {
   return (
     <div className={style.row}>
-      <button
-        type="button"
-        onClick={() => setPage((p) => Math.max(1, p - 1))}
-        disabled={page <= 1}
-        className={style.button}
-      >
+      <Button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
         Prev
-      </button>
+      </Button>
       <span className={style.pageIndicator}>
         Page {shownPage} of {totalPages}
       </span>
-      <button
-        type="button"
-        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        disabled={page >= totalPages}
-        className={style.button}
-      >
+      <Button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
         Next
-      </button>
+      </Button>
     </div>
   );
 }

@@ -3,20 +3,13 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // Page-local (see .claude/skills/styling-conventions) — covers
 // MatchesAnalysisPage and every component defined in this same page.tsx
 // file (CountLink, BreakdownTable). The page container, width and title are
-// PageShell's; the table look is shared.
+// PageShell's; the table is the shared Table.
 export const style = {
   countLink: "underline-offset-4 hover:text-ink hover:underline",
 
-  // BreakdownTable — reused for both the classification and category
-  // sections.
-  tableWrapper: shared.tableWrapper,
-  table: shared.table,
-  tableHeadCell: shared.tableHeadCell,
-  tableHeadCellNumeric: shared.tableHeadCellNumeric,
-  tableRow: `${shared.tableRow} hover:[&>td]:bg-sunken`,
-  tableKeyCell: shared.tableCell,
-  // Shared by all 4 numeric cells (Blunders/Errors/Good/Total) in a row.
-  tableNumberCell: shared.tableCellNumeric,
+  // BreakdownTable (the shared Table, for both the classification and
+  // category sections): its rows tint on hover, though they aren't links.
+  rowHover: "hover:[&>td]:bg-sunken",
 
   backLink: shared.textLink,
   // Shared by both sections (classification and category breakdowns).

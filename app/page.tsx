@@ -10,6 +10,7 @@ import { listRepeatedPositions } from "@/lib/repeatedPositionQueries";
 import { formatShortMatchDate } from "@/lib/formatDate";
 import type { MistakeTally } from "@/lib/dashboardStats";
 import PageShell from "@/app/components/ui/PageShell";
+import Button from "@/app/components/ui/Button";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import { SOURCE_PR_HINT } from "@/lib/sourcePr";
 import TodayOverline from "./TodayOverline";
@@ -91,9 +92,9 @@ async function DueCardsWidget() {
         </p>
       )}
       <div className={style.widgetActions}>
-        <Link href="/review" className={style.reviewButton}>
+        <Button variant="primary" href="/review">
           {shown > 0 ? "Start review →" : "Open review →"}
-        </Link>
+        </Button>
         <Link href="/review/cards" className={style.widgetLink}>
           Manage cards
         </Link>

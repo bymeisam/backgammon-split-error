@@ -4,6 +4,7 @@ import { PrismaClient } from "@/lib/generated/prisma/client";
 import { buildConnectionConfig } from "@/lib/prisma";
 import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
 import PageShell from "@/app/components/ui/PageShell";
+import Card from "@/app/components/ui/Card";
 import { STATUS_NOTES } from "./notes";
 import { style } from "./status.styles";
 
@@ -113,7 +114,7 @@ export default async function StatusPage() {
         </>
       }
     >
-      <section className={style.section}>
+      <Card as="section" className={style.section}>
         <h2 className={style.sectionTitle}>
           Stack
         </h2>
@@ -123,9 +124,9 @@ export default async function StatusPage() {
         <Row label="Prisma CLI" value={prismaPkg.version} />
         <Row label="@prisma/client" value={prismaClientPkg.version} />
         <Row label="Node.js" value={process.version} />
-      </section>
+      </Card>
 
-      <section className={style.section}>
+      <Card as="section" className={style.section}>
         <h2 className={style.sectionTitle}>
           Database
         </h2>
@@ -148,9 +149,9 @@ export default async function StatusPage() {
             <Row label="Player identities" value={db.counts.playerIdentity.toLocaleString()} numeric />
           </>
         )}
-      </section>
+      </Card>
 
-      <section className={style.section}>
+      <Card as="section" className={style.section}>
         <h2 className={style.sectionTitle}>
           Notes
         </h2>
@@ -159,7 +160,7 @@ export default async function StatusPage() {
             <li key={i}>{note}</li>
           ))}
         </ul>
-      </section>
+      </Card>
     </PageShell>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
+import Card from "@/app/components/ui/Card";
 import { THEMES, themeCookieString, type ThemeMode, type ThemeSettings as Settings } from "@/lib/themes";
 import { style, type PreviewSwatch } from "./settings.styles";
 
@@ -73,7 +74,7 @@ export default function ThemeSettings({ initial }: { initial: Settings }) {
 
   return (
     <>
-      <section className={style.section} aria-labelledby="settings-theme">
+      <Card as="section" className={style.section} aria-labelledby="settings-theme">
         <div className={style.sectionHead}>
           <h2 id="settings-theme" className={style.sectionTitle}>
             Theme
@@ -104,9 +105,9 @@ export default function ThemeSettings({ initial }: { initial: Settings }) {
             );
           })}
         </div>
-      </section>
+      </Card>
 
-      <section className={style.section} aria-labelledby="settings-mode">
+      <Card as="section" className={style.section} aria-labelledby="settings-mode">
         <div className={style.sectionHead}>
           <h2 id="settings-mode" className={style.sectionTitle}>
             Mode
@@ -131,7 +132,7 @@ export default function ThemeSettings({ initial }: { initial: Settings }) {
             );
           })}
         </div>
-      </section>
+      </Card>
     </>
   );
 }

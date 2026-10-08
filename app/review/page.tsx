@@ -14,7 +14,7 @@ import { getPhaseLabel, phaseOptionsFor } from "@/lib/classificationLabels";
 import { reviewFiltersFrom } from "@/lib/review/filters";
 import { FilterSelect } from "@/app/components/ui/FilterSelect";
 import PageShell from "@/app/components/ui/PageShell";
-import FilterDisclosure from "@/app/components/ui/FilterDisclosure";
+import FilterBar from "@/app/components/ui/FilterBar";
 import ReviewSession from "./ReviewSession";
 import { style } from "./review.styles";
 
@@ -61,48 +61,44 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const hasFilters = Boolean(filters.tag || filters.phase || filters.category || filters.severity);
 
   const filterControls = (
-    <FilterDisclosure
+    <FilterBar
       summary={summary}
       extra={
         <Link href="/review/cards" className={style.link}>
           Manage cards
         </Link>
       }
+      className={style.formExtra}
     >
-      <form method="get" className={style.form}>
-        <FilterSelect
-          label="Tag"
-          name="tag"
-          defaultValue={filters.tag ?? ""}
-          options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
-          emptyLabel="Any"
-        />
-        <FilterSelect
-          label="Phase"
-          name="phase"
-          defaultValue={filters.phase ?? ""}
-          options={phaseOptionsFor(classifications)}
-          emptyLabel="Any"
-        />
-        <FilterSelect
-          label="Type"
-          name="category"
-          defaultValue={filters.category ?? ""}
-          options={categoryOptions(categories)}
-          emptyLabel="All"
-        />
-        <FilterSelect
-          label="Severity"
-          name="severity"
-          defaultValue={filters.severity ?? ""}
-          options={severityOptions(severities)}
-          emptyLabel="All"
-        />
-        <button type="submit" className={style.applyButton}>
-          Apply
-        </button>
-      </form>
-    </FilterDisclosure>
+      <FilterSelect
+        label="Tag"
+        name="tag"
+        defaultValue={filters.tag ?? ""}
+        options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
+        emptyLabel="Any"
+      />
+      <FilterSelect
+        label="Phase"
+        name="phase"
+        defaultValue={filters.phase ?? ""}
+        options={phaseOptionsFor(classifications)}
+        emptyLabel="Any"
+      />
+      <FilterSelect
+        label="Type"
+        name="category"
+        defaultValue={filters.category ?? ""}
+        options={categoryOptions(categories)}
+        emptyLabel="All"
+      />
+      <FilterSelect
+        label="Severity"
+        name="severity"
+        defaultValue={filters.severity ?? ""}
+        options={severityOptions(severities)}
+        emptyLabel="All"
+      />
+    </FilterBar>
   );
 
   return (

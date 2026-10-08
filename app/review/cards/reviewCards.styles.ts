@@ -3,15 +3,11 @@ import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local (see .claude/skills/styling-conventions) — covers
 // ReviewCardsPage (page.tsx) and CardActions.tsx (same folder, only used
-// here). The filter dropdowns and pagination are shared components with
+// here). The filter (FilterBar) and pagination are shared components with
 // their own styles. The page container, width, breadcrumbs and title are
 // PageShell's.
 export const style = {
   link: shared.textLink,
-  // The Filter disclosure's form; the disclosure itself is in PageShell's
-  // header (its `controls`).
-  form: shared.filterBar,
-  applyButton: shared.buttonSecondary,
   // The result line ("3 cards") and the table under it.
   resultGroup: shared.resultGroup,
   resultRow: clsx(shared.resultRow, "tabular-nums"),

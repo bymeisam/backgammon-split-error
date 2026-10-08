@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import PageShell from "@/app/components/ui/PageShell";
+import Card from "@/app/components/ui/Card";
 import { THEME_COOKIE, themeSettingsFromCookie } from "@/lib/themes";
 import {
   BULK_ADD_CAP,
@@ -30,7 +31,7 @@ export default async function SettingsPage() {
     <PageShell width="medium" title="Settings" subtitle="How the app looks in this browser, and how review works.">
       <ThemeSettings initial={current} />
 
-      <section className={style.section} aria-labelledby="settings-review">
+      <Card as="section" className={style.section} aria-labelledby="settings-review">
         <div className={style.sectionHead}>
           <h2 id="settings-review" className={style.sectionTitle}>
             Review
@@ -44,7 +45,7 @@ export default async function SettingsPage() {
           <Row label="Correct-answer threshold" value={`At most ${CORRECT_LOSS_THRESHOLD} equity lost`} />
           <Row label="Most cards added at once" value={BULK_ADD_CAP.toLocaleString("en")} />
         </div>
-      </section>
+      </Card>
     </PageShell>
   );
 }

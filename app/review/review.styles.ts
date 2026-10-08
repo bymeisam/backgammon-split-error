@@ -3,15 +3,14 @@ import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local (see .claude/skills/styling-conventions) — covers ReviewPage
 // (page.tsx) and ReviewSession.tsx, which lives in this same folder and is
-// only used here. BoardPanel, DecisionNote, TagEditor and FilterDisclosure
+// only used here. BoardPanel, DecisionNote, TagEditor and FilterBar
 // are shared components with their own styles. The page container is
 // PageShell's ("session" variant: no side padding below md, so the blocks
 // here inset themselves).
 export const style = {
   link: shared.textLink,
-  // The filter form, inside the session bar's Filter disclosure.
-  form: clsx(shared.filterBar, "pt-1"),
-  applyButton: shared.buttonSecondary,
+  // Added to the FilterBar's form, inside the session bar.
+  formExtra: "pt-1",
   readOnlyBox: clsx(shared.card, "p-5 text-sm text-ink-muted"),
 
   // --- ReviewSession.tsx ---

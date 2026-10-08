@@ -5,14 +5,10 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // RepeatedPositionsPage and every component defined in this same
 // page.tsx file (FilterSelects, PositionListSection, PositionListFallback,
 // PositionDetailSection). Same page shell as app/mistakes/mistakes.styles.ts;
-// the filter dropdowns and pagination row are shared components with their
+// the filter (FilterBar) and pagination row are shared components with their
 // own styles. The page container, width and title are PageShell's.
 export const style = {
   backLink: shared.textLink,
-  // The Filter disclosure's form; the disclosure itself is in PageShell's
-  // header (its `controls`).
-  form: shared.filterBar,
-  applyButton: shared.buttonSecondary,
   noFilterText: shared.faintText,
   mutedText: shared.mutedText,
   // The result line and the table (or the drilldown's list) under it.

@@ -24,7 +24,7 @@ import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
 import PageShell from "@/app/components/ui/PageShell";
-import FilterDisclosure from "@/app/components/ui/FilterDisclosure";
+import FilterBar from "@/app/components/ui/FilterBar";
 import { severityLabel, severityTier } from "@/lib/badges";
 import { getClassificationLabel, getPhaseLabel, phaseOptionsFor, resolvePhaseWhere } from "@/lib/classificationLabels";
 import { style } from "./repeatedPositions.styles";
@@ -263,7 +263,7 @@ export default async function RepeatedPositionsPage({
         </>
       }
       controls={
-        <FilterDisclosure
+        <FilterBar
           summary={filterSummary([
             [phase ? getPhaseLabel(phase) : undefined, "Any phase"],
             [severityParamLabel(severityParam), "All severities"],
@@ -273,21 +273,16 @@ export default async function RepeatedPositionsPage({
           // yet, so the form shows.
           defaultOpen={!hasFilter && !positionId}
         >
-          <form method="get" className={style.form}>
-            <Suspense fallback={<FilterSelectFallback labels={["Phase", "Severity"]} />}>
-              <FilterSelects phase={phase} severityParam={severityParam} />
-            </Suspense>
-            <FilterSelect
-              label="Per page"
-              name="pageSize"
-              defaultValue={String(pageSize)}
-              options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
-            />
-            <button type="submit" className={style.applyButton}>
-              Apply
-            </button>
-          </form>
-        </FilterDisclosure>
+          <Suspense fallback={<FilterSelectFallback labels={["Phase", "Severity"]} />}>
+            <FilterSelects phase={phase} severityParam={severityParam} />
+          </Suspense>
+          <FilterSelect
+            label="Per page"
+            name="pageSize"
+            defaultValue={String(pageSize)}
+            options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+          />
+        </FilterBar>
       }
     >
       {positionId ? (

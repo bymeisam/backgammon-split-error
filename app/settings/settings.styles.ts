@@ -5,7 +5,8 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // SettingsPage (page.tsx), its Row, and ThemeSettings.tsx, used only by this
 // page.
 export const style = {
-  section: clsx(shared.card, "flex flex-col gap-4 p-5"),
+  // On top of Card.
+  section: "flex flex-col gap-4 p-5",
   sectionHead: "flex flex-col gap-1",
   sectionTitle: shared.overline,
   sectionNote: "text-[13px] text-ink-muted",

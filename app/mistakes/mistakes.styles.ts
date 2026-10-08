@@ -9,10 +9,6 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // The page container, width and title are PageShell's.
 export const style = {
   backLink: shared.textLink,
-  // The Filter disclosure's form (no box, a row of labelled controls); the
-  // disclosure itself is in PageShell's header (its `controls`).
-  form: shared.filterBar,
-  applyButton: shared.buttonSecondary,
   noFilterText: shared.faintText,
   mutedText: shared.mutedText,
   fallbackRow: "flex items-center gap-2 text-sm text-ink-faint",

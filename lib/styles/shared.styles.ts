@@ -70,6 +70,11 @@ export const style = {
     buttonBase,
     "h-7 border border-line-strong bg-surface px-3 text-xs text-ink hover:bg-sunken"
   ),
+  // The small primary (Button's primary/small; no page uses it yet).
+  buttonSmallPrimary: clsx(
+    buttonBase,
+    "h-7 border border-primary bg-primary px-3 text-xs text-on-primary hover:bg-primary/86"
+  ),
   buttonDanger: clsx(
     buttonBase,
     "h-7 border border-line-strong bg-surface px-3 text-xs text-blunder-ink hover:border-blunder hover:bg-blunder-tint"

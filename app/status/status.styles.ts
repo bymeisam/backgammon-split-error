@@ -12,8 +12,8 @@ export const style = {
   rowValue: (numeric: boolean): string =>
     clsx("text-right text-ink", numeric ? "tabular-nums" : "font-mono text-[13px]"),
 
-  // Shared by all 3 sections (Stack/Database/Notes).
-  section: clsx(shared.card, "p-5"),
+  // Shared by all 3 sections (Stack/Database/Notes), on top of Card.
+  section: "p-5",
   sectionTitle: clsx(shared.overline, "mb-2"),
 
   // Function, 1 param -> passed directly.

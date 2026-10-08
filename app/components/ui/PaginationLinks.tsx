@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { pageHref } from "@/lib/listParams";
+import Button from "./Button";
 import { style } from "./PaginationLinks.styles";
 
 // Prev / "Page N of M" / Next for a server-rendered, query-param-paginated
@@ -21,15 +21,15 @@ export default function PaginationLinks({
 
   return (
     <div className={style.row}>
-      <Link href={hasPrev ? pageHref(basePath, params, page - 1) : "#"} className={style.link(!hasPrev)}>
+      <Button href={hasPrev ? pageHref(basePath, params, page - 1) : "#"} className={style.disabledLink(!hasPrev)}>
         Prev
-      </Link>
+      </Button>
       <span className={style.pageIndicator}>
         Page {page} of {totalPages}
       </span>
-      <Link href={hasNext ? pageHref(basePath, params, page + 1) : "#"} className={style.link(!hasNext)}>
+      <Button href={hasNext ? pageHref(basePath, params, page + 1) : "#"} className={style.disabledLink(!hasNext)}>
         Next
-      </Link>
+      </Button>
     </div>
   );
 }

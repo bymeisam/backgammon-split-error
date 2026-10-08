@@ -22,7 +22,7 @@ import { cardListSummary } from "@/lib/review/cardPayload";
 import { FilterSelect } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
 import PageShell from "@/app/components/ui/PageShell";
-import FilterDisclosure from "@/app/components/ui/FilterDisclosure";
+import FilterBar from "@/app/components/ui/FilterBar";
 import CardActions from "./CardActions";
 import { style } from "./reviewCards.styles";
 
@@ -102,7 +102,7 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
         ) : undefined
       }
       controls={
-        <FilterDisclosure
+        <FilterBar
           summary={filterSummary([
             [filters.tag ? (tags.find((t) => String(t.id) === filters.tag)?.name ?? "Unknown tag") : undefined, "All tags"],
             [filters.phase ? getPhaseLabel(filters.phase) : undefined, "Any phase"],
@@ -110,34 +110,29 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
             [STATE_OPTIONS.find((o) => o.value === state)?.label, "Any state"],
           ])}
         >
-          <form method="get" className={style.form}>
-            <FilterSelect
-              label="Tag"
-              name="tag"
-              defaultValue={filters.tag ?? ""}
-              options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
-              emptyLabel="Any"
-            />
-            <FilterSelect
-              label="Phase"
-              name="phase"
-              defaultValue={filters.phase ?? ""}
-              options={phaseOptionsFor(classifications)}
-              emptyLabel="Any"
-            />
-            <FilterSelect
-              label="Type"
-              name="category"
-              defaultValue={filters.category ?? ""}
-              options={categoryOptions(categories)}
-              emptyLabel="All"
-            />
-            <FilterSelect label="State" name="state" defaultValue={state ?? ""} options={STATE_OPTIONS} emptyLabel="All" />
-            <button type="submit" className={style.applyButton}>
-              Apply
-            </button>
-          </form>
-        </FilterDisclosure>
+          <FilterSelect
+            label="Tag"
+            name="tag"
+            defaultValue={filters.tag ?? ""}
+            options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
+            emptyLabel="Any"
+          />
+          <FilterSelect
+            label="Phase"
+            name="phase"
+            defaultValue={filters.phase ?? ""}
+            options={phaseOptionsFor(classifications)}
+            emptyLabel="Any"
+          />
+          <FilterSelect
+            label="Type"
+            name="category"
+            defaultValue={filters.category ?? ""}
+            options={categoryOptions(categories)}
+            emptyLabel="All"
+          />
+          <FilterSelect label="State" name="state" defaultValue={state ?? ""} options={STATE_OPTIONS} emptyLabel="All" />
+        </FilterBar>
       }
     >
       <div className={style.resultGroup}>

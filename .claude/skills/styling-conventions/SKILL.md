@@ -1,6 +1,6 @@
 ---
 name: styling-conventions
-description: This project's Tailwind-organization convention — classes live in dedicated [name].styles.ts files, not inline in JSX. Load before writing or editing any component's className, adding a new page/component, or reviewing styling changes in this codebase.
+description: This project's Tailwind-organization convention — classes live in dedicated [name].styles.ts files, not inline in JSX, built from the design system's tokens and shared components (docs/design-system.md). Load before writing or editing any component's className, adding a new page/component, or reviewing styling changes in this codebase.
 ---
 
 # Styling conventions
@@ -10,6 +10,32 @@ about *how* classes are written changes. What changes is *where* they
 live: classes are organized into dedicated `[name].styles.ts` files next
 to the component(s) they style, never written inline in JSX `className`
 props.
+
+## Required reading: the design system
+
+**Before any UI work, read `docs/design-system.md`.** It is the one
+reference for the look: the tokens, the type rules, severity, the shared
+components and the themes. This skill covers *where* classes go; that doc
+covers *which* classes. Three rules from it apply to every styles file:
+
+- **Tokens only.** Colours, fonts and themed values come from the theme
+  tokens (`bg-surface`, `text-ink-muted`, `border-line`, `font-serif`,
+  `font-display`, `rounded-card`, `shadow-card`…). Never a hex or
+  `rgb()`/`hsl()` colour, a raw palette class (`zinc-500`, `bg-white`,
+  `text-black`), an arbitrary colour (`bg-[#…]`), a font-family name, or a
+  `dark:` colour variant (the tokens switch with the mode).
+  `lib/styleGuard.test.ts` fails `npm test` on any of these.
+- **Shared components and primitives first.** Use the components in
+  `app/components/ui/` (`Button`, `Card`, `Table*`, `FilterBar`,
+  `FilterSelect`, `SeverityBadge`, `ClassificationBadge`, `Modal`,
+  `PageShell`, `PaginationLinks`/`Pager`) and the primitives in
+  `lib/styles/shared.styles.ts` (`severityChip`, `severityText`, `overline`,
+  `textLink`, `kbd`, `focusRingInset`, …) instead of re-styling a button,
+  card, table, chip or modal. A component's `className` prop takes extra
+  classes from your own styles file, never an inline string.
+- **Severity has one source:** `shared.severityChip`/`severityText` and
+  `lib/badges.ts`'s `severityTier`/`playedMoveTier`. Never pick a severity
+  colour by hand.
 
 Adopted gradually — a component that hasn't been touched since this
 convention was introduced may still have inline classes. Don't do a
@@ -72,14 +98,14 @@ export const style = { ... } as const;
   directly; 3+ parameters use a single options object:
   ```ts
   // 1–2 params: direct
-  activeRow: (isActive: boolean) => clsx("rounded-lg px-3 py-1.5", isActive && "bg-blue-50"),
+  activeRow: (isActive: boolean): string => clsx("rounded-control px-3 py-1.5", isActive && "bg-sunken"),
 
   // 3+ params: one options object
-  moveBadge: (opts: { isActive: boolean; severity: "blunder" | "error" }) =>
+  moveChip: (opts: { isActive: boolean; tier: SeverityTier; isButton: boolean }): string =>
     clsx(
-      "rounded-lg border px-3 py-1.5",
-      opts.severity === "blunder" ? "border-red-300 text-red-700" : "border-amber-300 text-amber-700",
-      opts.isActive && "ring-1 ring-inset ring-black/30"
+      "rounded-control border px-3 py-1.5",
+      opts.isActive ? clsx("border-line-strong", shared.severityText(opts.tier)) : "border-line text-ink-muted",
+      opts.isButton && "hover:bg-sunken"
     ),
   ```
 - **Function entries are typed normally.** `as const` on the outer object
@@ -130,8 +156,8 @@ export const style = {
   // Function, 2 params -> passed directly.
   widgetRow: (isSelected: boolean, isStale: boolean) =>
     clsx(
-      "flex items-center justify-between rounded-lg border px-3 py-2",
-      isSelected ? "border-blue-400 bg-blue-50" : "border-black/10",
+      "flex items-center justify-between rounded-control border px-3 py-2",
+      isSelected ? "border-line-strong bg-sunken" : "border-line",
       isStale && "opacity-60"
     ),
 } as const;
@@ -165,17 +191,19 @@ export default function WidgetsPage() {
 ```ts
 // app/components/WidgetCard.styles.ts
 export const style = {
-  // Plain string, static.
-  card: "rounded-xl border border-black/10 bg-white p-4 shadow-sm",
+  // Plain string, static. Only this component's own padding and layout:
+  // the shared Card supplies the surface, border, radius and shadow.
+  card: "flex flex-col gap-2 p-4",
 } as const;
 ```
 
 ```tsx
 // app/components/WidgetCard.tsx
+import Card from "@/app/components/ui/Card";
 import { style } from "./WidgetCard.styles";
 
 export default function WidgetCard({ widget }: { widget: Widget }) {
-  return <div className={style.card}>{widget.name}</div>;
+  return <Card className={style.card}>{widget.name}</Card>;
 }
 ```
 
@@ -195,8 +223,8 @@ export const style = {
 import { style as shared } from "@/lib/styles/shared.styles";
 
 export const style = {
-  card: "rounded-xl border border-black/10 bg-white p-4 shadow-sm",
-  badge: `inline-flex items-center rounded-full ${shared.badgePadding} text-xs`,
+  card: "flex flex-col gap-2 p-4",
+  badge: `inline-flex items-center rounded-full bg-sunken ${shared.badgePadding} text-xs text-ink-muted`,
 } as const;
 ```
 
@@ -212,4 +240,11 @@ and got its own file too), plus each of those three pages' own
 page-local `[pageName].styles.ts` where they had page-local classes of
 their own. See those files for the first real application of this
 convention, including a real function-valued entry with the 3+ param
-options-object form (`BoardPanel.styles.ts`'s move-badge styling).
+options-object form (`BoardPanel.styles.ts`'s `decisionChip`, the Played /
+Best chips under the board, which takes `{ tier, isActive, isButton }`; it
+replaced the old `myMoveBadge`).
+
+For the shared components themselves, see `app/components/ui/Button.tsx`
+with `Button.styles.ts` (a variant × size map onto the shared primitives),
+`Table.tsx` and `FilterBar.tsx`; for callers, `app/matches/analysis/` (the
+Table components) and `app/status/` (Card).
