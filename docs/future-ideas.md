@@ -59,6 +59,16 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Notes:** the chances are already in each candidate's `probabilities` in `raw`. The planned normalized-analysis column on `Decision` will store them too (decided 2026-10-06).
 - **Source:** user, 2026-10-06, during spaced-repetition planning.
 
+### Counting and race drills
+- **Idea:** train counting and race skills in three stages per skill:
+  1. **Memorise:** spaced-repetition cards for fixed facts, such as match-equity values, take points, reference bear-off EPCs and race benchmarks.
+  2. **Practise:** untimed, with the working shown.
+  3. **Test:** timed rounds, like Galaxy's "PIP Rush" (type a number, 3 lives, accuracy and streak).
+- **Drills the user picked:** pip count and difference (plus race %); EPC and wastage (exact, from a one-sided bear-off table built once and shipped as a static file); race cube by formula (Keith count and others, on the user's own race cube decisions, compared with the engine's verdict); shot counting; take points and the MET.
+- **Positions:** from the user's own games and from generated positions. The answers are computed from the position, so no `Decision` columns are needed.
+- **Storage:** probably one new table for drill attempts. Fact cards need either a second card kind or a small table of their own; decide that at design time.
+- **Status:** approved as an idea only (user, 2026-10-08): "we need to think about it more".
+
 ### Review by making the move on the board
 - **Idea:** in the spaced-repetition review, answer by actually moving the checkers on the board (free recall) instead of picking from a list of candidate moves. This is closer to real Anki recall and to over-the-board play.
 - **Why deferred:** it needs an interactive board that takes move input, which is a big piece of UI work. The first version uses a multiple-choice list (decided 2026-10-06).
