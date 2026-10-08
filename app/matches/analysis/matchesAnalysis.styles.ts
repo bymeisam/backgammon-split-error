@@ -11,12 +11,12 @@ export const style = {
   // sections.
   tableWrapper: shared.tableWrapper,
   table: shared.table,
-  tableHeadRow: shared.tableHeadRow,
   tableHeadCell: shared.tableHeadCell,
-  tableRow: `${shared.tableRow} transition-colors hover:bg-sunken`,
+  tableHeadCellNumeric: shared.tableHeadCellNumeric,
+  tableRow: `${shared.tableRow} hover:[&>td]:bg-sunken`,
   tableKeyCell: shared.tableCell,
   // Shared by all 4 numeric cells (Blunders/Errors/Good/Total) in a row.
-  tableNumberCell: shared.tableCellMuted,
+  tableNumberCell: shared.tableCellNumeric,
 
   backLink: shared.textLink,
   // Shared by both sections (classification and category breakdowns).

@@ -37,7 +37,7 @@ export default function SyncControl({
         message?: string;
       };
       setState({ kind: "done", ok: true, message: json.message ?? "Sync finished." });
-      // Re-renders the server components (this line's "Last synced", the
+      // Re-renders the server components (this line's "Synced …", the
       // due count, the page) with the new data.
       router.refresh();
     } catch (e) {

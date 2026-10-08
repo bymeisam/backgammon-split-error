@@ -5,10 +5,12 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // and its exclusive subcomponent Row (same file). The page container, width
 // and title are PageShell's.
 export const style = {
-  rowWrapper: "flex items-center justify-between gap-4 border-b border-line py-2 text-sm last:border-b-0",
+  rowWrapper: "flex items-center justify-between gap-4 border-t border-line py-2.5 text-[13.5px]",
   rowLabel: "text-ink-muted",
-  // Versions, counts and migration names: IDs, so mono.
-  rowValue: "text-right font-mono text-[13px] text-ink",
+  // Function, 1 param -> passed directly. Counts in sans with tabular
+  // figures; versions and migration names are IDs, so mono.
+  rowValue: (numeric: boolean): string =>
+    clsx("text-right text-ink", numeric ? "tabular-nums" : "font-mono text-[13px]"),
 
   // Shared by all 3 sections (Stack/Database/Notes).
   section: clsx(shared.card, "p-5"),

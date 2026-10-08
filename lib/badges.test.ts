@@ -152,10 +152,14 @@ describe("badgeForClassification", () => {
 });
 
 describe("playedMoveTier", () => {
-  it("shows a blunder and a good move as themselves, anything else as an error", () => {
+  it("shows each severity as itself", () => {
     expect(playedMoveTier("blunder")).toBe("blunder");
     expect(playedMoveTier("good")).toBe("good");
     expect(playedMoveTier("error")).toBe("error");
-    expect(playedMoveTier(null)).toBe("error");
+  });
+
+  // null = Galaxy's NONE ("Best"), not "ungraded" (investigator, 2026-10-08).
+  it("shows no severity as Best", () => {
+    expect(playedMoveTier(null)).toBe("best");
   });
 });

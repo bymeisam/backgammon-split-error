@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeTagName, tagSuggestions, TAG_MAX_LENGTH } from "@/lib/review/tags";
 import type { DecisionTagRef } from "@/lib/review/types";
 import { useEffectiveTags, useReviewState } from "@/app/providers/ReviewStateProvider";
 import { style } from "./TagEditor.styles";
 
-// The user's tags on one decision (DecisionTag). Editable (canEdit, i.e.
-// write mode on): chips with ×, and an input with autocomplete from existing
-// tags — Enter adds the typed tag (creating it if new), ↑/↓ pick a
-// suggestion. Read-only: the chips alone, or nothing when there are none.
-// Never rendered for a decision without a DB id (/galaxy).
+// The user's tags on one decision (DecisionTag), in the note card's foot.
+// Editable (canEdit, i.e. write mode on): chips with ×, then a dashed
+// "+ tag" chip that opens an input with autocomplete from existing tags —
+// Enter adds the typed tag (creating it if new), ↑/↓ pick a suggestion, Esc
+// (or leaving it empty) closes it. Read-only: the chips alone, or nothing
+// when there are none. Never rendered for a decision without a DB id
+// (/galaxy).
 export default function TagEditor({
   dbDecisionId,
   tags,
@@ -27,6 +29,12 @@ export default function TagEditor({
   const [active, setActive] = useState(-1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus();
+  }, [adding]);
 
   const currentIds = useMemo(() => new Set(current.map((t) => t.id)), [current]);
   const suggestions = useMemo(
@@ -37,15 +45,12 @@ export default function TagEditor({
   if (!canEdit) {
     if (current.length === 0) return null;
     return (
-      <div data-testid="tag-editor" className={style.wrapper}>
-        <span className={style.label}>Tags</span>
-        <div className={style.chipRow}>
-          {current.map((t) => (
-            <span key={t.id} className={style.chip}>
-              {t.name}
-            </span>
-          ))}
-        </div>
+      <div data-testid="tag-editor" className={style.wrapper} aria-label="Tags">
+        {current.map((t) => (
+          <span key={t.id} className={style.chip}>
+            {t.name}
+          </span>
+        ))}
       </div>
     );
   }
@@ -109,85 +114,94 @@ export default function TagEditor({
   }
 
   return (
-    <div data-testid="tag-editor" className={style.wrapper}>
-      <span className={style.label}>Tags</span>
-      {current.length > 0 && (
-        <div className={style.chipRow}>
-          {current.map((t) => (
-            <span key={t.id} className={style.chip}>
-              {t.name}
-              <button
-                type="button"
-                aria-label={`Remove tag ${t.name}`}
-                disabled={busy}
-                onClick={() => remove(t)}
-                className={style.chipRemove}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      <div className={style.inputWrapper}>
-        <input
-          type="text"
-          value={draft}
-          maxLength={TAG_MAX_LENGTH}
-          placeholder="Add a tag…"
-          aria-label="Add a tag"
-          disabled={busy}
-          onFocus={() => {
-            setOpen(true);
-            loadAllTags();
-          }}
-          onBlur={() => setOpen(false)}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setActive(-1);
-            setOpen(true);
-          }}
-          // Keep typing from reaching page-level keyboard shortcuts (the
-          // replay's ←/→ stepping, the review session's keys).
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setActive((i) => Math.min(i + 1, suggestions.length - 1));
-            } else if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setActive((i) => Math.max(i - 1, -1));
-            } else if (e.key === "Enter") {
-              e.preventDefault();
-              const picked = active >= 0 ? suggestions[active]?.name : draft;
-              if (picked) add(picked);
-            } else if (e.key === "Escape") {
+    <div data-testid="tag-editor" className={style.wrapper} aria-label="Tags">
+      {current.map((t) => (
+        <span key={t.id} className={style.chip}>
+          {t.name}
+          <button
+            type="button"
+            aria-label={`Remove tag ${t.name}`}
+            disabled={busy}
+            onClick={() => remove(t)}
+            className={style.chipRemove}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      {adding ? (
+        <span className={style.inputWrapper}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            maxLength={TAG_MAX_LENGTH}
+            placeholder="Add a tag…"
+            aria-label="Add a tag"
+            disabled={busy}
+            onFocus={() => {
+              setOpen(true);
+              loadAllTags();
+            }}
+            onBlur={() => {
               setOpen(false);
-            }
-          }}
-          className={style.input}
-        />
-        {suggestions.length > 0 && (
-          <div className={style.suggestions} role="listbox">
-            {suggestions.map((t, i) => (
-              <button
-                key={t.id}
-                type="button"
-                role="option"
-                aria-selected={i === active}
-                // mousedown, not click: the input's blur would close the list first.
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  add(t.name);
-                }}
-                className={style.suggestion(i === active)}
-              >
-                {t.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+              if (!draft.trim()) setAdding(false);
+            }}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setActive(-1);
+              setOpen(true);
+            }}
+            // Keep typing from reaching page-level keyboard shortcuts (the
+            // replay's ←/→ stepping, the review session's keys).
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActive((i) => Math.min(i + 1, suggestions.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActive((i) => Math.max(i - 1, -1));
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                const picked = active >= 0 ? suggestions[active]?.name : draft;
+                if (picked) add(picked);
+              } else if (e.key === "Escape") {
+                if (open && suggestions.length > 0) setOpen(false);
+                else {
+                  setDraft("");
+                  setAdding(false);
+                }
+              }
+            }}
+            className={style.input}
+          />
+          {suggestions.length > 0 && (
+            <span className={style.suggestions} role="listbox">
+              {suggestions.map((t, i) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="option"
+                  aria-selected={i === active}
+                  // mousedown, not click: the input's blur would close the list first.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    add(t.name);
+                  }}
+                  className={style.suggestion(i === active)}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </span>
+          )}
+        </span>
+      ) : (
+        <button type="button" onClick={() => setAdding(true)} className={style.addChip}>
+          + tag
+        </button>
+      )}
       {error && <span className={style.error}>{error}</span>}
     </div>
   );

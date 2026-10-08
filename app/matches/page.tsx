@@ -2,17 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { AnalysesListResponse } from "@/lib/analysesTypes";
-import { formatMatchDate } from "@/lib/formatDate";
+import { formatShortMatchDate } from "@/lib/formatDate";
 import { jsonOrThrow } from "@/lib/galaxyPost";
 import Pager from "@/app/components/ui/Pager";
 import PageShell from "@/app/components/ui/PageShell";
 import { style } from "./matches.styles";
 
 export default function MatchesPage() {
-  const router = useRouter();
-
   const [page, setPage] = useState(1);
   const [data, setData] = useState<AnalysesListResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,6 +39,8 @@ export default function MatchesPage() {
     };
   }, [page]);
 
+  const now = new Date();
+
   return (
     <PageShell
       width="medium"
@@ -64,51 +63,38 @@ export default function MatchesPage() {
           <div className={style.tableWrapper}>
             <table className={style.table}>
               <thead>
-                <tr className={style.tableHeadRow}>
+                <tr>
                   <th className={style.tableHeadCell}>Match ID</th>
-                  <th className={style.tableHeadCell}>Date</th>
+                  <th className={style.tableHeadCellWide}>Date</th>
                   <th className={style.tableHeadCell}>Opponent</th>
-                  <th className={style.tableHeadCell}>Rating</th>
-                  <th className={style.tableHeadCell}>Score</th>
-                  <th className={style.tableHeadCell}>Your error</th>
-                  <th className={style.tableHeadCell}>Opponent error</th>
-                  <th className={style.tableHeadCell}></th>
+                  <th className={style.tableHeadCellWideNumeric}>Rating</th>
+                  <th className={style.tableHeadCellWide}>Score</th>
+                  <th className={style.tableHeadCellNumeric}>Your error</th>
+                  <th className={style.tableHeadCellWideNumeric}>Opp. error</th>
+                  <th className={style.chevronHeadCell} aria-hidden="true"></th>
                 </tr>
               </thead>
               <tbody>
                 {data.analyses.map((m) => (
-                  <tr
-                    key={m.matchId}
-                    onClick={() => router.push(`/matches/${m.matchId}`)}
-                    className={style.tableRow}
-                  >
-                    <td className={style.tableCell}>
-                      {m.matchId}
+                  <tr key={m.matchId} className={style.tableRow}>
+                    <td className={style.idCell}>{m.matchId}</td>
+                    <td className={style.dateCell}>
+                      {m.playedAt ? formatShortMatchDate(m.playedAt, now) : "—"}
                     </td>
-                    <td className={style.tableCell}>
-                      {m.playedAt ? formatMatchDate(m.playedAt) : "—"}
+                    <td className={style.opponentCell}>
+                      {/* The row's one link, stretched over the whole row. */}
+                      <Link href={`/matches/${m.matchId}`} className={style.rowLink}>
+                        {m.opponentName}
+                      </Link>
                     </td>
-                    <td className={style.opponentCell}>{m.opponentName}</td>
-                    <td className={style.tableCell}>
-                      {m.opponentRating}
-                    </td>
-                    <td className={style.tableCell}>
+                    <td className={style.ratingCell}>{m.opponentRating}</td>
+                    <td className={style.scoreCell}>
                       {m.userScore}–{m.opponentScore}
                     </td>
-                    <td className={style.tableCell}>
-                      {m.userError.toFixed(3)}
-                    </td>
-                    <td className={style.tableCell}>
-                      {m.opponentError.toFixed(3)}
-                    </td>
-                    <td className={style.replayCell}>
-                      <Link
-                        href={`/matches/${m.matchId}/replay/1`}
-                        onClick={(e) => e.stopPropagation()}
-                        className={style.replayLink}
-                      >
-                        Replay
-                      </Link>
+                    <td className={style.numberCell}>{m.userError.toFixed(2)}</td>
+                    <td className={style.oppNumberCell}>{m.opponentError.toFixed(2)}</td>
+                    <td className={style.chevronCell} aria-hidden="true">
+                      ›
                     </td>
                   </tr>
                 ))}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { bulkConfirmText } from "@/lib/review/bulk";
 import { BULK_ADD_CAP } from "@/lib/settings";
 import type { BulkAddResponse } from "@/lib/review/types";
+import Modal from "@/app/components/ui/Modal";
 import { style } from "./mistakes.styles";
 
 type Step =
@@ -79,46 +80,49 @@ export default function BulkAddToReview({
         {step.kind === "counting" ? "Counting…" : "Add all to review"}
       </button>
 
-      {open && (
-        <div className={style.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="bulk-add-title">
-          <div data-testid="bulk-add-dialog" className={style.modalPanel}>
-            <h2 id="bulk-add-title" className={style.modalHeading}>
-              Add to review
-            </h2>
-            {step.kind === "error" && <p className={style.modalError}>{step.message}</p>}
-            {(step.kind === "confirm" || step.kind === "adding") && (
-              <p className={style.modalText}>{bulkConfirmText(step.plan, BULK_ADD_CAP)}</p>
-            )}
-            {step.kind === "done" && (
-              <p className={style.modalText}>
-                Added {step.result.added} decision{step.result.added === 1 ? "" : "s"} to review.
-                {step.result.alreadyInReview > 0 && ` ${step.result.alreadyInReview} were already in review.`}
-                {step.result.ineligible > 0 && ` ${step.result.ineligible} can't be reviewed.`}
-              </p>
-            )}
-            <div className={style.modalButtons}>
-              {step.kind === "confirm" && step.plan.added > 0 ? (
-                <>
-                  <button type="button" onClick={close} className={style.modalSecondaryButton}>
-                    Cancel
-                  </button>
-                  <button type="button" onClick={() => confirm(step.plan)} className={style.modalPrimaryButton}>
-                    Add {step.plan.added}
-                  </button>
-                </>
-              ) : step.kind === "adding" ? (
-                <button type="button" disabled className={style.modalPrimaryButton}>
-                  Adding…
-                </button>
-              ) : (
-                <button type="button" onClick={close} className={style.modalPrimaryButton}>
-                  Close
-                </button>
-              )}
-            </div>
-          </div>
+      <Modal
+        open={open}
+        // Esc or a backdrop click closes it, except while adding.
+        dismissible={step.kind !== "adding"}
+        onClose={close}
+        labelledBy="bulk-add-title"
+        testId="bulk-add-dialog"
+      >
+        <h2 id="bulk-add-title" className={style.modalHeading}>
+          Add to review
+        </h2>
+        {step.kind === "error" && <p className={style.modalError}>{step.message}</p>}
+        {(step.kind === "confirm" || step.kind === "adding") && (
+          <p className={style.modalText}>{bulkConfirmText(step.plan, BULK_ADD_CAP)}</p>
+        )}
+        {step.kind === "done" && (
+          <p className={style.modalText}>
+            Added {step.result.added} decision{step.result.added === 1 ? "" : "s"} to review.
+            {step.result.alreadyInReview > 0 && ` ${step.result.alreadyInReview} were already in review.`}
+            {step.result.ineligible > 0 && ` ${step.result.ineligible} can't be reviewed.`}
+          </p>
+        )}
+        <div className={style.modalButtons}>
+          {step.kind === "confirm" && step.plan.added > 0 ? (
+            <>
+              <button type="button" onClick={close} className={style.modalSecondaryButton}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => confirm(step.plan)} className={style.modalPrimaryButton}>
+                Add {step.plan.added}
+              </button>
+            </>
+          ) : step.kind === "adding" ? (
+            <button type="button" disabled className={style.modalPrimaryButton}>
+              Adding…
+            </button>
+          ) : (
+            <button type="button" onClick={close} className={style.modalPrimaryButton}>
+              Close
+            </button>
+          )}
         </div>
-      )}
+      </Modal>
     </>
   );
 }

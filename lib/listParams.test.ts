@@ -1,10 +1,13 @@
+import { ErrorSeverity } from "@/lib/generated/prisma/enums";
 import { describe, expect, it } from "vitest";
 import {
   buildQueryString,
   LISTED_KINDS,
   categoryFromParam,
-  describeFilters,
-  lowercaseOptions,
+  categoryLabel,
+  categoryOptions,
+  describeResultCount,
+  filterSummary,
   severityOptions,
   severityParamLabel,
   lowercaseParam,
@@ -125,23 +128,42 @@ describe("totalPagesFor", () => {
   });
 });
 
-describe("describeFilters", () => {
-  it("uses the phase label, then the other filters in order", () => {
-    expect(describeFilters("ply_3", "checker", "blunder")).toBe("2nd roll checker blunder");
-    expect(describeFilters("race", undefined, "error")).toBe("Race error");
+describe("describeResultCount", () => {
+  it("makes an Error or Blunder severity the noun, lower-cased after the phase and category", () => {
+    expect(describeResultCount(39028, { category: "checker", severity: ErrorSeverity.BLUNDER, noun: "decision" })).toBe(
+      `${(39028).toLocaleString()} checker blunders`
+    );
+    expect(describeResultCount(1, { phase: "race", severity: ErrorSeverity.ERROR, noun: "decision" })).toBe(
+      "1 race error"
+    );
+    expect(describeResultCount(12, { phase: "ply_3", category: "CUBE", noun: "decision" })).toBe(
+      "12 2nd roll cube decisions"
+    );
   });
 
-  it("says 'all' when nothing is set", () => {
-    expect(describeFilters(undefined, undefined)).toBe("all");
+  it("keeps Best and Good as adjectives, and repeated positions as the noun", () => {
+    expect(describeResultCount(3, { severity: ErrorSeverity.DOUBTFUL, noun: "decision" })).toBe("3 good decisions");
+    expect(describeResultCount(5, { severity: ErrorSeverity.BLUNDER, noun: "repeated position" })).toBe(
+      "5 blunder repeated positions"
+    );
   });
 });
 
-describe("lowercaseOptions", () => {
-  it("shows and submits enum values lowercase", () => {
-    expect(lowercaseOptions(["CHECKER", "CUBE"])).toEqual([
-      { value: "checker", label: "checker" },
-      { value: "cube", label: "cube" },
+describe("categoryLabel / categoryOptions", () => {
+  it("shows Checker and Cube, submitting lowercase", () => {
+    expect(categoryLabel("CHECKER")).toBe("Checker");
+    expect(categoryLabel("cube")).toBe("Cube");
+    expect(categoryLabel("other")).toBe("other");
+    expect(categoryOptions(["CHECKER", "CUBE"])).toEqual([
+      { value: "checker", label: "Checker" },
+      { value: "cube", label: "Cube" },
     ]);
+  });
+});
+
+describe("filterSummary", () => {
+  it("joins each value, or its unset wording", () => {
+    expect(filterSummary([[undefined, "Any phase"], ["Blunder", "All severities"]])).toBe("Any phase · Blunder");
   });
 });
 

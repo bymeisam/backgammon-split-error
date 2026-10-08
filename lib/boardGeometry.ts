@@ -7,14 +7,26 @@
 // carried its own hand-synced copy of the mine-side geometry.
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 
-export const MARGIN = 16;
-export const POINT_W = 48;
-export const BAR_W = 32;
-export const OFF_W = 44;
-export const ROW_H = 185;
-export const TRI_H = 165;
-export const R = 14;
-export const STACK_GAP = 24;
+// Clubroom's board (design/mockups/replay.html's board(), viewBox
+// 562 × 380; reports/2026-10-08-design-fidelity-spec.md §2.1). The frame
+// band is MARGIN_Y above and below (the point numbers sit in it) and
+// MARGIN_X on the right; the cube gutter is the left frame band.
+export const MARGIN_Y = 20;
+export const MARGIN_X = 14;
+export const POINT_W = 36;
+export const BAR_W = 30;
+// The off column: an 8u frame gap, then the 34u tray.
+export const OFF_W = 42;
+export const OFF_TRAY_GAP = 8;
+export const ROW_H = 170;
+export const TRI_H = 148;
+// Half a triangle's base: 1u less than half a point, so neighbours don't touch.
+export const TRI_HALF_W = POINT_W / 2 - 1;
+export const R = 15;
+// The turned ring inside a checker.
+export const RING_R = R - 5.5;
+// 2u between neighbouring checkers: they don't overlap.
+export const STACK_GAP = 32;
 export const MAX_STACK = 5;
 export const OFF_SLOTS = 15;
 
@@ -32,8 +44,8 @@ export const OFF_COL = 13;
 // mirrors the off-tray's role on the right. Kept as a shift of the whole
 // existing grid's origin (not a prepended COL_WIDTHS entry) so BAR_COL/
 // OFF_COL and every point<->column formula below are untouched.
-export const CUBE_COL_W = 32;
-const GRID_X0 = MARGIN + CUBE_COL_W;
+export const CUBE_COL_W = 30;
+const GRID_X0 = MARGIN_X + CUBE_COL_W;
 
 export function colX(col: number): number {
   let x = GRID_X0;
@@ -45,21 +57,43 @@ export function colCenterX(col: number): number {
   return colX(col) + COL_WIDTHS[col] / 2;
 }
 
-export const BOARD_W = colX(COL_WIDTHS.length) + MARGIN;
-export const Y0 = MARGIN;
-export const Y1 = MARGIN + 2 * ROW_H;
-export const BOARD_H = Y1 + MARGIN;
+export const BOARD_W = colX(COL_WIDTHS.length) + MARGIN_X;
+export const Y0 = MARGIN_Y;
+export const Y1 = MARGIN_Y + 2 * ROW_H;
+export const BOARD_H = Y1 + MARGIN_Y;
+// The board's horizontal dividing line.
+export const CENTER_Y = Y0 + ROW_H;
+
+// Point numbers: centred in the frame band above and below the field.
+export const NUMBER_TOP_Y = MARGIN_Y / 2;
+export const NUMBER_BOTTOM_Y = Y1 + MARGIN_Y / 2;
 
 // Dice sit in the "right field" (points 1-6/19-24 — the columns between the
-// bar and the off-tray), centered on the board's own horizontal dividing
-// line — embedded in the board SVG itself (via foreignObject, since
-// DiceRoll/Die are HTML+CSS, not SVG), not floating in a separate row above.
-const DICE_AREA_LEFT = colX(BAR_COL + 1);
-const DICE_AREA_RIGHT = colX(OFF_COL);
-export const DICE_BOX_W = 100;
-export const DICE_BOX_H = 36;
-export const DICE_X = (DICE_AREA_LEFT + DICE_AREA_RIGHT) / 2 - DICE_BOX_W / 2;
-export const DICE_Y = Y0 + ROW_H - DICE_BOX_H / 2;
+// bar and the off-tray), centred on the board's dividing line, as native
+// SVG (Board.tsx's BoardDie): two DIE_SIZE squares DIE_GAP apart, in roll
+// order.
+export const DIE_SIZE = 26;
+export const DIE_GAP = 8;
+export const DICE_CENTER_X = (colX(BAR_COL + 1) + colX(OFF_COL)) / 2;
+// Top-left corner of die `index` (0 or 1).
+export function diePosition(index: number): { x: number; y: number } {
+  const x = index === 0 ? DICE_CENTER_X - DIE_GAP / 2 - DIE_SIZE : DICE_CENTER_X + DIE_GAP / 2;
+  return { x, y: CENTER_Y - DIE_SIZE / 2 };
+}
+// Pip centres as fractions of the die's side (the mockup's dieSVG); none
+// for a value outside 1-6. An own-property lookup: values come from
+// Galaxy's JSON unvalidated.
+const DIE_PIPS: Record<number, [number, number][]> = {
+  1: [[0.5, 0.5]],
+  2: [[0.28, 0.28], [0.72, 0.72]],
+  3: [[0.28, 0.28], [0.5, 0.5], [0.72, 0.72]],
+  4: [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]],
+  5: [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]],
+  6: [[0.28, 0.25], [0.72, 0.25], [0.28, 0.5], [0.72, 0.5], [0.28, 0.75], [0.72, 0.75]],
+};
+export function diePips(value: number): [number, number][] {
+  return Object.hasOwn(DIE_PIPS, value) ? DIE_PIPS[value] : [];
+}
 
 // The two sides as drawn: "mine" (dark) always occupies the bottom half's
 // bar and off-tray, "opponent" (light) the top half's. A flipped board
@@ -89,7 +123,7 @@ export function pointRow(point: number): "bottom" | "top" {
 export function trianglePoints(point: number): string {
   const col = pointColumn(point);
   const cx = colCenterX(col);
-  const halfW = COL_WIDTHS[col] / 2 - 2;
+  const halfW = TRI_HALF_W;
   if (pointRow(point) === "bottom") {
     return `${cx - halfW},${Y1} ${cx + halfW},${Y1} ${cx},${Y1 - TRI_H}`;
   }
@@ -103,11 +137,11 @@ export interface StackBase {
 }
 
 // Bottom-half stacks grow upward from the bottom edge, top-half stacks
-// downward from the top edge.
+// downward from the top edge, 2u in from it.
 function halfStackBase(cx: number, half: "bottom" | "top"): StackBase {
   return half === "bottom"
-    ? { cx, baseY: Y1 - R - 3, dir: -1 }
-    : { cx, baseY: Y0 + R + 3, dir: 1 };
+    ? { cx, baseY: Y1 - R - 2, dir: -1 }
+    : { cx, baseY: Y0 + R + 2, dir: 1 };
 }
 
 // Both sides share a point's stack origin — which half it's in depends
@@ -122,32 +156,43 @@ export function barStackBase(side: Side): StackBase {
 
 // Center y of the checker at `index` in a stack, clamped to the drawn
 // range: below 0 (an empty stack's "top") anchors at the base, and past
-// MAX_STACK - 1 at the last drawn checker (the one carrying the +N label).
+// MAX_STACK - 1 at the last drawn checker (the one carrying the "+N more"
+// label).
 export function stackSlotY({ baseY, dir }: StackBase, index: number): number {
   const visualIndex = Math.min(Math.max(index, 0), MAX_STACK - 1);
   return baseY + dir * visualIndex * STACK_GAP;
 }
 
-// Off-tray checker track, inset inside the off column.
-export const OFF_TRACK_X = colX(OFF_COL) + 6;
-export const OFF_TRACK_W = OFF_W - 12;
+// The two off trays (34u wide, after the 8u frame gap), 8u apart across
+// the centre line.
+export const OFF_TRAY_X = colX(OFF_COL) + OFF_TRAY_GAP;
+export const OFF_TRAY_W = OFF_W - OFF_TRAY_GAP;
+export const OFF_TRAY_H = ROW_H - 4;
+export function offTrayRect(side: Side): { x: number; y: number; width: number; height: number } {
+  const y = side === "mine" ? CENTER_Y + 4 : Y0;
+  return { x: OFF_TRAY_X, y, width: OFF_TRAY_W, height: OFF_TRAY_H };
+}
 
-// Each side's off-tray half. The badge always sits at the end nearest the
-// board's center line, so the two halves mirror each other across it.
+// Off-tray checker track, inset 5u inside the tray.
+export const OFF_TRACK_X = OFF_TRAY_X + 5;
+export const OFF_TRACK_W = OFF_TRAY_W - 10;
+
+// Each side's off-tray half, 4u inside its tray. The badge always sits at
+// the end nearest the board's center line, so the two halves mirror each
+// other across it.
 export function offTrayBounds(side: Side): { topY: number; bottomY: number; badgeAtBottom: boolean } {
-  return side === "mine"
-    ? { topY: Y0 + ROW_H + 6, bottomY: Y1 - 9, badgeAtBottom: false }
-    : { topY: Y0 + 3, bottomY: Y0 + ROW_H - 9, badgeAtBottom: true };
+  const tray = offTrayRect(side);
+  return { topY: tray.y + 4, bottomY: tray.y + tray.height - 4, badgeAtBottom: side === "opponent" };
 }
 
 // Badge always sits at the "near" end of the range (topY when badgeAtBottom
 // is false, bottomY when true); checkers fill starting at the far end and
 // grow toward the badge.
 export function offColumnGeometry(topY: number, bottomY: number, badgeAtBottom: boolean) {
-  const badgeR = 11;
+  const badgeR = 10;
   const badgeCy = badgeAtBottom ? bottomY - badgeR - 3 : topY + badgeR + 3;
-  const trackTop = badgeAtBottom ? topY : badgeCy + badgeR + 6;
-  const trackBottom = badgeAtBottom ? badgeCy - badgeR - 6 : bottomY;
+  const trackTop = badgeAtBottom ? topY : badgeCy + badgeR + 5;
+  const trackBottom = badgeAtBottom ? badgeCy - badgeR - 5 : bottomY;
   const slotSpan = (trackBottom - trackTop) / OFF_SLOTS;
   return { badgeR, badgeCy, trackTop, trackBottom, slotSpan };
 }
@@ -206,19 +251,19 @@ export function moveAnchor(
   return { x: base.cx, y: stackSlotY(base, isOrigin ? count - 1 : count) };
 }
 
-// Size of the cube's rounded-square badge — deliberately not R (the
+// Half the cube's side (a 26u rounded square) — deliberately not R (the
 // checker radius), so it reads as a visually distinct shape, not another
 // checker-sized circle.
-export const CUBE_BADGE_R = 16;
+export const CUBE_BADGE_R = 13;
 
 // Center of the cube badge in the left gutter (see CUBE_COL_W): on the
 // board's own dividing line when centered/undoubled, or inset into the
 // owning side's half otherwise — mirrors how bar checkers sit close to
 // (not at) the board's top/bottom edge.
 export function cubeBadgeCenter(owner: CubeOwner): { x: number; y: number } {
-  const x = MARGIN + CUBE_COL_W / 2;
-  if (owner === "center") return { x, y: Y0 + ROW_H };
-  const y = owner === "mine" ? Y1 - CUBE_BADGE_R - 6 : Y0 + CUBE_BADGE_R + 6;
+  const x = MARGIN_X + CUBE_COL_W / 2;
+  if (owner === "center") return { x, y: CENTER_Y };
+  const y = owner === "mine" ? Y1 - CUBE_BADGE_R - 4 : Y0 + CUBE_BADGE_R + 4;
   return { x, y };
 }
 

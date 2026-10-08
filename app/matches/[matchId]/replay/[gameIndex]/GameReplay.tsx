@@ -2,21 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import type { Decision } from "@/lib/mistakes";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
-import DecisionList from "@/app/components/match-analysis/DecisionList";
+import DecisionList, { SeverityLegend } from "@/app/components/match-analysis/DecisionList";
+import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import { doubleOfferLabel } from "@/lib/cubeState";
 import { style } from "./gameReplay.styles";
 
 // List + single-detail split, same interaction pattern as
 // DecisionListWithDetail.tsx on /mistakes — client-side selection
-// (useListSelection), board panel and list laid out side-by-side via
-// lg:flex-row — applied here to a complete, unfiltered, in-order sequence
-// instead of a filtered/ranked set of flagged mistakes. Next/Previous
-// (buttons + arrow keys) step through that same selection one at a time;
-// clicking a list row jumps straight to it, exactly like the mistakes list.
+// (useListSelection), the board column and the move list card side by side
+// from 980px — applied here to a complete, unfiltered, in-order sequence
+// instead of a filtered/ranked set of flagged mistakes. Under the board: the
+// stepper (Prev/Next, buttons and arrow keys, crossing into the
+// previous/next game at either end), the Played/Best chips and the note
+// card. Clicking a list row jumps straight to it.
 export default function GameReplay({
   matchId,
   decisions,
@@ -104,6 +105,8 @@ export default function GameReplay({
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
+  const roll = selected?.roll ?? [];
+
   return (
     <div className={style.layout}>
       <div className={style.boardColumn}>
@@ -113,78 +116,76 @@ export default function GameReplay({
           onSelectTab={setMoveTab}
           flipped={flipped}
           canEditNotes={canEditNotes}
-        />
-
-        {myColor !== null && (
-          <label className={style.perspectiveToggle}>
-            <input
-              type="checkbox"
-              checked={fixedPerspective}
-              onChange={(e) => setFixedPerspective(e.target.checked)}
-            />
-            Fixed perspective (keep my checkers on the same side)
-          </label>
-        )}
-
-        <div className={style.navRow}>
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={atStart && prevGameIndex === null}
-            className={style.navButton}
-          >
-            ← Previous
-          </button>
-          <div className={style.stepLabel}>
-            <span className={style.positionCounter}>
-              Move {selectedIndex + 1} of {decisions.length}
-            </span>
-            {doubleOfferText && (
-              <span data-testid="double-offer-label" className={style.doubleOfferLine}>
-                {doubleOfferText}
+          bleed
+          belowBoard={
+            <div className={style.stepper}>
+              <button
+                type="button"
+                onClick={goPrev}
+                disabled={atStart && prevGameIndex === null}
+                aria-label="Previous step"
+                aria-keyshortcuts="ArrowLeft"
+                className={style.stepButton}
+              >
+                <kbd className={style.kbd}>←</kbd> Prev
+              </button>
+              <span className={style.where}>
+                Move <b className={style.whereStrong}>{selectedIndex + 1}</b> of {decisions.length}
+                {selected?.kind === "cube" ? (
+                  doubleOfferText ? (
+                    <span data-testid="double-offer-label"> · {doubleOfferText}</span>
+                  ) : (
+                    " · cube action"
+                  )
+                ) : roll.length === 2 ? (
+                  <>
+                    {" · "}
+                    <b className={style.whereStrong}>
+                      {roll[0]}-{roll[1]}
+                    </b>{" "}
+                    to play
+                  </>
+                ) : null}
               </span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={atEnd && nextGameIndex === null}
-            className={style.navButton}
-          >
-            Next →
-          </button>
-        </div>
-
-        {atStart && prevGameIndex !== null && (
-          <div className={style.gameBoundaryRow}>
-            <Link
-              href={`/matches/${matchId}/replay/${prevGameIndex}?position=last`}
-              className={style.gameBoundaryLink}
-            >
-              ← Previous game
-            </Link>
-          </div>
-        )}
-        {atEnd && nextGameIndex !== null && (
-          <div className={style.gameBoundaryRow}>
-            <Link href={`/matches/${matchId}/replay/${nextGameIndex}`} className={style.gameBoundaryLink}>
-              Next game →
-            </Link>
-          </div>
-        )}
-      </div>
-
-      <div className={style.listWrapper}>
-        <DecisionList
-          rows={decisions}
-          isSelected={(_row, index) => index === selectedIndex}
-          moveTab={moveTab}
-          onSelectRow={(_row, index, tab) => selectRow(index, tab)}
-          showIndexColumn
-          showRollColumn
-          rollDiceSize={16}
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={atEnd && nextGameIndex === null}
+                aria-label="Next step"
+                aria-keyshortcuts="ArrowRight"
+                className={style.stepButton}
+              >
+                Next <kbd className={style.kbd}>→</kbd>
+              </button>
+              {myColor !== null && (
+                <label className={style.perspectiveToggle} title="Keep my checkers on the same side">
+                  <input
+                    type="checkbox"
+                    checked={fixedPerspective}
+                    onChange={(e) => setFixedPerspective(e.target.checked)}
+                  />
+                  Fixed perspective
+                </label>
+              )}
+            </div>
+          }
         />
       </div>
+
+      <DecisionList
+        rows={decisions}
+        title="Moves"
+        headEnd={<SeverityLegend />}
+        isSelected={(_row, index) => index === selectedIndex}
+        moveTab={moveTab}
+        onSelectRow={(_row, index, tab) => selectRow(index, tab)}
+        columns="replay"
+        renderTrailing={(row) =>
+          row.isMistake && row.severity ? <SeverityBadge type={row.severity} /> : null
+        }
+        sticky
+        bleed
+      />
     </div>
   );
 }

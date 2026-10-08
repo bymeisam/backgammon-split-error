@@ -35,29 +35,23 @@ export default function DecisionCard({
 }) {
   return (
     <div data-testid="decision-card" className={style.card}>
-      <div className={style.cardHeader}>
-        <div className={style.cardBadgeGroup}>
-          <ClassificationBadge type={classification} />
-          <SeverityBadge type={decision.severity ?? "best"} />
-          <span className={style.cardErrorText}>
-            |error| {decision.absError.toFixed(3)}
-          </span>
-        </div>
-        <div className={style.cardLinkGroup}>
+      <div className={style.contextLine}>
+        <ClassificationBadge type={classification} />
+        <SeverityBadge type={decision.severity ?? "best"} />
+        <span>
+          Loss <b className={style.contextStrong}>{decision.absError.toFixed(3)}</b>
+        </span>
+        <span>Game {decision.gameIndex}</span>
+        <span className={style.contextLinks}>
           <Link href={matchHref} className={style.cardMatchLink}>
             View match →
           </Link>
           {externalMatchHref && (
-            <a
-              href={externalMatchHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={style.cardMatchLink}
-            >
+            <a href={externalMatchHref} target="_blank" rel="noopener noreferrer" className={style.cardMatchLink}>
               View on Galaxy ↗
             </a>
           )}
-        </div>
+        </span>
       </div>
 
       <BoardPanel

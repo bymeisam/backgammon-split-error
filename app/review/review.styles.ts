@@ -3,78 +3,112 @@ import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local (see .claude/skills/styling-conventions) — covers ReviewPage
 // (page.tsx) and ReviewSession.tsx, which lives in this same folder and is
-// only used here. BoardPanel, DecisionNote and TagEditor are shared
-// components with their own styles. The page container, width and title
-// are PageShell's.
+// only used here. BoardPanel, DecisionNote, TagEditor and FilterDisclosure
+// are shared components with their own styles. The page container is
+// PageShell's ("session" variant: no side padding below md, so the blocks
+// here inset themselves).
 export const style = {
   link: shared.textLink,
-  // The filter bar: no box, a row of labelled controls.
-  form: shared.filterBar,
+  // The filter form, inside the session bar's Filter disclosure.
+  form: clsx(shared.filterBar, "pt-1"),
   applyButton: shared.buttonSecondary,
   readOnlyBox: clsx(shared.card, "p-5 text-sm text-ink-muted"),
 
   // --- ReviewSession.tsx ---
-  // The counts as one quiet line, no box.
-  sessionHeader: "flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] tabular-nums",
-  countNew: "font-medium text-ink",
-  countReview: "font-medium text-ink",
-  countRemaining: "text-ink-faint",
-  layout: "flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-9",
-  boardColumn: "flex flex-col gap-3 lg:w-[640px] lg:shrink-0",
-  sideColumn: "flex flex-1 flex-col gap-4 lg:min-w-0",
-  contextLine: "text-[13px] text-ink-faint",
-  question: "mt-1.5 font-serif text-[1.625rem] font-medium leading-[1.15] tracking-[-0.012em] text-ink md:text-title",
+  // The session bar: one quiet line instead of a filter form and a counts
+  // box.
+  sessionBar: "-mb-1 flex flex-wrap items-center gap-[18px] px-4 md:px-0",
+  sessionTitle: "font-serif text-[26px] font-medium leading-none tracking-[-0.01em] text-ink",
+  progress: "flex min-w-40 flex-1 items-center gap-3 text-[12.5px] tabular-nums text-ink-muted",
+  track: "h-1 flex-1 overflow-hidden rounded-[2px] bg-line",
+  trackFill: "block h-full bg-ink transition-[width]",
+
+  layout: "grid grid-cols-1 items-start gap-5 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-9",
+  boardColumn: "min-w-0",
+  // No overflow on this or any ancestor: the grade row is sticky below md.
+  sideColumn: "flex min-w-0 flex-col gap-[18px] px-4 md:px-0",
+  contextLine: "flex flex-wrap gap-2 text-[12.5px] text-ink-faint",
+  contextStrong: "font-medium text-ink-muted",
+  question: "mt-1.5 font-serif text-[26px] font-medium leading-[1.15] tracking-[-0.012em] text-ink md:text-[30px]",
+  questionAsk: "font-normal italic text-ink-muted",
   optionList: "flex flex-col gap-2",
   optionButton: clsx(
-    "flex w-full items-center gap-3.5 rounded-control border border-line bg-surface px-4 py-3 text-left font-mono text-[15px] font-medium text-ink shadow-card",
+    "flex w-full items-center gap-3.5 rounded-[11px] border border-line bg-surface px-4 py-[13px] text-left text-ink shadow-card",
     "transition hover:-translate-y-px hover:border-ink-faint"
   ),
-  // The option's number key (was zinc-400 at 2.6:1).
-  optionKeyHint: clsx(shared.kbd, "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center p-0"),
+  optionKeyHint: clsx(shared.kbd, "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[5px] p-0"),
+  optionMove: "font-mono text-base font-medium",
+  hint: "text-xs text-ink-faint",
 
-  // Function, 1 param -> passed directly. The verdict as a serif word in
-  // the severity ink colour, not a coloured slab.
-  verdict: (correct: boolean): string =>
+  // The back.
+  verdictRow: "mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-3.5",
+  // Function, 1 param -> passed directly. The verdict as a serif italic
+  // word in Best's or Blunder's ink.
+  verdictWord: (correct: boolean): string =>
     clsx(
-      "border-b border-line pb-3.5 font-serif text-title font-medium italic",
+      "font-serif text-[28px] font-medium italic leading-none",
       correct ? shared.severityText("best") : shared.severityText("blunder")
     ),
-  summaryGrid: "grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]",
+  verdictSub: "text-[13px] text-ink-muted",
+  summaryGrid: "grid grid-cols-[auto_1fr] gap-x-[18px] gap-y-1.5 text-[13px]",
   summaryLabel: "text-ink-faint",
-  summaryValue: "font-mono font-medium text-ink",
-  card: clsx(shared.card, "flex flex-col gap-2 p-4"),
-  cardLabel: shared.overline,
-  table: "w-full text-sm",
-  tableHeadCell: "pb-1.5 text-left text-xs font-medium text-ink-faint",
-  tableHeadCellRight: "pb-1.5 text-right text-xs font-medium text-ink-faint",
-  tableCellRight: "py-1.5 text-right font-mono tabular-nums text-ink-muted",
-  // Function, 3+ params -> one options object. An option row on the back:
-  // the best one tinted Best with a bar, the chosen wrong one tinted
-  // Blunder, the chosen right one (not the best) on the sunken surface.
+  summaryValue: "font-mono text-[13.5px] font-medium text-ink",
+  summaryEquity: "font-normal text-ink-faint",
+  doneValue: "tabular-nums text-ink",
+
+  optionsCard: clsx(shared.card, "overflow-hidden"),
+  optionsTable: "w-full border-collapse",
+  optionsCaption: clsx(shared.overline, "px-4 pb-2 pt-3.5 text-left"),
+  // Function, 3+ params -> one options object. An option row: the best one
+  // tinted Best, the chosen wrong one tinted Blunder, the chosen right one
+  // (not the best) on the sunken surface.
   optionRow: (opts: { isBest: boolean; isChosen: boolean; correct: boolean }): string =>
     clsx(
-      "border-t border-line",
-      opts.isBest && "bg-best-tint shadow-[inset_3px_0_0_var(--best)]",
-      opts.isChosen &&
-        !opts.isBest &&
-        (opts.correct ? "bg-sunken" : "bg-blunder-tint shadow-[inset_3px_0_0_var(--blunder)]")
+      opts.isBest && "bg-best-tint",
+      opts.isChosen && !opts.isBest && (opts.correct ? "bg-sunken" : "bg-blunder-tint")
     ),
-  optionCell: "py-1.5 pl-2 pr-2 font-mono font-medium text-ink",
-  optionTag: "ml-2 font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-faint",
-  linkRow: "flex flex-wrap gap-5 text-sm",
-  ratingRow: "flex flex-wrap items-center gap-2",
-  // Function, 1 param -> passed directly. Neutral grading: the label and its
-  // key carry the meaning, not a colour ("Good" isn't green here — green is
-  // Best). Good (the default, also on Enter) and Next are the primary.
-  ratingButton: (kind: "hard" | "good" | "easy" | "next"): string =>
+  // Function, 1 param (options object). The first cell carries the row's bar.
+  optionCell: (opts: { isBest: boolean; chosenWrong: boolean }): string =>
     clsx(
-      kind === "good" || kind === "next" ? shared.buttonPrimary : shared.buttonSecondary,
-      "h-auto min-w-24 flex-col gap-0.5 py-2"
+      "border-t border-line px-4 py-[9px] font-mono text-[13.5px] font-medium text-ink",
+      opts.isBest && "shadow-[inset_3px_0_0_var(--color-best)]",
+      opts.chosenWrong && "shadow-[inset_3px_0_0_var(--color-blunder)]"
     ),
-  // The keyboard shortcut under a rating button's label.
-  ratingKey: "font-mono text-[10.5px] font-normal opacity-70",
-  mutedText: shared.mutedText,
+  optionTag: "ml-2.5 font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-faint",
+  // Function, 1 param -> passed directly. The loss; Blunder's ink on the
+  // chosen wrong row.
+  optionLoss: (chosenWrong: boolean): string =>
+    clsx(
+      "border-t border-line px-4 py-[9px] text-right font-mono text-[13.5px] font-medium tabular-nums",
+      chosenWrong ? "text-blunder-ink" : "text-ink-muted"
+    ),
+  // The cube equities, in the same card under the options.
+  equities: "grid grid-cols-3 border-t border-line",
+  equityCell: "flex flex-col gap-0.5 px-4 py-2.5 [&+&]:border-l [&+&]:border-line",
+  equityLabel: "text-[11.5px] text-ink-faint",
+  equityValue: "font-mono text-[15px] font-medium text-ink",
+
+  // Sticky at the bottom of the screen below md, so rating never needs a
+  // scroll.
+  grade: "z-10 grid grid-cols-3 gap-2 max-md:sticky max-md:bottom-3",
+  // Function, 1 param (options object). `primary`: Good, and Next card;
+  // `wide`: spans the row (after a wrong answer).
+  gradeButton: (opts: { primary: boolean; wide: boolean }): string =>
+    clsx(
+      "flex flex-col items-center gap-1 rounded-[11px] border px-1.5 py-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+      opts.primary
+        ? "border-primary bg-primary text-on-primary hover:bg-primary/86"
+        : "border-line-strong bg-surface text-ink hover:bg-sunken",
+      opts.wide && "col-span-3"
+    ),
+  gradeLabel: "text-[13.5px] font-semibold",
+  // Function, 1 param -> passed directly. The key line under the label.
+  gradeKey: (onPrimary: boolean): string =>
+    clsx("font-mono text-[10.5px] font-medium", onPrimary ? "text-on-primary/70" : "text-ink-faint"),
+  linkRow: "flex flex-wrap gap-[18px]",
+  retryButton: shared.buttonPrimary,
+  mutedText: clsx(shared.mutedText, "px-4 md:px-0"),
   errorText: shared.errorText,
-  doneBox: clsx(shared.card, "flex flex-col gap-4 p-6"),
+  doneBox: clsx(shared.card, "mx-3 flex flex-col gap-4 p-6 md:mx-0"),
   doneTitle: "font-serif text-title font-medium text-ink",
 } as const;

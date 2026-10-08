@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AGAIN_REQUEUE_AFTER_CARDS } from "@/lib/settings";
 import { CARD_STATE } from "@/lib/review/cardState";
@@ -17,6 +17,8 @@ import type {
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
 import DecisionNote from "@/app/components/match-analysis/DecisionNote";
 import TagEditor from "@/app/components/review/TagEditor";
+import { FilterDefaultOpenContext } from "@/app/components/ui/FilterDisclosure";
+import { useEffectiveTags } from "@/app/providers/ReviewStateProvider";
 import { style } from "./review.styles";
 
 type Rating = "hard" | "good" | "easy";
@@ -58,7 +60,21 @@ function isTyping(target: EventTarget | null): boolean {
 // AGAIN_REQUEUE_AFTER_CARDS other cards (or at the end of the batch); a
 // right one is saved when the user rates it Hard / Good / Easy. Keys: 1–9
 // pick an option; on the back, Enter = Next (wrong) and h / g / e rate.
-export default function ReviewSession({ filters }: { filters: ReviewFilters }) {
+//
+// The session bar on top: "Review", the progress ("Card N of M" and a
+// track, N of the session's own total: what was answered plus what's still
+// due — client state only), the due split, and `filterControls` (the page's
+// FilterDisclosure), opened by default when the URL has filters but no card
+// matches them.
+export default function ReviewSession({
+  filters,
+  filterControls,
+  hasFilters,
+}: {
+  filters: ReviewFilters;
+  filterControls: ReactNode;
+  hasFilters: boolean;
+}) {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -214,58 +230,86 @@ export default function ReviewSession({ filters }: { filters: ReviewFilters }) {
   const localReview = queue.length - localNew;
   const dueNew = beyond.new + localNew;
   const dueReview = beyond.review + localReview;
+  // Progress through this session: answered so far (not counting the card
+  // on screen) plus what's left, the card on screen included.
+  const answeredBefore = stats.answered - (answer ? 1 : 0);
+  const sessionTotal = answeredBefore + dueNew + dueReview;
+  const progressPct = sessionTotal > 0 ? Math.min(100, (stats.answered / sessionTotal) * 100) : 0;
 
-  const header = (
-    <div data-testid="review-header" className={style.sessionHeader}>
-      <span className={style.countNew}>New {dueNew}</span>
-      <span className={style.countReview}>Review {dueReview}</span>
-      <span className={style.countRemaining}>{dueNew + dueReview} remaining</span>
+  const bar = (
+    <div data-testid="review-header" className={style.sessionBar}>
+      <h1 className={style.sessionTitle}>Review</h1>
+      <div className={style.progress} aria-label="Session progress">
+        {sessionTotal > 0 && (
+          <span>
+            Card {Math.min(answeredBefore + 1, sessionTotal)} of {sessionTotal}
+          </span>
+        )}
+        <span className={style.track} aria-hidden="true">
+          <span className={style.trackFill} style={{ width: `${progressPct}%` }} />
+        </span>
+        <span>
+          {dueNew} new · {dueReview} review
+        </span>
+      </div>
+      <FilterDefaultOpenContext.Provider value={hasFilters && done && stats.answered === 0}>
+        {filterControls}
+      </FilterDefaultOpenContext.Provider>
     </div>
   );
 
   if (loadError && queue.length === 0) {
     return (
-      <div className={style.doneBox}>
-        <p className={style.errorText}>{loadError}</p>
-        <button type="button" onClick={load} className={style.ratingButton("next")}>
-          Try again
-        </button>
-      </div>
+      <>
+        {bar}
+        <div className={style.doneBox}>
+          <p className={style.errorText}>{loadError}</p>
+          <button type="button" onClick={load} className={style.retryButton}>
+            Try again
+          </button>
+        </div>
+      </>
     );
   }
 
   if (done) {
     const accuracy = stats.answered > 0 ? Math.round((stats.correct / stats.answered) * 100) : null;
     return (
-      <div data-testid="review-summary" className={style.doneBox}>
-        <h2 className={style.doneTitle}>{stats.answered > 0 ? "Session done" : "Nothing due"}</h2>
-        <div className={style.summaryGrid}>
-          <span className={style.summaryLabel}>Cards reviewed</span>
-          <span className={style.summaryValue}>{stats.answered}</span>
-          <span className={style.summaryLabel}>Accuracy</span>
-          <span className={style.summaryValue}>{accuracy === null ? "—" : `${accuracy}%`}</span>
-          <span className={style.summaryLabel}>Best streak</span>
-          <span className={style.summaryValue}>{stats.bestStreak}</span>
-          <span className={style.summaryLabel}>Next due</span>
-          <span className={style.summaryValue}>
-            {nextDue === undefined
-              ? "…"
-              : nextDue === null
-                ? "no cards scheduled"
-                : `${formatRelativeDue(new Date(nextDue), new Date())} (${new Date(nextDue).toLocaleString()})`}
-          </span>
+      <>
+        {bar}
+        <div data-testid="review-summary" className={style.doneBox}>
+          <h2 className={style.doneTitle}>{stats.answered > 0 ? "Session done" : "Nothing due"}</h2>
+          {stats.answered === 0 && hasFilters && (
+            <p className={style.mutedText}>No cards match these filters.</p>
+          )}
+          <div className={style.summaryGrid}>
+            <span className={style.summaryLabel}>Cards reviewed</span>
+            <span className={style.doneValue}>{stats.answered}</span>
+            <span className={style.summaryLabel}>Accuracy</span>
+            <span className={style.doneValue}>{accuracy === null ? "—" : `${accuracy}%`}</span>
+            <span className={style.summaryLabel}>Best streak</span>
+            <span className={style.doneValue}>{stats.bestStreak}</span>
+            <span className={style.summaryLabel}>Next due</span>
+            <span className={style.doneValue}>
+              {nextDue === undefined
+                ? "…"
+                : nextDue === null
+                  ? "no cards scheduled"
+                  : `${formatRelativeDue(new Date(nextDue), new Date())} (${new Date(nextDue).toLocaleString()})`}
+            </span>
+          </div>
+          <Link href="/review/cards" className={style.link}>
+            Manage cards
+          </Link>
         </div>
-        <Link href="/review/cards" className={style.link}>
-          Manage cards
-        </Link>
-      </div>
+      </>
     );
   }
 
   if (!current) {
     return (
       <>
-        {header}
+        {bar}
         <p className={style.mutedText}>{loadError ?? "Loading cards…"}</p>
       </>
     );
@@ -275,120 +319,246 @@ export default function ReviewSession({ filters }: { filters: ReviewFilters }) {
   const options = card.options;
   const chosenOption = answer ? options.find((o) => o.key === answer.chosen) : null;
   const bestOption = options.find((o) => o.key === card.bestKey);
+  const playedOption = card.playedKey ? options.find((o) => o.key === card.playedKey) : null;
+  const question = questionFor(card.question);
+  const [matchLead, ...matchRest] = card.matchContext ? card.matchContext.split(" · ") : [];
+  const offer = card.decision.doubleOffer;
+  const situation =
+    card.question === "checker"
+      ? card.decision.roll.length === 2
+        ? `you rolled ${card.decision.roll[0]}-${card.decision.roll[1]}`
+        : null
+      : card.question === "doubler"
+        ? "cube action, before your roll"
+        : offer
+          ? `opponent ${offer.redouble ? "redoubles" : "doubles"} to ${offer.value}`
+          : "opponent doubles";
+  const bestLabel = bestOption?.label ?? "?";
+  const verdictSub = !answer
+    ? ""
+    : answer.chosen === card.bestKey
+      ? `${bestLabel} is the best ${card.question === "checker" ? "play" : "action"}.`
+      : answer.correct
+        ? `Best is ${bestLabel}. Yours loses only ${Math.abs(answer.loss).toFixed(3)}.`
+        : `Best is ${bestLabel}. You lose ${Math.abs(answer.loss).toFixed(3)}.`;
+  const noteEmptyText =
+    card.question === "checker"
+      ? "No note yet. What made this the best play?"
+      : bestLabel.startsWith("Double")
+        ? "No note yet. What made this a double?"
+        : "No note yet. What made this the right action?";
+
+  const context = (
+    <p className={style.contextLine}>
+      {matchLead && <b className={style.contextStrong}>{matchLead}</b>}
+      {matchRest.map((part) => (
+        <span key={part}>{part}</span>
+      ))}
+      {matchLead && situation && <span aria-hidden="true">·</span>}
+      {situation && <span>{situation}</span>}
+    </p>
+  );
 
   return (
     <>
-      {header}
+      {bar}
       <div className={style.layout}>
         <div className={style.boardColumn}>
-          <BoardPanel key={`${card.cardId}-${stats.answered}`} selected={card.decision} moveTab="my" quiz />
+          <BoardPanel
+            key={`${card.cardId}-${stats.answered}`}
+            selected={card.decision}
+            moveTab="my"
+            quiz
+            quizArrows={answer && card.question === "checker" ? card.bestKey : null}
+            bleed
+          />
         </div>
 
         <div className={style.sideColumn}>
-          <div>
-            {card.matchContext && <p className={style.contextLine}>{card.matchContext}</p>}
-            <h2 data-testid="review-question" data-card-id={card.cardId} className={style.question}>
-              {questionFor(card.question)}
-            </h2>
-          </div>
-
           {!answer ? (
-            <div data-testid="review-options" className={style.optionList}>
-              {options.map((o, i) => (
-                <button
-                  key={o.key}
-                  type="button"
-                  data-option-key={o.key}
-                  onClick={() => choose(o.key)}
-                  className={style.optionButton}
-                >
-                  <span className={style.optionKeyHint}>{i + 1}</span>
-                  {o.label}
-                </button>
-              ))}
-            </div>
+            <>
+              <div>
+                {context}
+                <h2 data-testid="review-question" data-card-id={card.cardId} className={style.question}>
+                  {question.lead} <em className={style.questionAsk}>{question.ask}</em>
+                </h2>
+              </div>
+              <div data-testid="review-options" className={style.optionList}>
+                {options.map((o, i) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    data-option-key={o.key}
+                    onClick={() => choose(o.key)}
+                    aria-keyshortcuts={i < 9 ? String(i + 1) : undefined}
+                    className={style.optionButton}
+                  >
+                    <kbd className={style.optionKeyHint}>{i + 1}</kbd>
+                    <span className={style.optionMove}>{o.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className={style.hint}>Press 1–{options.length} to answer.</p>
+            </>
           ) : (
             <>
-              <p data-testid="review-verdict" className={style.verdict(answer.correct)}>
-                {answer.correct ? "Correct" : "Incorrect"}
-              </p>
-
-              <div className={style.summaryGrid}>
-                <span className={style.summaryLabel}>Your answer</span>
-                <span className={style.summaryValue}>
-                  {chosenOption?.label} ({formatLoss(answer.loss)})
-                </span>
-                <span className={style.summaryLabel}>Played in game</span>
-                <span className={style.summaryValue}>{card.playedLabel}</span>
-                <span className={style.summaryLabel}>Best</span>
-                <span className={style.summaryValue}>{bestOption?.label}</span>
+              <div>
+                {context}
+                <p className={style.verdictRow} role="status">
+                  <span data-testid="review-verdict" className={style.verdictWord(answer.correct)}>
+                    {answer.correct ? "Correct." : "Not quite."}
+                  </span>
+                  <span className={style.verdictSub}>{verdictSub}</span>
+                </p>
               </div>
 
-              <div className={style.card}>
-                <span className={style.cardLabel}>Options</span>
-                <table className={style.table}>
-                  <thead>
-                    <tr>
-                      <th className={style.tableHeadCell}>Option</th>
-                      <th className={style.tableHeadCellRight}>Loss</th>
-                    </tr>
-                  </thead>
+              <dl className={style.summaryGrid}>
+                <dt className={style.summaryLabel}>Your answer</dt>
+                <dd className={style.summaryValue}>
+                  {chosenOption?.label} <span className={style.summaryEquity}>{formatLoss(answer.loss)}</span>
+                </dd>
+                <dt className={style.summaryLabel}>Played in game</dt>
+                <dd className={style.summaryValue}>
+                  {card.playedLabel}
+                  {playedOption && (
+                    <>
+                      {" "}
+                      <span className={style.summaryEquity}>{formatLoss(playedOption.loss)}</span>
+                    </>
+                  )}
+                </dd>
+                <dt className={style.summaryLabel}>Best</dt>
+                <dd className={style.summaryValue}>{bestLabel}</dd>
+              </dl>
+
+              <div className={style.optionsCard}>
+                <table className={style.optionsTable}>
+                  <caption className={style.optionsCaption}>Options · equity loss</caption>
                   <tbody>
                     {[...options]
                       .sort((a, b) => b.loss - a.loss)
-                      .map((o) => (
-                        <tr
-                          key={o.key}
-                          className={style.optionRow({
-                            isBest: o.key === card.bestKey,
-                            isChosen: o.key === answer.chosen,
-                            correct: o.correct,
-                          })}
-                        >
-                          <td className={style.optionCell}>
-                            {o.label}
-                            {o.key === card.bestKey && <span className={style.optionTag}>best</span>}
-                            {o.key === answer.chosen && <span className={style.optionTag}>your answer</span>}
-                            {o.key === card.playedKey && <span className={style.optionTag}>played</span>}
-                          </td>
-                          <td className={style.tableCellRight}>{formatLoss(o.loss)}</td>
-                        </tr>
-                      ))}
+                      .map((o) => {
+                        const isBest = o.key === card.bestKey;
+                        const isChosen = o.key === answer.chosen;
+                        const chosenWrong = isChosen && !o.correct;
+                        const tags = [
+                          isBest && "best",
+                          isChosen && "your answer",
+                          o.key === card.playedKey && "played",
+                        ].filter((t): t is string => Boolean(t));
+                        const tagText = tags.length
+                          ? tags.join(" · ").replace(/^./, (c) => c.toUpperCase())
+                          : null;
+                        return (
+                          <tr key={o.key} className={style.optionRow({ isBest, isChosen, correct: o.correct })}>
+                            <td className={style.optionCell({ isBest, chosenWrong })}>
+                              {o.label}
+                              {tagText && <span className={style.optionTag}>{tagText}</span>}
+                            </td>
+                            <td className={style.optionLoss(chosenWrong)}>{formatLoss(o.loss)}</td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
+                {card.cube && (
+                  <div
+                    data-testid="review-cube-table"
+                    className={style.equities}
+                    aria-label="Cube equities, doubler's view"
+                  >
+                    <div className={style.equityCell}>
+                      <span className={style.equityLabel}>No double</span>
+                      <span className={style.equityValue}>{formatEquity(card.cube.nd)}</span>
+                    </div>
+                    <div className={style.equityCell}>
+                      <span className={style.equityLabel}>Double / Take</span>
+                      <span className={style.equityValue}>{formatEquity(card.cube.dt)}</span>
+                    </div>
+                    <div className={style.equityCell}>
+                      <span className={style.equityLabel}>Double / Pass</span>
+                      <span className={style.equityValue}>{formatEquity(card.cube.dp)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {card.cube && (
-                <div data-testid="review-cube-table" className={style.card}>
-                  <span className={style.cardLabel}>Cube equities (doubler&apos;s view)</span>
-                  <table className={style.table}>
-                    <tbody>
-                      <tr>
-                        <td>No double</td>
-                        <td className={style.tableCellRight}>{formatEquity(card.cube.nd)}</td>
-                      </tr>
-                      <tr>
-                        <td>Double / Take</td>
-                        <td className={style.tableCellRight}>{formatEquity(card.cube.dt)}</td>
-                      </tr>
-                      <tr>
-                        <td>Double / Pass</td>
-                        <td className={style.tableCellRight}>{formatEquity(card.cube.dp)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <DecisionNote
+              <ReviewNote
                 key={`note-${card.decisionId}`}
-                note={card.decision.note}
-                dbDecisionId={card.decisionId}
-                canEditNotes
+                card={card}
+                emptyText={noteEmptyText}
               />
-              <div className={style.card}>
-                <TagEditor key={`tags-${card.decisionId}`} dbDecisionId={card.decisionId} tags={card.decision.tags} canEdit />
+
+              <div
+                data-testid="review-rating"
+                role="group"
+                aria-label={answer.correct ? "How hard was it?" : "Recorded as Again"}
+                className={style.grade}
+              >
+                {answer.correct ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={save.kind === "saving"}
+                      onClick={() => rate("hard")}
+                      className={style.gradeButton({ primary: false, wide: false })}
+                      aria-keyshortcuts="h"
+                    >
+                      <span className={style.gradeLabel}>Hard</span>
+                      <span className={style.gradeKey(false)} aria-hidden="true">
+                        H
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={save.kind === "saving"}
+                      onClick={() => rate("good")}
+                      className={style.gradeButton({ primary: true, wide: false })}
+                      aria-keyshortcuts="g Enter"
+                    >
+                      <span className={style.gradeLabel}>Good</span>
+                      <span className={style.gradeKey(true)} aria-hidden="true">
+                        G · Enter
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={save.kind === "saving"}
+                      onClick={() => rate("easy")}
+                      className={style.gradeButton({ primary: false, wide: false })}
+                      aria-keyshortcuts="e"
+                    >
+                      <span className={style.gradeLabel}>Easy</span>
+                      <span className={style.gradeKey(false)} aria-hidden="true">
+                        E
+                      </span>
+                    </button>
+                  </>
+                ) : save.kind === "error" ? (
+                  <button
+                    type="button"
+                    onClick={retryWrong}
+                    className={style.gradeButton({ primary: true, wide: true })}
+                  >
+                    <span className={style.gradeLabel}>Retry saving</span>
+                    <span className={style.gradeKey(true)}>Not recorded yet</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={save.kind !== "saved"}
+                    onClick={advance}
+                    className={style.gradeButton({ primary: true, wide: true })}
+                    aria-keyshortcuts="Enter"
+                  >
+                    <span className={style.gradeLabel}>Next card</span>
+                    <span className={style.gradeKey(true)}>
+                      {save.kind === "saved" ? "Recorded as Again · Enter" : "Recording as Again…"}
+                    </span>
+                  </button>
+                )}
               </div>
+              {save.kind === "error" && <p className={style.errorText}>{save.message}</p>}
 
               <div className={style.linkRow}>
                 <Link href={card.replayHref} className={style.link}>
@@ -400,78 +570,26 @@ export default function ReviewSession({ filters }: { filters: ReviewFilters }) {
                   </a>
                 )}
               </div>
-
-              <div data-testid="review-rating" className={style.ratingRow}>
-                {answer.correct ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={save.kind === "saving"}
-                      onClick={() => rate("hard")}
-                      className={style.ratingButton("hard")}
-                      aria-keyshortcuts="h"
-                    >
-                      Hard
-                      <span className={style.ratingKey} aria-hidden="true">
-                        H
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={save.kind === "saving"}
-                      onClick={() => rate("good")}
-                      className={style.ratingButton("good")}
-                      aria-keyshortcuts="g Enter"
-                    >
-                      Good
-                      <span className={style.ratingKey} aria-hidden="true">
-                        G · Enter
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={save.kind === "saving"}
-                      onClick={() => rate("easy")}
-                      className={style.ratingButton("easy")}
-                      aria-keyshortcuts="e"
-                    >
-                      Easy
-                      <span className={style.ratingKey} aria-hidden="true">
-                        E
-                      </span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className={style.mutedText}>
-                      {save.kind === "saving" ? "Recording as Again…" : save.kind === "saved" ? "Recorded as Again." : ""}
-                    </span>
-                    {save.kind === "error" ? (
-                      <button type="button" onClick={retryWrong} className={style.ratingButton("next")}>
-                        Retry saving
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={save.kind !== "saved"}
-                        onClick={advance}
-                        className={style.ratingButton("next")}
-                        aria-keyshortcuts="Enter"
-                      >
-                        Next
-                        <span className={style.ratingKey} aria-hidden="true">
-                          Enter
-                        </span>
-                      </button>
-                    )}
-                  </>
-                )}
-                {save.kind === "error" && <span className={style.errorText}>{save.message}</span>}
-              </div>
             </>
           )}
         </div>
       </div>
     </>
+  );
+}
+
+// The review back's note card: the note as text with an "Edit note" /
+// "Write note" toggle, and the decision's tags in its foot.
+function ReviewNote({ card, emptyText }: { card: ReviewCardPayload; emptyText: string }) {
+  const tags = useEffectiveTags({ dbDecisionId: card.decisionId, tags: card.decision.tags });
+  return (
+    <DecisionNote
+      note={card.decision.note}
+      dbDecisionId={card.decisionId}
+      canEditNotes
+      toggle={{ emptyText }}
+      hasTags={tags.length > 0}
+      tags={<TagEditor key={`tags-${card.decisionId}`} dbDecisionId={card.decisionId} tags={card.decision.tags} canEdit />}
+    />
   );
 }

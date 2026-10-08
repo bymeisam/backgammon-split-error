@@ -29,7 +29,7 @@ async function DueBadge() {
   ) : null;
 }
 
-// "Last synced …" plus the sync button. Write mode only. Only the label and
+// "Synced …" plus the sync button. Write mode only. Only the label and
 // the date leave the server.
 async function NavSync() {
   const now = new Date();

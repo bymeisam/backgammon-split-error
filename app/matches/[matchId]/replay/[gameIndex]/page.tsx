@@ -6,7 +6,8 @@ import { decisionColor } from "@/lib/analysis";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
-import PageShell from "@/app/components/ui/PageShell";
+import PageShell, { VsTitle } from "@/app/components/ui/PageShell";
+import GameSwitcher from "@/app/components/ui/GameSwitcher";
 import GameReplay from "./GameReplay";
 import { style } from "./gameReplay.styles";
 
@@ -178,18 +179,23 @@ export default async function GameReplayPage({
 
   return (
     <PageShell
+      variant="detail"
       breadcrumbs={[{ label: "Matches", href: "/matches" }, matchCrumb, { label: `Game ${gameIndex}` }]}
-      title={`Match ${matchId} — Game ${gameIndex} replay`}
+      title={<VsTitle lead={`Game ${gameIndex}`} name={match.opponentName} />}
+      subtitle={`Match ${matchId} · replay`}
       actions={
         <>
-          <Link href={`/matches/${matchId}`} className={style.backLink}>
-            ← Back to match
-          </Link>
-          {externalHref && (
-            <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.backLink}>
-              View on Galaxy ↗
-            </a>
-          )}
+          <GameSwitcher matchId={matchId} games={allGames.map((g) => g.gameIndex)} current={gameIndex} />
+          <span className={style.headLinks}>
+            <Link href={`/matches/${matchId}`} className={style.backLink}>
+              Back to match
+            </Link>
+            {externalHref && (
+              <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.backLink}>
+                View on Galaxy ↗
+              </a>
+            )}
+          </span>
         </>
       }
     >

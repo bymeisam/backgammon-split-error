@@ -1,0 +1,7 @@
+/* Applied by Playwright only while it takes a toHaveScreenshot
+   (playwright.config.ts's stylePath): the sticky navbar would otherwise
+   cover the top of an element scrolled into view. Static keeps its place in
+   the flow, so nothing else moves. */
+header[data-app-nav] {
+  position: static !important;
+}

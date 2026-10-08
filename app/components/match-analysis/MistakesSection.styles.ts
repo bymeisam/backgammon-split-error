@@ -2,36 +2,50 @@ import clsx from "clsx";
 import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local to this shared component (see .claude/skills/styling-conventions)
-// — covers MistakesSection.tsx's own markup and its exclusive subcomponent
-// PRCard (same file, used nowhere else). MoveDelta/Dice/DecisionList are
-// shared leaves with their own styles files; only the Roll column's
-// empty-state span (mistakeTableNoRollText, passed as DecisionList's
-// rollEmptyPlaceholder prop) stays here.
+// — covers MistakesSection.tsx's own markup and its exclusive subcomponents
+// PRStat and MistakeTable (same file, used nowhere else). MoveDelta/Dice/
+// DecisionList are shared leaves with their own styles files.
+//
+// `bleed` (functions below): the page has no side padding below md
+// (/matches/[matchId]), so these blocks inset themselves there.
 export const style = {
   mistakeTableNoRollText: "text-xs text-ink-faint",
 
-  // MistakesSection's own top-level markup.
-  sectionWrapper: "flex flex-col gap-6 border-t border-line pt-8",
+  sectionWrapper: "flex flex-col gap-6",
   sectionTitle: shared.pageSectionTitle,
-  mutedText: shared.mutedText,
+  // Function, 1 param -> passed directly.
+  mutedText: (bleed: boolean): string => clsx(shared.mutedText, bleed && "px-4 md:px-0"),
 
   // data-testid wrapper (e2e/board-visual.spec.ts's "mistakes-section"
-  // screenshot) — the same flex-col gap-6 as sectionWrapper.
+  // screenshot): the stat card, then the section head.
   mistakesSectionChrome: "flex flex-col gap-6",
-  filtersRow: "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-  filterGroup: "flex flex-col gap-1.5",
-  filterLabel: "text-xs font-medium text-ink-faint",
-  filterValue: "text-sm text-ink",
+
+  // Function, 1 param -> passed directly. The PR figures as one card, three
+  // cells, so the board starts higher.
+  statCard: (bleed: boolean): string =>
+    clsx(shared.card, "grid grid-cols-3 overflow-hidden", bleed && "mx-3 md:mx-0"),
+  statCell: "flex flex-col gap-2 px-3.5 py-3.5 [&+&]:border-l [&+&]:border-line sm:px-[18px]",
+  statLabel: shared.overline,
+  statValue: "font-serif text-[26px] font-medium leading-none tabular-nums text-ink sm:text-[30px]",
+  statMeta: "text-xs text-ink-faint",
+
+  // Function, 1 param -> passed directly. "Mistakes" with the Game select on
+  // the right.
+  sectionHead: (bleed: boolean): string =>
+    clsx("flex items-baseline justify-between gap-4", bleed && "px-4 md:px-0"),
+  gameField: "flex items-center",
+  srOnly: "sr-only",
   gameSelect: shared.filterSelect,
 
-  prSummaryGrid: "grid grid-cols-1 gap-4 sm:grid-cols-3",
-  prCard: clsx(shared.card, "p-5"),
-  prCardLabel: shared.overline,
-  prCardValue: "mt-2 font-serif text-[2.5rem] font-medium leading-none tabular-nums text-ink",
-  prCardSubtext: "mt-2 text-xs text-ink-faint",
-
-  boardAndTablesRow: "flex flex-col gap-6 lg:flex-row lg:items-start",
-  boardColumn: "flex-1 lg:min-w-0",
-  // 400px, and the move text may wrap, so the loss column is never clipped.
-  tablesColumn: "flex w-full min-w-0 flex-col gap-6 lg:max-h-[80vh] lg:w-[400px] lg:shrink-0 lg:overflow-y-auto",
+  // The replay layout: the board column, the lists beside it from 980px.
+  layout: "grid grid-cols-1 items-start gap-6 min-[980px]:grid-cols-[minmax(0,1fr)_380px]",
+  boardColumn: "flex min-w-0 flex-col gap-3",
+  // Function, 1 param -> passed directly. "Game 4" above the board (there's
+  // no stepper here).
+  contextLine: (bleed: boolean): string =>
+    clsx("text-[12.5px] text-ink-faint", bleed && "px-4 md:px-0"),
+  listsColumn: "flex min-w-0 flex-col gap-4",
+  selectActions: "flex gap-3",
+  selectButton: clsx(shared.textLink, "text-xs"),
+  loss: "font-mono text-xs tabular-nums text-ink-muted",
 } as const;

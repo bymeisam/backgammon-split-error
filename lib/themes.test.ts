@@ -45,4 +45,27 @@ describe("theme files", () => {
       for (const name of used) expect(css, `${theme.id} defines --${name}`).toMatch(new RegExp(`--${name}:`));
     }
   });
+
+  // The dark values appear twice in each theme file (explicit dark mode, and
+  // system mode on a dark OS); plain CSS can't share one block between a
+  // selector and a media query, so this keeps the copies in step.
+  it("keeps each theme's two dark blocks identical", () => {
+    for (const theme of THEMES) {
+      const css = readFileSync(path.resolve(__dirname, `../app/themes/${theme.id}.css`), "utf8");
+      const block = (selector: string): string => {
+        const start = css.indexOf(`${selector} {`);
+        expect(start, `${theme.id}: ${selector}`).toBeGreaterThanOrEqual(0);
+        const body = css.slice(start + selector.length + 2, css.indexOf("}", start));
+        return body
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .join("\n");
+      };
+      const dark = block(`[data-theme="${theme.id}"][data-mode="dark"]`);
+      const system = block(`[data-theme="${theme.id}"][data-mode="system"]`);
+      expect(dark.length).toBeGreaterThan(0);
+      expect(system).toBe(dark);
+    }
+  });
 });

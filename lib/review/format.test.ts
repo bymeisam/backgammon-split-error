@@ -35,9 +35,9 @@ describe("formatMatchContext", () => {
 
 describe("questionFor — always second person", () => {
   it("checker, doubler, receiver", () => {
-    expect(questionFor("checker")).toBe("Your move");
-    expect(questionFor("doubler")).toBe("Your roll: cube action?");
-    expect(questionFor("receiver")).toBe("Opponent doubled: take or pass?");
+    expect(questionFor("checker")).toEqual({ lead: "Your move.", ask: "What do you play?" });
+    expect(questionFor("doubler")).toEqual({ lead: "Cube action.", ask: "What do you do?" });
+    expect(questionFor("receiver")).toEqual({ lead: "Opponent doubles.", ask: "Take or pass?" });
   });
 });
 

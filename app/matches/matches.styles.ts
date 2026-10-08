@@ -1,9 +1,11 @@
+import clsx from "clsx";
 import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local (see .claude/skills/styling-conventions) — covers
 // MatchesPage, the only component defined in this file. The page
 // container, width and title row are PageShell's; the table look is
-// shared.
+// shared. Below md the table keeps Match ID, Opponent, Your error and the
+// chevron.
 export const style = {
   analysisLink: shared.textLink,
   // The "Loading…" text. (The "Page N of M" indicator is the shared Pager's.)
@@ -11,16 +13,21 @@ export const style = {
   errorBox: shared.errorBox,
   tableWrapper: shared.tableWrapper,
   table: shared.table,
-  tableHeadRow: shared.tableHeadRow,
-  // Shared by all head cells.
   tableHeadCell: shared.tableHeadCell,
+  tableHeadCellNumeric: shared.tableHeadCellNumeric,
+  tableHeadCellWide: clsx(shared.tableHeadCell, "max-md:hidden"),
+  tableHeadCellWideNumeric: clsx(shared.tableHeadCellNumeric, "max-md:hidden"),
+  chevronHeadCell: clsx(shared.tableHeadCell, "w-7"),
   tableRow: shared.tableRowClickable,
+  rowLink: shared.tableRowLink,
   // Ids, dates, ratings, scores and errors: sans with tabular figures
   // (mono is for moves and equities only).
-  tableCell: shared.tableCellMuted,
-  opponentCell: `${shared.tableCell} font-medium`,
-  // The Replay link's own cell — a click target inside a clickable row, so
-  // it stops propagation before the row's own onClick (match navigation).
-  replayCell: "px-4 py-2.5",
-  replayLink: shared.textLink,
+  idCell: shared.tableCellMuted,
+  dateCell: clsx(shared.tableCellMuted, "max-md:hidden"),
+  opponentCell: clsx(shared.tableCell, "font-medium"),
+  ratingCell: clsx(shared.tableCellNumeric, "text-ink-muted max-md:hidden"),
+  scoreCell: clsx(shared.tableCellMuted, "text-ink max-md:hidden"),
+  numberCell: shared.tableCellNumeric,
+  oppNumberCell: clsx(shared.tableCellNumeric, "text-ink-muted max-md:hidden"),
+  chevronCell: shared.tableChevronCell,
 } as const;

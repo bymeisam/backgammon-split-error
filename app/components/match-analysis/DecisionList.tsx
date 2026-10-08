@@ -6,84 +6,82 @@ import type { MoveTab } from "@/lib/listSelection";
 import { useDecisionNotes } from "@/app/providers/DecisionNotesProvider";
 import { DiceRoll } from "./Dice";
 import MoveDelta from "./MoveDelta";
-import { style } from "./DecisionList.styles";
+import { style, type ListColumns } from "./DecisionList.styles";
 
 interface DecisionListProps {
   rows: Decision[];
-  // Header row above the table (MistakesSection only) — a title and/or the
-  // select-all/none actions. Omitted entirely (no header rendered at all)
-  // when neither is provided.
-  title?: string;
-  // Shown instead of the table when rows.length === 0.
+  // The card's head: an overline title on the left and, on the right,
+  // `headEnd` (the severity legend, or "Select all / Select none").
+  title: string;
+  headEnd?: ReactNode;
+  // Shown instead of the rows when rows.length === 0.
   emptyMessage?: string;
 
   isSelected: (row: Decision, index: number) => boolean;
   moveTab: MoveTab;
   onSelectRow: (row: Decision, index: number, tab?: MoveTab) => void;
 
-  // Column toggles — all default off; an unconfigured list shows only the
-  // always-present Detail (MoveDelta) column and row-highlight behavior.
-  showIndexColumn?: boolean;
-  showRollColumn?: boolean;
-  // DiceRoll's own size prop — MistakesSection and GameReplay use
-  // different sizes (18 vs 16), so this is explicit rather than inferred
-  // from any other prop.
-  rollDiceSize?: number;
-  // What to show in the Roll cell when a row's own roll is empty (and it
-  // isn't a cube row, which shows its cube square instead) —
-  // MistakesSection shows a muted "—"; GameReplay shows nothing at all
-  // (matches DiceRoll's own null-for-empty behavior exactly when omitted).
+  // The leading columns: "replay" (index, dice), "match" (checkbox, dice) or
+  // "plain" (none). "match" needs isChecked and onToggleCheck.
+  columns?: ListColumns;
+  // What to show in the dice cell when a row has no roll and isn't a cube
+  // row (which shows its cube square instead).
   rollEmptyPlaceholder?: ReactNode;
-  showErrorColumn?: boolean;
-
-  // Checkbox column — active only when both are provided together
-  // (MistakesSection's only use case). onSelectAll/onSelectNone render the
-  // corresponding header-row button when provided; independent of the
-  // checkbox column itself, though in practice always paired with it.
   isChecked?: (row: Decision) => boolean;
   onToggleCheck?: (row: Decision) => void;
-  onSelectAll?: () => void;
-  onSelectNone?: () => void;
-
-  // Detail-cell override — default is a plain <MoveDelta>; only
-  // DecisionListWithDetail overrides this, to prepend its severity/
-  // classification badges before MoveDelta.
-  renderDetailCell?: (
-    row: Decision,
-    activeTab: MoveTab | null,
-    onSelectTab: (tab: MoveTab) => void
-  ) => ReactNode;
+  // The row's right-hand cell (severity chip, loss, classification code).
+  renderTrailing?: (row: Decision) => ReactNode;
+  // Sticky beside the board on wide screens (the replay's list).
+  sticky?: boolean;
+  // Square and edge to edge below md (a page without side padding there).
+  bleed?: boolean;
 }
 
-// Shared row/table rendering for MistakesSection's two tables (checker/cube
-// mistakes), DecisionListWithDetail's list (/mistakes, /repeated-
-// positions), and GameReplay's list (replay) — consolidated from three
-// independently-written but mostly-identical implementations (see
-// PROGRESS.md's entry for the exact confirmed differences this preserves).
+// The legend in a list card's head: what the move colours mean.
+export function SeverityLegend() {
+  return (
+    <span className={style.legend}>
+      <span className={style.legendItem}>
+        <span className={style.legendSwatch("good")} aria-hidden="true" />
+        Good
+      </span>
+      <span className={style.legendItem}>
+        <span className={style.legendSwatch("error")} aria-hidden="true" />
+        Error
+      </span>
+      <span className={style.legendItem}>
+        <span className={style.legendSwatch("blunder")} aria-hidden="true" />
+        Blunder
+      </span>
+    </span>
+  );
+}
+
+// The move list card, shared by GameReplay (the whole game), MistakesSection
+// (the match page's checker and cube mistakes) and DecisionListWithDetail
+// (/mistakes, /repeated-positions). Each row: optional index or checkbox,
+// dice (or a cube square), the played move with a "best …" line under it
+// when it wasn't the best, and a caller-chosen right-hand cell.
 // Deliberately NOT responsible for selection/tick state: each caller keeps
-// its own useListSelection/useTickSet (their key types differ — two
-// callers select by Decision.id, GameReplay by array index) and passes
-// plain callbacks down instead, rather than this component reconciling two
-// incompatible key types internally.
+// its own useListSelection/useTickSet (their key types differ — two callers
+// select by Decision.id, GameReplay by array index) and passes plain
+// callbacks down instead.
 export default function DecisionList({
   rows,
   title,
+  headEnd,
   emptyMessage,
   isSelected,
   moveTab,
   onSelectRow,
-  showIndexColumn = false,
-  showRollColumn = false,
-  rollDiceSize = 18,
+  columns = "plain",
   rollEmptyPlaceholder,
-  showErrorColumn = false,
   isChecked,
   onToggleCheck,
-  onSelectAll,
-  onSelectNone,
-  renderDetailCell,
+  renderTrailing,
+  sticky = false,
+  bleed = false,
 }: DecisionListProps) {
-  const showCheckboxColumn = isChecked !== undefined && onToggleCheck !== undefined;
   // A note saved in this tab wins over the row's own (possibly stale) note
   // — same rule as DecisionNote's useEffectiveNote, applied per row here.
   const { savedNotes } = useDecisionNotes();
@@ -94,42 +92,18 @@ export default function DecisionList({
   };
 
   return (
-    <div className={style.wrapper}>
-      {(title || onSelectAll || onSelectNone) && (
-        <div className={style.header}>
-          {title && <h3 className={style.title}>{title}</h3>}
-          {(onSelectAll || onSelectNone) && (
-            <div className={style.actions}>
-              {onSelectAll && (
-                <button type="button" onClick={onSelectAll} className={style.actionButton}>
-                  Select all
-                </button>
-              )}
-              {onSelectNone && (
-                <button type="button" onClick={onSelectNone} className={style.actionButton}>
-                  Select none
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+    <section className={style.card({ sticky, bleed })} aria-label={title}>
+      <div className={style.head}>
+        <h3 className={style.title}>{title}</h3>
+        {headEnd}
+      </div>
 
       {rows.length === 0 ? (
         <p className={style.emptyText}>{emptyMessage}</p>
       ) : (
         <div className={style.scroll}>
           <table className={style.table}>
-            <thead>
-              <tr className={style.headRow}>
-                {showCheckboxColumn && <th className={style.checkboxHeadCell}></th>}
-                {showIndexColumn && <th className={style.headCell}>#</th>}
-                {showRollColumn && <th className={style.headCell}>Roll</th>}
-                <th className={style.headCell}>Detail</th>
-                {showErrorColumn && <th className={style.headCellNumeric}>|Error|</th>}
-              </tr>
-            </thead>
-            <tbody>
+            <tbody className={style.body}>
               {rows.map((row, index) => {
                 const selected = isSelected(row, index);
                 const activeTab = selected ? moveTab : null;
@@ -151,20 +125,21 @@ export default function DecisionList({
                         onSelectRow(row, index);
                       }
                     }}
-                    className={style.row(selected)}
+                    className={style.row({ isSelected: selected, columns })}
                   >
-                    {showCheckboxColumn && (
-                      <td className={style.cell}>
+                    {columns === "match" && (
+                      <td className={style.checkboxCell}>
                         <input
                           type="checkbox"
-                          checked={isChecked!(row)}
-                          onChange={() => onToggleCheck!(row)}
+                          aria-label="Tick this decision"
+                          checked={isChecked?.(row) ?? false}
+                          onChange={() => onToggleCheck?.(row)}
                         />
                       </td>
                     )}
-                    {showIndexColumn && <td className={style.indexCell}>{index + 1}</td>}
-                    {showRollColumn && (
-                      <td className={style.cell}>
+                    {columns === "replay" && <td className={style.indexCell(selected)}>{index + 1}</td>}
+                    {columns !== "plain" && (
+                      <td className={style.diceCell}>
                         {/* Cube rows have no dice (a cube decision comes
                             before the roll); like Galaxy's own lists they
                             get a square with the cube value instead —
@@ -179,28 +154,22 @@ export default function DecisionList({
                             {row.cubeSquareValue}
                           </span>
                         ) : row.roll.length > 0 ? (
-                          <DiceRoll roll={row.roll} size={rollDiceSize} />
+                          <DiceRoll roll={row.roll} />
                         ) : (
                           rollEmptyPlaceholder
                         )}
                       </td>
                     )}
-                    <td className={style.detailCell}>
+                    <td className={style.moveCell}>
                       {/* Only rendered when there's a note, so a row
                           without one has exactly the markup it had before
                           notes existed. */}
                       {hasNote(row) && (
                         <span role="img" aria-label="Has note" title="Has note" className={style.noteDot} />
                       )}
-                      {renderDetailCell ? (
-                        renderDetailCell(row, activeTab, onSelectTab)
-                      ) : (
-                        <MoveDelta decision={row} activeTab={activeTab} onSelectTab={onSelectTab} />
-                      )}
+                      <MoveDelta decision={row} activeTab={activeTab} onSelectTab={onSelectTab} />
                     </td>
-                    {showErrorColumn && (
-                      <td className={style.errorCell}>{row.absError.toFixed(3)}</td>
-                    )}
+                    <td className={style.trailingCell}>{renderTrailing?.(row)}</td>
                   </tr>
                 );
               })}
@@ -208,6 +177,6 @@ export default function DecisionList({
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 }

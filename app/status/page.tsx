@@ -87,11 +87,13 @@ async function getDbStatus(): Promise<DbStatus> {
   }
 }
 
-function Row({ label, value }: { label: string; value: ReactNode }) {
+// `numeric`: a count, in sans with thousands separators; anything else
+// (versions, the migration name) stays mono.
+function Row({ label, value, numeric = false }: { label: string; value: ReactNode; numeric?: boolean }) {
   return (
     <div className={style.rowWrapper}>
       <span className={style.rowLabel}>{label}</span>
-      <span className={style.rowValue}>{value}</span>
+      <span className={style.rowValue(numeric)}>{value}</span>
     </div>
   );
 }
@@ -140,10 +142,10 @@ export default async function StatusPage() {
         <Row label="Latest migration" value={db.latestMigration ?? "—"} />
         {db.counts && (
           <>
-            <Row label="Matches" value={db.counts.match} />
-            <Row label="Games" value={db.counts.game} />
-            <Row label="Decisions" value={db.counts.decision} />
-            <Row label="Player identities" value={db.counts.playerIdentity} />
+            <Row label="Matches" value={db.counts.match.toLocaleString()} numeric />
+            <Row label="Games" value={db.counts.game.toLocaleString()} numeric />
+            <Row label="Decisions" value={db.counts.decision.toLocaleString()} numeric />
+            <Row label="Player identities" value={db.counts.playerIdentity.toLocaleString()} numeric />
           </>
         )}
       </section>

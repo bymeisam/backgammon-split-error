@@ -4,19 +4,19 @@ import { useMemo } from "react";
 import { resolveSelected } from "@/lib/listSelection";
 import { useListSelection } from "@/app/hooks/useListSelection";
 import DecisionCard from "./DecisionCard";
-import DecisionList from "./DecisionList";
-import MoveDelta from "./MoveDelta";
+import DecisionList, { SeverityLegend } from "./DecisionList";
+import { formatLoss } from "@/lib/review/format";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import type { DecisionListItem } from "@/lib/decisionFromRow";
 import { style } from "./DecisionListWithDetail.styles";
 
 // List + single-detail split for /mistakes and /repeated-positions, same
-// pattern as MistakesSection on the match pages: client-side selection
-// (useListSelection, not a sub-route), defaulting to the first item, board
-// panel and list side by side via lg:flex-row. Each row shows MoveDelta's
-// color-coded my-move/best-move notation, a compact SeverityBadge and
-// (only when no classification filter is applied) a ClassificationBadge — the match link
+// pattern as the replay: client-side selection (useListSelection, not a
+// sub-route), defaulting to the first item, the board column and the list
+// card side by side from 980px. Each row shows the played move with its
+// "best …" line, and on the right (only when no classification filter is
+// applied) the classification code, the severity chip and the loss — the match link
 // deliberately doesn't appear here; that lives only in the single selected
 // DecisionCard, not duplicated per row. Only the *selected* decision ever
 // gets a BoardPanel/board SVG rendered.
@@ -69,18 +69,17 @@ export default function DecisionListWithDetail({
       <div data-testid="mistake-row-list" className={style.listWrapper}>
         <DecisionList
           rows={items.map((item) => item.decision)}
+          title="Decisions"
+          headEnd={<SeverityLegend />}
           isSelected={(row) => row.id === (selected?.decision.id ?? null)}
           moveTab={moveTab}
           onSelectRow={(row, _index, tab) => selectRow(row.id, tab)}
-          showErrorColumn
-          renderDetailCell={(row, activeTab, onSelectTab) => (
-            <span className={style.listBadgeGroup}>
+          renderTrailing={(row) => (
+            <>
+              {showClassification && <ClassificationBadge type={classificationByDecisionId.get(row.id) ?? ""} />}
               {row.severity && <SeverityBadge type={row.severity} />}
-              {showClassification && (
-                <ClassificationBadge type={classificationByDecisionId.get(row.id) ?? ""} />
-              )}
-              <MoveDelta decision={row} activeTab={activeTab} onSelectTab={onSelectTab} />
-            </span>
+              <span className={style.loss}>{formatLoss(-row.absError)}</span>
+            </>
           )}
         />
       </div>

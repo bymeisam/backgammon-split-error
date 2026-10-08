@@ -6,7 +6,7 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // /mistakes and /repeated-positions.
 export const style = {
   row: "flex items-center justify-between",
-  pageIndicator: "text-sm tabular-nums text-ink-muted",
+  pageIndicator: "text-[13px] tabular-nums text-ink-muted",
 
   // Function, 1 param -> passed directly. Shared by the Prev and Next
   // links, differing only in which boolean disables them.

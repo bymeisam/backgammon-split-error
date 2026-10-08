@@ -3,13 +3,15 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import {
-  lowercaseOptions,
+  categoryLabel,
+  categoryOptions,
+  filterSummary,
   positiveIntParam,
   stringParam,
   totalPagesFor,
   type SearchParams,
 } from "@/lib/listParams";
-import { getClassificationLabel, phaseOptionsFor } from "@/lib/classificationLabels";
+import { getClassificationLabel, getPhaseLabel, phaseOptionsFor } from "@/lib/classificationLabels";
 import { DECISION_LIST_SELECT } from "@/lib/decisionQueries";
 import { reviewDecisionWhere, reviewFilterParams, reviewFiltersFrom } from "@/lib/review/filters";
 import { startOfNextLocalDay } from "@/lib/review/queue";
@@ -19,6 +21,7 @@ import { cardListSummary } from "@/lib/review/cardPayload";
 import { FilterSelect } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
 import PageShell from "@/app/components/ui/PageShell";
+import FilterDisclosure from "@/app/components/ui/FilterDisclosure";
 import CardActions from "./CardActions";
 import { style } from "./reviewCards.styles";
 
@@ -99,33 +102,44 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
         )
       }
     >
-      <form method="get" className={style.form}>
-        <FilterSelect
-          label="Tag"
-          name="tag"
-          defaultValue={filters.tag ?? ""}
-          options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
-          emptyLabel="Any"
-        />
-        <FilterSelect
-          label="Phase"
-          name="phase"
-          defaultValue={filters.phase ?? ""}
-          options={phaseOptionsFor(classifications)}
-          emptyLabel="Any"
-        />
-        <FilterSelect
-          label="Type"
-          name="category"
-          defaultValue={filters.category ?? ""}
-          options={lowercaseOptions(categories)}
-          emptyLabel="All"
-        />
-        <FilterSelect label="State" name="state" defaultValue={state ?? ""} options={STATE_OPTIONS} emptyLabel="All" />
-        <button type="submit" className={style.applyButton}>
-          Apply
-        </button>
-      </form>
+      <div className={style.filterRow}>
+        <FilterDisclosure
+          summary={filterSummary([
+            [filters.tag ? (tags.find((t) => String(t.id) === filters.tag)?.name ?? "Unknown tag") : undefined, "All tags"],
+            [filters.phase ? getPhaseLabel(filters.phase) : undefined, "Any phase"],
+            [filters.category ? categoryLabel(filters.category) : undefined, "All types"],
+            [STATE_OPTIONS.find((o) => o.value === state)?.label, "Any state"],
+          ])}
+        >
+          <form method="get" className={style.form}>
+            <FilterSelect
+              label="Tag"
+              name="tag"
+              defaultValue={filters.tag ?? ""}
+              options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
+              emptyLabel="Any"
+            />
+            <FilterSelect
+              label="Phase"
+              name="phase"
+              defaultValue={filters.phase ?? ""}
+              options={phaseOptionsFor(classifications)}
+              emptyLabel="Any"
+            />
+            <FilterSelect
+              label="Type"
+              name="category"
+              defaultValue={filters.category ?? ""}
+              options={categoryOptions(categories)}
+              emptyLabel="All"
+            />
+            <FilterSelect label="State" name="state" defaultValue={state ?? ""} options={STATE_OPTIONS} emptyLabel="All" />
+            <button type="submit" className={style.applyButton}>
+              Apply
+            </button>
+          </form>
+        </FilterDisclosure>
+      </div>
 
       <p className={style.mutedText}>
         {total.toLocaleString()} card{total === 1 ? "" : "s"}
@@ -151,8 +165,8 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
                 <th className={style.headCell}>Phase</th>
                 <th className={style.headCell}>Tags</th>
                 <th className={style.headCell}>Due</th>
-                <th className={style.headCell}>Reps</th>
-                <th className={style.headCell}>Lapses</th>
+                <th className={style.headCellNumeric}>Reps</th>
+                <th className={style.headCellNumeric}>Lapses</th>
                 <th className={style.headCell}>State</th>
                 {canEdit && <th className={style.headCell}>Actions</th>}
               </tr>

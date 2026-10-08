@@ -114,11 +114,47 @@ export function totalPagesFor(total: number, pageSize: number): number {
   return Math.max(1, Math.ceil(total / pageSize));
 }
 
-// The "<phase label> <other filters>" phrase in each page's result-count
-// line ("1,234 2nd roll checker blunder decisions."), or "all" when no
-// filter is set.
-export function describeFilters(phase: string | undefined, ...others: (string | undefined)[]): string {
-  return [phase ? getPhaseLabel(phase) : undefined, ...others].filter(Boolean).join(" ") || "all";
+// A category's display name: "Checker" / "Cube", from a DecisionKind value
+// or a ?category= param (any case); an unknown one is shown as itself.
+const CATEGORY_LABELS: Readonly<Record<string, string>> = { checker: "Checker", cube: "Cube" };
+
+export function categoryLabel(value: string): string {
+  const key = value.toLowerCase();
+  return Object.hasOwn(CATEGORY_LABELS, key) ? CATEGORY_LABELS[key] : value;
+}
+
+// Each page's result-count line, lower-cased: "39,028 checker blunders",
+// "12 2nd roll cube decisions". On /mistakes an Error or Blunder severity is
+// the noun itself ("errors", "blunders"); Best and Good stay adjectives
+// ("good decisions"), as every severity does for repeated positions. The
+// phase and category come first.
+export function describeResultCount(
+  total: number,
+  opts: {
+    phase?: string;
+    category?: string;
+    severity?: ErrorSeverity;
+    noun: "decision" | "repeated position";
+  }
+): string {
+  const words: string[] = [];
+  if (opts.phase) words.push(getPhaseLabel(opts.phase).toLowerCase());
+  if (opts.category) words.push(categoryLabel(opts.category).toLowerCase());
+  let noun: string = opts.noun;
+  if (opts.severity) {
+    const sev = severityLabel(opts.severity).toLowerCase();
+    const isNoun =
+      opts.noun === "decision" && (opts.severity === ErrorSeverity.ERROR || opts.severity === ErrorSeverity.BLUNDER);
+    if (isNoun) noun = sev;
+    else words.push(sev);
+  }
+  return [total.toLocaleString(), ...words, total === 1 ? noun : `${noun}s`].join(" ");
+}
+
+// The one-line summary next to a page's Filter button: each filter's value,
+// or its "any" wording when it isn't set ("Any phase · All severities").
+export function filterSummary(parts: readonly [value: string | undefined, whenUnset: string][]): string {
+  return parts.map(([value, whenUnset]) => value ?? whenUnset).join(" · ");
 }
 
 // The severity filter's name for a ?severity= value (Galaxy's "Best"/"Good"/
@@ -147,10 +183,10 @@ export function severityOptions(values: ErrorSeverity[]): { value: string; label
     .map((v) => ({ value: v.toLowerCase(), label: severityLabel(v) }));
 }
 
-// Dropdown options for raw enum-ish DB values, shown and submitted
-// lowercase (matching what lowercaseParam reads back).
-export function lowercaseOptions(values: string[]): { value: string; label: string }[] {
-  return values.map((v) => ({ value: v.toLowerCase(), label: v.toLowerCase() }));
+// The category dropdown's options: the DecisionKind values submitted
+// lowercase (what lowercaseParam reads back), shown as "Checker"/"Cube".
+export function categoryOptions(values: string[]): { value: string; label: string }[] {
+  return values.map((v) => ({ value: v.toLowerCase(), label: categoryLabel(v) }));
 }
 
 // /mistakes' decision filter, as a Prisma where — shared by the page's own

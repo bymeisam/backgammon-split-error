@@ -37,8 +37,34 @@ export const style = {
   spinner: "h-3 w-3 animate-spin rounded-full border-2 border-line-strong border-t-ink-muted",
 
   // --- buttons ---
-  buttonPrimary: clsx(buttonBase, "h-9 bg-ink px-4 text-paper hover:bg-ink/85"),
-  buttonSecondary: clsx(buttonBase, "h-9 border border-line-strong bg-surface px-4 text-ink hover:bg-sunken"),
+  // Page-level actions (38px). The primary colour is a theme token, so a
+  // theme can make it something other than ink.
+  buttonPrimary: clsx(
+    buttonBase,
+    "h-[38px] border border-primary bg-primary px-4 text-[13.5px] text-on-primary hover:bg-primary/86"
+  ),
+  buttonSecondary: clsx(
+    buttonBase,
+    "h-[38px] border border-line-strong bg-surface px-4 text-[13.5px] text-ink hover:bg-sunken"
+  ),
+  // In-card actions (34px): the note card, the replay's controls.
+  buttonCompact: clsx(
+    buttonBase,
+    "h-[34px] border border-line-strong bg-surface px-3.5 text-[13px] text-ink hover:bg-sunken"
+  ),
+  buttonCompactPrimary: clsx(
+    buttonBase,
+    "h-[34px] border border-primary bg-primary px-3.5 text-[13px] text-on-primary hover:bg-primary/86"
+  ),
+  // A rounded toggle: the "Filter" button on the list pages.
+  pill: "inline-flex items-center rounded-full border border-line bg-surface px-2.5 py-1 text-[12.5px] text-ink-muted transition-colors hover:border-line-strong hover:text-ink",
+  // Tag chips (the note card) and the dashed "+ tag" one.
+  tagChip: "inline-flex items-center gap-1 rounded-full border border-line bg-sunken px-[9px] py-[3px] text-xs text-ink-muted",
+  tagChipAdd:
+    "inline-flex cursor-pointer items-center rounded-full border border-dashed border-line px-[9px] py-[3px] text-xs text-ink-muted hover:border-line-strong hover:text-ink",
+  // A classification code (OG, MG, BLZ…): outlined, mono.
+  codeChip:
+    "inline-flex items-center rounded-[4px] border border-line-strong px-[5px] py-[3px] font-mono text-[10.5px] font-semibold leading-none text-ink-muted",
   // The small secondary button (table-row actions, the navbar's Sync).
   buttonSmall: clsx(
     buttonBase,
@@ -49,8 +75,10 @@ export const style = {
     "h-7 border border-line-strong bg-surface px-3 text-xs text-blunder-ink hover:border-blunder hover:bg-blunder-tint"
   ),
   textLink:
-    "font-medium text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-current",
-  kbd: "rounded border border-b-2 border-line-strong bg-sunken px-1.5 py-0.5 font-mono text-[11px] text-ink-muted",
+    "text-[13px] font-medium text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-current",
+  kbd: "rounded-[4px] border border-b-2 border-line-strong bg-sunken px-[5px] py-[2px] font-mono text-[11px] font-medium leading-none text-ink-muted",
+  // The text button on cards ("Edit note", "Write note").
+  textButton: "text-[12.5px] text-ink-muted underline underline-offset-[3px] hover:text-ink",
 
   // --- form controls ---
   input: clsx(
@@ -66,19 +94,30 @@ export const style = {
   // --- tables (dashboard, /matches, /matches/analysis, /repeated-positions,
   // /review/cards, /galaxy/matches) ---
   tableWrapper: "overflow-x-auto rounded-card border border-line bg-surface shadow-card",
-  table: "w-full border-collapse text-left text-sm",
-  tableHeadRow: "border-b border-line",
-  tableHeadCell: "px-4 pb-2.5 pt-3.5 text-overline uppercase text-ink-faint",
-  tableHeadCellNumeric: "px-4 pb-2.5 pt-3.5 text-right text-overline uppercase text-ink-faint",
+  table: "w-full border-collapse text-left text-[13.5px]",
+  tableHeadRow: "",
+  tableHeadCell:
+    "border-b border-line px-3.5 pb-2.5 pt-3.5 text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-ink-faint sm:px-[18px]",
+  tableHeadCellNumeric:
+    "border-b border-line px-3.5 pb-2.5 pt-3.5 text-right text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-ink-faint sm:px-[18px]",
   tableRow: "border-b border-line last:border-b-0",
-  // A row that's itself a link target (the match lists).
-  tableRowClickable: clsx("cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-sunken", focusRingInset),
-  tableCell: "px-4 py-2.5 text-ink",
-  tableCellMuted: "whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-muted",
-  tableCellNumeric: "px-4 py-2.5 text-right tabular-nums text-ink",
+  // A row that's itself a link target (the match lists): its main cell
+  // holds a link stretched over the row (tableRowLink), so the whole row is
+  // one link for the mouse and the keyboard.
+  tableRowClickable: "relative cursor-pointer border-b border-line last:border-b-0 hover:[&>td]:bg-sunken",
+  tableRowLink: clsx("after:absolute after:inset-0 after:content-['']", "focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-focus"),
+  tableCell: "px-3.5 py-[11px] text-ink sm:px-[18px]",
+  tableCellMuted: "whitespace-nowrap px-3.5 py-[11px] tabular-nums text-ink-muted sm:px-[18px]",
+  tableCellNumeric: "whitespace-nowrap px-3.5 py-[11px] text-right tabular-nums text-ink sm:px-[18px]",
+  // The trailing "›" column of a clickable row.
+  tableChevronCell: "w-7 px-3.5 py-[11px] text-right text-ink-faint sm:px-[18px]",
 
   // --- severity ---
+  // A severity chip's shape, always sans (it sits inside mono cells too).
+  severityChipShape:
+    "inline-flex items-center rounded-[4px] px-1.5 py-[3px] font-sans text-[10.5px] font-semibold leading-none tracking-[0.02em]",
   // Function, 1 param -> passed directly. A filled chip in Galaxy's hue.
+  // Just the colours: the chip shape is severityChipShape (Badge adds it).
   severityChip: (tier: SeverityTier): string =>
     clsx(
       tier === "best" && "border-best bg-best text-on-best",
@@ -99,16 +138,25 @@ export const style = {
   // blunder.
   cubeSquareDefault: "border-cube-default bg-cube-default text-on-cube-default",
 
-  // --- modal --- A centred dialog over a dimmed page: /mistakes' "Add all
+  // --- modal --- A centred dialog over the scrim: /mistakes' "Add all
   // to review", /review/cards' delete confirmation, the "?" help and
   // /galaxy/matches' TokenModal.
-  modalOverlay: "fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-6 backdrop-blur-[2px]",
+  // The native <dialog> (app/components/ui/Modal.tsx) in the top layer: it
+  // escapes the navbar's backdrop-filter containing block.
+  modalDialog:
+    "m-auto w-[calc(100%-3rem)] max-w-lg overflow-visible bg-transparent p-0 text-ink backdrop:bg-scrim backdrop:backdrop-blur-[2px]",
   modalPanel:
     "flex max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-raised",
   modalHeading: "font-serif text-heading font-medium text-ink",
   modalText: "text-sm text-ink-muted",
   modalError: "text-sm text-blunder-ink",
   modalButtons: "flex justify-end gap-2",
-  modalPrimaryButton: clsx(buttonBase, "h-9 bg-ink px-4 text-paper hover:bg-ink/85"),
-  modalSecondaryButton: clsx(buttonBase, "h-9 border border-line-strong bg-surface px-4 text-ink hover:bg-sunken"),
+  modalPrimaryButton: clsx(
+    buttonBase,
+    "h-[38px] border border-primary bg-primary px-4 text-[13.5px] text-on-primary hover:bg-primary/86"
+  ),
+  modalSecondaryButton: clsx(
+    buttonBase,
+    "h-[38px] border border-line-strong bg-surface px-4 text-[13.5px] text-ink hover:bg-sunken"
+  ),
 } as const;

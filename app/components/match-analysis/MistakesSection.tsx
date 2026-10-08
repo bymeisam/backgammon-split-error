@@ -14,6 +14,7 @@ import {
   type FetchedGame,
 } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
+import { formatLoss } from "@/lib/review/format";
 import { attachNotes } from "@/lib/decisionNotes";
 import { resolveSelected, type MoveTab } from "@/lib/listSelection";
 import { useListSelection } from "@/app/hooks/useListSelection";
@@ -24,14 +25,13 @@ import BoardPanel from "./BoardPanel";
 import DecisionList from "./DecisionList";
 import { style } from "./MistakesSection.styles";
 
-function PRCard({ label, pr, decisionCount }: { label: string; pr: number | null; decisionCount: number }) {
+// One cell of the PR stat card.
+function PRStat({ label, pr, decisionCount }: { label: string; pr: number | null; decisionCount: number }) {
   return (
-    <div className={style.prCard}>
-      <p className={style.prCardLabel}>{label}</p>
-      <p className={style.prCardValue}>{formatPR(pr)}</p>
-      <p className={style.prCardSubtext}>
-        {decisionCount} decisions
-      </p>
+    <div className={style.statCell}>
+      <p className={style.statLabel}>{label}</p>
+      <p className={style.statValue}>{formatPR(pr)}</p>
+      <p className={style.statMeta}>{decisionCount} decisions</p>
     </div>
   );
 }
@@ -43,6 +43,7 @@ function MistakeTable({
   selectedId,
   onSelectRow,
   moveTab,
+  bleed,
 }: {
   title: string;
   mistakes: Decision[];
@@ -50,6 +51,7 @@ function MistakeTable({
   selectedId: string | null;
   onSelectRow: (id: string, tab?: MoveTab) => void;
   moveTab: MoveTab;
+  bleed: boolean;
 }) {
   const ids = mistakes.map((m) => m.id);
 
@@ -57,17 +59,26 @@ function MistakeTable({
     <DecisionList
       rows={mistakes}
       title={title}
+      headEnd={
+        <span className={style.selectActions}>
+          <button type="button" onClick={() => ticks.setAll(ids, true)} className={style.selectButton}>
+            Select all
+          </button>
+          <button type="button" onClick={() => ticks.setAll(ids, false)} className={style.selectButton}>
+            Select none
+          </button>
+        </span>
+      }
       emptyMessage="No mistakes in this scope."
       isSelected={(row) => row.id === selectedId}
       moveTab={moveTab}
       onSelectRow={(row, _index, tab) => onSelectRow(row.id, tab)}
-      showRollColumn
+      columns="match"
       rollEmptyPlaceholder={<span className={style.mistakeTableNoRollText}>—</span>}
-      showErrorColumn
       isChecked={(row) => ticks.isTicked(row.id)}
       onToggleCheck={(row) => ticks.toggle(row.id)}
-      onSelectAll={() => ticks.setAll(ids, true)}
-      onSelectNone={() => ticks.setAll(ids, false)}
+      renderTrailing={(row) => <span className={style.loss}>{formatLoss(-row.absError)}</span>}
+      bleed={bleed}
     />
   );
 }
@@ -75,6 +86,7 @@ function MistakeTable({
 export default function MistakesSection({
   matchId,
   games,
+  bleed = false,
 }: {
   // Galaxy's match id (Match.sourceMatchId) — used only to look up this
   // match's notes in the DB. Omitted on /galaxy/matches/[matchId]: that page
@@ -82,6 +94,9 @@ export default function MistakesSection({
   // fetch, no note UI — DecisionNote renders nothing without a dbDecisionId).
   matchId?: string;
   games: FetchedGame[];
+  // The page has no side padding below md (/matches/[matchId]); the blocks
+  // inset themselves.
+  bleed?: boolean;
 }) {
   // Decisions here are built from game payloads (no DB ids), so notes and
   // the real Decision.id come from one per-match lookup, matched on
@@ -130,44 +145,32 @@ export default function MistakesSection({
 
   return (
     <div className={style.sectionWrapper}>
-      <h2 className={style.sectionTitle}>
-        Mistakes
-      </h2>
-
       {playerOptions.length === 0 ? (
-        <p className={style.mutedText}>
-          No player data found in the fetched games.
-        </p>
+        <p className={style.mutedText(bleed)}>No player data found in the fetched games.</p>
       ) : (
         <>
-          {/* data-testid wrapper for e2e/board-visual.spec.ts's "mistakes-section"
-              screenshot — the only reason this div exists at all (see PROGRESS.md's
-              entry for its own justification). className exactly reproduces
-              the outer container's flex-col gap-6 so wrapping these two
-              previously-sibling blocks introduces zero visual change: they
-              were 2 of 4 gap-6-spaced items in that flex column, now 1
-              gap-6-spaced item containing its own gap-6-spaced pair —
-              verified byte-for-byte via the visual suite, not just reasoned
-              about. */}
+          {/* data-testid wrapper for e2e/board-visual.spec.ts's
+              "mistakes-section" screenshot: the PR stat card and the
+              section head with its Game select. */}
           <div data-testid="mistakes-section" className={style.mistakesSectionChrome}>
-            <div className={style.filtersRow}>
-              <div className={style.filterGroup}>
-                <span className={style.filterLabel}>You</span>
-                <span className={style.filterValue}>
-                  {meIdentity?.displayName ?? effectiveUserId ?? "—"}
-                </span>
-              </div>
+            <div className={style.statCard(bleed)}>
+              <PRStat
+                label="Total PR"
+                pr={totalPR}
+                decisionCount={checkerPR.totalDecisions + cubePR.totalDecisions}
+              />
+              <PRStat label="Checker PR" pr={checkerPR.pr} decisionCount={checkerPR.totalDecisions} />
+              <PRStat label="Cube PR" pr={cubePR.pr} decisionCount={cubePR.totalDecisions} />
+            </div>
 
-              <div className={style.filterGroup}>
-                <label htmlFor="game-select" className={style.filterLabel}>
-                  Game
-                </label>
+            <div className={style.sectionHead(bleed)}>
+              <h2 className={style.sectionTitle}>Mistakes</h2>
+              <label htmlFor="game-select" className={style.gameField}>
+                <span className={style.srOnly}>Game</span>
                 <select
                   id="game-select"
                   value={selectedGame}
-                  onChange={(e) =>
-                    setSelectedGame(e.target.value === "all" ? "all" : Number(e.target.value))
-                  }
+                  onChange={(e) => setSelectedGame(e.target.value === "all" ? "all" : Number(e.target.value))}
                   className={style.gameSelect}
                 >
                   <option value="all">All games</option>
@@ -177,26 +180,17 @@ export default function MistakesSection({
                     </option>
                   ))}
                 </select>
-              </div>
-            </div>
-
-            <div className={style.prSummaryGrid}>
-              <PRCard
-                label="Total PR"
-                pr={totalPR}
-                decisionCount={checkerPR.totalDecisions + cubePR.totalDecisions}
-              />
-              <PRCard label="Checker PR" pr={checkerPR.pr} decisionCount={checkerPR.totalDecisions} />
-              <PRCard label="Cube PR" pr={cubePR.pr} decisionCount={cubePR.totalDecisions} />
+              </label>
             </div>
           </div>
 
-          <div className={style.boardAndTablesRow}>
+          <div className={style.layout}>
             <div className={style.boardColumn}>
-              <BoardPanel selected={selected} moveTab={moveTab} canEditNotes={matchNotes.canEdit} />
+              {selected && <p className={style.contextLine(bleed)}>Game {selected.gameIndex}</p>}
+              <BoardPanel selected={selected} moveTab={moveTab} canEditNotes={matchNotes.canEdit} bleed={bleed} />
             </div>
 
-            <div className={style.tablesColumn}>
+            <div className={style.listsColumn}>
               <MistakeTable
                 title="Checker mistakes"
                 mistakes={checkerMistakes}
@@ -204,6 +198,7 @@ export default function MistakesSection({
                 selectedId={selected?.id ?? null}
                 onSelectRow={selectRow}
                 moveTab={moveTab}
+                bleed={bleed}
               />
 
               <MistakeTable
@@ -213,6 +208,7 @@ export default function MistakesSection({
                 selectedId={selected?.id ?? null}
                 onSelectRow={selectRow}
                 moveTab={moveTab}
+                bleed={bleed}
               />
             </div>
           </div>

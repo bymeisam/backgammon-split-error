@@ -20,8 +20,11 @@
  *   board      --board-frame --board-bone --board-point-dark
  *              --board-point-light --board-tray --board-number --board-shadow
  *              --checker-mine --checker-mine-rim --checker-opp
- *              --checker-opp-rim --arrow-best --arrow-error --arrow-blunder
- *   elevation  --shadow-color
+ *              --checker-opp-rim --checker-mine-ring --checker-opp-ring
+ *              --arrow-best --arrow-good --arrow-error --arrow-blunder
+ *              --die-stroke
+ *   elevation  --shadow-color --scrim
+ *   chrome     --primary --on-primary (primary buttons) --nav-bg (navbar)
  *   nav mode   --mode-ok --mode-warn
  *   fonts      --theme-font-sans --theme-font-serif --theme-font-mono
  *              (the next/font variables from app/layout.tsx)
@@ -79,11 +82,20 @@
   --checker-mine-rim: #000000;
   --checker-opp: #f7f2e7;
   --checker-opp-rim: #7e725e;
+  --checker-mine-ring: rgb(255 255 255 / 0.16); /* the turned ring */
+  --checker-opp-ring: rgb(0 0 0 / 0.12);
   --arrow-best: #12855e;
+  --arrow-good: #4e5d72; /* Good's slate, darkened for the bone */
   --arrow-error: #a86f00;
   --arrow-blunder: #d3203f;
+  --die-stroke: rgb(0 0 0 / 0.35);
   /* elevation */
   --shadow-color: rgb(60 45 25 / 0.07);
+  --scrim: rgb(29 27 23 / 0.4); /* behind a modal */
+  /* primary actions and the navbar */
+  --primary: var(--ink);
+  --on-primary: var(--paper);
+  --nav-bg: color-mix(in srgb, var(--surface) 88%, transparent);
   /* the navbar's mode dot */
   --mode-ok: #0b7a55;
   --mode-warn: #8f5f00;
@@ -119,12 +131,14 @@
   --board-tray: #1e1610;
   --board-number: #a8987c;
   --board-shadow: rgb(0 0 0 / 0.6);
-  --checker-mine-rim: #5e584f;
+  --checker-mine-rim: #7a7266; /* lighter, so a mine checker shows on the dark bar */
   /* darker than the report's, which are under 3:1 on the dimmed bone */
   --arrow-best: #0a6446;
+  --arrow-good: #3f4b5c;
   --arrow-error: #7a5200;
   --arrow-blunder: #a8162f;
   --shadow-color: rgb(0 0 0 / 0.45);
+  --scrim: rgb(0 0 0 / 0.6);
   --mode-ok: #4ade9f;
   --mode-warn: #fbbd23;
 }
@@ -156,12 +170,14 @@
     --board-tray: #1e1610;
     --board-number: #a8987c;
     --board-shadow: rgb(0 0 0 / 0.6);
-    --checker-mine-rim: #5e584f;
+    --checker-mine-rim: #7a7266; /* lighter, so a mine checker shows on the dark bar */
     /* darker than the report's, which are under 3:1 on the dimmed bone */
     --arrow-best: #0a6446;
+    --arrow-good: #3f4b5c;
     --arrow-error: #7a5200;
     --arrow-blunder: #a8162f;
     --shadow-color: rgb(0 0 0 / 0.45);
+  --scrim: rgb(0 0 0 / 0.6);
     --mode-ok: #4ade9f;
     --mode-warn: #fbbd23;
   }

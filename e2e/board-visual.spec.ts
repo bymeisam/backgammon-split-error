@@ -313,17 +313,9 @@ test.describe("Shared markup visual regression", () => {
     // Same correctness-before-screenshot signal the board tests already
     // use for /mistakes — the click can land before hydration finishes.
     await expect(boardPanel(page)).toContainText(MULTI_ROW_DECISION.myLabel);
-    // Since 2026-10-07 the severity badges show full names ("Error", not
-    // "E"), which makes these two rows a few px wider than the 380px list,
-    // so its table scrolls horizontally — and the click above can leave it
-    // scrolled by a varying amount. Reset it to the left edge so the
-    // screenshot is deterministic.
-    await mistakeRowList(page)
-      .locator(".overflow-x-auto")
-      .first()
-      .evaluate((el) => {
-        el.scrollLeft = 0;
-      });
+    // Since 2026-10-08 (Clubroom phase 1b) the rows are a grid whose move
+    // cell wraps, so the list no longer scrolls sideways; the old
+    // scrollLeft reset is gone.
     await expect(mistakeRowList(page)).toHaveScreenshot("mistake-row-list.png");
   });
 

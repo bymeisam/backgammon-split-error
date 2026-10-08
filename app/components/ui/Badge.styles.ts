@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { style as shared } from "@/lib/styles/shared.styles";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
 // covers Badge.tsx, the generic compact-badge primitive ClassificationBadge/
@@ -6,14 +7,8 @@ import clsx from "clsx";
 export const style = {
   // Function, 2 params -> passed directly, matching Badge's own two
   // variable inputs (config.color, and the className prop a caller can use
-  // to extend it).
+  // to extend it). A config colour is a severity: a filled sans chip. No
+  // colour is a classification code: outlined mono (shared.codeChip).
   badge: (color: string | undefined, className: string): string =>
-    clsx(
-      "inline-flex items-center justify-center rounded-chip border px-1.5 py-1 text-[10.5px] font-semibold leading-none",
-      // A config color sets its own border (the severity badges are filled
-      // chips, lib/styles/shared.styles.ts's severityChip); the neutral
-      // default is outlined.
-      color ?? "border-line-strong text-ink-muted",
-      className
-    ),
+    clsx(color ? clsx(shared.severityChipShape, color) : shared.codeChip, className),
 } as const;

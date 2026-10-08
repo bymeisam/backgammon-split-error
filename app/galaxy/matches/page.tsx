@@ -224,10 +224,10 @@ export default function GalaxyMatchesPage() {
                             {m.userScore}–{m.opponentScore}
                           </td>
                           <td className={style.monoCell}>
-                            {m.userError.toFixed(3)}
+                            {m.userError.toFixed(2)}
                           </td>
                           <td className={style.monoCell}>
-                            {m.opponentError.toFixed(3)}
+                            {m.opponentError.toFixed(2)}
                           </td>
                           <td className={style.actionCell}>
                             {syncState?.status === "syncing" ? (

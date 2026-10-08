@@ -50,7 +50,12 @@ export default defineConfig({
     // that noise would also hide that class of real bug. Fixed the noise at
     // its source instead (--disable-gpu below), not by loosening the
     // comparison.
-    toHaveScreenshot: { animations: "disabled", maxDiffPixelRatio: 0 },
+    //
+    // stylePath: the navbar is sticky, so it would cover the top of an
+    // element screenshot after Playwright scrolls the element into view.
+    // e2e/screenshot.css makes it static during the screenshot only (no
+    // layout change: a sticky element keeps its place in the flow).
+    toHaveScreenshot: { animations: "disabled", maxDiffPixelRatio: 0, stylePath: "e2e/screenshot.css" },
   },
   projects: [
     {

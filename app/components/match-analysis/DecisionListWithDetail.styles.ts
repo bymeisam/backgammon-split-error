@@ -1,28 +1,24 @@
+import clsx from "clsx";
 import { style as shared } from "@/lib/styles/shared.styles";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
 // covers DecisionListWithDetail.tsx and its exclusive subcomponent
 // DecisionCard.tsx (used only by DecisionListWithDetail, same folder). The
-// list's own row/table markup is DecisionList.styles.ts's; listBadgeGroup
-// stays here since it wraps DecisionListWithDetail's own renderDetailCell
-// content (severity/classification badges + MoveDelta).
+// list card's markup is DecisionList.styles.ts's.
 export const style = {
-  // DecisionListWithDetail's own markup.
+  // DecisionListWithDetail's own markup: the replay layout.
   emptyStateText: shared.mutedText,
-  layout: "flex flex-col gap-6 lg:flex-row lg:items-start",
-  cardColumn: "flex-1 lg:min-w-0",
-  // 400px, and the list's move text may wrap, so the loss column is never
-  // clipped.
-  listWrapper: "flex w-full min-w-0 flex-col gap-2 lg:max-h-[80vh] lg:w-[400px] lg:shrink-0 lg:overflow-y-auto",
-  listBadgeGroup: "inline-flex flex-wrap items-center gap-1.5",
+  layout: "grid grid-cols-1 items-start gap-6 min-[980px]:grid-cols-[minmax(0,1fr)_380px]",
+  cardColumn: "min-w-0",
+  listWrapper: "flex min-w-0 flex-col min-[980px]:sticky min-[980px]:top-[76px] min-[980px]:max-h-[calc(100vh-96px)]",
+  loss: "font-mono text-xs tabular-nums text-ink-muted",
 
-  // DecisionCard.tsx's own markup. On a phone the card's padding is small,
-  // so the board keeps most of the width.
-  card: "flex flex-col gap-4 rounded-card border border-line bg-surface p-3 shadow-card sm:p-5",
-  cardHeader: "flex flex-wrap items-center justify-between gap-2 text-xs",
-  cardBadgeGroup: "flex flex-wrap items-center gap-2",
-  cardErrorText: "tabular-nums text-ink-muted",
-  cardLinkGroup: "flex flex-wrap items-center gap-4",
+  // DecisionCard.tsx's own markup: not a card — a context line, then the
+  // board, the Played/Best chips and the note card.
+  card: "flex flex-col gap-3",
+  contextLine: "flex flex-wrap items-center gap-2 text-[12.5px] text-ink-faint",
+  contextStrong: "font-semibold tabular-nums text-ink",
+  contextLinks: "ml-auto flex flex-wrap items-center gap-4",
   // Shared by "View match" and "View on Galaxy".
-  cardMatchLink: shared.textLink,
+  cardMatchLink: clsx(shared.textLink, "text-[12.5px]"),
 } as const;

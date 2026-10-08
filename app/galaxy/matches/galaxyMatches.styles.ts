@@ -38,8 +38,6 @@ export const style = {
   syncButton: shared.buttonSmall,
 
   // --- TokenModal.tsx ---
-  modalOverlay: shared.modalOverlay,
-  modalPanel: shared.modalPanel,
   modalHeading: shared.modalHeading,
   modalSubtext: clsx(shared.modalText, "mt-1"),
   tabRow: "inline-flex w-fit gap-1 rounded-control bg-sunken p-[3px]",

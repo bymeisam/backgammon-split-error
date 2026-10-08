@@ -157,7 +157,7 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     const option = card.options.find((o) => o.correct === step.correct) ?? card.options[0];
     await page.locator(`[data-option-key="${option.key.replace(/"/g, '\\"')}"]`).click();
     await page.getByTestId("review-verdict").waitFor();
-    if (!option.correct) await page.getByText("Recorded as Again.").waitFor();
+    if (!option.correct) await page.getByText("Recorded as Again ·").waitFor();
     await settle(page);
     const verdict = option.correct ? "correct" : "incorrect";
     await shoot(`review-${step.label}-back-${verdict}`, "viewport");

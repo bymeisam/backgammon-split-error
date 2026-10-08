@@ -3,6 +3,8 @@ import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { ErrorSeverity, type MistakeStat } from "@/lib/generated/prisma/client";
 import { getClassificationLabel } from "@/lib/classificationLabels";
 import PageShell from "@/app/components/ui/PageShell";
+import { categoryLabel } from "@/lib/listParams";
+import { formatDateTime } from "@/lib/formatDate";
 import { style } from "./matchesAnalysis.styles";
 
 // Server component, queried fresh on every request (no caching) — same
@@ -98,21 +100,21 @@ function BreakdownTable({
     <div className={style.tableWrapper}>
       <table className={style.table}>
         <thead>
-          <tr className={style.tableHeadRow}>
+          <tr>
             <th className={style.tableHeadCell}>{keyHeader}</th>
-            <th className={style.tableHeadCell}>Blunders</th>
-            <th className={style.tableHeadCell}>Errors</th>
+            <th className={style.tableHeadCellNumeric}>Blunders</th>
+            <th className={style.tableHeadCellNumeric}>Errors</th>
             {/* Galaxy's "Good" tier (stored DOUBTFUL): a mild tier, not an
                 error, but still broken out here. */}
-            <th className={style.tableHeadCell}>Good</th>
-            <th className={style.tableHeadCell}>Total</th>
+            <th className={style.tableHeadCellNumeric}>Good</th>
+            <th className={style.tableHeadCellNumeric}>Total</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.key} className={style.tableRow}>
               <td className={style.tableKeyCell}>
-                {paramName === "classification" ? getClassificationLabel(r.key) : r.key}
+                {paramName === "classification" ? getClassificationLabel(r.key) : categoryLabel(r.key)}
               </td>
               <td className={style.tableNumberCell}>
                 <CountLink href={mistakesHref(paramName, r.key, "blunder")} count={r.blunderCount} />
@@ -152,7 +154,7 @@ export default async function MatchesAnalysisPage() {
           recomputed in full at the end of every sync run. Total includes
           all severities (including Best decisions); Blunders/Errors/Good
           break that down.
-          {computedAt && <> Last computed {computedAt.toISOString()}.</>}{" "}
+          {computedAt && <> Last computed {formatDateTime(computedAt)}.</>}{" "}
           <Link href="/matches" className={style.backLink}>
             ← back to matches
           </Link>

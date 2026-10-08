@@ -4,8 +4,8 @@ import type { Decision } from "@/lib/mistakes";
 import type { MoveTab } from "@/lib/listSelection";
 import { style } from "./MoveDelta.styles";
 
-// A decision's my-move / best-move labels, color-coded (red blunder / amber
-// otherwise / green best). Each label is clickable when `onSelectTab` is
+// A decision's played move, coloured by its severity, with "best …" under
+// it when it wasn't the best play (a best play is plain ink, alone). Each label is clickable when `onSelectTab` is
 // given — stopping propagation so a click selects that tab rather than
 // (only) the surrounding list row. Shared by MistakesSection's tables,
 // DecisionListWithDetail's list and GameReplay's move list.
@@ -74,9 +74,9 @@ export default function MoveDelta({
           onSelectTab?.("best");
         }}
       >
-        {decision.bestLabel}
+        best <span className={style.bestMove}>{decision.bestLabel}</span>
+        {decision.bestDetail && <span className={style.bestDetail}>{decision.bestDetail}</span>}
       </span>
-      {decision.bestDetail && <span className={style.bestDetail}>{decision.bestDetail}</span>}
     </span>
   );
 }

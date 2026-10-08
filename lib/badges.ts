@@ -42,10 +42,15 @@ export const SEVERITY_TIER_LABELS = {
 } as const satisfies Record<SeverityTier, string>;
 
 // The tier a played move is coloured in (the move text in the lists, the
-// my-move box under the board): blunder and good as themselves, anything
-// else (an error, or no grade) as an error. Display only.
+// played chip under the board, the board's arrow): each severity as itself,
+// and null as Best. A null Decision.severity happens exactly when Galaxy's
+// errorSeverity is NONE, Galaxy's "Best" (lib/mistakes.ts's
+// severityFromErrorSeverity): locally 398,806 of 398,823 counted NONE rows
+// have rawError 0, and the other 17 are positive (the played move beat
+// Galaxy's rank 1). Display only: which rows are listed is isListedMistake's
+// job, unchanged.
 export function playedMoveTier(severity: Severity | null): SeverityTier {
-  return severity === "blunder" ? "blunder" : severity === "good" ? "good" : "error";
+  return severity ?? "best";
 }
 
 // The severity name for a stored ErrorSeverity value — what the /mistakes

@@ -9,16 +9,18 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // The page container, width and title are PageShell's.
 export const style = {
   backLink: shared.textLink,
-  // The filter bar: no box, a row of labelled controls.
+  // The Filter disclosure's row, and the form it shows (no box, a row of
+  // labelled controls).
+  filterRow: "-mt-3 flex flex-wrap items-center gap-x-4 gap-y-3",
   form: shared.filterBar,
   applyButton: shared.buttonSecondary,
   noFilterText: shared.faintText,
   mutedText: shared.mutedText,
   fallbackRow: "flex items-center gap-2 text-sm text-ink-faint",
+  // "39,028 checker blunders" with "Add all to review" on the right.
   countRow: "flex flex-wrap items-center justify-between gap-3",
+  resultText: "text-[13.5px] tabular-nums text-ink-muted",
   bulkAddButton: shared.buttonSecondary,
-  modalOverlay: shared.modalOverlay,
-  modalPanel: shared.modalPanel,
   modalHeading: shared.modalHeading,
   modalText: shared.modalText,
   modalError: shared.modalError,

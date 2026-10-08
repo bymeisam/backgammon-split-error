@@ -3,10 +3,12 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { findPositionOccurrences, loadDecisionItems } from "@/lib/decisionQueries";
+import { listRepeatedPositions } from "@/lib/repeatedPositionQueries";
 import {
   PAGE_SIZE_OPTIONS,
   buildQueryString,
-  describeFilters,
+  describeResultCount,
+  filterSummary,
   parseListParams,
   positiveIntParam,
   severityFromParam,
@@ -21,8 +23,9 @@ import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
 import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
 import PageShell from "@/app/components/ui/PageShell";
+import FilterDisclosure from "@/app/components/ui/FilterDisclosure";
 import { severityLabel, severityTier } from "@/lib/badges";
-import { getClassificationLabel, phaseOptionsFor, resolvePhaseWhere } from "@/lib/classificationLabels";
+import { getClassificationLabel, getPhaseLabel, phaseOptionsFor, resolvePhaseWhere } from "@/lib/classificationLabels";
 import { style } from "./repeatedPositions.styles";
 
 // Server component, queried fresh on every request — same pattern
@@ -94,12 +97,7 @@ async function PositionListSection({ filters }: { filters: Filters }) {
 
   const [total, positions] = await Promise.all([
     prisma.repeatedPosition.count({ where }),
-    prisma.repeatedPosition.findMany({
-      where,
-      orderBy: { occurrenceCount: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
+    listRepeatedPositions(where, { skip: (page - 1) * pageSize, take: pageSize }),
   ]);
 
   const baseParams = {
@@ -110,9 +108,8 @@ async function PositionListSection({ filters }: { filters: Filters }) {
 
   return (
     <>
-      <p className={style.mutedText}>
-        {total.toLocaleString()} {describeFilters(phase, severityParamLabel(severityParam))} repeated position
-        {total === 1 ? "" : "s"}.
+      <p className={style.resultText}>
+        {describeResultCount(total, { phase, severity: errorSeverity, noun: "repeated position" })}
       </p>
 
       {positions.length === 0 ? (
@@ -121,36 +118,38 @@ async function PositionListSection({ filters }: { filters: Filters }) {
         <div className={style.positionTable}>
           <table className={style.positionTableInner}>
             <thead>
-              <tr className={style.positionTableHead}>
+              <tr>
                 <th className={style.positionTableHeadCell}>Classification</th>
                 <th className={style.positionTableHeadCell}>Severity</th>
                 <th className={style.positionTableHeadCell}>Position ID</th>
-                <th className={style.positionTableHeadCell}>Times faced</th>
-                <th className={style.positionTableHeadCell}></th>
+                <th className={style.positionTableHeadCellNumeric}>Times faced</th>
+                <th className={style.chevronCell} aria-hidden="true"></th>
               </tr>
             </thead>
             <tbody>
               {positions.map((p) => (
                 <tr key={p.id} className={style.positionRow}>
-                  <td className={style.positionBadgeCell}>
+                  <td className={style.positionCell}>
                     <ClassificationBadge type={p.classification} />
                   </td>
-                  <td className={style.positionBadgeCell}>
+                  <td className={style.positionCell}>
                     <SeverityBadge type={severityTier(p.errorSeverity)} />
                   </td>
                   <td className={style.positionCell}>
-                    <span className={style.positionIdText}>{p.sourcePositionId}</span>
-                  </td>
-                  <td className={style.positionCell}>
-                    <span className={style.occurrenceCount}>{p.occurrenceCount}×</span>
-                  </td>
-                  <td className={style.positionCell}>
+                    {/* The row's one link, stretched over the whole row. */}
                     <Link
                       href={`/repeated-positions${buildQueryString({ ...baseParams, positionId: String(p.id) })}`}
-                      className={style.viewLink}
+                      className={style.positionLink}
                     >
-                      View →
+                      {p.sourcePositionId}
                     </Link>
+                  </td>
+                  <td className={style.positionCountCell}>
+                    <span className={style.occurrenceCount}>{p.occurrenceCount}</span>
+                    <span className={style.occurrenceTimes}>×</span>
+                  </td>
+                  <td className={style.chevronCell} aria-hidden="true">
+                    ›
                   </td>
                 </tr>
               ))}
@@ -257,20 +256,33 @@ export default async function RepeatedPositionsPage({
         </>
       }
     >
-      <form method="get" className={style.form}>
-        <Suspense fallback={<FilterSelectFallback labels={["Phase", "Severity"]} />}>
-          <FilterSelects phase={phase} severityParam={severityParam} />
-        </Suspense>
-        <FilterSelect
-          label="Per page"
-          name="pageSize"
-          defaultValue={String(pageSize)}
-          options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
-        />
-        <button type="submit" className={style.applyButton}>
-          Apply
-        </button>
-      </form>
+      <div className={style.filterRow}>
+        <FilterDisclosure
+          summary={filterSummary([
+            [phase ? getPhaseLabel(phase) : undefined, "Any phase"],
+            [severityParamLabel(severityParam), "All severities"],
+            [`${pageSize} per page`, ""],
+          ])}
+          // With no filter (and no position picked) there's nothing to list
+          // yet, so the form shows.
+          defaultOpen={!hasFilter && !positionId}
+        >
+          <form method="get" className={style.form}>
+            <Suspense fallback={<FilterSelectFallback labels={["Phase", "Severity"]} />}>
+              <FilterSelects phase={phase} severityParam={severityParam} />
+            </Suspense>
+            <FilterSelect
+              label="Per page"
+              name="pageSize"
+              defaultValue={String(pageSize)}
+              options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+            />
+            <button type="submit" className={style.applyButton}>
+              Apply
+            </button>
+          </form>
+        </FilterDisclosure>
+      </div>
 
       {positionId ? (
         <Suspense fallback={<PositionListFallback />}>
@@ -281,7 +293,7 @@ export default async function RepeatedPositionsPage({
           <PositionListSection filters={{ phase, severityParam, pageSize, page }} />
         </Suspense>
       ) : (
-        <p className={style.noFilterText}>Select a filter above to see repeated positions.</p>
+        <p className={style.noFilterText}>Choose a filter to see repeated positions.</p>
       )}
     </PageShell>
   );

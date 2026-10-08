@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   BAR_COL,
+  BOARD_H,
+  BOARD_W,
   CUBE_BADGE_R,
   CUBE_COL_W,
-  MARGIN,
+  DIE_SIZE,
+  MARGIN_X,
   MAX_STACK,
+  OFF_TRACK_W,
+  OFF_TRACK_X,
   OFF_COL,
   OFF_SLOTS,
   ROW_H,
@@ -14,6 +19,9 @@ import {
   colCenterX,
   colX,
   cubeBadgeCenter,
+  diePips,
+  diePosition,
+  offTrayRect,
   offeredCubeCenter,
   isOffSlotFilled,
   moveAnchor,
@@ -24,6 +32,7 @@ import {
   pointRow,
   stackBase,
   stackSlotY,
+  trianglePoints,
   type Side,
 } from "@/lib/boardGeometry";
 import { decodeGnuPositionId, flipPerspective, type DecodedPosition } from "@/lib/gnuPositionId";
@@ -60,6 +69,62 @@ function offSlotAt(y: number, side: Side): number {
   const { trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
   return Math.round((y - trackTop - slotSpan / 2) / slotSpan);
 }
+
+// The Clubroom mockup's board (design/mockups/replay.html's board(); the
+// fidelity spec's §2.1 table).
+describe("Clubroom board geometry", () => {
+  it("has the mockup's 562 × 380 board and its column edges", () => {
+    expect([BOARD_W, BOARD_H]).toEqual([562, 380]);
+    expect(colX(0)).toBe(44);
+    expect(colX(BAR_COL)).toBe(260);
+    expect(colX(BAR_COL + 1)).toBe(290);
+    expect(colX(OFF_COL)).toBe(506);
+    expect([Y0, Y1]).toEqual([20, 360]);
+  });
+
+  it("puts points where the mockup's px() does, with 17u half-width triangles 148u tall", () => {
+    const mockupX = (p: number) =>
+      p >= 19 ? 290 + 18 + (p - 19) * 36 : p >= 13 ? 44 + 18 + (p - 13) * 36 : p >= 7 ? 44 + 18 + (12 - p) * 36 : 290 + 18 + (6 - p) * 36;
+    for (const p of POINTS) expect(stackBase(p).cx).toBe(mockupX(p));
+    expect(trianglePoints(1)).toBe("471,360 505,360 488,212");
+    expect(trianglePoints(13)).toBe("45,20 79,20 62,168");
+  });
+
+  it("stacks checkers 32u apart from 17u inside the edge (the mockup's cy)", () => {
+    expect([stackSlotY(stackBase(1), 0), stackSlotY(stackBase(1), 4)]).toEqual([343, 215]);
+    expect([stackSlotY(stackBase(24), 0), stackSlotY(stackBase(24), 4)]).toEqual([37, 165]);
+    expect(barStackBase("mine").cx).toBe(275);
+  });
+
+  it("draws the 34u trays at x=514, 8u apart across the centre line", () => {
+    expect(offTrayRect("opponent")).toEqual({ x: 514, y: 20, width: 34, height: 166 });
+    expect(offTrayRect("mine")).toEqual({ x: 514, y: 194, width: 34, height: 166 });
+    expect([OFF_TRACK_X, OFF_TRACK_W]).toEqual([519, 24]);
+    expect(offTrayBounds("opponent")).toEqual({ topY: 24, bottomY: 182, badgeAtBottom: true });
+    expect(offTrayBounds("mine")).toEqual({ topY: 198, bottomY: 356, badgeAtBottom: false });
+  });
+
+  it("places the 26u cube at x=16 in the gutter: y 177 centred, 24 opponent, 330 mine", () => {
+    const rectY = (owner: "center" | Side) => cubeBadgeCenter(owner).y - CUBE_BADGE_R;
+    expect(cubeBadgeCenter("center").x - CUBE_BADGE_R).toBe(16);
+    expect([rectY("center"), rectY("opponent"), rectY("mine")]).toEqual([177, 24, 330]);
+    expect([offeredCubeCenter("mine"), offeredCubeCenter("opponent")]).toEqual([
+      { x: 275, y: 345 },
+      { x: 275, y: 35 },
+    ]);
+  });
+
+  it("centres the two 26u dice, 8u apart, on the right half at y=190", () => {
+    expect(DIE_SIZE).toBe(26);
+    expect(diePosition(0)).toEqual({ x: 368, y: 177 });
+    expect(diePosition(1)).toEqual({ x: 402, y: 177 });
+  });
+
+  it("has value-many pips for 1-6 and none otherwise", () => {
+    for (let v = 1; v <= 6; v++) expect(diePips(v)).toHaveLength(v);
+    for (const v of [0, 7, 2.5, NaN, "toString" as unknown as number]) expect(diePips(v)).toEqual([]);
+  });
+});
 
 describe("pointColumn / pointRow", () => {
   it("never places a point in the bar or off-tray column", () => {
@@ -297,8 +362,8 @@ describe("moveAnchor — flipped (mover's checkers in decoded.opponent)", () => 
 });
 
 describe("cube gutter / cubeBadgeCenter", () => {
-  it("shifts the whole existing grid right by CUBE_COL_W, leaving relative column spacing untouched", () => {
-    const unshiftedBarX = MARGIN + 6 * 48; // 6 point columns (POINT_W=48) before the bar, pre-gutter
+  it("shifts the whole grid right by CUBE_COL_W, leaving relative column spacing untouched", () => {
+    const unshiftedBarX = MARGIN_X + 6 * 36; // 6 point columns (POINT_W=36) before the bar, pre-gutter
     expect(colX(BAR_COL)).toBe(unshiftedBarX + CUBE_COL_W);
   });
 
@@ -329,8 +394,8 @@ describe("cube gutter / cubeBadgeCenter", () => {
 
   it("sits left of the main grid, inside the new gutter", () => {
     const { x } = cubeBadgeCenter("center");
-    expect(x).toBeGreaterThan(MARGIN);
-    expect(x).toBeLessThan(MARGIN + CUBE_COL_W);
+    expect(x).toBeGreaterThan(MARGIN_X);
+    expect(x).toBeLessThan(MARGIN_X + CUBE_COL_W);
     expect(x).toBeLessThan(colX(0));
   });
 });

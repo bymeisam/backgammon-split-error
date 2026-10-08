@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local (see .claude/skills/styling-conventions) — covers
@@ -8,22 +9,25 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // own styles. The page container, width and title are PageShell's.
 export const style = {
   backLink: shared.textLink,
-  // The filter bar: no box, a row of labelled controls.
+  // The Filter disclosure's row, and the form it shows.
+  filterRow: "-mt-3 flex flex-wrap items-center gap-x-4 gap-y-3",
   form: shared.filterBar,
   applyButton: shared.buttonSecondary,
   noFilterText: shared.faintText,
   mutedText: shared.mutedText,
+  resultText: "text-[13.5px] tabular-nums text-ink-muted",
   fallbackRow: "flex items-center gap-2 text-sm text-ink-faint",
   fallbackSpinner: shared.spinner,
 
   positionTable: shared.tableWrapper,
   positionTableInner: shared.table,
-  positionTableHead: shared.tableHeadRow,
   positionTableHeadCell: shared.tableHeadCell,
-  positionRow: `${shared.tableRow} transition-colors hover:bg-sunken`,
+  positionTableHeadCellNumeric: shared.tableHeadCellNumeric,
+  positionRow: shared.tableRowClickable,
   positionCell: shared.tableCell,
-  positionBadgeCell: shared.tableCell,
-  positionIdText: "font-mono text-xs text-ink-muted",
-  occurrenceCount: "font-semibold tabular-nums text-ink",
-  viewLink: shared.textLink,
+  positionLink: clsx("font-mono text-[12.5px] text-ink-muted", shared.tableRowLink),
+  positionCountCell: shared.tableCellNumeric,
+  occurrenceCount: "font-serif text-lg font-medium leading-none tabular-nums text-ink",
+  occurrenceTimes: "ml-0.5 font-sans text-[11px] text-ink-faint",
+  chevronCell: shared.tableChevronCell,
 } as const;

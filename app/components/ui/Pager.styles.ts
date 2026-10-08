@@ -5,7 +5,7 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // client-side match lists (/matches, /galaxy/matches).
 export const style = {
   row: "flex items-center justify-between",
-  pageIndicator: "text-sm tabular-nums text-ink-muted",
+  pageIndicator: "text-[13px] tabular-nums text-ink-muted",
   // The disabled look comes from shared's disabled:opacity-40 plus the
   // HTML `disabled` attribute.
   button: shared.buttonSecondary,

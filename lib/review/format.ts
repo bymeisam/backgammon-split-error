@@ -36,15 +36,16 @@ export function formatMatchContext(ctx: DecisionMatchContext | null): string {
 export type CardQuestionKind = "checker" | "doubler" | "receiver";
 
 // The question header, always second person — even for an opponent's
-// decision: the user is learning to make that decision themselves.
-export function questionFor(kind: CardQuestionKind): string {
+// decision: the user is learning to make that decision themselves. Two
+// parts: the situation, and the question (set in italics).
+export function questionFor(kind: CardQuestionKind): { lead: string; ask: string } {
   switch (kind) {
     case "checker":
-      return "Your move";
+      return { lead: "Your move.", ask: "What do you play?" };
     case "doubler":
-      return "Your roll: cube action?";
+      return { lead: "Cube action.", ask: "What do you do?" };
     case "receiver":
-      return "Opponent doubled: take or pass?";
+      return { lead: "Opponent doubles.", ask: "Take or pass?" };
   }
 }
 

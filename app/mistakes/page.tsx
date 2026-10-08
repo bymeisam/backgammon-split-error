@@ -6,11 +6,14 @@ import { DECISION_LIST_SELECT, loadDecisionItems } from "@/lib/decisionQueries";
 import {
   PAGE_SIZE_OPTIONS,
   categoryFromParam,
-  describeFilters,
-  lowercaseOptions,
+  categoryLabel,
+  categoryOptions,
+  describeResultCount,
+  filterSummary,
   lowercaseParam,
   parseListParams,
   mistakesWhere,
+  severityFromParam,
   severityOptions,
   severityParamLabel,
   totalPagesFor,
@@ -20,7 +23,8 @@ import DecisionListWithDetail from "@/app/components/match-analysis/DecisionList
 import { FilterSelect, FilterSelectFallback } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
 import PageShell from "@/app/components/ui/PageShell";
-import { phaseOptionsFor } from "@/lib/classificationLabels";
+import FilterDisclosure from "@/app/components/ui/FilterDisclosure";
+import { getPhaseLabel, phaseOptionsFor } from "@/lib/classificationLabels";
 import BulkAddToReview from "./BulkAddToReview";
 import { style } from "./mistakes.styles";
 
@@ -75,7 +79,7 @@ async function FilterSelects({
         label="Category"
         name="category"
         defaultValue={categoryParam ?? ""}
-        options={lowercaseOptions(categories)}
+        options={categoryOptions(categories)}
         emptyLabel="All"
       />
       <FilterSelect
@@ -135,9 +139,13 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   return (
     <>
       <div className={style.countRow}>
-        <p className={style.mutedText}>
-          {total.toLocaleString()} {describeFilters(phase, category ? categoryParam : undefined, severityParamLabel(severityParam))} decision
-          {total === 1 ? "" : "s"}.
+        <p className={style.resultText}>
+          {describeResultCount(total, {
+            phase,
+            category: category ? categoryParam : undefined,
+            severity: severityFromParam(severityParam),
+            noun: "decision",
+          })}
         </p>
         {/* Write mode only (the bulk route is gated by proxy.ts anyway). */}
         {isGalaxyEnabled() && total > 0 && (
@@ -195,27 +203,40 @@ export default async function MistakesPage({
         </>
       }
     >
-      <form method="get" className={style.form}>
-        <Suspense fallback={<FilterSelectFallback labels={["Phase", "Category", "Severity"]} />}>
-          <FilterSelects phase={phase} categoryParam={categoryParam} severityParam={severityParam} />
-        </Suspense>
-        <FilterSelect
-          label="Per page"
-          name="pageSize"
-          defaultValue={String(pageSize)}
-          options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
-        />
-        <button type="submit" className={style.applyButton}>
-          Apply
-        </button>
-      </form>
+      <div className={style.filterRow}>
+        <FilterDisclosure
+          summary={filterSummary([
+            [phase ? getPhaseLabel(phase) : undefined, "Any phase"],
+            [categoryFromParam(categoryParam) ? categoryLabel(categoryParam!) : undefined, "All categories"],
+            [severityParamLabel(severityParam), "All severities"],
+            [`${pageSize} per page`, ""],
+          ])}
+          // With no filter there's nothing to list yet, so the form shows.
+          defaultOpen={!hasFilter}
+        >
+          <form method="get" className={style.form}>
+            <Suspense fallback={<FilterSelectFallback labels={["Phase", "Category", "Severity"]} />}>
+              <FilterSelects phase={phase} categoryParam={categoryParam} severityParam={severityParam} />
+            </Suspense>
+            <FilterSelect
+              label="Per page"
+              name="pageSize"
+              defaultValue={String(pageSize)}
+              options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+            />
+            <button type="submit" className={style.applyButton}>
+              Apply
+            </button>
+          </form>
+        </FilterDisclosure>
+      </div>
 
       {hasFilter ? (
         <Suspense fallback={<DecisionListFallback />}>
           <DecisionListSection filters={{ phase, categoryParam, severityParam, pageSize, page }} />
         </Suspense>
       ) : (
-        <p className={style.noFilterText}>Select a filter above to see matching decisions.</p>
+        <p className={style.noFilterText}>Choose a filter to see matching decisions.</p>
       )}
     </PageShell>
   );

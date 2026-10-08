@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { shortcutsFor } from "@/lib/shortcuts";
+import Modal from "./Modal";
 import { style } from "./AppNav.styles";
 
 function isTyping(target: EventTarget | null): boolean {
@@ -30,10 +31,6 @@ export default function ShortcutsHelp({ writeEnabled }: { writeEnabled: boolean 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  useEffect(() => {
-    if (open) closeRef.current?.focus();
-  }, [open]);
-
   const groups = shortcutsFor(pathname, writeEnabled);
 
   return (
@@ -47,68 +44,52 @@ export default function ShortcutsHelp({ writeEnabled }: { writeEnabled: boolean 
       >
         ?
       </button>
-      {open && (
-        <div
-          className={style.modalOverlay}
-          onClick={() => setOpen(false)}
-          // Keys pressed while the help is open stay here: they never reach
-          // the page's own window-level handlers (the review session's
-          // Enter, the replay's arrows), the same way TagEditor's input
-          // keeps them.
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Escape" || e.key === "?") {
-              e.preventDefault();
-              setOpen(false);
-            }
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="shortcuts-help-title"
-            data-testid="shortcuts-help"
-            // Focusable, so a click inside the panel keeps the focus (and
-            // the keys) inside the dialog.
-            tabIndex={-1}
-            className={style.modalPanel}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="shortcuts-help-title" className={style.modalHeading}>
-              Keyboard shortcuts
-            </h2>
-            <div className={style.helpGroups}>
-              {groups.map((group) => (
-                <section key={group.title}>
-                  <h3 className={style.helpGroupTitle}>{group.title}</h3>
-                  {group.shortcuts.map((s) => (
-                    <div key={`${s.keys.join("+")}-${s.description}`} className={style.helpRow}>
-                      <span className={style.helpKeys}>
-                        {s.keys.map((k, i) => (
-                          <kbd key={`${i}-${k}`} className={style.kbd}>
-                            {k}
-                          </kbd>
-                        ))}
-                      </span>
-                      <span>{s.description}</span>
-                    </div>
-                  ))}
-                </section>
+      {/* A native <dialog> (Modal): the top layer, outside the navbar's
+          backdrop-filter containing block. Keys pressed while it's open
+          stay in it (Modal stops them), so they never reach the page's own
+          window-level handlers (the review session's Enter, the replay's
+          arrows); "?" closes it again. */}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        labelledBy="shortcuts-help-title"
+        initialFocusRef={closeRef}
+        testId="shortcuts-help"
+        onKeyDown={(e) => {
+          if (e.key === "?") {
+            e.preventDefault();
+            setOpen(false);
+          }
+        }}
+      >
+        <h2 id="shortcuts-help-title" className={style.modalHeading}>
+          Keyboard shortcuts
+        </h2>
+        <div className={style.helpGroups}>
+          {groups.map((group) => (
+            <section key={group.title}>
+              <h3 className={style.helpGroupTitle}>{group.title}</h3>
+              {group.shortcuts.map((s) => (
+                <div key={`${s.keys.join("+")}-${s.description}`} className={style.helpRow}>
+                  <span className={style.helpKeys}>
+                    {s.keys.map((k, i) => (
+                      <kbd key={`${i}-${k}`} className={style.kbd}>
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                  <span>{s.description}</span>
+                </div>
               ))}
-            </div>
-            <div className={style.modalButtons}>
-              <button
-                ref={closeRef}
-                type="button"
-                onClick={() => setOpen(false)}
-                className={style.modalSecondaryButton}
-              >
-                Close
-              </button>
-            </div>
-          </div>
+            </section>
+          ))}
         </div>
-      )}
+        <div className={style.modalButtons}>
+          <button ref={closeRef} type="button" onClick={() => setOpen(false)} className={style.modalSecondaryButton}>
+            Close
+          </button>
+        </div>
+      </Modal>
     </>
   );
 }

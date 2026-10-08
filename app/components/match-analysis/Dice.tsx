@@ -4,27 +4,20 @@ import type { Side } from "@/lib/boardGeometry";
 import { CHECKER_PALETTE } from "@/lib/checkerPalette";
 import { style } from "./Dice.styles";
 
+// Pip centres in a 100 × 100 die (the Clubroom mockup's miniDie).
 const PIPS: Record<number, [number, number][]> = {
   1: [[50, 50]],
-  2: [[25, 25], [75, 75]],
-  3: [[25, 25], [50, 50], [75, 75]],
-  4: [[25, 25], [75, 25], [25, 75], [75, 75]],
-  5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
-  6: [[25, 25], [75, 25], [25, 50], [75, 50], [25, 75], [75, 75]],
+  2: [[28, 28], [72, 72]],
+  3: [[28, 28], [50, 50], [72, 72]],
+  4: [[28, 28], [72, 28], [28, 72], [72, 72]],
+  5: [[28, 28], [72, 28], [50, 50], [28, 72], [72, 72]],
+  6: [[28, 25], [72, 25], [28, 50], [72, 50], [28, 75], [72, 75]],
 };
 
-type DiceColor = Side;
-
-// Face, pip and outline come from the board's own checker palette (theme
-// tokens), so a die always matches its player's checkers.
-const COLORS: Record<DiceColor, { face: string; pip: string; stroke: string }> = {
-  mine: { face: CHECKER_PALETTE.mine.fill, pip: CHECKER_PALETTE.mine.contrast, stroke: CHECKER_PALETTE.mine.rim },
-  opponent: {
-    face: CHECKER_PALETTE.opponent.fill,
-    pip: CHECKER_PALETTE.opponent.contrast,
-    stroke: CHECKER_PALETTE.opponent.rim,
-  },
-};
+// "mini": the move lists' neutral dice (surface face, ink pips), not
+// checker-coloured — the board draws its own (Board.tsx's BoardDie).
+// "checker": a die in a player's checker colours.
+export type DiceVariant = "mini" | Side;
 
 // Pip positions for a die value; none for anything outside 1-6. Values come
 // from Galaxy's JSON (rolled_dice) unvalidated, so this is an own-property
@@ -34,14 +27,24 @@ export function pipsFor(value: number): [number, number][] {
   return Object.hasOwn(PIPS, value) ? PIPS[value] : [];
 }
 
-function Die({ value, size = 20, color = "opponent" }: { value: number; size?: number; color?: DiceColor }) {
+function Die({ value, size, variant }: { value: number; size: number; variant: DiceVariant }) {
   const pips = pipsFor(value);
-  const { face, pip, stroke } = COLORS[color];
+  if (variant === "mini") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={`Die: ${value}`}>
+        <rect x={6} y={6} width={88} height={88} rx={20} className={style.miniFace} />
+        {pips.map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r={10} className={style.miniPip} />
+        ))}
+      </svg>
+    );
+  }
+  const { fill, contrast, rim } = CHECKER_PALETTE[variant];
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={`Die: ${value}`}>
-      <rect x={4} y={4} width={92} height={92} rx={18} fill={face} stroke={stroke} strokeWidth={4} />
+      <rect x={4} y={4} width={92} height={92} rx={18} fill={fill} stroke={rim} strokeWidth={4} />
       {pips.map(([cx, cy], i) => (
-        <circle key={i} cx={cx} cy={cy} r={10} fill={pip} />
+        <circle key={i} cx={cx} cy={cy} r={10} fill={contrast} />
       ))}
     </svg>
   );
@@ -49,18 +52,18 @@ function Die({ value, size = 20, color = "opponent" }: { value: number; size?: n
 
 export function DiceRoll({
   roll,
-  size = 20,
-  color = "opponent",
+  size = 16,
+  variant = "mini",
 }: {
   roll: number[];
   size?: number;
-  color?: DiceColor;
+  variant?: DiceVariant;
 }) {
   if (roll.length === 0) return null;
   return (
     <span className={style.rollWrapper}>
       {roll.map((v, i) => (
-        <Die key={i} value={v} size={size} color={color} />
+        <Die key={i} value={v} size={size} variant={variant} />
       ))}
     </span>
   );

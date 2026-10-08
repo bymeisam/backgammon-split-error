@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Modal from "@/app/components/ui/Modal";
 import { style } from "./reviewCards.styles";
 
 // Suspend / unsuspend and delete for one card on /review/cards (write mode
@@ -53,31 +54,31 @@ export default function CardActions({ cardId, suspended }: { cardId: number; sus
       </button>
       {error && <span className={style.errorText}>{error}</span>}
 
-      {confirming && (
-        <div className={style.modalOverlay} role="dialog" aria-modal="true" aria-labelledby={`delete-${cardId}`}>
-          <div data-testid="delete-card-dialog" className={style.modalPanel}>
-            <h2 id={`delete-${cardId}`} className={style.modalHeading}>
-              Delete this card?
-            </h2>
-            <p className={style.modalText}>
-              Its review history goes with it. The decision, its note and its tags stay.
-            </p>
-            <div className={style.modalButtons}>
-              <button type="button" onClick={() => setConfirming(false)} className={style.modalSecondaryButton}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => send({ method: "DELETE" })}
-                className={style.modalPrimaryButton}
-              >
-                {busy ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={confirming}
+        dismissible={!busy}
+        onClose={() => setConfirming(false)}
+        labelledBy={`delete-${cardId}`}
+        testId="delete-card-dialog"
+      >
+        <h2 id={`delete-${cardId}`} className={style.modalHeading}>
+          Delete this card?
+        </h2>
+        <p className={style.modalText}>Its review history goes with it. The decision, its note and its tags stay.</p>
+        <div className={style.modalButtons}>
+          <button type="button" onClick={() => setConfirming(false)} className={style.modalSecondaryButton}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => send({ method: "DELETE" })}
+            className={style.modalPrimaryButton}
+          >
+            {busy ? "Deleting…" : "Delete"}
+          </button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

@@ -2,15 +2,15 @@
 
 import { useMemo } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import { localGamesError } from "@/lib/sequentialGames";
 import { GALAXY_SOURCE, externalMatchUrl } from "@/lib/externalMatchUrl";
 import { extractPlayerOptions } from "@/lib/mistakes";
-import { resolveOpponentIdentity } from "@/lib/playerIdentity";
+import { resolveMyIdentity, resolveOpponentIdentity } from "@/lib/playerIdentity";
 import { useSequentialGames } from "@/app/hooks/useSequentialGames";
 import { usePlayerIdentities } from "@/app/hooks/usePlayerIdentities";
 import MistakesSection from "@/app/components/match-analysis/MistakesSection";
-import PageShell from "@/app/components/ui/PageShell";
+import PageShell, { VsTitle } from "@/app/components/ui/PageShell";
+import GameSwitcher from "@/app/components/ui/GameSwitcher";
 import { style } from "./matchDetail.styles";
 
 export default function MatchAnalysisPage() {
@@ -33,21 +33,34 @@ export default function MatchAnalysisPage() {
   // loaded games' players — the same identity list MistakesSection loads.
   // "Match <id>" until it resolves (or if it doesn't).
   const identities = usePlayerIdentities();
-  const opponent = useMemo(
-    () => resolveOpponentIdentity(identities, extractPlayerOptions(games).map((p) => p.userId)),
-    [identities, games]
-  );
+  const playerIds = useMemo(() => extractPlayerOptions(games).map((p) => p.userId), [games]);
+  const opponent = useMemo(() => resolveOpponentIdentity(identities, playerIds), [identities, playerIds]);
+  // "You: meisam2" in the sub line — the same rule MistakesSection uses to
+  // pick whose mistakes it lists (lib/playerIdentity.ts).
+  const me = useMemo(() => resolveMyIdentity(identities, playerIds), [identities, playerIds]);
   const crumbLabel = opponent ? `${opponent.displayName} (${matchId})` : `Match ${matchId}`;
 
   return (
     <PageShell
+      variant="detail"
       breadcrumbs={[{ label: "Matches", href: "/matches" }, { label: crumbLabel }]}
-      title={`Match ${matchId}`}
+      title={opponent ? <VsTitle name={opponent.displayName} /> : `Match ${matchId}`}
+      subtitle={
+        <>
+          Match {matchId}
+          {me && ` · You: ${me.displayName}`}
+        </>
+      }
       actions={
-        games.length > 0 && externalHref ? (
-          <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.externalLink}>
-            View on Galaxy ↗
-          </a>
+        games.length > 0 ? (
+          <>
+            <GameSwitcher matchId={matchId} games={games.map((g) => g.gameIndex)} label="Replay" />
+            {externalHref && (
+              <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.externalLink}>
+                View on Galaxy ↗
+              </a>
+            )}
+          </>
         ) : null
       }
     >
@@ -61,22 +74,7 @@ export default function MatchAnalysisPage() {
         </div>
       )}
 
-      {games.length > 0 && (
-        <div className={style.replayRow}>
-          <span className={style.replayLabel}>Replay:</span>
-          {games.map((g) => (
-            <Link
-              key={g.gameIndex}
-              href={`/matches/${matchId}/replay/${g.gameIndex}`}
-              className={style.replayLink}
-            >
-              Game {g.gameIndex}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {!notIngested && <MistakesSection matchId={matchId} games={games} />}
+      {!notIngested && <MistakesSection matchId={matchId} games={games} bleed />}
     </PageShell>
   );
 }

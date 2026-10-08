@@ -55,10 +55,10 @@ describe("lastSyncedLabel", () => {
 
   it("says when and how many", () => {
     expect(lastSyncedLabel({ finishedAt: new Date(2026, 9, 8, 14, 50, 0), matchesSynced: 3 }, now)).toBe(
-      "Last synced 10 min ago · 3 matches"
+      "Synced 10 min ago · 3 matches"
     );
     expect(lastSyncedLabel({ finishedAt: new Date(2026, 9, 8, 14, 50, 0), matchesSynced: 1 }, now)).toBe(
-      "Last synced 10 min ago · 1 match"
+      "Synced 10 min ago · 1 match"
     );
   });
 

@@ -1,11 +1,20 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { lowercaseOptions, severityOptions, stringParam, type SearchParams } from "@/lib/listParams";
-import { phaseOptionsFor } from "@/lib/classificationLabels";
+import {
+  categoryLabel,
+  categoryOptions,
+  filterSummary,
+  severityOptions,
+  severityParamLabel,
+  stringParam,
+  type SearchParams,
+} from "@/lib/listParams";
+import { getPhaseLabel, phaseOptionsFor } from "@/lib/classificationLabels";
 import { reviewFiltersFrom } from "@/lib/review/filters";
 import { FilterSelect } from "@/app/components/ui/FilterSelect";
 import PageShell from "@/app/components/ui/PageShell";
+import FilterDisclosure from "@/app/components/ui/FilterDisclosure";
 import ReviewSession from "./ReviewSession";
 import { style } from "./review.styles";
 
@@ -42,16 +51,22 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const categories = [...new Set(stats.map((r) => r.category))].sort();
   const severities = [...new Set(stats.map((r) => r.errorSeverity))].sort();
 
-  return (
-    <PageShell
-      title="Review"
-      subtitle={
-        <>
-          Your due cards, one at a time.{" "}
-          <Link href="/review/cards" className={style.link}>
-            Manage cards
-          </Link>
-        </>
+  const tagName = tags.find((t) => String(t.id) === filters.tag)?.name;
+  const summary = filterSummary([
+    [filters.tag ? (tagName ?? "Unknown tag") : undefined, "All tags"],
+    [filters.phase ? getPhaseLabel(filters.phase) : undefined, "Any phase"],
+    [filters.category ? categoryLabel(filters.category) : undefined, "All types"],
+    [severityParamLabel(filters.severity), "All severities"],
+  ]);
+  const hasFilters = Boolean(filters.tag || filters.phase || filters.category || filters.severity);
+
+  const filterControls = (
+    <FilterDisclosure
+      summary={summary}
+      extra={
+        <Link href="/review/cards" className={style.link}>
+          Manage cards
+        </Link>
       }
     >
       <form method="get" className={style.form}>
@@ -73,7 +88,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
           label="Type"
           name="category"
           defaultValue={filters.category ?? ""}
-          options={lowercaseOptions(categories)}
+          options={categoryOptions(categories)}
           emptyLabel="All"
         />
         <FilterSelect
@@ -87,9 +102,18 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
           Apply
         </button>
       </form>
+    </FilterDisclosure>
+  );
 
+  return (
+    <PageShell variant="session">
       {/* Keyed by the filters: a new filter starts a new session. */}
-      <ReviewSession key={JSON.stringify(filters)} filters={filters} />
+      <ReviewSession
+        key={JSON.stringify(filters)}
+        filters={filters}
+        filterControls={filterControls}
+        hasFilters={hasFilters}
+      />
     </PageShell>
   );
 }

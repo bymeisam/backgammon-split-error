@@ -70,9 +70,18 @@
   --color-checker-mine-rim: var(--checker-mine-rim);
   --color-checker-opp: var(--checker-opp);
   --color-checker-opp-rim: var(--checker-opp-rim);
+  --color-checker-mine-ring: var(--checker-mine-ring);
+  --color-checker-opp-ring: var(--checker-opp-ring);
   --color-arrow-best: var(--arrow-best);
+  --color-arrow-good: var(--arrow-good);
   --color-arrow-error: var(--arrow-error);
   --color-arrow-blunder: var(--arrow-blunder);
+  --color-die-stroke: var(--die-stroke);
+
+  --color-scrim: var(--scrim);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-nav-bg: var(--nav-bg);
 
   --color-mode-ok: var(--mode-ok);
   --color-mode-warn: var(--mode-warn);
@@ -135,6 +144,12 @@
      focusable rows): 2px in the focus colour, at least 3:1 against the
      page in both modes (WCAG 1.4.11). Components can move it inside with
      shared.focusRingInset. */
+  /* The sticky navbar is 56px tall: scrollIntoView, Tab focus and anchor
+     jumps land below it. */
+  html {
+    scroll-padding-top: 72px;
+  }
+
   :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;

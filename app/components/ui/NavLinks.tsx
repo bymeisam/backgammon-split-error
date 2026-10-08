@@ -17,10 +17,33 @@ const MODE_TITLES: Record<RuntimeModeLabel, string> = {
   "Read-only": "Read-only: nothing here writes to a database.",
 };
 
+// The brand mark: two overlapping checkers.
+function BrandMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={style.brandMark}>
+      <circle cx={9} cy={12} r={7.5} className={style.brandMarkBack} />
+      <circle cx={15.5} cy={12} r={7} strokeWidth={1.5} className={style.brandMarkFront} />
+    </svg>
+  );
+}
+
+function ModeBadge({ label, placement }: { label: RuntimeModeLabel; placement: "bar" | "end" }) {
+  return (
+    <span
+      className={style.modeBadge(label, placement)}
+      title={MODE_TITLES[label]}
+      data-testid={placement === "end" ? "mode-badge" : undefined}
+    >
+      {label}
+    </span>
+  );
+}
+
 // The navbar's client half: highlights the active route from the pathname
-// and collapses the items into a menu on narrow screens. Everything that
+// and, below md, folds the items into a sheet under the bar. Everything that
 // needs the server (the item list, the mode label, the due badge, the sync
-// line) comes in as props from AppNav.
+// line, the "?" help) comes in as props from AppNav, and each renders once:
+// one DOM tree, laid out as a row from md and as the sheet below it.
 export default function NavLinks({
   items,
   modeLabel,
@@ -51,7 +74,7 @@ export default function NavLinks({
         {item.showsDueCount && dueBadge}
       </Link>
     );
-    if (!item.children?.length) return <li key={item.href}>{link}</li>;
+    if (!item.children?.length) return <li key={item.href} className={style.item}>{link}</li>;
     return (
       <li key={item.href} className={style.itemWithChildren}>
         {link}
@@ -74,29 +97,45 @@ export default function NavLinks({
   }
 
   return (
-    <header className={style.bar} data-testid="app-nav">
+    <header className={style.bar} data-testid="app-nav" data-app-nav="">
       <div className={style.inner}>
         <Link href="/" onClick={close} className={style.brand}>
+          <BrandMark />
           Game Review
         </Link>
-        <span className={style.modeBadge(modeLabel)} title={MODE_TITLES[modeLabel]} data-testid="mode-badge">
-          {modeLabel}
+        <span className={style.narrowEnd}>
+          <ModeBadge label={modeLabel} placement="bar" />
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls="app-nav-menu"
+            className={style.menuButton}
+          >
+            Menu
+          </button>
         </span>
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-controls="app-nav-menu"
-          className={style.menuButton}
-        >
-          Menu
-        </button>
         <nav id="app-nav-menu" aria-label="Main" className={style.menu(open)}>
           <ul className={style.list}>{items.filter((i) => !i.end).map(renderItem)}</ul>
           <div className={style.endGroup}>
-            {syncControl}
-            <ul className={style.list}>{items.filter((i) => i.end).map(renderItem)}</ul>
-            {help}
+            <ModeBadge label={modeLabel} placement="end" />
+            {syncControl && <div className={style.syncRow}>{syncControl}</div>}
+            <div className={style.footRow}>
+              {items
+                .filter((i) => i.end)
+                .map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={close}
+                    aria-current={active === item.href ? "page" : undefined}
+                    className={style.endLink(active === item.href)}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              {help}
+            </div>
           </div>
         </nav>
       </div>

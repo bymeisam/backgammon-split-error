@@ -42,7 +42,7 @@ export function tallyWeeklyMistakes(rows: readonly WeeklyMistakeRow[]): WeeklyMi
 }
 
 // "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago" — the
-// navbar's "Last synced …". A time in the future (clock skew) reads "just
+// navbar's "Synced …". A time in the future (clock skew) reads "just
 // now".
 export function formatTimeAgo(then: Date, now: Date): string {
   const ms = now.getTime() - then.getTime();
@@ -59,7 +59,7 @@ export function formatTimeAgo(then: Date, now: Date): string {
   return `${days} days ago`;
 }
 
-// The navbar's sync line: "Last synced 5 min ago · 3 matches" /
+// The navbar's sync line: "Synced 5 min ago · 3 matches" /
 // "Never synced".
 export function lastSyncedLabel(
   run: { finishedAt: Date; matchesSynced: number } | null,
@@ -67,5 +67,5 @@ export function lastSyncedLabel(
 ): string {
   if (!run) return "Never synced";
   const matches = `${run.matchesSynced} match${run.matchesSynced === 1 ? "" : "es"}`;
-  return `Last synced ${formatTimeAgo(run.finishedAt, now)} · ${matches}`;
+  return `Synced ${formatTimeAgo(run.finishedAt, now)} · ${matches}`;
 }
