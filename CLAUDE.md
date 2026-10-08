@@ -32,7 +32,10 @@ When proposing a new column, say which of these it meets. Don't add columns ahea
 
 ## Working with agents
 
-The main session advises, plans and orchestrates. Two subagents do the work: `investigator` (read-only, in `.claude/agents/investigator.md`) and `developer` (implements approved specs, in `.claude/agents/developer.md`).
+The main session advises, plans and orchestrates. Three subagents do the work:
+- **`investigator`** (`.claude/agents/investigator.md`): read-only.
+- **`developer`** (`.claude/agents/developer.md`): implements approved specs.
+- **`designer`** (`.claude/agents/designer.md`): UI/UX reviewer. It studies screenshots (made by `scripts/design-screenshots.ts`) and the styling code, and writes design reports to `reports/` and mockups to `design/mockups/`. It proposes and never implements: app-code changes go through the usual plan → user approval → developer flow.
 
 - Discuss ideas with the user first. Don't start implementing from a discussion.
 - Send factual questions about the code, the data or Galaxy to the investigator. Don't answer them from assumption.
