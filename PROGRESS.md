@@ -818,4 +818,16 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - your errors and blunders in the last 7 days by `Match.playedAt`, split checker/cube (`lib/dashboardQueries.ts`): counted decisions, checker and cube only, the user's own decisions via isMe `PlayerIdentity`. First written as one four-table join; the coordinator's read-only EXPLAIN ANALYZE on Oracle showed MySQL driving it from PlayerIdentity through `Decision_userId_idx` (633,728 rows read, 7.9 s). Now small steps driven from the recent matches: isMe ids and recent match ids, then their game ids, then one `groupBy` on Decision by those game ids (the `(gameId, eventId)` unique key). Same filters and per-source userId matching, so the counts are unchanged. No new index;
     - the current rating (the latest match's `userRating`) and the latest 5 matches, both from `listMatches(1)`, shared per request with React `cache`.
   - **Verified:** lint, tsc, 489/489 tests (new: `runtimeMode`, `navItems`, `shortcuts`, `dashboardStats`, `resolveOpponentIdentity`), build.
-  - **Pending:** the visual suite, the headless checks, EXPLAIN and timing of the weekly-mistakes query, and the rendered-HTML grep for the DB host and token. `.env` points at Oracle, and the developer guard blocks servers, the visual suite and DB commands until it's local.
+  - **Server checks, after `.env` went back to local:**
+    - **Visual:** 15/15, no baseline changes. Every screenshot is of a single element, and the page widths are unchanged.
+    - **Headless** (`next start` on :3300 write mode, and :3301 with `ENABLE_WRITE_MODE=false` set on the command line only):
+      - the navbar is on all 11 pages checked, with the right item active (none on `/`, Cards on /review/cards with Review still filled);
+      - hovering Review shows Cards and it navigates;
+      - at 390 px the items collapse behind Menu, Cards is listed, and the menu closes on navigation;
+      - the badge reads "Local · write" on :3300 and "Read-only" on :3301, where there's no Galaxy item, sync line, due badge or due widget;
+      - breadcrumbs read "Matches › hamidesmaeilii (47816592)", "Matches › hamidesmaeilii › Game 2" and "Review › Cards";
+      - `?` opens the help on the replay (Replay group) and /review (Review session group). → while it's open doesn't step the replay, Esc closes it, and → steps again after;
+      - the dashboard shows all four widgets: 0 due, the weekly grid, rating 1,853.21, and 5 latest matches;
+      - with no token the sync line reads "Last synced 3 days ago · 28 matches" plus "Add token to sync". After pasting a test token on /galaxy/matches it shows "Sync" and keeps it across client navigation. With `/api/sync/incremental` mocked, the button POSTs `{authorization}` and shows the route's message. The token isn't in the DOM, localStorage, sessionStorage or cookies.
+    - **HTML grep** (10 pages on each server) for `3306`, `127.0.0.1`, `localhost`, `mysql://`, `bg_db_`, `app_dev`, `DATABASE_URL`, `Bearer`, `authorization`: no DB host, port or credentials. The only hits are static text: /status's notes mention `DATABASE_URL` by name, and the Galaxy token form's labels and placeholder say "authorization" and "Bearer xyz...".
+    - **Weekly-mistakes query, local:** 13–16 ms warm (98 ms cold) against 11.1 s for the old join, with identical counts (checker 303 errors / 172 blunders, cube 37 / 93; 32 recent matches). On Oracle the coordinator's read-only EXPLAIN shows an index range on `Decision_gameId_eventId_key`, 28 ms, total 578 (as the old join).
