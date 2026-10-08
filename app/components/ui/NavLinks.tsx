@@ -8,8 +8,12 @@ import type { RuntimeModeLabel } from "@/lib/runtimeMode";
 import { style } from "./AppNav.styles";
 
 const MODE_TITLES: Record<RuntimeModeLabel, string> = {
-  "Oracle · write": "Write mode: changes go to the Oracle database.",
-  "Local · write": "Write mode: changes go to the local database.",
+  "Oracle · write": "Write mode: changes go to the Oracle database, and pages read from it too.",
+  "Local · write": "Write mode: changes go to the local database, and pages read from it too.",
+  "Writes: Oracle · Reads: Local":
+    "Write mode, two databases. Writes: changes (sync, notes, reviews, tags) go to the Oracle database. Reads: pages show data from the local database.",
+  "Writes: Local · Reads: Oracle":
+    "Write mode, two databases. Writes: changes (sync, notes, reviews, tags) go to the local database. Reads: pages show data from the Oracle database.",
   "Read-only": "Read-only: nothing here writes to a database.",
 };
 

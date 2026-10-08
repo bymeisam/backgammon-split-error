@@ -11,14 +11,15 @@ export const style = {
   bar: "border-b border-black/10 bg-white dark:border-white/15 dark:bg-zinc-950",
   inner: "mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-2",
   brand: "text-sm font-semibold tracking-tight text-black dark:text-zinc-50",
-  // Function, 1 param -> passed directly. Amber when writes go to Oracle
-  // (the real database), green for the local one, grey read-only.
+  // Function, 1 param -> passed directly. Coloured by where writes go:
+  // amber when they go to Oracle (the real database), whatever the reads
+  // use; green for the local one; grey read-only.
   modeBadge: (label: RuntimeModeLabel): string =>
     clsx(
       "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-      label === "Oracle · write" &&
+      (label === "Oracle · write" || label === "Writes: Oracle · Reads: Local") &&
         "border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200",
-      label === "Local · write" &&
+      (label === "Local · write" || label === "Writes: Local · Reads: Oracle") &&
         "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200",
       label === "Read-only" &&
         "border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
