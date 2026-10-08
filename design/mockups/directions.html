@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three directions · swatch sheet</title>
+<!-- Fonts per direction. The real app would load the chosen pair through next/font/google. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;
+  --page:light-dark(#EEECE8,#0B0B0A);--page-ink:light-dark(#1D1B17,#EDE8DD);--page-muted:light-dark(#5F5A50,#A9A296);
+  --best:#36D399;--good:#65758B;--error:#FBBD23;--blunder:#F43E5C;}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--page-ink);font:400 14px/1.5 "Geist",system-ui,sans-serif;padding:36px 28px 80px}
+h1{font:500 34px/1.1 "Newsreader",Georgia,serif;letter-spacing:-.015em}
+.intro{max-width:880px;color:var(--page-muted);margin:8px 0 28px}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.col h2{font:600 12px/1 "Geist",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--page-muted);margin-bottom:10px;display:flex;justify-content:space-between}
+.col h2 .pick{color:var(--page-ink);background:color-mix(in srgb,var(--best) 30%,transparent);padding:3px 7px;border-radius:4px;letter-spacing:.06em}
+.mood{font-size:13px;color:var(--page-muted);margin-bottom:12px;min-height:58px}
+
+/* ----- a panel = one direction in one theme ----- */
+.panel{background:var(--bg);color:var(--ink);border-radius:16px;padding:18px;margin-bottom:14px;border:1px solid var(--line);display:flex;flex-direction:column;gap:14px;font-family:var(--sans)}
+.ptag{font:600 10.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.sw{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}
+.sw i{display:block;aspect-ratio:1;border-radius:6px;border:1px solid var(--line)}
+.sw-l{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;font:400 8.5px/1.2 var(--mono);color:var(--faint);margin-top:2px}
+.disp{font:var(--disp-w) 30px/1.05 var(--display);letter-spacing:-.015em}
+.body{font-size:13.5px;color:var(--muted)}
+.nota{font:500 15px var(--mono)}
+.nota .e{color:var(--error-ink)} .nota .b{color:var(--best-ink)} .nota .x{color:var(--blunder-ink)}
+.navmock{display:flex;gap:16px;font-size:12.5px;font-weight:500;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:8px}
+.navmock .on{color:var(--ink);box-shadow:0 9px 0 -7px var(--ink)}
+.navmock .due{display:inline-flex;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent);color:var(--on-accent);font-size:10px;align-items:center;justify-content:center;margin-left:4px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{height:32px;padding:0 13px;border-radius:var(--r);border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font:500 12.5px var(--sans);display:inline-flex;align-items:center}
+.btn.p{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:600 10.5px/1 var(--sans);padding:4px 7px;border-radius:5px}
+.chip.best{background:var(--best);color:#062116}.chip.good{background:var(--good);color:#fff}.chip.error{background:var(--error);color:#231A02}.chip.blunder{background:var(--blunder);color:#1A0A0E}
+.trow{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;padding:9px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.trow .n{font:400 11px var(--mono);color:var(--faint)}
+.minib{border-radius:10px}
+
+/* board vars -> classes (same renderer as the screen mockups) */
+.board{width:100%;height:auto;display:block;filter:drop-shadow(0 10px 16px var(--b-shadow))}
+.bf{fill:var(--b-frame)} .bb{fill:var(--b-bone)} .bt{fill:var(--b-tray)} .pa{fill:var(--b-pa)} .pb{fill:var(--b-pb)}
+.bn{fill:var(--b-num);font:500 10px var(--sans);text-anchor:middle}
+.ck circle{stroke-width:1.2}
+.ck.mine circle{fill:var(--c-mine);stroke:var(--c-mine-rim)}
+.ck.opp circle{fill:var(--c-opp);stroke:var(--c-opp-rim)}
+.ck .ring{fill:none!important;stroke-width:1}
+.ck.mine .ring{stroke:rgb(255 255 255 / .16)} .ck.opp .ring{stroke:rgb(0 0 0 / .12)}
+.die rect{stroke:rgb(0 0 0 / .35)} .die.mine rect{fill:var(--c-mine)} .die.mine circle{fill:var(--c-opp)}
+.cube rect{fill:var(--c-opp);stroke:#1E2126} .cube text{font:600 14px var(--sans);text-anchor:middle;fill:#1E2126}
+.arrow{color:var(--a-error)} .arrow.best{color:var(--a-best)}
+.arrow line{stroke:currentColor;stroke-width:3.5;stroke-linecap:round}
+.arrow .halo{stroke:var(--b-bone);stroke-width:7.5;opacity:.75}
+.arrow polygon,.arrow circle{fill:currentColor}
+
+/* ---------- Direction A: Clubroom (recommended) ---------- */
+.club{--sans:"Geist",system-ui,sans-serif;--display:"Newsreader",Georgia,serif;--disp-w:500;--mono:"Geist Mono",ui-monospace,monospace;--r:9px;
+  --c-mine:#1E2126;--c-opp:#F7F2E7;--c-opp-rim:#7E725E;--a-best:#12855E;--a-error:#A86F00}
+.club.l{--bg:#F6F3EC;--surface:#FFFDF8;--line:#E4DED1;--line-strong:#CFC7B6;--ink:#1D1B17;--muted:#5F5A50;--faint:#736D61;--accent:#24426B;--on-accent:#FFFDF8;--primary:#1D1B17;--on-primary:#F6F3EC;
+  --best-ink:#0B7A55;--error-ink:#8F5F00;--blunder-ink:#C81E40;
+  --b-frame:#4B3425;--b-bone:#EFE5D0;--b-pa:#8C5A3C;--b-pb:#CDB089;--b-tray:#3A281C;--b-num:#E6D7BC;--b-shadow:rgb(60 35 15 / .28);--c-mine-rim:#000}
+.club.d{--bg:#141311;--surface:#1C1A17;--line:#2E2B26;--line-strong:#433E36;--ink:#EDE8DD;--muted:#B3AC9E;--faint:#8E877A;--accent:#A9C1E8;--on-accent:#141311;--primary:#EDE8DD;--on-primary:#141311;
+  --best-ink:#4ADE9F;--error-ink:#FBBD23;--blunder-ink:#FF6B82;
+  --b-frame:#2A1F17;--b-bone:#C9BC9F;--b-pa:#6B442E;--b-pb:#A68B65;--b-tray:#1E1610;--b-num:#A8987C;--b-shadow:rgb(0 0 0 / .6);--c-mine-rim:#5E584F}
+
+/* ---------- Direction B: Quiet Ink ---------- */
+.ink{--sans:"Geist",system-ui,sans-serif;--display:"Geist",system-ui,sans-serif;--disp-w:600;--mono:"Geist Mono",ui-monospace,monospace;--r:7px;
+  --c-mine:#15171B;--c-opp:#F4F4F6;--c-opp-rim:#7A7F89;--a-best:#0F8A5F;--a-error:#B07400}
+.ink.l{--bg:#F7F7F8;--surface:#FFFFFF;--line:#E5E5EA;--line-strong:#D2D2D9;--ink:#111114;--muted:#5B5B66;--faint:#6E6E79;--accent:#3D4ED8;--on-accent:#fff;--primary:#111114;--on-primary:#fff;
+  --best-ink:#0B7A55;--error-ink:#8F5F00;--blunder-ink:#C81E40;
+  --b-frame:#2B2D33;--b-bone:#ECEDEF;--b-pa:#8E96A3;--b-pb:#C9CDD4;--b-tray:#202227;--b-num:#C9CDD4;--b-shadow:rgb(20 20 30 / .22);--c-mine-rim:#000}
+.ink.d{--bg:#0D0D10;--surface:#16161A;--line:#27272D;--line-strong:#3A3A42;--ink:#EDEDF0;--muted:#A0A0AB;--faint:#85858F;--accent:#8C97FF;--on-accent:#0D0D10;--primary:#EDEDF0;--on-primary:#0D0D10;
+  --best-ink:#4ADE9F;--error-ink:#FBBD23;--blunder-ink:#FF6B82;
+  --b-frame:#1A1B1F;--b-bone:#9EA3AC;--b-pa:#4A505B;--b-pb:#C2C6CD;--b-tray:#111215;--b-num:#7D828C;--b-shadow:rgb(0 0 0 / .6);--c-mine-rim:#6A6F78}
+
+/* ---------- Direction C: Midnight Felt ---------- */
+.felt{--sans:"Inter",system-ui,sans-serif;--display:"Playfair Display",Georgia,serif;--disp-w:600;--mono:"JetBrains Mono",ui-monospace,monospace;--r:4px;
+  --c-mine:#17191C;--c-opp:#F3ECDA;--c-opp-rim:#8F8366;--a-best:#5BE3A8;--a-error:#FFC94A}
+.felt.l{--bg:#F2EDE0;--surface:#FAF7EE;--line:#DDD5C1;--line-strong:#C7BCA2;--ink:#18231E;--muted:#56615A;--faint:#69736C;--accent:#8A6A2B;--on-accent:#FAF7EE;--primary:#1E4636;--on-primary:#F3ECDA;
+  --best-ink:#0B7A55;--error-ink:#8F5F00;--blunder-ink:#C81E40;
+  --b-frame:#2B1D14;--b-bone:#1E4636;--b-pa:#7B2D2D;--b-pb:#E8DFC6;--b-tray:#1D130D;--b-num:#C9A45C;--b-shadow:rgb(30 20 10 / .35);--c-mine-rim:#000}
+.felt.d{--bg:#0E1714;--surface:#13201C;--line:#22332D;--line-strong:#2F463E;--ink:#ECE5D3;--muted:#A9B3A9;--faint:#869088;--accent:#C9A45C;--on-accent:#0E1714;--primary:#C9A45C;--on-primary:#0E1714;
+  --best-ink:#4ADE9F;--error-ink:#FBBD23;--blunder-ink:#FF6B82;
+  --b-frame:#1D130D;--b-bone:#173A2D;--b-pa:#6A2626;--b-pb:#D9CFB4;--b-tray:#120C08;--b-num:#B38F4E;--b-shadow:rgb(0 0 0 / .6);--c-mine-rim:#6E6A5E}
+
+.fit{font-size:12.5px;color:var(--page-muted);display:grid;gap:4px;margin-top:2px}
+.fit b{color:var(--page-ink);font-weight:600}
+.mock-ctrl{position:fixed;right:16px;bottom:16px}
+.mock-ctrl button{height:32px;padding:0 12px;border-radius:8px;border:1px solid #8885;background:var(--page);color:var(--page-ink);cursor:pointer}
+@media (max-width:1100px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>Three directions</h1>
+<p class="intro">Each column shows one direction in light and dark: palette, type, a nav item, buttons, Galaxy's four severity chips (same hues in all three), a move row and the board. Board content: match 45282503, game 2, move 2 (you rolled 2-1 and played 13/10, an error; best 13/11 6/5).</p>
+
+<div class="cols">
+  <section class="col" data-dir="club">
+    <h2>A · Clubroom <span class="pick">Recommended</span></h2>
+    <p class="mood">A quiet club library: warm ivory paper, ink-black type, a walnut and bone board. A serif for titles and big numbers, a clean sans for everything you scan. Colour only where it means something.</p>
+  </section>
+  <section class="col" data-dir="ink">
+    <h2>B · Quiet Ink</h2>
+    <p class="mood">Swiss and precise, like a good analytics tool: cool neutrals, one typeface family, hairlines, no decoration. The board turns graphite and grey. It looks premium through restraint.</p>
+  </section>
+  <section class="col" data-dir="felt">
+    <h2>C · Midnight Felt</h2>
+    <p class="mood">Casino-salon glamour, built dark-first: green baize, brass accents, oxblood points, a high-contrast display serif. The most dramatic of the three, and the one that fights the severity colours most.</p>
+  </section>
+</div>
+
+<div class="cols" style="margin-top:8px">
+  <div class="fit"><span><b>Fit:</b> calm for long review sessions; severity colours stay the only loud colour; small change to the board's familiar wood look.</span><span><b>Effort:</b> M (tokens + one font + board palette).</span></div>
+  <div class="fit"><span><b>Fit:</b> very legible and dense; but "posh" comes only from spacing, so it risks still feeling generic. Grey board loses backgammon character.</span><span><b>Effort:</b> S–M (the closest to today).</span></div>
+  <div class="fit"><span><b>Fit:</b> feels luxurious, but brass sits next to Error amber, oxblood next to Blunder red and baize next to Best green. Arrows and chips lose contrast on the felt.</span><span><b>Effort:</b> L (new board, two fonts, dark-first rethink).</span></div>
+</div>
+
+<script>
+function dieSVG(x,y,s,v,cls){
+  const P={1:[[.5,.5]],2:[[.28,.28],[.72,.72]],3:[[.28,.28],[.5,.5],[.72,.72]],4:[[.28,.28],[.72,.28],[.28,.72],[.72,.72]],5:[[.28,.28],[.72,.28],[.5,.5],[.28,.72],[.72,.72]],6:[[.28,.25],[.72,.25],[.28,.5],[.72,.5],[.28,.75],[.72,.75]]};
+  let s2=`<g class="die ${cls}"><rect x="${x}" y="${y}" width="${s}" height="${s}" rx="${s*.2}"/>`;
+  for(const [a,b] of P[v]) s2+=`<circle cx="${x+a*s}" cy="${y+b*s}" r="${s*.09}"/>`;
+  return s2+'</g>';
+}
+function board(o){
+  const W=562,H=380,Y0=20,Y1=360,PW=36,LX=44,RX=290,TX=514;
+  const px=p=>p>=19?RX+18+(p-19)*PW:p>=13?LX+18+(p-13)*PW:p>=7?LX+18+(12-p)*PW:RX+18+(6-p)*PW;
+  const top=p=>p>=13; const cy=(p,k)=>top(p)?Y0+17+k*32:Y1-17-k*32;
+  const mine=o.mine||{},opp=o.opp||{};
+  let s=`<svg viewBox="0 0 ${W} ${H}" class="board" role="img" aria-label="Backgammon board">`;
+  s+=`<rect class="bf" width="${W}" height="${H}" rx="14"/><rect class="bb" x="${LX}" y="${Y0}" width="216" height="340" rx="2"/><rect class="bb" x="${RX}" y="${Y0}" width="216" height="340" rx="2"/>`;
+  s+=`<rect class="bt" x="${TX}" y="${Y0}" width="34" height="166" rx="3"/><rect class="bt" x="${TX}" y="194" width="34" height="166" rx="3"/>`;
+  for(let p=1;p<=24;p++){const x=px(p),t=top(p),yb=t?Y0:Y1,ya=t?Y0+148:Y1-148;
+    s+=`<polygon class="${p%2?'pa':'pb'}" points="${x-17},${yb} ${x+17},${yb} ${x},${ya}"/><text class="bn" x="${x}" y="${t?14.5:373.5}">${p}</text>`;}
+  const ck=(x,y,side)=>`<g class="ck ${side}"><circle cx="${x}" cy="${y}" r="15"/><circle class="ring" cx="${x}" cy="${y}" r="9.5"/></g>`;
+  const stack=(p,n,side)=>{for(let k=0;k<Math.min(n,5);k++) s+=ck(px(p),cy(p,k),side);};
+  for(const p in mine) stack(+p,mine[p],'mine'); for(const p in opp) stack(+p,opp[p],'opp');
+  if(o.dice){const sz=26,cx=RX+108,y=190-sz/2; s+=dieSVG(cx-sz-4,y,sz,o.dice[0],'mine')+dieSVG(cx+4,y,sz,o.dice[1],'mine');}
+  if(o.cube){s+=`<g class="cube"><rect x="16" y="177" width="26" height="26" rx="5"/><text x="29" y="195">${o.cube.v}</text></g>`;}
+  (o.arrows||[]).forEach(a=>{
+    const nf=mine[a.from]||1,x1=px(a.from),y1=cy(a.from,Math.min(nf,5)-1),nt=Math.min(mine[a.to]||0,4),x2=px(a.to),y2=cy(a.to,nt);
+    const ang=Math.atan2(y2-y1,x2-x1),L=13,hw=7.5,ex=x2-Math.cos(ang)*4,ey=y2-Math.sin(ang)*4,bx=ex-Math.cos(ang)*L,by=ey-Math.sin(ang)*L;
+    s+=`<g class="arrow ${a.sev}"><line class="halo" x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}"/><line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}"/><polygon points="${ex},${ey} ${bx+Math.sin(ang)*hw},${by-Math.cos(ang)*hw} ${bx-Math.sin(ang)*hw},${by+Math.cos(ang)*hw}"/><circle cx="${x1}" cy="${y1}" r="4"/></g>`;});
+  return s+'</svg>';
+}
+const pos={mine:{13:5,8:3,6:5,24:2},opp:{17:2,19:4,23:2,12:5,1:2},dice:[2,1],cube:{v:1},arrows:[{from:13,to:10,sev:'error'}]};
+const meta={
+  club:{type:'Newsreader / Geist / Geist Mono',title:'Game 2 vs cbj2'},
+  ink:{type:'Geist / Geist Mono',title:'Game 2 vs cbj2'},
+  felt:{type:'Playfair Display / Inter / JetBrains Mono',title:'Game 2 vs cbj2'},
+};
+const swatchKeys=['--bg','--surface','--line','--ink','--muted','--accent','--b-frame','--b-pa','--b-pb'];
+const swatchNames=['page','card','line','ink','muted','accent','frame','point','point'];
+function panel(dir,theme){
+  const el=document.createElement('div');el.className=`panel ${dir} ${theme}`;
+  el.innerHTML=`<p class="ptag">${theme==='l'?'Light':'Dark'} · ${meta[dir].type}</p>
+  <div><div class="sw">${swatchKeys.map(k=>`<i style="background:var(${k})"></i>`).join('')}</div><div class="sw-l">${swatchNames.map(n=>`<span>${n}</span>`).join('')}</div></div>
+  <div><p class="disp">${meta[dir].title}</p><p class="body">Match 45282503 · replay. You rolled 2-1.</p></div>
+  <div class="navmock"><span>Matches</span><span class="on">Mistakes</span><span>Repeated</span><span>Review<span class="due">3</span></span></div>
+  <div class="btns"><span class="btn p">Start review</span><span class="btn">Apply</span><span class="chips"><span class="chip best">Best</span><span class="chip good">Good</span><span class="chip error">Error</span><span class="chip blunder">Blunder</span></span></div>
+  <div class="trow"><span class="n">2</span><span class="nota"><span class="e">13/10</span> <span style="opacity:.5">→</span> <span class="b">13/11 6/5</span></span><span class="chip error">Error</span></div>
+  <div class="trow"><span class="n">9</span><span class="nota"><span class="x">Double</span> <span style="opacity:.5">→</span> <span class="b">No Double</span></span><span class="chip blunder">Blunder</span></div>
+  <div class="minib">${board(pos)}</div>`;
+  return el;
+}
+document.querySelectorAll('.col').forEach(c=>{c.append(panel(c.dataset.dir,'l'),panel(c.dataset.dir,'d'));});
+</script>
+<div class="mock-ctrl"><button id="theme">◐ Page theme</button></div>
+<script>document.getElementById('theme').onclick=()=>{const r=document.documentElement;const cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=cur==='dark'?'light':'dark';};</script>
+</body>
+</html>

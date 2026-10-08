@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · Clubroom mockup</title>
+<!-- The real app would load these through next/font/google (Geist and Geist_Mono are already loaded; Newsreader is new). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+/* ---------- Clubroom tokens (mirror the @theme block in the report) ---------- */
+:root{
+  color-scheme: light dark;
+  --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Newsreader",ui-serif,Georgia,"Times New Roman",serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --paper:light-dark(#F6F3EC,#141311);
+  --surface:light-dark(#FFFDF8,#1C1A17);
+  --sunken:light-dark(#EFEBE2,#23211D);
+  --line:light-dark(#E4DED1,#2E2B26);
+  --line-strong:light-dark(#CFC7B6,#433E36);
+  --ink:light-dark(#1D1B17,#EDE8DD);
+  --ink-muted:light-dark(#5F5A50,#B3AC9E);
+  --ink-faint:light-dark(#736D61,#8E877A);
+  --accent:light-dark(#24426B,#A9C1E8);
+  --on-accent:light-dark(#FFFDF8,#141311);
+  --focus:light-dark(#2F5BD3,#8FB0FF);
+  --best:#36D399;--good:#65758B;--error:#FBBD23;--blunder:#F43E5C;
+  --best-ink:light-dark(#0B7A55,#4ADE9F);
+  --good-ink:light-dark(#55657A,#9AA8BA);
+  --error-ink:light-dark(#8F5F00,#FBBD23);
+  --blunder-ink:light-dark(#C81E40,#FF6B82);
+  --shadow-c:light-dark(rgb(60 45 25 / .07),rgb(0 0 0 / .45));
+  --ok:light-dark(#0B7A55,#4ADE9F);
+}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:400 14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums lining-nums}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav-inner{max-width:1240px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:32px}
+.brand{display:flex;align-items:center;gap:10px;font:500 20px/1 var(--serif);letter-spacing:-.01em;white-space:nowrap}
+.brand svg{width:22px;height:22px}
+.links{display:flex;gap:22px;height:100%}
+.links a{display:flex;align-items:center;gap:6px;height:100%;font-size:13.5px;font-weight:500;color:var(--ink-muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.links a:hover{color:var(--ink)}
+.links a.active{color:var(--ink);border-color:var(--ink)}
+.due{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--on-accent);font:600 11px/1 var(--sans)}
+.end{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:12.5px;color:var(--ink-faint);white-space:nowrap}
+.mode{display:inline-flex;align-items:center;gap:6px;color:var(--ink-muted);font-weight:500}
+.mode::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.end .quiet{text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+.icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink-muted);font:600 13px var(--sans);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:var(--sunken);color:var(--ink)}
+.menu-btn{display:none}
+
+/* page */
+.page{max-width:1240px;margin:0 auto;padding:44px 24px 72px;display:flex;flex-direction:column;gap:36px}
+.overline{font:600 11px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint)}
+.h1{font:500 38px/1.08 var(--serif);letter-spacing:-.018em;margin-top:10px}
+.lede{color:var(--ink-muted);margin-top:8px;font-size:14.5px}
+.h2{font:500 22px/1.2 var(--serif);letter-spacing:-.01em}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:14px}
+.link{color:var(--ink-muted);font-size:13px;font-weight:500;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:4px}
+.link:hover{color:var(--ink);text-decoration-color:currentColor}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px var(--shadow-c),0 6px 20px -12px var(--shadow-c)}
+.grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:18px}
+.widget{padding:22px 22px 20px;display:flex;flex-direction:column;gap:12px;min-height:200px}
+.big{font:500 52px/1 var(--serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums}
+.big small{font:400 16px var(--sans);color:var(--ink-muted);letter-spacing:0;margin-left:6px}
+.meta{font-size:12.5px;color:var(--ink-faint)}
+.split{display:flex;gap:16px;font-size:13px;color:var(--ink-muted)}
+.split b{color:var(--ink);font-weight:600}
+.actions{margin-top:auto;display:flex;align-items:center;gap:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:9px;font:500 13.5px var(--sans);border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--sunken)}
+.btn-primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.btn-primary:hover{background:color-mix(in srgb,var(--ink) 86%,var(--paper))}
+.kbd{font:500 11px/1 var(--mono);border:1px solid currentColor;border-radius:4px;padding:2px 5px;opacity:.6}
+
+/* mistakes mini table */
+.mini{width:100%;border-collapse:collapse;font-size:13px}
+.mini th{font:500 11.5px var(--sans);color:var(--ink-faint);text-align:right;padding:0 0 6px}
+.mini th:first-child{text-align:left}
+.mini td{padding:6px 0;text-align:right;font-variant-numeric:tabular-nums;border-top:1px solid var(--line)}
+.mini td:first-child{text-align:left;color:var(--ink-muted)}
+.mini tr.total td{font-weight:600;color:var(--ink)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:6px;vertical-align:1px}
+.dot.error{background:var(--error)} .dot.blunder{background:var(--blunder)}
+.bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--sunken);margin-top:2px}
+.bar span{display:block;height:100%}
+.bar .e{background:var(--error)} .bar .b{background:var(--blunder)}
+
+/* tables */
+.row2{display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start}
+.table{width:100%;border-collapse:collapse;font-size:13.5px}
+.table th{font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);text-align:left;padding:14px 18px 10px;border-bottom:1px solid var(--line)}
+.table td{padding:11px 18px;border-bottom:1px solid var(--line)}
+.table tr:last-child td{border-bottom:0}
+.table tbody tr{cursor:pointer}
+.table tbody tr:hover td{background:var(--sunken)}
+.table .r{text-align:right}
+.table .muted{color:var(--ink-muted)}
+.opp{font-weight:500}
+.pr{display:flex;align-items:center;justify-content:flex-end;gap:10px;font-variant-numeric:tabular-nums}
+.pr i{display:block;height:4px;border-radius:2px;background:var(--line-strong)}
+.chev{color:var(--ink-faint);text-align:right;width:28px}
+
+.rep{padding:6px 0}
+.rep-item{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:11px 18px;border-top:1px solid var(--line)}
+.rep-item:first-of-type{border-top:0}
+.rep-item:hover{background:var(--sunken)}
+.code{font:600 10.5px/1 var(--mono);padding:3px 5px;border:1px solid var(--line-strong);border-radius:4px;color:var(--ink-muted)}
+.pos{font:400 12.5px var(--mono);color:var(--ink-muted)}
+.times{font:500 18px/1 var(--serif);font-variant-numeric:tabular-nums}
+.times small{font:400 11px var(--sans);color:var(--ink-faint);margin-left:2px}
+.sev{display:inline-flex;align-items:center;font:600 10.5px/1 var(--sans);padding:3px 6px;border-radius:4px;letter-spacing:.02em}
+.sev.blunder{background:var(--blunder);color:#1A0A0E}
+
+/* mockup-only toggle */
+.mock-ctrl{position:fixed;right:16px;bottom:16px;z-index:20;display:flex;gap:6px}
+
+@media (max-width:820px){
+  .links,.end>*:not(.mode){display:none}
+  .end{gap:10px}
+  .menu-btn{display:inline-flex;width:auto;padding:0 12px}
+  .nav-inner{gap:12px;padding:0 16px}
+  .page{padding:28px 16px 64px;gap:28px}
+  .h1{font-size:32px}
+  .grid,.row2{grid-template-columns:1fr}
+  .widget{min-height:0}
+  .table th:nth-child(3),.table td:nth-child(3),.chev{display:none}
+  .table th,.table td{padding-left:14px;padding-right:14px}
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="7.5" fill="currentColor"/><circle cx="15.5" cy="12" r="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/></svg>
+      Game Review
+    </a>
+    <nav class="links" aria-label="Main">
+      <a href="#">Matches</a>
+      <a href="#">Analysis</a>
+      <a href="#">Mistakes</a>
+      <a href="#">Repeated</a>
+      <a href="#">Review <span class="due">3</span></a>
+      <a href="#">Galaxy</a>
+    </nav>
+    <div class="end">
+      <span class="mode" title="Writes go to the local database">Local · write</span>
+      <span>Synced 3 days ago · 28 matches</span>
+      <a class="quiet" href="#">Add token to sync</a>
+      <a href="#">Status</a>
+      <button class="icon-btn" aria-label="Keyboard shortcuts">?</button>
+      <button class="icon-btn menu-btn" aria-expanded="false">Menu</button>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div>
+    <p class="overline">Thursday 8 October</p>
+    <h1 class="h1">Dashboard</h1>
+    <p class="lede">PR and mistake breakdowns for your Backgammon Galaxy matches.</p>
+  </div>
+
+  <section class="grid" aria-label="Summary">
+    <article class="card widget">
+      <p class="overline">Due today</p>
+      <p class="big">3<small>cards</small></p>
+      <p class="split"><span><b>3</b> new</span><span><b>0</b> review</span></p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#">Start review →</a>
+        <a class="link" href="#">Manage cards</a>
+      </div>
+    </article>
+
+    <article class="card widget">
+      <p class="overline">Your mistakes · last 7 days</p>
+      <table class="mini">
+        <thead><tr><th></th><th><span class="dot error"></span>Errors</th><th><span class="dot blunder"></span>Blunders</th></tr></thead>
+        <tbody>
+          <tr><td>Checker</td><td>280</td><td>155</td></tr>
+          <tr><td>Cube</td><td>37</td><td>89</td></tr>
+          <tr class="total"><td>Total</td><td>317</td><td>244</td></tr>
+        </tbody>
+      </table>
+      <div class="bar" role="img" aria-label="317 errors, 244 blunders"><span class="e" style="width:56.5%"></span><span class="b" style="width:43.5%"></span></div>
+      <p class="meta">Counted decisions in matches played since this time last week.</p>
+    </article>
+
+    <article class="card widget">
+      <p class="overline">Current rating</p>
+      <p class="big num">1,853<span style="color:var(--ink-faint)">.21</span></p>
+      <p class="meta">After match <a class="link" href="#">47816592</a></p>
+    </article>
+  </section>
+
+  <section class="row2">
+    <div>
+      <div class="section-head"><h2 class="h2">Latest matches</h2><a class="link" href="#">All matches →</a></div>
+      <div class="card" style="overflow:hidden">
+        <table class="table">
+          <thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th class="r">Your PR</th><th class="chev"></th></tr></thead>
+          <tbody>
+            <tr><td class="muted num">5 Oct</td><td class="opp">hamidesmaeilii</td><td class="num">2–5</td><td><div class="pr"><i style="width:26px"></i>5.20</div></td><td class="chev">›</td></tr>
+            <tr><td class="muted num">5 Oct</td><td class="opp">stupenousman</td><td class="num">2–5</td><td><div class="pr"><i style="width:69px"></i>13.85</div></td><td class="chev">›</td></tr>
+            <tr><td class="muted num">5 Oct</td><td class="opp">biglebowski</td><td class="num">7–4</td><td><div class="pr"><i style="width:42px"></i>8.43</div></td><td class="chev">›</td></tr>
+            <tr><td class="muted num">5 Oct</td><td class="opp">deadphish</td><td class="num">2–5</td><td><div class="pr"><i style="width:43px"></i>8.52</div></td><td class="chev">›</td></tr>
+            <tr><td class="muted num">5 Oct</td><td class="opp">naplesguru</td><td class="num">5–7</td><td><div class="pr"><i style="width:57px"></i>11.41</div></td><td class="chev">›</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="section-head"><h2 class="h2">Most repeated blunders</h2><a class="link" href="#">All →</a></div>
+      <div class="card rep">
+        <a class="rep-item" href="#"><span class="code">OG</span><span class="pos">4HPwATDgc/ABMA</span><span class="times">92<small>×</small></span></a>
+        <a class="rep-item" href="#"><span class="code">OG</span><span class="pos">4HPkASjgc/ABMA</span><span class="times">49<small>×</small></span></a>
+        <a class="rep-item" href="#"><span class="code">OG</span><span class="pos">4PPCATDgc/ABMA</span><span class="times">45<small>×</small></span></a>
+        <a class="rep-item" href="#"><span class="code">OG</span><span class="pos">4HPkQSDgc/ABMA</span><span class="times">43<small>×</small></span></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="mock-ctrl"><button class="btn" id="theme" aria-label="Toggle light and dark">◐ Theme</button></div>
+<script>
+document.getElementById('theme').onclick=()=>{const r=document.documentElement;const cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=cur==='dark'?'light':'dark';};
+</script>
+</body>
+</html>

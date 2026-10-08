@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review card · Clubroom mockup</title>
+<!-- Real app: next/font/google for Geist, Geist_Mono (already loaded) and Newsreader (new). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light dark;
+  --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Newsreader",ui-serif,Georgia,"Times New Roman",serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --paper:light-dark(#F6F3EC,#141311);
+  --surface:light-dark(#FFFDF8,#1C1A17);
+  --sunken:light-dark(#EFEBE2,#23211D);
+  --line:light-dark(#E4DED1,#2E2B26);
+  --line-strong:light-dark(#CFC7B6,#433E36);
+  --ink:light-dark(#1D1B17,#EDE8DD);
+  --ink-muted:light-dark(#5F5A50,#B3AC9E);
+  --ink-faint:light-dark(#736D61,#8E877A);
+  --accent:light-dark(#24426B,#A9C1E8);
+  --on-accent:light-dark(#FFFDF8,#141311);
+  --focus:light-dark(#2F5BD3,#8FB0FF);
+  --best:#36D399;--good:#65758B;--error:#FBBD23;--blunder:#F43E5C;
+  --best-ink:light-dark(#0B7A55,#4ADE9F);
+  --error-ink:light-dark(#8F5F00,#FBBD23);
+  --blunder-ink:light-dark(#C81E40,#FF6B82);
+  --best-tint:light-dark(#E4F5EC,#12291F);
+  --blunder-tint:light-dark(#FBE5E9,#2E1419);
+  --shadow-c:light-dark(rgb(60 45 25 / .07),rgb(0 0 0 / .45));
+  --ok:light-dark(#0B7A55,#4ADE9F);
+  --b-frame:light-dark(#4B3425,#2A1F17);
+  --b-bone:light-dark(#EFE5D0,#C9BC9F);
+  --b-pa:light-dark(#8C5A3C,#6B442E);
+  --b-pb:light-dark(#CDB089,#A68B65);
+  --b-tray:light-dark(#3A281C,#1E1610);
+  --b-num:light-dark(#E6D7BC,#A8987C);
+  --b-shadow:light-dark(rgb(60 35 15 / .28),rgb(0 0 0 / .6));
+  --c-mine:#1E2126;--c-mine-rim:light-dark(#000000,#5E584F);
+  --c-opp:#F7F2E7;--c-opp-rim:#7E725E;
+  --arrow-best:#12855E;--arrow-error:#A86F00;--arrow-blunder:#D3203F;
+}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:400 14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+
+.nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav-inner{max-width:1240px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:32px}
+.brand{display:flex;align-items:center;gap:10px;font:500 20px/1 var(--serif);letter-spacing:-.01em;white-space:nowrap}
+.brand svg{width:22px;height:22px}
+.links{display:flex;gap:22px;height:100%}
+.links a{display:flex;align-items:center;gap:6px;height:100%;font-size:13.5px;font-weight:500;color:var(--ink-muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.links a.active{color:var(--ink);border-color:var(--ink)}
+.due{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--on-accent);font:600 11px/1 var(--sans)}
+.end{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:12.5px;color:var(--ink-faint);white-space:nowrap}
+.mode{display:inline-flex;align-items:center;gap:6px;color:var(--ink-muted);font-weight:500}
+.mode::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.icon-btn{height:30px;min-width:30px;padding:0 8px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink-muted);font:600 13px var(--sans);cursor:pointer}
+.menu-btn{display:none}
+
+.page{max-width:1240px;margin:0 auto;padding:24px 24px 72px}
+
+/* session bar: one quiet line instead of a filter form + a counts box */
+.session{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:28px}
+.session h1{font:500 26px/1 var(--serif);letter-spacing:-.01em}
+.progress{flex:1;min-width:160px;display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+.track{flex:1;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.track span{display:block;height:100%;background:var(--ink)}
+.filters{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-muted)}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;cursor:pointer}
+.filters button:hover{border-color:var(--line-strong);color:var(--ink)}
+.link{color:var(--ink-muted);font-size:13px;font-weight:500;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:4px}
+.link:hover{color:var(--ink)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:36px;align-items:start}
+.side{display:flex;flex-direction:column;gap:18px}
+.context{font-size:12.5px;color:var(--ink-faint);display:flex;gap:8px;flex-wrap:wrap}
+.context b{color:var(--ink-muted);font-weight:500}
+.q{font:500 30px/1.15 var(--serif);letter-spacing:-.012em;margin-top:6px}
+.q em{font-style:italic;color:var(--ink-muted);font-weight:400}
+
+/* board */
+.board{width:100%;height:auto;display:block;filter:drop-shadow(0 14px 22px var(--b-shadow))}
+.bf{fill:var(--b-frame)} .bb{fill:var(--b-bone)} .bt{fill:var(--b-tray)}
+.pa{fill:var(--b-pa)} .pb{fill:var(--b-pb)}
+.bn{fill:var(--b-num);font:500 10px var(--sans);text-anchor:middle}
+.ck circle{stroke-width:1.2}
+.ck.mine circle{fill:var(--c-mine);stroke:var(--c-mine-rim)}
+.ck.opp circle{fill:var(--c-opp);stroke:var(--c-opp-rim)}
+.ck .ring{fill:none!important;stroke-width:1}
+.ck.mine .ring{stroke:rgb(255 255 255 / .16)} .ck.opp .ring{stroke:rgb(0 0 0 / .12)}
+.cnt{font:600 11px var(--sans);text-anchor:middle} .cnt.mine{fill:#F7F2E7} .cnt.opp{fill:#1E2126}
+.die rect{stroke:rgb(0 0 0 / .35);stroke-width:1}
+.die.mine rect{fill:var(--c-mine)} .die.mine circle{fill:var(--c-opp)}
+.cube rect{fill:var(--c-opp);stroke:#1E2126;stroke-width:1.2}
+.cube text{font:600 14px var(--sans);text-anchor:middle;fill:#1E2126}
+.arrow{color:var(--arrow-error)} .arrow.best{color:var(--arrow-best)} .arrow.blunder{color:var(--arrow-blunder)}
+.arrow line{stroke:currentColor;stroke-width:3.5;stroke-linecap:round}
+.arrow .halo{stroke:var(--b-bone);stroke-width:7.5;opacity:.75}
+.arrow polygon,.arrow circle{fill:currentColor}
+
+/* front: options */
+.options{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:13px 16px;border-radius:11px;border:1px solid var(--line);background:var(--surface);cursor:pointer;box-shadow:0 1px 2px var(--shadow-c);transition:border-color .12s,transform .12s}
+.opt:hover{border-color:var(--ink-faint);transform:translateY(-1px)}
+.opt .k{font:500 11px/1 var(--mono);width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;color:var(--ink-muted);background:var(--sunken);flex:none}
+.opt .mv{font:500 16px var(--mono)}
+.hint{font-size:12px;color:var(--ink-faint)}
+
+/* back */
+.verdict{display:flex;align-items:baseline;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.verdict .word{font:500 28px/1 var(--serif);font-style:italic}
+.verdict.ok .word{color:var(--best-ink)}
+.verdict.bad .word{color:var(--blunder-ink)}
+.verdict .sub{font-size:13px;color:var(--ink-muted)}
+.summary{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:13px}
+.summary dt{color:var(--ink-faint)}
+.summary dd{font:500 13.5px var(--mono)}
+.summary dd span{color:var(--ink-faint);font-weight:400}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px var(--shadow-c)}
+.overline{font:600 11px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint)}
+.otable{width:100%;border-collapse:collapse}
+.otable caption{text-align:left;padding:14px 16px 8px}
+.otable td{padding:9px 16px;border-top:1px solid var(--line);font:500 13.5px var(--mono)}
+.otable td.r{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-muted)}
+.otable tr.isbest td{background:var(--best-tint)}
+.otable tr.isbest td:first-child{box-shadow:inset 3px 0 0 var(--best)}
+.otable tr.chosen-bad td{background:var(--blunder-tint)}
+.otable tr.chosen-bad td:first-child{box-shadow:inset 3px 0 0 var(--blunder)}
+.otable tr.chosen-bad td.r{color:var(--blunder-ink)}
+.tagl{font:600 10px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);margin-left:10px}
+.equities{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+.equities div{padding:10px 16px;display:flex;flex-direction:column;gap:2px}
+.equities div+div{border-left:1px solid var(--line)}
+.equities span{font-size:11.5px;color:var(--ink-faint)}
+.equities b{font:500 15px var(--mono)}
+.note{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.note p.body{font:400 16px/1.55 var(--serif)}
+.note .foot{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--sunken);color:var(--ink-muted);border:1px solid var(--line)}
+.tag.add{background:transparent;border-style:dashed;cursor:pointer}
+.textbtn{background:none;border:0;color:var(--ink-muted);font-size:12.5px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+
+.grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grade button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:11px;border:1px solid var(--line-strong);background:var(--surface);cursor:pointer}
+.grade button:hover{background:var(--sunken)}
+.grade .lbl{font-weight:600;font-size:13.5px}
+.grade .k{font:500 10.5px/1 var(--mono);color:var(--ink-faint)}
+.grade button.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.grade button.primary .k{color:color-mix(in srgb,var(--paper) 70%,transparent)}
+.grade button[disabled]{opacity:.45;cursor:default}
+.after{display:flex;gap:18px}
+
+.state{display:none}
+.state.on{display:contents}
+.mock-ctrl{position:fixed;right:16px;bottom:16px;z-index:20;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.mock-ctrl button{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);cursor:pointer;font-size:12.5px;box-shadow:0 4px 14px var(--shadow-c)}
+.mock-ctrl button.on{background:var(--ink);color:var(--paper)}
+
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr;gap:20px}
+  .links,.end>*:not(.mode):not(.menu-btn){display:none}
+  .menu-btn{display:inline-block}
+  .nav-inner{gap:12px;padding:0 16px}
+  .page{padding:16px 0 96px}
+  .session,.side{padding:0 16px}
+  .boardcol{padding:0 6px}
+  .q{font-size:26px}
+  .filters span{display:none}
+  .grade{position:sticky;bottom:12px}
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="7.5" fill="currentColor"/><circle cx="15.5" cy="12" r="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/></svg>Game Review</a>
+    <nav class="links" aria-label="Main"><a href="#">Matches</a><a href="#">Analysis</a><a href="#">Mistakes</a><a href="#">Repeated</a><a class="active" href="#" aria-current="page">Review <span class="due">3</span></a><a href="#">Galaxy</a></nav>
+    <div class="end"><span class="mode">Local · write</span><span>Synced 3 days ago · 28 matches</span><a href="#">Status</a><button class="icon-btn" aria-label="Keyboard shortcuts">?</button><button class="icon-btn menu-btn">Menu</button></div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="session">
+    <h1>Review</h1>
+    <div class="progress" aria-label="Session progress"><span id="prog-txt">Card 1 of 3</span><div class="track"><span id="prog" style="width:0%"></span></div><span>3 new · 0 review</span></div>
+    <div class="filters"><span>All tags · Any phase · All types · All severities</span><button>Filter</button><a class="link" href="#">Manage cards</a></div>
+  </div>
+
+  <div class="layout">
+    <div class="boardcol" id="board"></div>
+
+    <div class="side">
+      <!-- FRONT (card 1) -->
+      <div class="state on" data-state="front">
+        <div>
+          <p class="context"><b>5-point match</b><span>you 0 – opp 2</span><span>·</span><span>you rolled 6-5</span></p>
+          <h2 class="q">Your move. <em>What do you play?</em></h2>
+        </div>
+        <div class="options" role="list">
+          <button class="opt"><span class="k">1</span><span class="mv">22/11</span></button>
+          <button class="opt"><span class="k">2</span><span class="mv">22/17 7/1*</span></button>
+          <button class="opt"><span class="k">3</span><span class="mv">22/16 6/1*</span></button>
+          <button class="opt"><span class="k">4</span><span class="mv">7/1* 6/1</span></button>
+        </div>
+        <p class="hint">Press 1–4 to answer.</p>
+      </div>
+
+      <!-- BACK, correct (card 1) -->
+      <div class="state" data-state="back-ok">
+        <div>
+          <p class="context"><b>5-point match</b><span>you 0 – opp 2</span><span>·</span><span>you rolled 6-5</span></p>
+          <div class="verdict ok" style="margin-top:8px"><span class="word">Correct.</span><span class="sub">22/16 6/1* is the best play.</span></div>
+        </div>
+        <dl class="summary">
+          <dt>Your answer</dt><dd>22/16 6/1* <span>0.000</span></dd>
+          <dt>Played in game</dt><dd>22/11 <span>−0.168</span></dd>
+          <dt>Best</dt><dd>22/16 6/1*</dd>
+        </dl>
+        <div class="card" style="overflow:hidden">
+        <table class="otable">
+          <caption class="overline">Options · equity loss</caption>
+          <tbody>
+            <tr class="isbest"><td>22/16 6/1*<span class="tagl">Best · your answer</span></td><td class="r">0.000</td></tr>
+            <tr><td>22/11<span class="tagl">Played</span></td><td class="r">−0.168</td></tr>
+            <tr><td>22/17 7/1*</td><td class="r">−0.509</td></tr>
+            <tr><td>7/1* 6/1</td><td class="r">−0.519</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="card note">
+          <p class="overline">Your note</p>
+          <p class="body">Back checker on 22 is alone against their 3-point board and bar point. Hitting on the 1 takes half their roll away; 22/16 gets it moving. Running 22/11 just gives them the attack.</p>
+          <div class="foot"><div class="tags"><span class="tag">hit loose</span><span class="tag">back checker</span><button class="tag add">+ tag</button></div><button class="textbtn">Edit note</button></div>
+        </div>
+        <div class="grade" role="group" aria-label="How hard was it?">
+          <button><span class="lbl">Hard</span><span class="k">H</span></button>
+          <button class="primary"><span class="lbl">Good</span><span class="k">G · Enter</span></button>
+          <button><span class="lbl">Easy</span><span class="k">E</span></button>
+        </div>
+        <div class="after"><a class="link" href="#">Open in replay</a><a class="link" href="#">View on Galaxy ↗</a></div>
+      </div>
+
+      <!-- BACK, incorrect (card 2, cube) -->
+      <div class="state" data-state="back-bad">
+        <div>
+          <p class="context"><b>5-point match</b><span>you 0 – opp 0</span><span>·</span><span>cube action, before your roll</span></p>
+          <div class="verdict bad" style="margin-top:8px"><span class="word">Not quite.</span><span class="sub">Best is Double / Take. You lose 0.183.</span></div>
+        </div>
+        <dl class="summary">
+          <dt>Your answer</dt><dd>No Double / Take <span>−0.183</span></dd>
+          <dt>Played in game</dt><dd>No Double</dd>
+          <dt>Best</dt><dd>Double / Take</dd>
+        </dl>
+        <div class="card">
+          <table class="otable">
+            <caption class="overline">Options · equity loss</caption>
+            <tbody>
+              <tr class="isbest"><td>Double / Take<span class="tagl">Best</span></td><td class="r">0.000</td></tr>
+              <tr><td>Double / Pass</td><td class="r">−0.025</td></tr>
+              <tr class="chosen-bad"><td>No Double / Take<span class="tagl">Your answer</span></td><td class="r">−0.183</td></tr>
+              <tr><td>Too good / Take</td><td class="r">−0.183</td></tr>
+              <tr><td>Too good / Pass</td><td class="r">−0.208</td></tr>
+            </tbody>
+          </table>
+          <div class="equities" aria-label="Cube equities, doubler's view">
+            <div><span>No double</span><b>0.792</b></div>
+            <div><span>Double / Take</span><b>0.975</b></div>
+            <div><span>Double / Pass</span><b>1.000</b></div>
+          </div>
+        </div>
+        <div class="card note">
+          <p class="overline">Your note</p>
+          <p class="body" style="color:var(--ink-faint);font-style:italic">No note yet. What made this a double?</p>
+          <div class="foot"><div class="tags"><button class="tag add">+ tag</button></div><button class="textbtn">Write note</button></div>
+        </div>
+        <div class="grade" role="group" aria-label="Recorded as Again">
+          <button class="primary" style="grid-column:1 / -1"><span class="lbl">Next card</span><span class="k">Recorded as Again · Enter</span></button>
+        </div>
+        <div class="after"><a class="link" href="#">Open in replay</a><a class="link" href="#">View on Galaxy ↗</a></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="mock-ctrl" role="group" aria-label="Mockup state">
+  <button data-go="front" class="on">Front</button>
+  <button data-go="back-ok">Back · correct</button>
+  <button data-go="back-bad">Back · incorrect (cube)</button>
+  <button id="theme">◐ Theme</button>
+</div>
+
+<script>
+function dieSVG(x,y,s,v,cls){
+  const P={1:[[.5,.5]],2:[[.28,.28],[.72,.72]],3:[[.28,.28],[.5,.5],[.72,.72]],4:[[.28,.28],[.72,.28],[.28,.72],[.72,.72]],5:[[.28,.28],[.72,.28],[.5,.5],[.28,.72],[.72,.72]],6:[[.28,.25],[.72,.25],[.28,.5],[.72,.5],[.28,.75],[.72,.75]]};
+  let s2=`<g class="die ${cls}"><rect x="${x}" y="${y}" width="${s}" height="${s}" rx="${s*.2}"/>`;
+  for(const [a,b] of P[v]) s2+=`<circle cx="${x+a*s}" cy="${y+b*s}" r="${s*.09}"/>`;
+  return s2+'</g>';
+}
+// The decision-maker ("mine", dark) is always drawn at the bottom, home board bottom-right.
+function board(o){
+  const W=562,H=380,Y0=20,Y1=360,PW=36,LX=44,RX=290,TX=514;
+  const px=p=>p>=19?RX+18+(p-19)*PW:p>=13?LX+18+(p-13)*PW:p>=7?LX+18+(12-p)*PW:RX+18+(6-p)*PW;
+  const top=p=>p>=13;
+  const cy=(p,k)=>top(p)?Y0+17+k*32:Y1-17-k*32;
+  const mine=o.mine||{},opp=o.opp||{};
+  let s=`<svg viewBox="0 0 ${W} ${H}" class="board" role="img" aria-label="${o.label||'Backgammon board'}">`;
+  s+=`<rect class="bf" width="${W}" height="${H}" rx="14"/>`;
+  s+=`<rect class="bb" x="${LX}" y="${Y0}" width="216" height="340" rx="2"/><rect class="bb" x="${RX}" y="${Y0}" width="216" height="340" rx="2"/>`;
+  s+=`<rect class="bt" x="${TX}" y="${Y0}" width="34" height="166" rx="3"/><rect class="bt" x="${TX}" y="194" width="34" height="166" rx="3"/>`;
+  for(let p=1;p<=24;p++){const x=px(p),t=top(p),yb=t?Y0:Y1,ya=t?Y0+148:Y1-148;
+    s+=`<polygon class="${p%2?'pa':'pb'}" points="${x-17},${yb} ${x+17},${yb} ${x},${ya}"/>`;
+    s+=`<text class="bn" x="${x}" y="${t?14.5:373.5}">${p}</text>`;}
+  const ck=(x,y,side)=>`<g class="ck ${side}"><circle cx="${x}" cy="${y}" r="15"/><circle class="ring" cx="${x}" cy="${y}" r="9.5"/></g>`;
+  const stack=(p,n,side)=>{for(let k=0;k<Math.min(n,5);k++) s+=ck(px(p),cy(p,k),side); if(n>5) s+=`<text class="cnt ${side}" x="${px(p)}" y="${cy(p,4)+4}">+${n-5}</text>`;};
+  for(const p in mine) stack(+p,mine[p],'mine');
+  for(const p in opp) stack(+p,opp[p],'opp');
+  for(let k=0;k<(o.barMine||0);k++) s+=ck(275,Y1-17-k*32,'mine');
+  if(o.dice){const sz=26,cx=RX+108,y=190-sz/2; s+=dieSVG(cx-sz-4,y,sz,o.dice[0],'mine')+dieSVG(cx+4,y,sz,o.dice[1],'mine');}
+  if(o.cube){const y=o.cube.at==='top'?Y0+4:o.cube.at==='bottom'?Y1-30:177; s+=`<g class="cube"><rect x="16" y="${y}" width="26" height="26" rx="5"/><text x="29" y="${y+18}">${o.cube.v}</text></g>`;}
+  (o.arrows||[]).forEach(a=>{
+    const nf=mine[a.from]||1, x1=px(a.from), y1=cy(a.from,Math.min(nf,5)-1);
+    const nt=a.hit?0:Math.min(mine[a.to]||0,4), x2=px(a.to), y2=cy(a.to,nt);
+    const ang=Math.atan2(y2-y1,x2-x1),L=13,hw=7.5,ex=x2-Math.cos(ang)*4,ey=y2-Math.sin(ang)*4;
+    const bx=ex-Math.cos(ang)*L,by=ey-Math.sin(ang)*L;
+    const lx=bx+Math.sin(ang)*hw,ly=by-Math.cos(ang)*hw,rx=bx-Math.sin(ang)*hw,ry=by+Math.cos(ang)*hw;
+    s+=`<g class="arrow ${a.sev}"><line class="halo" x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}"/><line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}"/><polygon points="${ex},${ey} ${lx},${ly} ${rx},${ry}"/><circle cx="${x1}" cy="${y1}" r="4"/></g>`;
+  });
+  return s+'</svg>';
+}
+const card1={mine:{22:1,10:2,9:2,8:2,7:2,6:6},opp:{18:2,19:2,20:2,21:2,5:3,4:3,1:1},dice:[6,5],cube:{v:2,at:'top'}};
+const card2={mine:{13:4,22:1,24:1,8:2,6:3,5:3},barMine:1,opp:{17:1,18:1,19:5,12:4,10:1,4:1,2:1,1:1},cube:{v:1,at:'mid'}};
+const views={
+  'front':{b:{...card1,label:'You to play 6-5'},p:0,t:'Card 1 of 3'},
+  'back-ok':{b:{...card1,label:'Best play 22/16 6/1*',arrows:[{from:22,to:16,sev:'best'},{from:6,to:1,sev:'best',hit:true}]},p:33,t:'Card 1 of 3'},
+  'back-bad':{b:{...card2,label:'Cube decision, cube at 1 in the middle'},p:66,t:'Card 2 of 3'},
+};
+function show(k){
+  document.querySelectorAll('.state').forEach(e=>e.classList.toggle('on',e.dataset.state===k));
+  document.querySelectorAll('[data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===k));
+  document.getElementById('board').innerHTML=board(views[k].b);
+  document.getElementById('prog').style.width=views[k].p+'%';
+  document.getElementById('prog-txt').textContent=views[k].t;
+}
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
+show('front');
+document.getElementById('theme').onclick=()=>{const r=document.documentElement;const cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=cur==='dark'?'light':'dark';};
+</script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay · Clubroom mockup</title>
+<!-- Real app: next/font/google for Geist, Geist_Mono (already loaded) and Newsreader (new). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light dark;
+  --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Newsreader",ui-serif,Georgia,"Times New Roman",serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --paper:light-dark(#F6F3EC,#141311);
+  --surface:light-dark(#FFFDF8,#1C1A17);
+  --sunken:light-dark(#EFEBE2,#23211D);
+  --line:light-dark(#E4DED1,#2E2B26);
+  --line-strong:light-dark(#CFC7B6,#433E36);
+  --ink:light-dark(#1D1B17,#EDE8DD);
+  --ink-muted:light-dark(#5F5A50,#B3AC9E);
+  --ink-faint:light-dark(#736D61,#8E877A);
+  --accent:light-dark(#24426B,#A9C1E8);
+  --on-accent:light-dark(#FFFDF8,#141311);
+  --focus:light-dark(#2F5BD3,#8FB0FF);
+  --best:#36D399;--good:#65758B;--error:#FBBD23;--blunder:#F43E5C;--cube-sq:#2C44FF;
+  --best-ink:light-dark(#0B7A55,#4ADE9F);
+  --good-ink:light-dark(#55657A,#9AA8BA);
+  --error-ink:light-dark(#8F5F00,#FBBD23);
+  --blunder-ink:light-dark(#C81E40,#FF6B82);
+  --best-tint:light-dark(#E4F5EC,#12291F);
+  --error-tint:light-dark(#FBF0D2,#2B230F);
+  --blunder-tint:light-dark(#FBE5E9,#2E1419);
+  --shadow-c:light-dark(rgb(60 45 25 / .07),rgb(0 0 0 / .45));
+  --ok:light-dark(#0B7A55,#4ADE9F);
+  /* board */
+  --b-frame:light-dark(#4B3425,#2A1F17);
+  --b-bone:light-dark(#EFE5D0,#C9BC9F);
+  --b-pa:light-dark(#8C5A3C,#6B442E);
+  --b-pb:light-dark(#CDB089,#A68B65);
+  --b-tray:light-dark(#3A281C,#1E1610);
+  --b-num:light-dark(#E6D7BC,#A8987C);
+  --b-shadow:light-dark(rgb(60 35 15 / .28),rgb(0 0 0 / .6));
+  --c-mine:#1E2126;--c-mine-rim:light-dark(#000000,#5E584F);
+  --c-opp:#F7F2E7;--c-opp-rim:#7E725E;
+  --arrow-best:#12855E;--arrow-error:#A86F00;--arrow-blunder:#D3203F;
+}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:400 14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+
+/* nav (same as dashboard) */
+.nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav-inner{max-width:1240px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:32px}
+.brand{display:flex;align-items:center;gap:10px;font:500 20px/1 var(--serif);letter-spacing:-.01em;white-space:nowrap}
+.brand svg{width:22px;height:22px}
+.links{display:flex;gap:22px;height:100%}
+.links a{display:flex;align-items:center;gap:6px;height:100%;font-size:13.5px;font-weight:500;color:var(--ink-muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.links a:hover{color:var(--ink)}
+.links a.active{color:var(--ink);border-color:var(--ink)}
+.due{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--on-accent);font:600 11px/1 var(--sans)}
+.end{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:12.5px;color:var(--ink-faint);white-space:nowrap}
+.mode{display:inline-flex;align-items:center;gap:6px;color:var(--ink-muted);font-weight:500}
+.mode::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.icon-btn{height:30px;min-width:30px;padding:0 8px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink-muted);font:600 13px var(--sans);cursor:pointer}
+.menu-btn{display:none}
+
+.page{max-width:1240px;margin:0 auto;padding:28px 24px 72px}
+.crumbs{display:flex;gap:8px;font-size:13px;color:var(--ink-faint)}
+.crumbs a:hover{color:var(--ink)}
+.crumbs .sep{opacity:.6}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:10px 0 24px;flex-wrap:wrap}
+.h1{font:500 32px/1.1 var(--serif);letter-spacing:-.015em}
+.h1 .vs{color:var(--ink-muted);font-style:italic;font-weight:400}
+.sub{font-size:13px;color:var(--ink-faint);margin-top:6px}
+.head-links{display:flex;gap:18px}
+.link{color:var(--ink-muted);font-size:13px;font-weight:500;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:4px}
+.link:hover{color:var(--ink);text-decoration-color:currentColor}
+.games{display:flex;gap:4px;padding:3px;background:var(--sunken);border-radius:9px}
+.games a{padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--ink-muted)}
+.games a.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px var(--shadow-c)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:start}
+.left{display:flex;flex-direction:column;gap:16px}
+
+/* board */
+.board{width:100%;height:auto;display:block;filter:drop-shadow(0 14px 22px var(--b-shadow))}
+.bf{fill:var(--b-frame)} .bb{fill:var(--b-bone)} .bt{fill:var(--b-tray)}
+.pa{fill:var(--b-pa)} .pb{fill:var(--b-pb)}
+.bn{fill:var(--b-num);font:500 10px var(--sans);text-anchor:middle}
+.ck circle{stroke-width:1.2}
+.ck.mine circle{fill:var(--c-mine);stroke:var(--c-mine-rim)}
+.ck.opp circle{fill:var(--c-opp);stroke:var(--c-opp-rim)}
+.ck .ring{fill:none!important;stroke-width:1}
+.ck.mine .ring{stroke:rgb(255 255 255 / .16)} .ck.opp .ring{stroke:rgb(0 0 0 / .12)}
+.cnt{font:600 11px var(--sans);text-anchor:middle} .cnt.mine{fill:#F7F2E7} .cnt.opp{fill:#1E2126}
+.die rect{stroke:rgb(0 0 0 / .35);stroke-width:1}
+.die.mine rect{fill:var(--c-mine)} .die.mine circle{fill:var(--c-opp)}
+.die.opp rect{fill:var(--c-opp)} .die.opp circle{fill:var(--c-mine)}
+.cube rect{fill:var(--c-opp);stroke:#1E2126;stroke-width:1.2}
+.cube text{font:600 14px var(--sans);text-anchor:middle;fill:#1E2126}
+.arrow{color:var(--arrow-error)} .arrow.best{color:var(--arrow-best)} .arrow.blunder{color:var(--arrow-blunder)}
+.arrow line{stroke:currentColor;stroke-width:3.5;stroke-linecap:round}
+.arrow .halo{stroke:var(--b-bone);stroke-width:7.5;opacity:.75}
+.arrow polygon,.arrow circle{fill:currentColor}
+
+/* stepper + decision under board */
+.stepper{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.step-btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--line-strong);background:var(--surface);cursor:pointer;font-size:13px;font-weight:500}
+.step-btn:hover{background:var(--sunken)}
+.kbd{font:500 11px/1 var(--mono);border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;padding:2px 5px;color:var(--ink-muted);background:var(--sunken)}
+.where{font-size:13px;color:var(--ink-muted)}
+.where b{color:var(--ink);font-weight:600}
+.flip{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-muted)}
+.decision{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dchip{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.dchip .lbl{font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);display:flex;gap:8px;align-items:center}
+.dchip .mv{font:500 17px/1.2 var(--mono)}
+.dchip .eq{font:400 12.5px var(--mono);color:var(--ink-muted)}
+.dchip.error.on{background:var(--error-tint);border-color:color-mix(in srgb,var(--error) 70%,transparent);box-shadow:inset 3px 0 0 var(--error)}
+.dchip.error .mv{color:var(--error-ink)}
+.dchip.best .mv{color:var(--best-ink)}
+.dchip:not(.on){opacity:.85}
+.sev{display:inline-flex;align-items:center;font:600 10.5px/1 var(--sans);padding:3px 6px;border-radius:4px;letter-spacing:.02em;text-transform:none}
+.sev.error{background:var(--error);color:#231A02}
+.sev.blunder{background:var(--blunder);color:#1A0A0E}
+.sev.best{background:var(--best);color:#062116}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px var(--shadow-c)}
+.note{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.overline{font:600 11px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint)}
+.note-head{display:flex;justify-content:space-between;align-items:center}
+textarea{width:100%;min-height:84px;resize:vertical;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);font:400 14.5px/1.55 var(--serif);padding:10px 12px}
+textarea::placeholder{color:var(--ink-faint);font-style:italic}
+textarea:focus-visible{outline:2px solid var(--focus);outline-offset:1px;border-color:transparent}
+.note-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tag{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--sunken);color:var(--ink-muted);border:1px solid var(--line)}
+.tag.add{background:transparent;border-style:dashed;cursor:pointer}
+.btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:9px;font:500 13px var(--sans);border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn-primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+/* move list */
+.list{position:sticky;top:76px;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 96px)}
+.list-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.list-head .legend{display:flex;gap:10px;font-size:11.5px;color:var(--ink-faint)}
+.legend i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px;vertical-align:0}
+.scroll{overflow-y:auto}
+.mrow{display:grid;grid-template-columns:28px 44px 1fr auto;align-items:center;gap:8px;padding:8px 16px 8px 14px;border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent}
+.mrow:hover{background:var(--sunken)}
+.mrow.sel{background:color-mix(in srgb,var(--accent) 9%,var(--surface));border-left-color:var(--accent)}
+.mrow .n{font:400 12px var(--mono);color:var(--ink-faint);text-align:right}
+.mrow .dice{display:flex;gap:3px}
+.mrow .dice svg{width:16px;height:16px}
+.mini-die rect{fill:var(--surface);stroke:var(--ink-muted);stroke-width:7}
+.mini-die circle{fill:var(--ink)}
+.mrow .mv{font:500 13px/1.3 var(--mono)}
+.mrow .mv.error{color:var(--error-ink)} .mrow .mv.blunder{color:var(--blunder-ink)}
+.mrow .best{display:block;font:400 11.5px/1.3 var(--mono);color:var(--ink-faint);margin-top:2px}
+.mrow .best b{color:var(--best-ink);font-weight:500}
+.cubesq{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;font:700 10.5px/1 var(--mono)}
+.cubesq.blunder{background:var(--blunder);color:#1A0A0E}
+.cubesq.def{background:var(--cube-sq);color:#fff}
+
+.mock-ctrl{position:fixed;right:16px;bottom:16px;z-index:20}
+
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr}
+  .list{position:static;max-height:none}
+}
+@media (max-width:820px){
+  .links,.end>*:not(.mode):not(.menu-btn){display:none}
+  .menu-btn{display:inline-block}
+  .nav-inner{gap:12px;padding:0 16px}
+  .page{padding:18px 0 64px}
+  .crumbs,.head{padding:0 16px}
+  .h1{font-size:26px}
+  .board-wrap{margin:0 6px}
+  .stepper,.decision,.note-wrap{margin:0 12px}
+  .flip{display:none}
+  .list{border-radius:0;border-left:0;border-right:0}
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="7.5" fill="currentColor"/><circle cx="15.5" cy="12" r="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/></svg>Game Review</a>
+    <nav class="links" aria-label="Main">
+      <a class="active" href="#" aria-current="page">Matches</a><a href="#">Analysis</a><a href="#">Mistakes</a><a href="#">Repeated</a><a href="#">Review <span class="due">3</span></a><a href="#">Galaxy</a>
+    </nav>
+    <div class="end">
+      <span class="mode">Local · write</span>
+      <span>Synced 3 days ago · 28 matches</span>
+      <a href="#">Status</a>
+      <button class="icon-btn" aria-label="Keyboard shortcuts">?</button>
+      <button class="icon-btn menu-btn">Menu</button>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Matches</a><span class="sep">›</span><a href="#">cbj2</a><span class="sep">›</span><span style="color:var(--ink-muted)">Game 2</span></nav>
+  <div class="head">
+    <div>
+      <h1 class="h1">Game 2 <span class="vs">vs</span> cbj2</h1>
+      <p class="sub">Match 45282503 · replay</p>
+    </div>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+      <div class="games" role="tablist" aria-label="Game"><a href="#">1</a><a class="on" href="#" aria-current="true">2</a><a href="#">3</a></div>
+      <div class="head-links"><a class="link" href="#">Back to match</a><a class="link" href="#">View on Galaxy ↗</a></div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="left">
+      <div class="board-wrap" id="board"></div>
+
+      <div class="stepper">
+        <button class="step-btn" aria-label="Previous step"><span class="kbd">←</span> Prev</button>
+        <span class="where">Move <b>2</b> of 18 · <b>2-1</b> to play</span>
+        <button class="step-btn" aria-label="Next step">Next <span class="kbd">→</span></button>
+        <label class="flip"><input type="checkbox" checked> Fixed perspective</label>
+      </div>
+
+      <div class="decision" role="tablist" aria-label="Move shown on the board">
+        <button class="dchip error on" role="tab" aria-selected="true">
+          <span class="lbl">Played <span class="sev error">Error</span></span>
+          <span class="mv">13/10</span>
+          <span class="eq">−0.037</span>
+        </button>
+        <button class="dchip best" role="tab" aria-selected="false">
+          <span class="lbl">Best <span class="sev best">Best</span></span>
+          <span class="mv">13/11 6/5</span>
+          <span class="eq">0.000</span>
+        </button>
+      </div>
+
+      <div class="note-wrap card note">
+        <div class="note-head"><p class="overline">Your note</p><button class="btn btn-primary">Add to review</button></div>
+        <textarea placeholder="Why is 13/11 6/5 better here?"></textarea>
+        <div class="note-foot">
+          <div class="tags"><span class="tag">opening</span><span class="tag">slotting</span><button class="tag add">+ tag</button></div>
+          <button class="btn">Save note</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="card list" aria-label="Moves">
+      <div class="list-head"><p class="overline">Moves</p><span class="legend"><span><i style="background:var(--error)"></i>Error</span><span><i style="background:var(--blunder)"></i>Blunder</span></span></div>
+      <div class="scroll" id="moves"></div>
+    </aside>
+  </div>
+</main>
+
+<div class="mock-ctrl"><button class="btn" id="theme">◐ Theme</button></div>
+
+<script>
+function dieSVG(x,y,s,v,cls){
+  const P={1:[[.5,.5]],2:[[.28,.28],[.72,.72]],3:[[.28,.28],[.5,.5],[.72,.72]],4:[[.28,.28],[.72,.28],[.28,.72],[.72,.72]],5:[[.28,.28],[.72,.28],[.5,.5],[.28,.72],[.72,.72]],6:[[.28,.25],[.72,.25],[.28,.5],[.72,.5],[.28,.75],[.72,.75]]};
+  let s2=`<g class="die ${cls}"><rect x="${x}" y="${y}" width="${s}" height="${s}" rx="${s*.2}"/>`;
+  for(const [a,b] of P[v]) s2+=`<circle cx="${x+a*s}" cy="${y+b*s}" r="${s*.09}"/>`;
+  return s2+'</g>';
+}
+// The decision-maker ("mine", dark) is always drawn at the bottom, home board bottom-right.
+function board(o){
+  const W=562,H=380,Y0=20,Y1=360,PW=36,LX=44,RX=290,TX=514;
+  const px=p=>p>=19?RX+18+(p-19)*PW:p>=13?LX+18+(p-13)*PW:p>=7?LX+18+(12-p)*PW:RX+18+(6-p)*PW;
+  const top=p=>p>=13;
+  const cy=(p,k)=>top(p)?Y0+17+k*32:Y1-17-k*32;
+  const mine=o.mine||{},opp=o.opp||{};
+  let s=`<svg viewBox="0 0 ${W} ${H}" class="board" role="img" aria-label="${o.label||'Backgammon board'}">`;
+  s+=`<rect class="bf" width="${W}" height="${H}" rx="14"/>`;
+  s+=`<rect class="bb" x="${LX}" y="${Y0}" width="216" height="340" rx="2"/><rect class="bb" x="${RX}" y="${Y0}" width="216" height="340" rx="2"/>`;
+  s+=`<rect class="bt" x="${TX}" y="${Y0}" width="34" height="166" rx="3"/><rect class="bt" x="${TX}" y="194" width="34" height="166" rx="3"/>`;
+  for(let p=1;p<=24;p++){const x=px(p),t=top(p),yb=t?Y0:Y1,ya=t?Y0+148:Y1-148;
+    s+=`<polygon class="${p%2?'pa':'pb'}" points="${x-17},${yb} ${x+17},${yb} ${x},${ya}"/>`;
+    s+=`<text class="bn" x="${x}" y="${t?14.5:373.5}">${p}</text>`;}
+  const ck=(x,y,side)=>`<g class="ck ${side}"><circle cx="${x}" cy="${y}" r="15"/><circle class="ring" cx="${x}" cy="${y}" r="9.5"/></g>`;
+  const stack=(p,n,side)=>{for(let k=0;k<Math.min(n,5);k++) s+=ck(px(p),cy(p,k),side); if(n>5) s+=`<text class="cnt ${side}" x="${px(p)}" y="${cy(p,4)+4}">+${n-5}</text>`;};
+  for(const p in mine) stack(+p,mine[p],'mine');
+  for(const p in opp) stack(+p,opp[p],'opp');
+  for(let k=0;k<(o.barMine||0);k++) s+=ck(275,Y1-17-k*32,'mine');
+  if(o.dice){const sz=26,cx=RX+108,y=190-sz/2; s+=dieSVG(cx-sz-4,y,sz,o.dice[0],'mine')+dieSVG(cx+4,y,sz,o.dice[1],'mine');}
+  if(o.cube){const y=o.cube.at==='top'?Y0+4:o.cube.at==='bottom'?Y1-30:177; s+=`<g class="cube"><rect x="16" y="${y}" width="26" height="26" rx="5"/><text x="29" y="${y+18}">${o.cube.v}</text></g>`;}
+  (o.arrows||[]).forEach(a=>{
+    const nf=mine[a.from]||1, x1=px(a.from), y1=cy(a.from,Math.min(nf,5)-1);
+    const nt=a.hit?0:Math.min(mine[a.to]||0,4), x2=px(a.to), y2=cy(a.to,nt);
+    const ang=Math.atan2(y2-y1,x2-x1),L=13,hw=7.5,ex=x2-Math.cos(ang)*4,ey=y2-Math.sin(ang)*4;
+    const bx=ex-Math.cos(ang)*L,by=ey-Math.sin(ang)*L;
+    const lx=bx+Math.sin(ang)*hw,ly=by-Math.cos(ang)*hw,rx=bx-Math.sin(ang)*hw,ry=by+Math.cos(ang)*hw;
+    s+=`<g class="arrow ${a.sev}"><line class="halo" x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}"/><line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}"/><polygon points="${ex},${ey} ${lx},${ly} ${rx},${ry}"/><circle cx="${x1}" cy="${y1}" r="4"/></g>`;
+  });
+  return s+'</svg>';
+}
+document.getElementById('board').innerHTML=board({
+  label:'Move 2: you to play 2-1. Played 13/10, an error.',
+  mine:{13:5,8:3,6:5,24:2}, opp:{17:2,19:4,23:2,12:5,1:2},
+  dice:[2,1], cube:{v:1,at:'mid'}, arrows:[{from:13,to:10,sev:'error'}]
+});
+
+const miniDie=v=>{const P={1:[[50,50]],2:[[28,28],[72,72]],3:[[28,28],[50,50],[72,72]],4:[[28,28],[72,28],[28,72],[72,72]],5:[[28,28],[72,28],[50,50],[28,72],[72,72]],6:[[28,25],[72,25],[28,50],[72,50],[28,75],[72,75]]};
+  return `<svg viewBox="0 0 100 100" class="mini-die" aria-hidden="true"><rect x="6" y="6" width="88" height="88" rx="20"/>${P[v].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="10"/>`).join('')}</svg>`;};
+// [n, dice | cube, played, severity, best]
+const rows=[
+ [1,[6,4],'8/2 6/2','error','24/18 13/9'],
+ [2,[2,1],'13/10','error','13/11 6/5'],
+ [3,[3,1],'8/5 6/5'],
+ [4,[4,2],'8/4 6/4'],
+ [5,[4,1],'13/9 10/9'],
+ [6,[6,2],'24/18 13/11*'],
+ [7,[6,3],'bar/18*'],
+ [8,[2,1],'bar/24 11/9'],
+ [9,{cube:2,sev:'blunder'},'Double','blunder','No Double'],
+ [10,[4,2],'24/22 9/5*'],
+ [11,[4,2],'bar/21 24/22'],
+ [12,[5,3],'21/13'],
+ [13,[4,2],'13/9 6/4'],
+ [14,[5,2],'8/6 8/3','error','9/2'],
+ [15,[5,2],'9/2','error','6/1 3/1'],
+ [16,{cube:4},'Take'],
+ [17,[5,2],'9/2'],
+ [18,[2,1],'9/7 4/3'],
+];
+document.getElementById('moves').innerHTML=rows.map(([n,d,mv,sev,best])=>{
+  const dice=Array.isArray(d)?`<span class="dice">${miniDie(d[0])}${miniDie(d[1])}</span>`:`<span class="dice"><span class="cubesq ${d.sev||'def'}">${d.cube}</span></span>`;
+  const chip=sev?`<span class="sev ${sev}">${sev==='error'?'Error':'Blunder'}</span>`:'';
+  const bestLine=best?`<span class="best">best <b>${best}</b></span>`:'';
+  return `<div class="mrow${n===2?' sel':''}" tabindex="0" ${n===2?'aria-current="true"':''}><span class="n">${n}</span>${dice}<span class="mv ${sev||''}">${mv}${bestLine}</span>${chip}</div>`;
+}).join('');
+
+document.getElementById('theme').onclick=()=>{const r=document.documentElement;const cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=cur==='dark'?'light':'dark';};
+</script>
+</body>
+</html>
