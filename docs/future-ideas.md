@@ -117,6 +117,15 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Idea:** an in-app settings section for user-tunable values, starting with the review limits (new cards per day, reviews per day, batch size, number of options shown).
 - **Why deferred:** for now these live as constants in one dedicated settings file, so a settings page can later read and write the same values in one place (decided 2026-10-06, during spaced-repetition planning).
 
+## Sync
+
+### Stop the match-list walk early
+- **Problem (measured 2026-10-08):** every sync pages through Galaxy's whole match list (~4,300 matches) before syncing anything. That's about 80 s of fixed cost, even when nothing is new. On top of that, each new match costs about 6–7 s (`SyncRun` history).
+- **Idea:** Galaxy's list is newest-first, so stop paging once sync reaches a match that's already stored. A daily incremental sync would then read a page or two, taking about 1–2 s. Local syncs get faster too.
+- **Related:**
+  - `/api/sync/incremental` caps a request at 20 matches. Its comment assumes Vercel Hobby's 10 s limit, but at about 6.5 s a match that's about 2 minutes.
+  - Syncing from the live site would also need batching, and a login, since it writes to Oracle with the Galaxy token.
+
 ## Tooling
 
 ### Design review by another LLM
