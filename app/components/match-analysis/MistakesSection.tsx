@@ -18,6 +18,8 @@ import { formatLoss } from "@/lib/review/format";
 import { attachNotes } from "@/lib/decisionNotes";
 import { resolveSelected, type MoveTab } from "@/lib/listSelection";
 import { useListSelection } from "@/app/hooks/useListSelection";
+import { useMoveTableKeys } from "@/app/hooks/useMoveTableKeys";
+import { stepIndex } from "@/lib/moveTableKeys";
 import { usePlayerIdentities } from "@/app/hooks/usePlayerIdentities";
 import { useMatchDecisionNotes } from "@/app/hooks/useMatchDecisionNotes";
 import { useTickSet, type TickSet } from "@/app/hooks/useTickSet";
@@ -118,6 +120,7 @@ export default function MistakesSection({
     selectedKey: selectedDecisionId,
     moveTab,
     selectRow,
+    setMoveTab,
   } = useListSelection<string | null>(null);
 
   // Resolve "which player is you" from PlayerIdentity instead of asking
@@ -140,6 +143,25 @@ export default function MistakesSection({
   const totalPR = combinePR(checkerPR, cubePR);
 
   const selected = resolveSelected(allMistakes, selectedDecisionId, (m) => m.id);
+
+  // ↓/j and ↑/k walk the two lists in the order they're shown (the checker
+  // mistakes, then the cube mistakes), stopping at either end; ←/h and →/l
+  // switch the board between the played and the best move, as clicking a
+  // row's move or its "best …" line does (lib/moveTableKeys.ts).
+  const rowsInListOrder = useMemo(() => [...checkerMistakes, ...cubeMistakes], [checkerMistakes, cubeMistakes]);
+  useMoveTableKeys("list", (action) => {
+    if (action === "my" || action === "best") {
+      if (!selected) return false;
+      setMoveTab(action);
+      return true;
+    }
+    if (action !== "next" && action !== "prev") return false;
+    const current = selected ? rowsInListOrder.indexOf(selected) : -1;
+    const target = stepIndex(current, rowsInListOrder.length, action === "next" ? 1 : -1);
+    if (target === null) return false;
+    selectRow(rowsInListOrder[target].id);
+    return true;
+  });
 
   if (games.length === 0) return null;
 

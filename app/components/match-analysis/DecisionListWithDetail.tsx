@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { resolveSelected } from "@/lib/listSelection";
 import { useListSelection } from "@/app/hooks/useListSelection";
+import { useMoveTableKeys } from "@/app/hooks/useMoveTableKeys";
+import { stepIndex } from "@/lib/moveTableKeys";
 import DecisionCard from "./DecisionCard";
 import DecisionList, { SeverityLegend } from "./DecisionList";
 import { formatLoss } from "@/lib/review/format";
@@ -33,6 +35,23 @@ export default function DecisionListWithDetail({
   const { selectedKey: selectedId, moveTab, selectRow, setMoveTab } =
     useListSelection<string | null>(null);
   const selected = resolveSelected(items, selectedId, (i) => i.decision.id);
+
+  // ↓/j and ↑/k pick the next/previous row (stopping at the ends; the pager
+  // moves on), ←/h and →/l switch the board's Played/Best tab, as a click
+  // on the row or the chip does (lib/moveTableKeys.ts).
+  useMoveTableKeys("list", (action) => {
+    if (action === "my" || action === "best") {
+      if (!selected) return false;
+      setMoveTab(action);
+      return true;
+    }
+    if (action !== "next" && action !== "prev") return false;
+    const current = selected ? items.indexOf(selected) : -1;
+    const target = stepIndex(current, items.length, action === "next" ? 1 : -1);
+    if (target === null) return false;
+    selectRow(items[target].decision.id);
+    return true;
+  });
 
   // DecisionList's renderDetailCell receives only the plain Decision row
   // (shared across all three callers), not this component's own

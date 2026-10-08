@@ -8,6 +8,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { THEMES } from "@/lib/themes";
 import {
+  reviewAnswerTier,
   badgeForClassification,
   badgeForSeverity,
   classificationBadges,
@@ -161,5 +162,13 @@ describe("playedMoveTier", () => {
   // null = Galaxy's NONE ("Best"), not "ungraded" (investigator, 2026-10-08).
   it("shows no severity as Best", () => {
     expect(playedMoveTier(null)).toBe("best");
+  });
+});
+
+describe("reviewAnswerTier", () => {
+  it("is Best for the best option, Good for another right one, Error for a wrong one", () => {
+    expect(reviewAnswerTier(true, true)).toBe("best");
+    expect(reviewAnswerTier(false, true)).toBe("good");
+    expect(reviewAnswerTier(false, false)).toBe("error");
   });
 });

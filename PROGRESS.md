@@ -994,3 +994,21 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - 125 of 130 shots are byte-identical to phase3b, including every migrated page. The other 5 are 4 review fronts (the options are shuffled per session) and one replay viewport (its move list scrolled 2px differently).
     - Afterwards ReviewCard/ReviewLog/Tag/DecisionTag are 0/0/0/0, and DecisionNote is unchanged (2 rows, same max `updatedAt`).
   - **Next:** move the remaining hand-composed buttons, tables and cards onto the components as those files are touched (for example the modal buttons, BulkAddToReview, and the matches and dashboard tables).
+
+- **Keyboard navigation for the move tables, and the same movement keys on /review** (approved by the user; /review added mid-task). No DB or data-logic change.
+  - **Move tables** (/mistakes, /repeated-positions, the match pages, the replay): one shared hook, `app/hooks/useMoveTableKeys.ts`. The pure mapping and ignore rules are in `lib/moveTableKeys.ts`.
+    - ↓/j and ↑/k select the next/previous row. The lists stop at their ends. On the match pages the order is the order shown: checker mistakes, then cube mistakes.
+    - ←/h and →/l switch the Played/Best tab (the arrow follows).
+    - **Replay:** ↓/↑ (j/k) step through every move and cross games at either end, as Prev/Next do. They replace the old ←/→ stepping. Shift+↓/J and Shift+↑/K jump to the next/previous listed mistake (`isListedMistake`) and stop in this game. The Prev/Next keycaps now show ↑/↓.
+    - **Ignored:** typing (text inputs, textarea, select, contenteditable; a focused checkbox doesn't count), Cmd/Ctrl/Alt, IME composition, or any open `<dialog>`. `preventDefault` runs only when a key did something.
+    - `aria-keyshortcuts` is on the Played/Best tabs and the replay's Prev/Next.
+  - **/review** (`lib/reviewKeys.ts`):
+    - **Front:** ↓/j and ↑/k move the focus through the options; Enter or Space on the focused option chooses it, and 1–5 still choose directly.
+    - **Back of a checker card:** new display-only Yours / Best tabs (BoardPanel's chips, through its new `quizTabs`/`quizArrowTier`; default Best, as before) switched by ←/h and →/l. The Yours tier comes from `lib/badges.ts`'s new `reviewAnswerTier`: the best option is Best, another right one Good, a wrong one Error.
+    - **Ratings move to Shift:** Shift+H, Shift+G and Shift+E. Enter is still Good on a right answer and Next on a wrong one. Plain h/g/e no longer rate. The keycaps now read ⇧H, ⇧G · Enter and ⇧E.
+    - The session now uses the move tables' ignore rules, which adds select, contenteditable and an open dialog.
+  - **`?` help** (`lib/shortcuts.ts`): a "Move table" group with "↓ / J"-style alternatives (a new `alternatives` flag, rendered with a "/"). The replay group has the new keys and no longer has ←/→ stepping. The Review group has the option keys, the tabs and the Shift ratings.
+  - **Verified:** lint, tsc, 560/560 tests (new: `lib/moveTableKeys.test.ts`, `lib/reviewKeys.test.ts`, plus the shortcuts and badges tests) and build all pass. Visual 15/15 with no baseline change.
+    - A headless Playwright script ran against local `next start` :3300 (write mode): 58/58 checks.
+    - It covered /mistakes, the match page 47816592, its replay g1, the `?` help, and /review with 4 temporary cards for decisions 1257875/1257877/1257879/1257881, added and removed through the API. Answers and every other non-GET call were stubbed. Afterwards the review queue is empty and those decisions have no card.
+  - **Next:** /repeated-positions uses the same component as /mistakes, but the headless run didn't drive it.

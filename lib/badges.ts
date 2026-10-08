@@ -53,6 +53,16 @@ export function playedMoveTier(severity: Severity | null): SeverityTier {
   return severity ?? "best";
 }
 
+// The tier of a review answer, for the review back's "Yours" tab and its
+// arrows (display only): the best option is Best; a right answer that isn't
+// the best (within CORRECT_LOSS_THRESHOLD, 0.02 — Galaxy's good/error
+// boundary) is Good; a wrong one is past that boundary, so Error. A wrong
+// answer is never called a Blunder here: the review grading has no
+// error/blunder boundary of its own.
+export function reviewAnswerTier(isBest: boolean, correct: boolean): SeverityTier {
+  return isBest ? "best" : correct ? "good" : "error";
+}
+
 // The severity name for a stored ErrorSeverity value — what the /mistakes
 // and /repeated-positions severity filters and result lines show.
 export function severityLabel(severity: ErrorSeverity): string {

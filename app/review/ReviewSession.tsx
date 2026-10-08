@@ -8,6 +8,11 @@ import { buildQueryString } from "@/lib/listParams";
 import { formatEquity, formatLoss, formatRelativeDue, questionFor } from "@/lib/review/format";
 import { requeueIndex } from "@/lib/review/queue";
 import { reviewFilterParams, type ReviewFilters } from "@/lib/review/filters";
+import { reviewKeyAction, type Rating } from "@/lib/reviewKeys";
+import { stepIndex } from "@/lib/moveTableKeys";
+import { reviewAnswerTier } from "@/lib/badges";
+import type { MoveTab } from "@/lib/listSelection";
+import { isIgnoredKeyEvent } from "@/app/hooks/useMoveTableKeys";
 import type {
   ReviewAnswerResponse,
   ReviewCardPayload,
@@ -20,8 +25,6 @@ import TagEditor from "@/app/components/review/TagEditor";
 import { FilterDefaultOpenContext } from "@/app/components/ui/FilterDisclosure";
 import { useEffectiveTags } from "@/app/providers/ReviewStateProvider";
 import { style } from "./review.styles";
-
-type Rating = "hard" | "good" | "easy";
 
 interface QueueItem {
   card: ReviewCardPayload;
@@ -46,10 +49,6 @@ interface Stats {
 
 const NO_STATS: Stats = { answered: 0, correct: 0, streak: 0, bestStreak: 0 };
 
-function isTyping(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
-}
-
 // One /review session. Cards come from GET /api/review/queue in batches of
 // REVIEW_BATCH_SIZE; the next batch is fetched when the local queue runs
 // out. Front: the board in quiz mode (decision-maker at the bottom, dice
@@ -58,8 +57,12 @@ function isTyping(target: EventTarget | null): boolean {
 // the server grades again when the answer is saved). A wrong answer is saved
 // as Again straight away and the card comes back after
 // AGAIN_REQUEUE_AFTER_CARDS other cards (or at the end of the batch); a
-// right one is saved when the user rates it Hard / Good / Easy. Keys: 1–9
-// pick an option; on the back, Enter = Next (wrong) and h / g / e rate.
+// right one is saved when the user rates it Hard / Good / Easy. Keys
+// (lib/reviewKeys.ts): on the front ↓ / ↑ (j / k) move the focus through
+// the options, Enter or Space chooses the focused one, and 1–5 choose
+// directly; on the back ← / → (h / l) switch the board between your answer
+// and the best move (checker cards), Shift+H / Shift+G / Shift+E rate, and
+// Enter is Good (right) or Next (wrong, once saved).
 //
 // The session bar on top: "Review", the progress ("Card N of M" and a
 // track, N of the session's own total: what was answered plus what's still
@@ -89,6 +92,11 @@ export default function ReviewSession({
   // and on every advance. State, not a ref: it's read in event handlers
   // defined during render.
   const [shownAt, setShownAt] = useState(0);
+  // The back's board: your answer ("my") or the best move ("best", the
+  // default, as before the tabs existed). Reset on every answer.
+  const [backTab, setBackTab] = useState<MoveTab>("best");
+  // The front's option buttons, for ↓ / ↑ (j / k) to move the focus.
+  const optionsRef = useRef<HTMLDivElement>(null);
 
   const filterQuery = buildQueryString(reviewFilterParams(filters));
   const current = queue[0] ?? null;
@@ -165,6 +173,7 @@ export default function ReviewSession({
     if (!option) return;
     const a = { chosen: key, correct: option.correct, loss: option.loss };
     setAnswer(a);
+    setBackTab("best");
     setStats((s) => {
       const streak = a.correct ? s.streak + 1 : 0;
       return {
@@ -204,21 +213,57 @@ export default function ReviewSession({
     if (current && answer && !answer.correct) await submit(current, answer, null);
   }
 
-  // Keyboard shortcuts (not while typing in the note or tag input).
+  // Moves the focus to the next/previous option button (stopping at the
+  // ends; from outside the options, to the first). The focus ring is the
+  // highlight, and Enter or Space on it is the button's own click.
+  function moveOptionFocus(direction: 1 | -1): boolean {
+    const buttons = [...(optionsRef.current?.querySelectorAll<HTMLButtonElement>("button[data-option-key]") ?? [])];
+    const current = buttons.findIndex((b) => b === document.activeElement);
+    const target = stepIndex(current, buttons.length, direction);
+    if (target === null) return false;
+    buttons[target].focus();
+    return true;
+  }
+
+  // Keyboard shortcuts (lib/reviewKeys.ts), with the move tables' ignore
+  // rules: not while typing in the note or tag input, with Cmd/Ctrl/Alt
+  // held, or while a dialog is open. The key's default is prevented only
+  // when it did something.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey || !current) return;
-      if (!answer) {
-        const n = Number(e.key);
-        if (Number.isInteger(n) && n >= 1 && n <= current.card.options.length) choose(current.card.options[n - 1].key);
-        return;
+      if (!current || isIgnoredKeyEvent(e)) return;
+      const action = reviewKeyAction(
+        e.key,
+        e.shiftKey,
+        answer
+          ? {
+              side: "back",
+              correct: answer.correct,
+              saveKind: save.kind,
+              hasTabs: current.card.question === "checker",
+            }
+          : { side: "front", optionCount: current.card.options.length }
+      );
+      if (!action) return;
+      let handled = true;
+      switch (action.type) {
+        case "moveFocus":
+          handled = moveOptionFocus(action.direction);
+          break;
+        case "choose":
+          choose(current.card.options[action.index].key);
+          break;
+        case "tab":
+          setBackTab(action.tab);
+          break;
+        case "rate":
+          rate(action.rating);
+          break;
+        case "next":
+          advance();
+          break;
       }
-      if (!answer.correct && e.key === "Enter" && save.kind === "saved") advance();
-      if (answer.correct && save.kind !== "saving") {
-        if (e.key === "h") rate("hard");
-        else if (e.key === "g" || e.key === "Enter") rate("good");
-        else if (e.key === "e") rate("easy");
-      }
+      if (handled) e.preventDefault();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -334,6 +379,8 @@ export default function ReviewSession({
           ? `opponent ${offer.redouble ? "redoubles" : "doubles"} to ${offer.value}`
           : "opponent doubles";
   const bestLabel = bestOption?.label ?? "?";
+  // The back's "Yours" tab and its arrows (lib/badges.ts's reviewAnswerTier).
+  const yoursTier = answer ? reviewAnswerTier(answer.chosen === card.bestKey, answer.correct) : "best";
   const verdictSub = !answer
     ? ""
     : answer.chosen === card.bestKey
@@ -367,9 +414,19 @@ export default function ReviewSession({
           <BoardPanel
             key={`${card.cardId}-${stats.answered}`}
             selected={card.decision}
-            moveTab="my"
+            moveTab={backTab}
+            onSelectTab={setBackTab}
             quiz
-            quizArrows={answer && card.question === "checker" ? card.bestKey : null}
+            quizArrows={answer && card.question === "checker" ? (backTab === "my" ? answer.chosen : card.bestKey) : null}
+            quizArrowTier={answer && backTab === "my" ? yoursTier : "best"}
+            quizTabs={
+              answer && card.question === "checker" && chosenOption
+                ? {
+                    yours: { label: chosenOption.label, tier: yoursTier, loss: answer.loss },
+                    best: { label: bestLabel },
+                  }
+                : null
+            }
             bleed
           />
         </div>
@@ -383,7 +440,7 @@ export default function ReviewSession({
                   {question.lead} <em className={style.questionAsk}>{question.ask}</em>
                 </h2>
               </div>
-              <div data-testid="review-options" className={style.optionList}>
+              <div ref={optionsRef} data-testid="review-options" className={style.optionList}>
                 {options.map((o, i) => (
                   <button
                     key={o.key}
@@ -398,7 +455,9 @@ export default function ReviewSession({
                   </button>
                 ))}
               </div>
-              <p className={style.hint}>Press 1–{options.length} to answer.</p>
+              <p className={style.hint}>
+                Press 1–{options.length} to answer, or move with ↓ / ↑ (J / K) and press Enter.
+              </p>
             </>
           ) : (
             <>
@@ -502,11 +561,11 @@ export default function ReviewSession({
                       disabled={save.kind === "saving"}
                       onClick={() => rate("hard")}
                       className={style.gradeButton({ primary: false, wide: false })}
-                      aria-keyshortcuts="h"
+                      aria-keyshortcuts="Shift+H"
                     >
                       <span className={style.gradeLabel}>Hard</span>
                       <span className={style.gradeKey(false)} aria-hidden="true">
-                        H
+                        ⇧H
                       </span>
                     </button>
                     <button
@@ -514,11 +573,11 @@ export default function ReviewSession({
                       disabled={save.kind === "saving"}
                       onClick={() => rate("good")}
                       className={style.gradeButton({ primary: true, wide: false })}
-                      aria-keyshortcuts="g Enter"
+                      aria-keyshortcuts="Shift+G Enter"
                     >
                       <span className={style.gradeLabel}>Good</span>
                       <span className={style.gradeKey(true)} aria-hidden="true">
-                        G · Enter
+                        ⇧G · Enter
                       </span>
                     </button>
                     <button
@@ -526,11 +585,11 @@ export default function ReviewSession({
                       disabled={save.kind === "saving"}
                       onClick={() => rate("easy")}
                       className={style.gradeButton({ primary: false, wide: false })}
-                      aria-keyshortcuts="e"
+                      aria-keyshortcuts="Shift+E"
                     >
                       <span className={style.gradeLabel}>Easy</span>
                       <span className={style.gradeKey(false)} aria-hidden="true">
-                        E
+                        ⇧E
                       </span>
                     </button>
                   </>

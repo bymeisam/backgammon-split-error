@@ -22,6 +22,7 @@ function DecisionChip({
   loss,
   isActive,
   onSelect,
+  keyShortcuts,
 }: {
   label: string;
   tier: SeverityTier;
@@ -30,6 +31,9 @@ function DecisionChip({
   loss: string;
   isActive: boolean;
   onSelect?: () => void;
+  // The move-table keys that switch to this tab (useMoveTableKeys), for
+  // aria-keyshortcuts on the tab button.
+  keyShortcuts: string;
 }) {
   const content = (
     <>
@@ -49,6 +53,7 @@ function DecisionChip({
       type="button"
       role="tab"
       aria-selected={isActive}
+      aria-keyshortcuts={keyShortcuts}
       onClick={onSelect}
       className={style.decisionChip({ tier, isActive, isButton: true })}
     >
@@ -65,6 +70,8 @@ export default function BoardPanel({
   canEditNotes = false,
   quiz = false,
   quizArrows = null,
+  quizArrowTier = "best",
+  quizTabs = null,
   bleed = false,
   belowBoard,
 }: {
@@ -84,12 +91,21 @@ export default function BoardPanel({
   // (DecisionReviewTools).
   canEditNotes?: boolean;
   // Review card (app/review): just the position, dice and cube — no
-  // Played/Best chips, no note card, nothing that gives the answer away.
+  // Played/Best chips, no note card, nothing that gives the answer away
+  // (the back's own Yours / Best tabs are `quizTabs`).
   quiz?: boolean;
   // Review card back: the best move's notation, drawn as best arrows (the
   // card's own best option, which can differ from Galaxy's rank 1). Null
   // draws none (the front, and cube cards).
   quizArrows?: string | null;
+  // The tier of those arrows: best by default; the review back's "Yours"
+  // tab draws your answer in its own tier (ReviewSession).
+  quizArrowTier?: ArrowTier;
+  // Review card back, checker cards: the Yours / Best tabs under the board
+  // (the same chips as the Played / Best tabs, display only), switching
+  // which move `quizArrows` draws through `moveTab` / `onSelectTab`. Null
+  // (the front, and cube cards, which have no arrows) shows none.
+  quizTabs?: { yours: { label: string; tier: SeverityTier; loss: number }; best: { label: string } } | null;
   // The page has no side padding below md (replay, review): see
   // BoardPanel.styles.ts's boardWrap/inset.
   bleed?: boolean;
@@ -132,7 +148,7 @@ export default function BoardPanel({
   // playedMoveTier: a null severity is Galaxy's "Best"), best on the Best
   // tab and on a review card's back.
   const playedTier = playedMoveTier(selected?.severity ?? null);
-  const arrowTier: ArrowTier = quiz || moveTab === "best" ? "best" : playedTier;
+  const arrowTier: ArrowTier = quiz ? quizArrowTier : moveTab === "best" ? "best" : playedTier;
 
   // The cube to draw: the owned cube, flipped with the position above, or on
   // a take/pass the offered cube at the receiver's edge — worked out once,
@@ -161,6 +177,31 @@ export default function BoardPanel({
 
         {belowBoard}
 
+        {selected && quiz && quizTabs && onSelectTab && (
+          <div className={style.decisionRow(bleed)} role="tablist" aria-label="Move shown on the board">
+            <DecisionChip
+              label="Yours"
+              tier={quizTabs.yours.tier}
+              move={quizTabs.yours.label}
+              detail={null}
+              loss={formatLoss(quizTabs.yours.loss)}
+              isActive={moveTab === "my"}
+              onSelect={() => onSelectTab("my")}
+              keyShortcuts="ArrowLeft h"
+            />
+            <DecisionChip
+              label="Best"
+              tier="best"
+              move={quizTabs.best.label}
+              detail={null}
+              loss={formatLoss(0)}
+              isActive={moveTab === "best"}
+              onSelect={() => onSelectTab("best")}
+              keyShortcuts="ArrowRight l"
+            />
+          </div>
+        )}
+
         {selected && !quiz && (
           <div
             className={style.decisionRow(bleed)}
@@ -175,6 +216,7 @@ export default function BoardPanel({
               loss={formatLoss(-selected.absError)}
               isActive={!onSelectTab || moveTab === "my"}
               onSelect={onSelectTab ? () => onSelectTab("my") : undefined}
+              keyShortcuts="ArrowLeft h"
             />
             <DecisionChip
               label="Best"
@@ -184,6 +226,7 @@ export default function BoardPanel({
               loss={formatLoss(0)}
               isActive={!onSelectTab || moveTab === "best"}
               onSelect={onSelectTab ? () => onSelectTab("best") : undefined}
+              keyShortcuts="ArrowRight l"
             />
           </div>
         )}

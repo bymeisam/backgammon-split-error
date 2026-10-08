@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { shortcutsFor } from "@/lib/shortcuts";
 import Modal from "./Modal";
@@ -73,9 +73,14 @@ export default function ShortcutsHelp({ writeEnabled }: { writeEnabled: boolean 
                 <div key={`${s.keys.join("+")}-${s.description}`} className={style.helpRow}>
                   <span className={style.helpKeys}>
                     {s.keys.map((k, i) => (
-                      <kbd key={`${i}-${k}`} className={style.kbd}>
-                        {k}
-                      </kbd>
+                      <Fragment key={`${i}-${k}`}>
+                        {s.alternatives && i > 0 && (
+                          <span aria-hidden="true" className={style.helpKeySeparator}>
+                            /
+                          </span>
+                        )}
+                        <kbd className={style.kbd}>{k}</kbd>
+                      </Fragment>
                     ))}
                   </span>
                   <span>{s.description}</span>

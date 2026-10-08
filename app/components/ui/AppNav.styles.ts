@@ -110,6 +110,8 @@ export const style = {
   helpGroups: "flex flex-col gap-4",
   helpGroupTitle: clsx(shared.overline, "mb-1.5"),
   helpRow: "grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-x-3 py-0.5 text-sm text-ink-muted",
-  helpKeys: "flex flex-wrap gap-1",
+  helpKeys: "flex flex-wrap items-baseline gap-1",
+  // The "/" between alternative keys ("↓ / J").
+  helpKeySeparator: "text-ink-faint",
   kbd: shared.kbd,
 } as const;

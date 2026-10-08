@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Decision } from "@/lib/mistakes";
+import { isListedMistake, type Decision } from "@/lib/mistakes";
+import { findMistakeIndex } from "@/lib/moveTableKeys";
 import { useListSelection } from "@/app/hooks/useListSelection";
+import { useMoveTableKeys } from "@/app/hooks/useMoveTableKeys";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
 import DecisionList, { SeverityLegend } from "@/app/components/match-analysis/DecisionList";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
@@ -15,8 +17,9 @@ import { style } from "./gameReplay.styles";
 // (useListSelection), the board column and the move list card side by side
 // from 980px — applied here to a complete, unfiltered, in-order sequence
 // instead of a filtered/ranked set of flagged mistakes. Under the board: the
-// stepper (Prev/Next, buttons and arrow keys, crossing into the
-// previous/next game at either end), the Played/Best chips and the note
+// stepper (Prev/Next, buttons and ↑/↓ or k/j, crossing into the
+// previous/next game at either end; ←/→ or h/l switch the Played/Best tab,
+// Shift+↑/↓ or K/J jump between mistakes — useMoveTableKeys), the Played/Best chips and the note
 // card. Clicking a list row jumps straight to it.
 export default function GameReplay({
   matchId,
@@ -75,34 +78,60 @@ export default function GameReplay({
   // game →"/"← Previous game" links below exist alongside this so crossing
   // into a different game is still visually explicit, not just a silent
   // position-counter reset.
-  function goPrev() {
+  // Each returns whether it went anywhere (for the keys' preventDefault).
+  function goPrev(): boolean {
     if (!atStart) {
       selectRow(selectedIndex - 1);
-    } else if (prevGameIndex !== null) {
-      router.push(`/matches/${matchId}/replay/${prevGameIndex}?position=last`);
+      return true;
     }
+    if (prevGameIndex !== null) {
+      router.push(`/matches/${matchId}/replay/${prevGameIndex}?position=last`);
+      return true;
+    }
+    return false;
   }
 
-  function goNext() {
+  function goNext(): boolean {
     if (!atEnd) {
       selectRow(selectedIndex + 1);
-    } else if (nextGameIndex !== null) {
-      router.push(`/matches/${matchId}/replay/${nextGameIndex}`);
+      return true;
     }
+    if (nextGameIndex !== null) {
+      router.push(`/matches/${matchId}/replay/${nextGameIndex}`);
+      return true;
+    }
+    return false;
   }
 
-  // No dependency array: re-attaches every render so the listener always
-  // closes over the latest selectedIndex/decisions/prevGameIndex/
-  // nextGameIndex rather than a stale first-render snapshot. Cheap — a
-  // single event listener add/remove per render, not a real cost at this
-  // page's scale.
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") goPrev();
-      else if (e.key === "ArrowRight") goNext();
+  // The move-table keys (lib/moveTableKeys.ts): ↑/↓ (k/j) step through
+  // every move, as Prev/Next do, crossing games at either end; ←/→ (h/l)
+  // switch the Played/Best tab, as clicking the chip does; Shift+↑/↓ (K/J)
+  // jump to the previous/next listed mistake (isListedMistake: Error or
+  // Blunder), stopping at the first/last one in this game.
+  useMoveTableKeys("replay", (action) => {
+    switch (action) {
+      case "next":
+        return goNext();
+      case "prev":
+        return goPrev();
+      case "my":
+      case "best":
+        if (!selected) return false;
+        setMoveTab(action);
+        return true;
+      case "nextMistake":
+      case "prevMistake": {
+        const target = findMistakeIndex(
+          decisions,
+          selectedIndex,
+          action === "nextMistake" ? 1 : -1,
+          isListedMistake
+        );
+        if (target === null) return false;
+        selectRow(target);
+        return true;
+      }
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
   });
 
   const roll = selected?.roll ?? [];
@@ -121,13 +150,13 @@ export default function GameReplay({
             <div className={style.stepper}>
               <button
                 type="button"
-                onClick={goPrev}
+                onClick={() => goPrev()}
                 disabled={atStart && prevGameIndex === null}
                 aria-label="Previous step"
-                aria-keyshortcuts="ArrowLeft"
+                aria-keyshortcuts="ArrowUp k"
                 className={style.stepButton}
               >
-                <kbd className={style.kbd}>←</kbd> Prev
+                <kbd className={style.kbd}>↑</kbd> Prev
               </button>
               <span className={style.where}>
                 Move <b className={style.whereStrong}>{selectedIndex + 1}</b> of {decisions.length}
@@ -149,13 +178,13 @@ export default function GameReplay({
               </span>
               <button
                 type="button"
-                onClick={goNext}
+                onClick={() => goNext()}
                 disabled={atEnd && nextGameIndex === null}
                 aria-label="Next step"
-                aria-keyshortcuts="ArrowRight"
+                aria-keyshortcuts="ArrowDown j"
                 className={style.stepButton}
               >
-                Next <kbd className={style.kbd}>→</kbd>
+                Next <kbd className={style.kbd}>↓</kbd>
               </button>
               {myColor !== null && (
                 <label className={style.perspectiveToggle} title="Keep my checkers on the same side">
