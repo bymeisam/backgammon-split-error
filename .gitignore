@@ -62,5 +62,9 @@ next-env.d.ts
 # between local and Oracle) — user data, never committed.
 notes-export*.json
 
+# Design-review screenshots from scripts/design-screenshots.ts (binary,
+# regenerated on demand). The designer's reports and mockups are committed.
+/design/screenshots/
+
 # Galaxy website build (compiled Flutter/Dart JS), local reference only, never commit
 galaxy-source/
