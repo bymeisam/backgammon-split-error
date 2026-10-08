@@ -1,4 +1,5 @@
 import type { ErrorSeverity } from "@/lib/generated/prisma/enums";
+import type { Severity } from "@/lib/mistakes";
 import { CLASSIFICATION_LABELS_BY_RAW_VALUE } from "@/lib/classificationLabels";
 import { style as shared } from "@/lib/styles/shared.styles";
 
@@ -40,6 +41,13 @@ export const SEVERITY_TIER_LABELS = {
   blunder: "Blunder",
 } as const satisfies Record<SeverityTier, string>;
 
+// The tier a played move is coloured in (the move text in the lists, the
+// my-move box under the board): blunder and good as themselves, anything
+// else (an error, or no grade) as an error. Display only.
+export function playedMoveTier(severity: Severity | null): SeverityTier {
+  return severity === "blunder" ? "blunder" : severity === "good" ? "good" : "error";
+}
+
 // The severity name for a stored ErrorSeverity value — what the /mistakes
 // and /repeated-positions severity filters and result lines show.
 export function severityLabel(severity: ErrorSeverity): string {
@@ -47,13 +55,13 @@ export function severityLabel(severity: ErrorSeverity): string {
 }
 
 // Full names on the badge itself (not one-letter codes: "Best" and
-// "Blunder" would both be "B"), in Galaxy's colours
-// (lib/styles/shared.styles.ts).
+// "Blunder" would both be "B"), in Galaxy's colours — the one severity
+// source, lib/styles/shared.styles.ts's severityChip.
 export const severityBadges = {
-  best: { code: "Best", label: "Best", color: shared.severityBest },
-  good: { code: "Good", label: "Good", color: shared.severityGood },
-  error: { code: "Error", label: "Error", color: shared.severityError },
-  blunder: { code: "Blunder", label: "Blunder", color: shared.severityBlunder },
+  best: { code: "Best", label: "Best", color: shared.severityChip("best") },
+  good: { code: "Good", label: "Good", color: shared.severityChip("good") },
+  error: { code: "Error", label: "Error", color: shared.severityChip("error") },
+  blunder: { code: "Blunder", label: "Blunder", color: shared.severityChip("blunder") },
 } satisfies Record<SeverityTier, BadgeConfig>;
 
 // Short 2-4 char codes for the compact badge itself — a Badge-display-only

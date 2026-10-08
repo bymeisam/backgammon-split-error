@@ -1,79 +1,60 @@
 import clsx from "clsx";
+import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local (see .claude/skills/styling-conventions) — covers MatchesPage
 // (page.tsx) and TokenModal.tsx, folded into one file since TokenModal is
 // exclusively used by this page and lives in the same folder. `errorBox` is
-// shared verbatim between both components (identical original string in
-// both files) rather than duplicated under two keys.
+// shared by both components.
 export const style = {
   // --- page.tsx --- (the page container, width and title row are
   // PageShell's)
   jumpForm: "flex flex-wrap items-center gap-2",
-  matchIdInput:
-    "w-32 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30",
+  matchIdInput: clsx(shared.input, "w-32 py-1.5"),
   // Shared by "Jump to match" and "Show JSON".
-  pillButton:
-    "inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
-  divider: "mx-1 h-5 w-px bg-black/10 dark:bg-white/15",
-  gameIndexInput:
-    "w-16 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30",
-  jsonBox: "rounded-lg border border-black/10 bg-white p-3 dark:border-white/15 dark:bg-zinc-900",
+  pillButton: shared.buttonSecondary,
+  divider: "mx-1 h-5 w-px bg-line",
+  gameIndexInput: clsx(shared.input, "w-16 py-1.5"),
+  jsonBox: clsx(shared.card, "p-4"),
   jsonBoxHeader: "mb-2 flex items-center justify-between",
-  jsonBoxLabel:
-    "text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400",
+  jsonBoxLabel: shared.overline,
   jsonBoxActions: "flex items-center gap-3",
   // Shared by the "Copy"/"Close" json-box buttons.
-  jsonLinkButton:
-    "text-xs text-zinc-500 underline hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100",
+  jsonLinkButton: clsx(shared.textLink, "text-xs"),
   // Shared by the json-box "Loading…" text and the list "Loading…" text.
-  // (The "Page N of M" indicator is the shared Pager's.)
-  mutedText: "text-sm text-zinc-600 dark:text-zinc-400",
-  jsonPre:
-    "max-h-[60vh] overflow-auto rounded-lg bg-zinc-50 p-3 text-xs text-black dark:bg-black dark:text-zinc-100",
-  tableWrapper: "overflow-x-auto rounded-lg border border-black/10 dark:border-white/15",
-  table: "w-full border-collapse text-left text-sm",
-  theadRow:
-    "border-b border-black/10 bg-zinc-100 text-xs uppercase tracking-wide text-zinc-500 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-400",
-  headCell: "px-3 py-2",
-  bodyRow:
-    "cursor-pointer border-b border-black/5 last:border-b-0 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-zinc-800/60",
-  opponentCell: "px-3 py-2 text-black dark:text-zinc-100",
+  mutedText: shared.mutedText,
+  jsonPre: "max-h-[60vh] overflow-auto rounded-control bg-sunken p-3 font-mono text-xs text-ink",
+  tableWrapper: shared.tableWrapper,
+  table: shared.table,
+  theadRow: shared.tableHeadRow,
+  headCell: shared.tableHeadCell,
+  bodyRow: shared.tableRowClickable,
+  opponentCell: clsx(shared.tableCell, "font-medium"),
   // Shared by the rating/score/your-error/opponent-error cells.
-  monoCell: "px-3 py-2 font-mono text-xs text-black dark:text-zinc-100",
-  actionCell: "px-3 py-2 text-right",
-  syncingLabel: "inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400",
-  spinner:
-    "h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-300",
-  syncedLabel: "text-xs font-medium text-green-600 dark:text-green-400",
-  syncButton:
-    "rounded-full border border-black/10 px-3 py-1 text-xs font-medium text-black transition-colors hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
+  monoCell: shared.tableCellMuted,
+  actionCell: "px-4 py-2.5 text-right",
+  syncingLabel: "inline-flex items-center gap-1.5 text-xs text-ink-faint",
+  spinner: shared.spinner,
+  syncedLabel: "text-xs font-medium text-best-ink",
+  syncButton: shared.buttonSmall,
 
   // --- TokenModal.tsx ---
-  modalOverlay: "fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6",
-  modalPanel:
-    "flex w-full max-w-lg flex-col gap-4 rounded-xl border border-black/10 bg-white p-6 shadow-xl dark:border-white/15 dark:bg-zinc-900",
-  modalHeading: "text-lg font-semibold text-black dark:text-zinc-50",
-  modalSubtext: "mt-1 text-sm text-zinc-600 dark:text-zinc-400",
-  tabRow:
-    "inline-flex w-fit rounded-full border border-black/10 bg-zinc-50 p-1 dark:border-white/15 dark:bg-zinc-800",
-  // Function, 1 param -> passed directly. Was a hand-rolled template
-  // literal keyed off `mode === "curl" | "manual"`; both tab buttons call
-  // this with their own `isActive` boolean.
+  modalOverlay: shared.modalOverlay,
+  modalPanel: shared.modalPanel,
+  modalHeading: shared.modalHeading,
+  modalSubtext: clsx(shared.modalText, "mt-1"),
+  tabRow: "inline-flex w-fit gap-1 rounded-control bg-sunken p-[3px]",
+  // Function, 1 param -> passed directly. A segmented control: the active
+  // tab raised on the track.
   tabButton: (isActive: boolean): string =>
     clsx(
-      "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-      isActive ? "bg-foreground text-background" : "text-zinc-600 dark:text-zinc-400"
+      "rounded-[7px] px-4 py-1.5 text-sm font-medium transition-colors",
+      isActive ? "bg-surface text-ink shadow-card" : "text-ink-muted hover:text-ink"
     ),
   // Shared by the curl-command label and the authorization label.
   fieldWrapper: "flex flex-col gap-2",
-  fieldLabel: "text-sm font-medium text-zinc-700 dark:text-zinc-300",
+  fieldLabel: "text-sm font-medium text-ink-muted",
   // Shared by the curl textarea and the plain authorization input.
-  textInput:
-    "w-full rounded-lg border border-black/10 bg-white p-3 font-mono text-xs text-black outline-none focus:border-black/30 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/30",
-  // Identical original string to page.tsx's error boxes — shared, not
-  // duplicated under a second key.
-  errorBox:
-    "rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300",
-  connectButton:
-    "inline-flex h-10 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]",
+  textInput: clsx(shared.input, "p-3 font-mono text-xs"),
+  errorBox: shared.errorBox,
+  connectButton: clsx(shared.buttonPrimary, "h-10 px-6"),
 } as const;

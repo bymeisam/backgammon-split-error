@@ -1,43 +1,46 @@
 import clsx from "clsx";
 import type { Severity } from "@/lib/mistakes";
+import { playedMoveTier } from "@/lib/badges";
+import { style as shared } from "@/lib/styles/shared.styles";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
 // covers MoveDelta.tsx, used independently by MistakesSection.tsx,
-// DecisionListWithDetail.tsx and GameReplay.tsx.
+// DecisionListWithDetail.tsx and GameReplay.tsx. Severity colours come from
+// the one source, lib/styles/shared.styles.ts's severityText (the *-ink
+// tokens, readable as text in both modes).
 export const style = {
-  wrapper: "whitespace-nowrap",
+  // The played and best labels each stay on one line, but the best one can
+  // wrap below the played one in a narrow list.
+  wrapper: "inline",
 
-  // Function, 2 params -> passed directly. The severity->color branch used
-  // to be computed separately (a `myColor` const in MoveDelta itself)
-  // before being interpolated into the className template literal — moved
-  // in here to match BoardPanel.styles.ts's own myMoveBadge/myMoveStatic
-  // precedent for the exact same severity-based color decision.
+  // Function, 2 params -> passed directly. The played move, in its
+  // severity's colour (lib/badges.ts's playedMoveTier).
   myLabel: (severity: Severity | null, isActive: boolean): string =>
     clsx(
-      "cursor-pointer font-semibold",
-      severity === "blunder" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400",
+      "cursor-pointer whitespace-nowrap font-medium underline-offset-4",
+      shared.severityText(playedMoveTier(severity)),
       isActive ? "underline" : "hover:underline"
     ),
 
-  // Function, 1 param -> passed directly. Best-move label is always green,
-  // regardless of severity — only the active-tab underline varies.
+  // Function, 1 param -> passed directly. The best move, always in Best's
+  // colour — only the active-tab underline varies.
   bestLabel: (isActive: boolean): string =>
     clsx(
-      "ml-1.5 cursor-pointer font-semibold text-green-600 dark:text-green-400",
+      "ml-1.5 inline-block cursor-pointer whitespace-nowrap font-medium underline-offset-4",
+      shared.severityText("best"),
       isActive ? "underline" : "hover:underline"
     ),
 
   // The opponent's half of a Double/Too good best action ("opponent should
-  // take"), small and grey after bestLabel.
-  bestDetail: "ml-1 font-sans text-[10px] text-zinc-500 dark:text-zinc-400",
+  // take"), small after bestLabel.
+  bestDetail: "ml-1 font-sans text-[10.5px] text-ink-faint",
 
-  // Same green styling as bestLabel, minus its ml-1.5 — used instead of
-  // myLabel+bestLabel together when the two would be identical (see
-  // MoveDelta.tsx), where this is the only label shown, not the second of
-  // a pair.
+  // Function, 1 param -> passed directly. The single label shown when the
+  // played move was the best one.
   collapsedLabel: (isActive: boolean): string =>
     clsx(
-      "cursor-pointer font-semibold text-green-600 dark:text-green-400",
+      "cursor-pointer whitespace-nowrap font-medium underline-offset-4",
+      shared.severityText("best"),
       isActive ? "underline" : "hover:underline"
     ),
 } as const;

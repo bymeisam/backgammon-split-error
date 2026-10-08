@@ -1,0 +1,168 @@
+/*
+ * Clubroom theme (reports/2026-10-08-design-review.md, section 3.1): warm
+ * ivory paper, ink-black type, an Oxford-navy accent and a walnut-and-bone
+ * board. Values only; app/globals.css maps them to Tailwind names in its
+ * @theme inline block, and lib/themes.ts registers the theme.
+ *
+ * Every theme file defines the same variables, under
+ * [data-theme="<id>"] (light values), [data-theme="<id>"][data-mode="dark"]
+ * and, inside @media (prefers-color-scheme: dark),
+ * [data-theme="<id>"][data-mode="system"] (dark values):
+ *
+ *   surfaces   --paper --surface --sunken --line --line-strong
+ *   text       --ink --ink-muted --ink-faint
+ *   accent     --accent --on-accent --focus
+ *   severity   --best --good --error --blunder (Galaxy's fill hues)
+ *              --on-best --on-good --on-error --on-blunder (text on a fill)
+ *              --best-ink --good-ink --error-ink --blunder-ink (as text)
+ *              --best-tint --error-tint --blunder-tint (row tints)
+ *   cube       --cube-default --on-cube-default
+ *   board      --board-frame --board-bone --board-point-dark
+ *              --board-point-light --board-tray --board-number --board-shadow
+ *              --checker-mine --checker-mine-rim --checker-opp
+ *              --checker-opp-rim --arrow-best --arrow-error --arrow-blunder
+ *   elevation  --shadow-color
+ *   nav mode   --mode-ok --mode-warn
+ *   fonts      --theme-font-sans --theme-font-serif --theme-font-mono
+ *              (the next/font variables from app/layout.tsx)
+ *
+ * The dark values appear twice (explicit dark mode, and system mode on a
+ * dark OS): plain CSS can't put one block under both a selector and a media
+ * query. Keep the two dark blocks identical.
+ */
+
+[data-theme="clubroom"] {
+  /* surfaces */
+  --paper: #f6f3ec; /* page */
+  --surface: #fffdf8; /* cards, inputs */
+  --sunken: #efebe2; /* hover rows, kbd, segmented tracks */
+  --line: #e4ded1; /* hairlines */
+  --line-strong: #cfc7b6; /* control borders */
+  /* text */
+  --ink: #1d1b17;
+  --ink-muted: #5f5a50;
+  --ink-faint: #736d61; /* don't use on --sunken */
+  /* accent and focus */
+  --accent: #24426b; /* Oxford navy: due count, selected row */
+  --on-accent: #fffdf8;
+  --focus: #2f5bd3;
+  /* Galaxy severity fills, same in both modes */
+  --best: #36d399;
+  --good: #65758b;
+  --error: #fbbd23;
+  --blunder: #f43e5c;
+  --on-best: #062116;
+  --on-good: #ffffff;
+  --on-error: #231a02;
+  --on-blunder: #1a0a0e;
+  /* severity as text */
+  --best-ink: #0b7a55;
+  --good-ink: #55657a;
+  --error-ink: #8f5f00;
+  --blunder-ink: #c81e40;
+  /* severity row tints (Good has none on purpose) */
+  --best-tint: #e4f5ec;
+  --error-tint: #fbf0d2;
+  --blunder-tint: #fbe5e9;
+  /* Galaxy's cube square, for a cube row that isn't an error or blunder */
+  --cube-default: #2c44ff;
+  --on-cube-default: #ffffff;
+  /* board */
+  --board-frame: #4b3425;
+  --board-bone: #efe5d0;
+  --board-point-dark: #8c5a3c;
+  --board-point-light: #cdb089;
+  --board-tray: #3a281c;
+  --board-number: #e6d7bc;
+  --board-shadow: rgb(60 35 15 / 0.28);
+  --checker-mine: #1e2126;
+  --checker-mine-rim: #000000;
+  --checker-opp: #f7f2e7;
+  --checker-opp-rim: #7e725e;
+  --arrow-best: #12855e;
+  --arrow-error: #a86f00;
+  --arrow-blunder: #d3203f;
+  /* elevation */
+  --shadow-color: rgb(60 45 25 / 0.07);
+  /* the navbar's mode dot */
+  --mode-ok: #0b7a55;
+  --mode-warn: #8f5f00;
+  /* fonts */
+  --theme-font-sans: var(--font-geist-sans);
+  --theme-font-serif: var(--font-newsreader);
+  --theme-font-mono: var(--font-geist-mono);
+}
+
+[data-theme="clubroom"][data-mode="dark"] {
+  --paper: #141311;
+  --surface: #1c1a17;
+  --sunken: #23211d;
+  --line: #2e2b26;
+  --line-strong: #433e36;
+  --ink: #ede8dd;
+  --ink-muted: #b3ac9e;
+  --ink-faint: #8e877a;
+  --accent: #a9c1e8;
+  --on-accent: #141311;
+  --focus: #8fb0ff;
+  --best-ink: #4ade9f;
+  --good-ink: #9aa8ba;
+  --error-ink: #fbbd23;
+  --blunder-ink: #ff6b82;
+  --best-tint: #12291f;
+  --error-tint: #2b230f;
+  --blunder-tint: #2e1419;
+  --board-frame: #2a1f17;
+  --board-bone: #c9bc9f;
+  --board-point-dark: #6b442e;
+  --board-point-light: #a68b65;
+  --board-tray: #1e1610;
+  --board-number: #a8987c;
+  --board-shadow: rgb(0 0 0 / 0.6);
+  --checker-mine-rim: #5e584f;
+  /* darker than the report's, which are under 3:1 on the dimmed bone */
+  --arrow-best: #0a6446;
+  --arrow-error: #7a5200;
+  --arrow-blunder: #a8162f;
+  --shadow-color: rgb(0 0 0 / 0.45);
+  --mode-ok: #4ade9f;
+  --mode-warn: #fbbd23;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="clubroom"][data-mode="system"] {
+    --paper: #141311;
+    --surface: #1c1a17;
+    --sunken: #23211d;
+    --line: #2e2b26;
+    --line-strong: #433e36;
+    --ink: #ede8dd;
+    --ink-muted: #b3ac9e;
+    --ink-faint: #8e877a;
+    --accent: #a9c1e8;
+    --on-accent: #141311;
+    --focus: #8fb0ff;
+    --best-ink: #4ade9f;
+    --good-ink: #9aa8ba;
+    --error-ink: #fbbd23;
+    --blunder-ink: #ff6b82;
+    --best-tint: #12291f;
+    --error-tint: #2b230f;
+    --blunder-tint: #2e1419;
+    --board-frame: #2a1f17;
+    --board-bone: #c9bc9f;
+    --board-point-dark: #6b442e;
+    --board-point-light: #a68b65;
+    --board-tray: #1e1610;
+    --board-number: #a8987c;
+    --board-shadow: rgb(0 0 0 / 0.6);
+    --checker-mine-rim: #5e584f;
+    /* darker than the report's, which are under 3:1 on the dimmed bone */
+    --arrow-best: #0a6446;
+    --arrow-error: #7a5200;
+    --arrow-blunder: #a8162f;
+    --shadow-color: rgb(0 0 0 / 0.45);
+    --mode-ok: #4ade9f;
+    --mode-warn: #fbbd23;
+  }
+}

@@ -8,16 +8,15 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // (app/components/ui/FilterSelect.styles.ts, PaginationLinks.styles.ts).
 // The page container, width and title are PageShell's.
 export const style = {
-  backLink: "underline hover:text-black dark:hover:text-zinc-100",
-  form: "flex flex-wrap items-end gap-3 rounded-lg border border-black/10 bg-white p-3 dark:border-white/15 dark:bg-zinc-900",
-  applyButton:
-    "rounded-full border border-black/10 px-4 py-1.5 text-sm font-medium text-black hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
-  noFilterText: "text-sm text-zinc-500 dark:text-zinc-400",
-  mutedText: "text-sm text-zinc-600 dark:text-zinc-400",
-  fallbackRow: "flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400",
+  backLink: shared.textLink,
+  // The filter bar: no box, a row of labelled controls.
+  form: shared.filterBar,
+  applyButton: shared.buttonSecondary,
+  noFilterText: shared.faintText,
+  mutedText: shared.mutedText,
+  fallbackRow: "flex items-center gap-2 text-sm text-ink-faint",
   countRow: "flex flex-wrap items-center justify-between gap-3",
-  bulkAddButton:
-    "rounded-full border border-black/10 px-4 py-1.5 text-sm font-medium text-black hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/15 dark:text-zinc-100 dark:hover:bg-zinc-800",
+  bulkAddButton: shared.buttonSecondary,
   modalOverlay: shared.modalOverlay,
   modalPanel: shared.modalPanel,
   modalHeading: shared.modalHeading,
@@ -26,6 +25,5 @@ export const style = {
   modalButtons: shared.modalButtons,
   modalPrimaryButton: shared.modalPrimaryButton,
   modalSecondaryButton: shared.modalSecondaryButton,
-  fallbackSpinner:
-    "h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-300",
+  fallbackSpinner: shared.spinner,
 } as const;

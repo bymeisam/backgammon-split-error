@@ -3,11 +3,15 @@
 // badges ambiguous at a glance) and a gap (a real value with no config
 // entry, which ClassificationBadge/SeverityBadge would otherwise have to
 // paper over at render time).
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { THEMES } from "@/lib/themes";
 import {
   badgeForClassification,
   badgeForSeverity,
   classificationBadges,
+  playedMoveTier,
   severityBadges,
   severityLabel,
   severityTier,
@@ -84,11 +88,17 @@ describe("severityBadges", () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
+  // The badges fill with the severity tokens, and every theme sets those
+  // to Galaxy's own hues.
   it("uses Galaxy's colours", () => {
-    expect(severityBadges.best.color).toContain("#36D399");
-    expect(severityBadges.good.color).toContain("#65758B");
-    expect(severityBadges.error.color).toContain("#FBBD23");
-    expect(severityBadges.blunder.color).toContain("#F43E5C");
+    const galaxy = { best: "#36d399", good: "#65758b", error: "#fbbd23", blunder: "#f43e5c" } as const;
+    for (const theme of THEMES) {
+      const css = readFileSync(path.resolve(__dirname, `../app/themes/${theme.id}.css`), "utf8").toLowerCase();
+      for (const [tier, hex] of Object.entries(galaxy)) {
+        expect(severityBadges[tier as SeverityTier].color).toContain(`bg-${tier}`);
+        expect(css).toContain(`--${tier}: ${hex};`);
+      }
+    }
   });
 });
 
@@ -138,5 +148,14 @@ describe("badgeForClassification", () => {
 
   it("doesn't resolve inherited object properties as configs", () => {
     expect(badgeForClassification("toString")).toEqual({ code: "toString", label: "toString" });
+  });
+});
+
+describe("playedMoveTier", () => {
+  it("shows a blunder and a good move as themselves, anything else as an error", () => {
+    expect(playedMoveTier("blunder")).toBe("blunder");
+    expect(playedMoveTier("good")).toBe("good");
+    expect(playedMoveTier("error")).toBe("error");
+    expect(playedMoveTier(null)).toBe("error");
   });
 });

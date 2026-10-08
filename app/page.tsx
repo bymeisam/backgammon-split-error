@@ -61,7 +61,7 @@ async function DueCardsWidget() {
       <p className={style.bigNumber} data-testid="dashboard-due">
         {due.toLocaleString()}
       </p>
-      <Link href="/review" className={style.widgetLink}>
+      <Link href="/review" className={style.reviewButton}>
         {due > 0 ? "Review now →" : "Open review →"}
       </Link>
     </Widget>

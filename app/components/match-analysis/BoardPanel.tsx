@@ -8,11 +8,8 @@ import { boardCubeFor, boardPositionFlipped } from "@/lib/boardFrame";
 import Board from "./Board";
 import DecisionNote from "./DecisionNote";
 import DecisionReviewTools from "./DecisionReviewTools";
-import { style } from "./BoardPanel.styles";
-
-const BLUNDER_COLOR = "#dc2626"; // red-600
-const ERROR_COLOR = "#d97706"; // amber-600
-const BEST_COLOR = "#16a34a"; // green-600
+import { playedMoveTier } from "@/lib/badges";
+import { style, type ArrowTier } from "./BoardPanel.styles";
 
 export default function BoardPanel({
   selected,
@@ -73,12 +70,8 @@ export default function BoardPanel({
     return flipped ? mirrorSubMoves(parsed) : parsed;
   }, [notation, flipped, quiz]);
 
-  const arrowColor =
-    moveTab === "best"
-      ? BEST_COLOR
-      : selected?.severity === "blunder"
-        ? BLUNDER_COLOR
-        : ERROR_COLOR;
+  const arrowTier: ArrowTier =
+    moveTab === "best" ? "best" : selected?.severity === "blunder" ? "blunder" : "error";
 
   // The cube to draw: the owned cube, flipped with the position above, or on
   // a take/pass the offered cube at the receiver's edge — worked out once,
@@ -94,7 +87,7 @@ export default function BoardPanel({
           <Board
             decoded={decoded}
             subMoves={subMoves}
-            arrowColor={arrowColor}
+            arrowTier={arrowTier}
             roll={selected.roll}
             flipped={flipped}
             cube={cube}
@@ -114,7 +107,11 @@ export default function BoardPanel({
                 <button
                   type="button"
                   onClick={() => onSelectTab("my")}
-                  className={style.myMoveBadge({ severity: selected.severity, isActive: moveTab === "my" })}
+                  className={style.decisionChip({
+                    tier: playedMoveTier(selected.severity),
+                    isActive: moveTab === "my",
+                    isButton: true,
+                  })}
                 >
                   <span className={style.moveNotation}>{selected.myLabel}</span>
                   <span className={style.mutedLabel}>({selected.absError.toFixed(3)})</span>
@@ -122,7 +119,7 @@ export default function BoardPanel({
                 <button
                   type="button"
                   onClick={() => onSelectTab("best")}
-                  className={style.bestMoveButton(moveTab === "best")}
+                  className={style.decisionChip({ tier: "best", isActive: moveTab === "best", isButton: true })}
                 >
                   <span className={style.moveNotation}>{selected.bestLabel}</span>
                   {selected.bestDetail && <span className={style.bestDetail}>{selected.bestDetail}</span>}
@@ -130,12 +127,18 @@ export default function BoardPanel({
               </>
             ) : (
               <>
-                <div className={style.myMoveStatic(selected.severity)}>
+                <div
+                  className={style.decisionChip({
+                    tier: playedMoveTier(selected.severity),
+                    isActive: true,
+                    isButton: false,
+                  })}
+                >
                   <span className={style.mutedLabel}>My move</span>
                   <span className={style.moveNotation}>{selected.myLabel}</span>
                   <span className={style.mutedLabel}>({selected.absError.toFixed(3)})</span>
                 </div>
-                <div className={style.bestMoveStatic}>
+                <div className={style.decisionChip({ tier: "best", isActive: true, isButton: false })}>
                   <span className={style.mutedLabel}>Best move</span>
                   <span className={style.moveNotation}>{selected.bestLabel}</span>
                   {selected.bestDetail && <span className={style.bestDetail}>{selected.bestDetail}</span>}

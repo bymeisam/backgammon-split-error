@@ -123,10 +123,10 @@ export default function DecisionList({
             <thead>
               <tr className={style.headRow}>
                 {showCheckboxColumn && <th className={style.checkboxHeadCell}></th>}
-                {showIndexColumn && <th className={style.cell}>#</th>}
-                {showRollColumn && <th className={style.cell}>Roll</th>}
-                <th className={style.cell}>Detail</th>
-                {showErrorColumn && <th className={style.cell}>|Error|</th>}
+                {showIndexColumn && <th className={style.headCell}>#</th>}
+                {showRollColumn && <th className={style.headCell}>Roll</th>}
+                <th className={style.headCell}>Detail</th>
+                {showErrorColumn && <th className={style.headCellNumeric}>|Error|</th>}
               </tr>
             </thead>
             <tbody>
@@ -138,6 +138,19 @@ export default function DecisionList({
                   <tr
                     key={row.id}
                     onClick={() => onSelectRow(row, index)}
+                    // Keyboard access: Tab reaches each row, Enter or Space
+                    // selects it, exactly as a click does. Only for keys on
+                    // the row itself, so Space on the row's checkbox still
+                    // ticks it.
+                    tabIndex={0}
+                    aria-current={selected ? "true" : undefined}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectRow(row, index);
+                      }
+                    }}
                     className={style.row(selected)}
                   >
                     {showCheckboxColumn && (

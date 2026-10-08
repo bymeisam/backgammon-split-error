@@ -15,14 +15,14 @@ const PIPS: Record<number, [number, number][]> = {
 
 type DiceColor = Side;
 
-// Face/pip come from the board's own checker palette, so a die always
-// matches its player's checkers; only the die outline is dice-specific.
+// Face, pip and outline come from the board's own checker palette (theme
+// tokens), so a die always matches its player's checkers.
 const COLORS: Record<DiceColor, { face: string; pip: string; stroke: string }> = {
-  mine: { face: CHECKER_PALETTE.mine.fill, pip: CHECKER_PALETTE.mine.contrast, stroke: "#00000055" },
+  mine: { face: CHECKER_PALETTE.mine.fill, pip: CHECKER_PALETTE.mine.contrast, stroke: CHECKER_PALETTE.mine.rim },
   opponent: {
     face: CHECKER_PALETTE.opponent.fill,
     pip: CHECKER_PALETTE.opponent.contrast,
-    stroke: "#00000033",
+    stroke: CHECKER_PALETTE.opponent.rim,
   },
 };
 

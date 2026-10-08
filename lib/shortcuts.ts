@@ -7,7 +7,12 @@
 //     most 5 options on any card; h / g / e / Enter after a right answer; Enter after a
 //     wrong one, once it's saved). Ignored while typing in a text field;
 //   - the tag box: app/components/review/TagEditor.tsx (↑ / ↓ / Enter /
-//     Esc), on the DB-backed boards in write mode.
+//     Esc), on the DB-backed boards in write mode;
+//   - the move lists: app/components/match-analysis/DecisionList.tsx (each
+//     row is focusable; Enter or Space selects it), on every page with a
+//     board and a list.
+// Letter keys are shown as keycaps (H, not h), as on the review session's
+// rating buttons; the handlers take the plain (unshifted) letter.
 // Pure, so it's unit-tested. If a handler changes, change this list too.
 
 export interface Shortcut {
@@ -22,6 +27,7 @@ export interface ShortcutGroup {
 
 const REPLAY_PATH = /^\/matches\/[^/]+\/replay\/[^/]+\/?$/;
 const MATCH_PATH = /^\/matches\/(?!analysis\/?$)[^/]+\/?$/;
+const GALAXY_MATCH_PATH = /^\/galaxy\/matches\/[^/]+\/?$/;
 
 function isReplay(pathname: string): boolean {
   return REPLAY_PATH.test(pathname);
@@ -64,10 +70,30 @@ const REVIEW_GROUP: ShortcutGroup = {
   title: "Review session",
   shortcuts: [
     { keys: ["1", "…", "5"], description: "Choose that option by its number (before answering)" },
-    { keys: ["h"], description: "Rate Hard (after a right answer)" },
-    { keys: ["g", "Enter"], description: "Rate Good (after a right answer)" },
-    { keys: ["e"], description: "Rate Easy (after a right answer)" },
+    { keys: ["H"], description: "Rate Hard (after a right answer)" },
+    { keys: ["G", "Enter"], description: "Rate Good (after a right answer)" },
+    { keys: ["E"], description: "Rate Easy (after a right answer)" },
     { keys: ["Enter"], description: "Next card (after a wrong answer, once it's saved)" },
+  ],
+};
+
+// The pages with a move list next to the board (DecisionList): /mistakes,
+// /repeated-positions, the match pages (local and Galaxy) and the replay.
+function hasMoveList(pathname: string): boolean {
+  return (
+    pathname === "/mistakes" ||
+    pathname === "/repeated-positions" ||
+    MATCH_PATH.test(pathname) ||
+    GALAXY_MATCH_PATH.test(pathname) ||
+    isReplay(pathname)
+  );
+}
+
+const MOVE_LIST_GROUP: ShortcutGroup = {
+  title: "Move list",
+  shortcuts: [
+    { keys: ["Tab"], description: "Move to the next row (Shift+Tab: the previous one)" },
+    { keys: ["Enter", "Space"], description: "Show the focused row on the board" },
   ],
 };
 
@@ -86,6 +112,7 @@ export function shortcutsFor(pathname: string, writeEnabled: boolean): ShortcutG
   const groups: ShortcutGroup[] = [];
   if (isReplay(pathname)) groups.push(REPLAY_GROUP);
   if (writeEnabled && isReviewSession(pathname)) groups.push(REVIEW_GROUP);
+  if (hasMoveList(pathname)) groups.push(MOVE_LIST_GROUP);
   if (writeEnabled && hasTagBox(pathname)) groups.push(TAG_BOX_GROUP);
   groups.push(HELP_GROUP);
   return groups;

@@ -24,22 +24,24 @@ export default function PageShell({
 
   return (
     <div className={style.pageContainer}>
-      <main className={style.main(width)}>
-        {(hasCrumbs || title) && (
-          <div className={style.header}>
-            {hasCrumbs && <Breadcrumbs items={breadcrumbs!} />}
-            {title && (
-              <div className={style.titleRow}>
-                <div className={style.titleBlock}>
-                  <h1 className={style.title}>{title}</h1>
-                  {subtitle && <div className={style.subtitle}>{subtitle}</div>}
+      <main className={style.main}>
+        <div className={style.column(width)}>
+          {(hasCrumbs || title) && (
+            <div className={style.header}>
+              {hasCrumbs && <Breadcrumbs items={breadcrumbs!} />}
+              {title && (
+                <div className={style.titleRow}>
+                  <div className={style.titleBlock}>
+                    <h1 className={style.title}>{title}</h1>
+                    {subtitle && <div className={style.subtitle}>{subtitle}</div>}
+                  </div>
+                  {actions && <div className={style.actions}>{actions}</div>}
                 </div>
-                {actions && <div className={style.actions}>{actions}</div>}
-              </div>
-            )}
-          </div>
-        )}
-        {children}
+              )}
+            </div>
+          )}
+          {children}
+        </div>
       </main>
     </div>
   );

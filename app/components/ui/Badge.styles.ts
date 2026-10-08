@@ -5,22 +5,15 @@ import clsx from "clsx";
 // SeverityBadge build on top of.
 export const style = {
   // Function, 2 params -> passed directly, matching Badge's own two
-  // variable inputs exactly (config.color, and the className prop it
-  // already accepts for a caller to extend). Neither caller in this
-  // codebase currently passes a non-default className (always ""), so in
-  // practice this only ever appends nothing — clsx skips the empty string
-  // entirely rather than leaving the trailing space the original template
-  // literal always produced when className was "" (a harmless
-  // whitespace-only difference no browser distinguishes, and the correct,
-  // intended clsx behavior every other converted component already relies
-  // on), while still appending a real value at the end, in the same
-  // position, if a caller ever does pass one.
+  // variable inputs (config.color, and the className prop a caller can use
+  // to extend it).
   badge: (color: string | undefined, className: string): string =>
     clsx(
-      "inline-flex items-center justify-center rounded border px-1 py-0.5 font-mono text-[10px] font-semibold leading-none",
+      "inline-flex items-center justify-center rounded-chip border px-1.5 py-1 text-[10.5px] font-semibold leading-none",
       // A config color sets its own border (the severity badges are filled
-      // chips); the neutral default is outlined in its own text colour.
-      color ?? "border-current text-zinc-500 dark:text-zinc-400",
+      // chips, lib/styles/shared.styles.ts's severityChip); the neutral
+      // default is outlined.
+      color ?? "border-line-strong text-ink-muted",
       className
     ),
 } as const;

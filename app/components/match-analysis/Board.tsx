@@ -7,7 +7,6 @@ import {
   BAR_COL,
   BOARD_H,
   BOARD_W,
-  COL_WIDTHS,
   CUBE_BADGE_R,
   DICE_BOX_H,
   DICE_BOX_W,
@@ -41,32 +40,40 @@ import {
 } from "@/lib/boardGeometry";
 import { CHECKER_PALETTE, CUBE_CONTRAST, CUBE_FILL } from "@/lib/checkerPalette";
 import { DiceRoll } from "./Dice";
-import { style } from "./BoardPanel.styles";
+import { style, type ArrowTier } from "./BoardPanel.styles";
 
-// Background panel behind each side's off-tray half.
-const OFF_TRAY_PANEL: Record<Side, { y: number; fill: string }> = {
-  opponent: { y: Y0, fill: "#ffffff55" },
-  mine: { y: Y0 + ROW_H + 3, fill: "#00000022" },
+// Each side's half of the off tray (a recessed tray in the frame).
+const OFF_TRAY_PANEL_Y: Record<Side, number> = {
+  opponent: Y0,
+  mine: Y0 + ROW_H + 3,
 };
 
+// The frame band drawn around the board's own geometry (lib/boardGeometry.ts
+// is unchanged): the SVG's viewBox grows by this much on every side, so the
+// point numbers sit in the frame, at a size that's readable on a phone,
+// without moving anything inside the board.
+const FRAME = 14;
+// Centre of the frame band above and below the playing area, for the point
+// numbers: the band is MARGIN (the board's own edge) plus FRAME wide.
+const NUMBER_TOP_Y = (Y0 - FRAME) / 2;
+const NUMBER_BOTTOM_Y = Y1 + (MARGIN + FRAME) / 2;
+
 function OffTray({ side, count }: { side: Side; count: number }) {
-  const { fill, contrast } = CHECKER_PALETTE[side];
+  const { fill, contrast, rim } = CHECKER_PALETTE[side];
   const { topY, bottomY, badgeAtBottom } = offTrayBounds(side);
   const { badgeR, badgeCy, trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
   const slotH = Math.max(slotSpan - 1.5, 2);
   const cx = OFF_TRACK_X + OFF_TRACK_W / 2;
-  const panel = OFF_TRAY_PANEL[side];
 
   return (
     <>
       <rect
         x={colX(OFF_COL) + 3}
-        y={panel.y}
+        y={OFF_TRAY_PANEL_Y[side]}
         width={OFF_W - 6}
         height={ROW_H - 6}
         rx={4}
-        fill={panel.fill}
-        stroke="#00000033"
+        className={style.boardTray}
       />
       {Array.from({ length: OFF_SLOTS }).map((_, i) => {
         const filled = isOffSlotFilled(i, count, badgeAtBottom);
@@ -79,12 +86,13 @@ function OffTray({ side, count }: { side: Side; count: number }) {
             height={slotH}
             rx={1}
             fill={filled ? fill : "transparent"}
-            stroke={filled ? contrast : "#00000022"}
+            stroke={filled ? rim : undefined}
+            className={filled ? undefined : style.offSlotEmpty}
             strokeWidth={1}
           />
         );
       })}
-      <circle cx={cx} cy={badgeCy} r={badgeR} fill={fill} stroke={contrast} strokeWidth={1.5} />
+      <circle cx={cx} cy={badgeCy} r={badgeR} fill={fill} stroke={rim} strokeWidth={1.5} />
       <text x={cx} y={badgeCy + 4} textAnchor="middle" fontSize={11} fontWeight="bold" fill={contrast}>
         {count}
       </text>
@@ -95,7 +103,7 @@ function OffTray({ side, count }: { side: Side; count: number }) {
 function Stack({ base, count, side }: { base: StackBase; count: number; side: Side }) {
   if (count <= 0) return null;
   const shown = Math.min(count, MAX_STACK);
-  const { fill, contrast } = CHECKER_PALETTE[side];
+  const { fill, contrast, rim } = CHECKER_PALETTE[side];
 
   return (
     <>
@@ -104,7 +112,9 @@ function Stack({ base, count, side }: { base: StackBase; count: number; side: Si
         const isOverflow = count > MAX_STACK && i === shown - 1;
         return (
           <g key={i}>
-            <circle cx={base.cx} cy={cy} r={R} fill={fill} stroke={contrast} strokeWidth={1.5} />
+            <circle cx={base.cx} cy={cy} r={R} fill={fill} stroke={rim} strokeWidth={1.2} />
+            {/* The turned ring that makes a checker read as an object. */}
+            {!isOverflow && <circle cx={base.cx} cy={cy} r={R - 5} className={style.checkerRing(side)} />}
             {isOverflow && (
               <text
                 x={base.cx}
@@ -157,14 +167,16 @@ function Cube({ cube }: { cube: BoardCube | null }) {
 export default function Board({
   decoded,
   subMoves = [],
-  arrowColor = "#dc2626",
+  arrowTier = "blunder",
   roll = [],
   flipped = false,
   cube = null,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
-  arrowColor?: string;
+  // The arrows' colour: the severity of the move drawn (theme tokens,
+  // BoardPanel.styles.ts's arrow).
+  arrowTier?: ArrowTier;
   roll?: number[];
   // Checker positions and arrow anchoring both come from `decoded`/
   // `subMoves` as given — BoardPanel.tsx applies flipPerspective/
@@ -183,29 +195,54 @@ export default function Board({
 }) {
   return (
     <svg
-      viewBox={`0 0 ${BOARD_W} ${BOARD_H}`}
+      viewBox={`${-FRAME} ${-FRAME} ${BOARD_W + 2 * FRAME} ${BOARD_H + 2 * FRAME}`}
       className={style.boardSvg}
       role="img"
       aria-label="Backgammon board"
     >
-      <rect x={0} y={0} width={BOARD_W} height={BOARD_H} rx={10} fill="#f5ecd9" />
-
+      {/* The walnut frame: the outer band, the cube gutter, the bar and the
+          tray column are all frame; the two playing halves are bone. */}
       <rect
-        x={colX(BAR_COL)}
-        y={Y0}
-        width={COL_WIDTHS[BAR_COL]}
-        height={Y1 - Y0}
-        fill="#c89f6c"
+        x={-FRAME}
+        y={-FRAME}
+        width={BOARD_W + 2 * FRAME}
+        height={BOARD_H + 2 * FRAME}
+        rx={14}
+        className={style.boardFrame}
       />
-      <line x1={MARGIN} y1={Y0 + ROW_H} x2={BOARD_W - MARGIN} y2={Y0 + ROW_H} stroke="#00000022" />
+      <rect
+        x={colX(0)}
+        y={Y0}
+        width={colX(BAR_COL) - colX(0)}
+        height={Y1 - Y0}
+        rx={2}
+        className={style.boardSurface}
+      />
+      <rect
+        x={colX(BAR_COL + 1)}
+        y={Y0}
+        width={colX(OFF_COL) - colX(BAR_COL + 1)}
+        height={Y1 - Y0}
+        rx={2}
+        className={style.boardSurface}
+      />
 
       {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
-        <g key={point}>
-          <polygon
-            points={trianglePoints(point)}
-            fill={point % 2 === 0 ? "#8b5e34" : "#c89f6c"}
-          />
-        </g>
+        <polygon key={point} points={trianglePoints(point)} className={style.point(point % 2 === 0)} />
+      ))}
+
+      {/* point numbers, in the frame */}
+      {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
+        <text
+          key={point}
+          x={stackBase(point).cx}
+          y={pointRow(point) === "bottom" ? NUMBER_BOTTOM_Y : NUMBER_TOP_Y}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className={style.pointNumber}
+        >
+          {flipped ? 25 - point : point}
+        </text>
       ))}
 
       {/* off tray halves */}
@@ -221,15 +258,6 @@ export default function Board({
           <g key={point}>
             {mineCount > 0 && <Stack base={base} count={mineCount} side="mine" />}
             {oppCount > 0 && <Stack base={base} count={oppCount} side="opponent" />}
-            <text
-              x={base.cx}
-              y={pointRow(point) === "bottom" ? Y1 + 12 : Y0 - 4}
-              textAnchor="middle"
-              fontSize={9}
-              fill="#57534e"
-            >
-              {flipped ? 25 - point : point}
-            </text>
           </g>
         );
       })}
@@ -246,60 +274,72 @@ export default function Board({
           so the order doesn't matter for it. */}
       <Cube cube={cube} />
 
-      {/* move arrows */}
-      <defs>
-        <marker id="board-arrowhead" markerWidth={4.5} markerHeight={4.5} refX={3.375} refY={2.25} orient="auto">
-          <path d="M0,0 L4.5,2.25 L0,4.5 Z" fill={arrowColor} />
-        </marker>
-      </defs>
-      {subMoves.map((move, i) => {
-        const from = moveAnchor(move.from, decoded, true, flipped);
-        const to = moveAnchor(move.to, decoded, false, flipped);
-        const midX = (from.x + to.x) / 2;
-        const midY = (from.y + to.y) / 2;
+      {/* move arrows, in currentColor (the group's arrow token, which the
+          marker inherits from its ancestors), each over a bone halo so it
+          stays visible across the dark points */}
+      <g className={style.arrow(arrowTier)}>
+        <defs>
+          <marker id="board-arrowhead" markerWidth={4.5} markerHeight={4.5} refX={3.375} refY={2.25} orient="auto">
+            <path d="M0,0 L4.5,2.25 L0,4.5 Z" fill="currentColor" />
+          </marker>
+        </defs>
+        {subMoves.map((move, i) => {
+          const from = moveAnchor(move.from, decoded, true, flipped);
+          const to = moveAnchor(move.to, decoded, false, flipped);
+          const midX = (from.x + to.x) / 2;
+          const midY = (from.y + to.y) / 2;
 
-        return (
-          <g key={i}>
-            <line
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke={arrowColor}
-              strokeWidth={3}
-              strokeLinecap="round"
-              markerEnd="url(#board-arrowhead)"
-              opacity={0.85}
-            />
-            {move.hit && (
-              <circle
-                cx={to.x}
-                cy={to.y}
-                r={R + 6}
-                fill="none"
-                stroke={arrowColor}
-                strokeWidth={2}
-                strokeDasharray="3 2"
+          return (
+            <g key={i}>
+              <line
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                strokeWidth={7}
+                strokeLinecap="round"
+                className={style.arrowHalo}
               />
-            )}
-            {move.count > 1 && (
-              <text
-                x={midX}
-                y={midY - 6}
-                textAnchor="middle"
-                fontSize={11}
-                fontWeight="bold"
-                fill={arrowColor}
-                stroke="#f5ecd9"
+              <line
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                stroke="currentColor"
                 strokeWidth={3}
-                paintOrder="stroke"
-              >
-                ×{move.count}
-              </text>
-            )}
-          </g>
-        );
-      })}
+                strokeLinecap="round"
+                markerEnd="url(#board-arrowhead)"
+              />
+              {move.hit && (
+                <circle
+                  cx={to.x}
+                  cy={to.y}
+                  r={R + 6}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeDasharray="3 2"
+                />
+              )}
+              {move.count > 1 && (
+                <text
+                  x={midX}
+                  y={midY - 6}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fontWeight="bold"
+                  fill="currentColor"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                  className={style.arrowCountHalo}
+                >
+                  ×{move.count}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </g>
 
       {roll.length > 0 && (
         <foreignObject x={DICE_X} y={DICE_Y} width={DICE_BOX_W} height={DICE_BOX_H}>

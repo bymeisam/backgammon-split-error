@@ -1,26 +1,142 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Don't generate classes for strings that only appear in docs and design
+   files (reports quote old class names). */
+@source not "../reports";
+@source not "../design";
+@source not "../docs";
+@source not "../PROGRESS.md";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* Theme values: one file per theme (lib/themes.ts is the registry). Each
+   sets the same variables under [data-theme="<id>"] and the mode
+   selectors; see the header of app/themes/clubroom.css for the list. */
+@import "./themes/clubroom.css";
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Tailwind's dark: variant follows the mode on <html> (app/layout.tsx), not
+   only the OS: dark mode always, system mode when the OS is dark. Most
+   components need no dark: variant at all, since the tokens switch. */
+@custom-variant dark {
+  &:where([data-mode="dark"], [data-mode="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where([data-mode="system"], [data-mode="system"] *) {
+      @slot;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Tailwind names for the theme variables: bg-surface, text-ink-muted,
+   border-line, fill-board-frame and so on. Inline, so each utility reads
+   the variable live and follows the active theme and mode. */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-focus: var(--focus);
+
+  --color-best: var(--best);
+  --color-good: var(--good);
+  --color-error: var(--error);
+  --color-blunder: var(--blunder);
+  --color-on-best: var(--on-best);
+  --color-on-good: var(--on-good);
+  --color-on-error: var(--on-error);
+  --color-on-blunder: var(--on-blunder);
+  --color-best-ink: var(--best-ink);
+  --color-good-ink: var(--good-ink);
+  --color-error-ink: var(--error-ink);
+  --color-blunder-ink: var(--blunder-ink);
+  --color-best-tint: var(--best-tint);
+  --color-error-tint: var(--error-tint);
+  --color-blunder-tint: var(--blunder-tint);
+  --color-cube-default: var(--cube-default);
+  --color-on-cube-default: var(--on-cube-default);
+
+  --color-board-frame: var(--board-frame);
+  --color-board-bone: var(--board-bone);
+  --color-board-point-dark: var(--board-point-dark);
+  --color-board-point-light: var(--board-point-light);
+  --color-board-tray: var(--board-tray);
+  --color-board-number: var(--board-number);
+  --color-checker-mine: var(--checker-mine);
+  --color-checker-mine-rim: var(--checker-mine-rim);
+  --color-checker-opp: var(--checker-opp);
+  --color-checker-opp-rim: var(--checker-opp-rim);
+  --color-arrow-best: var(--arrow-best);
+  --color-arrow-error: var(--arrow-error);
+  --color-arrow-blunder: var(--arrow-blunder);
+
+  --color-mode-ok: var(--mode-ok);
+  --color-mode-warn: var(--mode-warn);
+
+  --font-sans: var(--theme-font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--theme-font-serif), ui-serif, Georgia, serif;
+  --font-mono: var(--theme-font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --shadow-card: 0 1px 2px var(--shadow-color), 0 6px 20px -12px var(--shadow-color);
+  --shadow-raised: 0 12px 32px -12px var(--shadow-color), 0 2px 6px var(--shadow-color);
+  --drop-shadow-board: 0 14px 22px var(--board-shadow);
+}
+
+/* Theme-independent scales: type, radii. */
+@theme {
+  --text-overline: 0.6875rem;
+  --text-overline--line-height: 1rem;
+  --text-overline--letter-spacing: 0.09em;
+  --text-overline--font-weight: 600;
+  --text-display: 2.375rem;
+  --text-display--line-height: 1.08;
+  --text-display--letter-spacing: -0.018em;
+  --text-title: 1.75rem;
+  --text-title--line-height: 1.12;
+  --text-title--letter-spacing: -0.012em;
+  --text-heading: 1.375rem;
+  --text-heading--line-height: 1.2;
+  --text-figure: 3.25rem;
+  --text-figure--line-height: 1;
+  --text-figure--letter-spacing: -0.02em;
+
+  --radius-chip: 0.3125rem; /* 5px: severity and classification chips */
+  --radius-control: 0.5625rem; /* 9px: buttons, inputs, selects */
+  --radius-card: 0.875rem; /* 14px: cards, list panels */
+}
+
+@layer base {
+  /* Form controls and scrollbars follow the mode too. */
+  [data-mode="light"] {
+    color-scheme: light;
+  }
+  [data-mode="dark"] {
+    color-scheme: dark;
+  }
+  [data-mode="system"] {
+    color-scheme: light dark;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  /* One visible keyboard-focus ring everywhere (buttons, links, inputs,
+     focusable rows): 2px in the focus colour, at least 3:1 against the
+     page in both modes (WCAG 1.4.11). Components can move it inside with
+     shared.focusRingInset. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
 }

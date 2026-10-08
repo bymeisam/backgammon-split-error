@@ -1,29 +1,29 @@
 import clsx from "clsx";
 
-// Three page widths, the ones the pages already used: lists and tables
-// (medium, max-w-4xl), board pages (wide, max-w-7xl) and /status (narrow,
-// max-w-2xl).
+// One page width for every page, the navbar's (1240px), so the title's left
+// edge never moves between tabs. "medium" (lists and tables) and "narrow"
+// (/status) only cap the content column inside it, left-aligned to the
+// same edge; "wide" (the board pages) uses all of it.
 export type PageWidth = "narrow" | "medium" | "wide";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
-// covers PageShell.tsx, the one page container every page renders into
-// (replacing each page's own pageContainer/main/title/subtitle copies).
+// covers PageShell.tsx, the one page container every page renders into.
 export const style = {
-  pageContainer: "flex flex-1 justify-center bg-zinc-50 dark:bg-black",
-  // Function, 1 param -> passed directly.
-  main: (width: PageWidth): string =>
+  pageContainer: "flex flex-1 justify-center bg-paper",
+  main: "flex w-full max-w-[1240px] flex-col px-6 pb-16 pt-10",
+  // Function, 1 param -> passed directly. The content column.
+  column: (width: PageWidth): string =>
     clsx(
-      "flex w-full flex-col gap-6 px-6 py-12",
+      "flex w-full flex-col gap-8",
       width === "narrow" && "max-w-2xl",
-      width === "medium" && "max-w-4xl",
-      width === "wide" && "max-w-7xl"
+      width === "medium" && "max-w-4xl"
     ),
   // Breadcrumbs above the title row.
-  header: "flex flex-col gap-2",
+  header: "flex flex-col gap-2.5",
   // Title (and subtitle) on the left, the page's actions on the right.
-  titleRow: "flex flex-wrap items-center justify-between gap-3",
-  titleBlock: "flex min-w-0 flex-col gap-1",
-  title: "text-2xl font-semibold tracking-tight text-black dark:text-zinc-50",
-  subtitle: "text-sm text-zinc-600 dark:text-zinc-400",
-  actions: "flex flex-wrap items-center gap-x-4 gap-y-2",
+  titleRow: "flex flex-wrap items-end justify-between gap-3",
+  titleBlock: "flex min-w-0 flex-col gap-2",
+  title: "font-serif text-[2rem] font-medium leading-[1.08] tracking-[-0.018em] text-ink md:text-display",
+  subtitle: "text-[14.5px] text-ink-muted",
+  actions: "flex flex-wrap items-center gap-x-5 gap-y-2 text-sm",
 } as const;

@@ -409,24 +409,36 @@ export default function ReviewSession({ filters }: { filters: ReviewFilters }) {
                       disabled={save.kind === "saving"}
                       onClick={() => rate("hard")}
                       className={style.ratingButton("hard")}
+                      aria-keyshortcuts="h"
                     >
                       Hard
+                      <span className={style.ratingKey} aria-hidden="true">
+                        H
+                      </span>
                     </button>
                     <button
                       type="button"
                       disabled={save.kind === "saving"}
                       onClick={() => rate("good")}
                       className={style.ratingButton("good")}
+                      aria-keyshortcuts="g Enter"
                     >
                       Good
+                      <span className={style.ratingKey} aria-hidden="true">
+                        G · Enter
+                      </span>
                     </button>
                     <button
                       type="button"
                       disabled={save.kind === "saving"}
                       onClick={() => rate("easy")}
                       className={style.ratingButton("easy")}
+                      aria-keyshortcuts="e"
                     >
                       Easy
+                      <span className={style.ratingKey} aria-hidden="true">
+                        E
+                      </span>
                     </button>
                   </>
                 ) : (
@@ -444,8 +456,12 @@ export default function ReviewSession({ filters }: { filters: ReviewFilters }) {
                         disabled={save.kind !== "saved"}
                         onClick={advance}
                         className={style.ratingButton("next")}
+                        aria-keyshortcuts="Enter"
                       >
                         Next
+                        <span className={style.ratingKey} aria-hidden="true">
+                          Enter
+                        </span>
                       </button>
                     )}
                   </>

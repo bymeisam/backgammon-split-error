@@ -62,7 +62,7 @@ export default function NavLinks({
                 href={child.href}
                 onClick={close}
                 aria-current={active === child.href ? "page" : undefined}
-                className={style.link(active === child.href)}
+                className={style.subLink(active === child.href)}
               >
                 {child.label}
               </Link>
