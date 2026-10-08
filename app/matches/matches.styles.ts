@@ -4,7 +4,7 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // Page-local (see .claude/skills/styling-conventions) — covers
 // MatchesPage, the only component defined in this file. The page
 // container, width and title row are PageShell's; the table look is
-// shared. Below md the table keeps Match ID, Opponent, Your error and the
+// shared. Below md the table keeps Match ID, Opponent, Your PR and the
 // chevron.
 export const style = {
   analysisLink: shared.textLink,
@@ -30,4 +30,6 @@ export const style = {
   numberCell: shared.tableCellNumeric,
   oppNumberCell: clsx(shared.tableCellNumeric, "text-ink-muted max-md:hidden"),
   chevronCell: shared.tableChevronCell,
+  // "Your PR" / "Opp. PR": the label carries the hint (lib/sourcePr.ts).
+  prHint: shared.hintLabel,
 } as const;

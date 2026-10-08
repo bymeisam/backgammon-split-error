@@ -140,6 +140,13 @@
     background: color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
+  /* Checkboxes and radios in the ink colour (near-black in light, cream
+     in dark), like the primary button, instead of the browser's blue. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-ink);
+  }
+
   /* One visible keyboard-focus ring everywhere (buttons, links, inputs,
      focusable rows): 2px in the focus colour, at least 3:1 against the
      page in both modes (WCAG 1.4.11). Components can move it inside with

@@ -137,7 +137,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   const items = await loadDecisionItems(rows);
 
   return (
-    <>
+    <div className={style.resultGroup}>
       <div className={style.countRow}>
         <p className={style.resultText}>
           {describeResultCount(total, {
@@ -165,7 +165,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
         page={page}
         totalPages={totalPagesFor(total, pageSize)}
       />
-    </>
+    </div>
   );
 }
 
@@ -202,8 +202,7 @@ export default async function MistakesPage({
           </Link>
         </>
       }
-    >
-      <div className={style.filterRow}>
+      controls={
         <FilterDisclosure
           summary={filterSummary([
             [phase ? getPhaseLabel(phase) : undefined, "Any phase"],
@@ -229,8 +228,8 @@ export default async function MistakesPage({
             </button>
           </form>
         </FilterDisclosure>
-      </div>
-
+      }
+    >
       {hasFilter ? (
         <Suspense fallback={<DecisionListFallback />}>
           <DecisionListSection filters={{ phase, categoryParam, severityParam, pageSize, page }} />

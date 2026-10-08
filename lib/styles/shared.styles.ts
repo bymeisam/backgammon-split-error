@@ -74,6 +74,8 @@ export const style = {
     buttonBase,
     "h-7 border border-line-strong bg-surface px-3 text-xs text-blunder-ink hover:border-blunder hover:bg-blunder-tint"
   ),
+  // A label with a hover hint (title): a dotted underline says there's one.
+  hintLabel: "cursor-help underline decoration-line-strong decoration-dotted underline-offset-[3px]",
   textLink:
     "text-[13px] font-medium text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-ink hover:decoration-current",
   kbd: "rounded-[4px] border border-b-2 border-line-strong bg-sunken px-[5px] py-[2px] font-mono text-[11px] font-medium leading-none text-ink-muted",
@@ -89,7 +91,11 @@ export const style = {
   // /repeated-positions, /review, /review/cards).
   filterBar: "flex flex-wrap items-end gap-x-4 gap-y-3",
   filterField: "flex flex-col gap-1.5 text-xs font-medium text-ink-faint",
-  filterSelect: "h-9 rounded-control border border-line-strong bg-surface pl-3 pr-8 text-sm text-ink",
+  // Under the filter: the result line and the list it describes, one group
+  // 14px apart (the page's section gap only separates the header from it).
+  resultGroup: "flex flex-col gap-3.5",
+  resultRow: "flex items-center justify-between gap-4 text-[13.5px] text-ink-muted",
+  filterSelect: "h-[38px] rounded-control border border-line-strong bg-surface pl-3 pr-8 text-sm text-ink",
 
   // --- tables (dashboard, /matches, /matches/analysis, /repeated-positions,
   // /review/cards, /galaxy/matches) ---
@@ -115,7 +121,7 @@ export const style = {
   // --- severity ---
   // A severity chip's shape, always sans (it sits inside mono cells too).
   severityChipShape:
-    "inline-flex items-center rounded-[4px] px-1.5 py-[3px] font-sans text-[10.5px] font-semibold leading-none tracking-[0.02em]",
+    "inline-flex items-center rounded-[4px] px-1.5 py-[3px] font-sans text-[10.5px] font-semibold normal-case leading-none tracking-[0.02em]",
   // Function, 1 param -> passed directly. A filled chip in Galaxy's hue.
   // Just the colours: the chip shape is severityChipShape (Badge adds it).
   severityChip: (tier: SeverityTier): string =>
@@ -145,8 +151,10 @@ export const style = {
   // escapes the navbar's backdrop-filter containing block.
   modalDialog:
     "m-auto w-[calc(100%-3rem)] max-w-lg overflow-visible bg-transparent p-0 text-ink backdrop:bg-scrim backdrop:backdrop-blur-[2px]",
+  // whitespace-normal: a dialog rendered inside the navbar (the "?" help)
+  // would otherwise inherit its nowrap and run past the panel's edge.
   modalPanel:
-    "flex max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-raised",
+    "flex max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col gap-4 overflow-y-auto overflow-x-hidden whitespace-normal rounded-card border border-line bg-surface p-6 shadow-raised",
   modalHeading: "font-serif text-heading font-medium text-ink",
   modalText: "text-sm text-ink-muted",
   modalError: "text-sm text-blunder-ink",

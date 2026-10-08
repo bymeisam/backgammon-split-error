@@ -97,7 +97,7 @@ export const style = {
   modalSecondaryButton: shared.modalSecondaryButton,
   helpGroups: "flex flex-col gap-4",
   helpGroupTitle: clsx(shared.overline, "mb-1.5"),
-  helpRow: "flex items-baseline gap-3 py-0.5 text-sm text-ink-muted",
-  helpKeys: "flex w-28 shrink-0 flex-wrap gap-1",
+  helpRow: "grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-x-3 py-0.5 text-sm text-ink-muted",
+  helpKeys: "flex flex-wrap gap-1",
   kbd: shared.kbd,
 } as const;

@@ -21,6 +21,9 @@ export const style = {
   bigNumberUnit: "ml-1.5 font-sans text-base font-normal tracking-normal text-ink-muted",
   bigNumberDecimals: "text-ink-faint",
   widgetNote: "text-[12.5px] text-ink-faint",
+  // The due widget's "3 new · 0 review" (the /review header's counts).
+  dueSplit: "flex gap-4 text-[13px] text-ink-muted",
+  dueSplitCount: "font-semibold text-ink",
   widgetLink: shared.textLink,
   widgetActions: "mt-auto flex items-center gap-3.5",
   // The due widget's action: the app's main loop, a real button.
@@ -79,4 +82,6 @@ export const style = {
   repeatPosition: "truncate font-mono text-[12.5px] text-ink-muted",
   repeatTimes: "font-serif text-lg font-medium leading-none tabular-nums text-ink",
   repeatTimesUnit: "ml-0.5 font-sans text-[11px] text-ink-faint",
+  // "Your PR": the label carries the hint (lib/sourcePr.ts).
+  prHint: shared.hintLabel,
 } as const;

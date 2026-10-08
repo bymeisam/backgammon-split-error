@@ -4,12 +4,15 @@ import { ErrorSeverity } from "@/lib/generated/prisma/enums";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { listMatches } from "@/lib/local-client";
 import { countDueCards } from "@/lib/review/dueCount";
+import { dueSplit } from "@/lib/review/queuePlan";
 import { weeklyMistakes } from "@/lib/dashboardQueries";
 import { listRepeatedPositions } from "@/lib/repeatedPositionQueries";
-import { formatLongDay, formatShortMatchDate } from "@/lib/formatDate";
+import { formatShortMatchDate } from "@/lib/formatDate";
 import type { MistakeTally } from "@/lib/dashboardStats";
 import PageShell from "@/app/components/ui/PageShell";
 import ClassificationBadge from "@/app/components/ui/ClassificationBadge";
+import { SOURCE_PR_HINT } from "@/lib/sourcePr";
+import TodayOverline from "./TodayOverline";
 import { style } from "./home.styles";
 
 // Rendered per request: the widgets read the running server's env and DB,
@@ -51,12 +54,17 @@ function WidgetError({ title, error }: { title: string; error: unknown }) {
 }
 
 // Write mode only (Home doesn't render it otherwise): the read-only site
-// never queries the review tables.
+// never queries the review tables. The split is the /review header's own
+// "N new · N review" for an unfiltered session (today's daily limits
+// applied; lib/review/queuePlan.ts), so it can be less than the total when
+// more cards are due than today's limits allow.
 async function DueCardsWidget() {
   const title = "Due today";
   let due: number;
+  let split: { new: number; review: number };
   try {
-    due = await countDueCards(new Date());
+    const now = new Date();
+    [due, split] = await Promise.all([countDueCards(now), dueSplit(now)]);
   } catch (error) {
     return <WidgetError title={title} error={error} />;
   }
@@ -65,6 +73,14 @@ async function DueCardsWidget() {
       <p className={style.bigNumber} data-testid="dashboard-due">
         {due.toLocaleString()}
         <small className={style.bigNumberUnit}>{due === 1 ? "card" : "cards"}</small>
+      </p>
+      <p className={style.dueSplit} data-testid="dashboard-due-split">
+        <span>
+          <b className={style.dueSplitCount}>{split.new.toLocaleString()}</b> new
+        </span>
+        <span>
+          <b className={style.dueSplitCount}>{split.review.toLocaleString()}</b> review
+        </span>
       </p>
       <div className={style.widgetActions}>
         <Link href="/review" className={style.reviewButton}>
@@ -187,7 +203,11 @@ async function LatestMatchesWidget() {
             <th className={style.tableHeadCell}>Date</th>
             <th className={style.tableHeadCell}>Opponent</th>
             <th className={style.tableHeadCellWide}>Score</th>
-            <th className={style.tableHeadCellNumeric}>Your error</th>
+            <th className={style.tableHeadCellNumeric}>
+              <span title={SOURCE_PR_HINT} className={style.prHint}>
+                Your PR
+              </span>
+            </th>
             <th className={style.chevronHeadCell} aria-hidden="true"></th>
           </tr>
         </thead>
@@ -262,7 +282,7 @@ export default function Home() {
 
   return (
     <PageShell
-      overline={formatLongDay(new Date())}
+      overline={<TodayOverline />}
       title="Dashboard"
       subtitle="PR and mistake breakdowns for your Backgammon Galaxy matches."
     >

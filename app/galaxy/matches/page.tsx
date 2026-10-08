@@ -13,6 +13,7 @@ import {
 } from "@/lib/galaxyMatchList";
 import Pager from "@/app/components/ui/Pager";
 import PageShell from "@/app/components/ui/PageShell";
+import { SOURCE_PR_HINT } from "@/lib/sourcePr";
 import { style } from "./galaxyMatches.styles";
 import JsonDumpPanel, { useJsonDump } from "./JsonDumpPanel";
 import TokenModal from "./TokenModal";
@@ -202,8 +203,16 @@ export default function GalaxyMatchesPage() {
                       <th className={style.headCell}>Opponent</th>
                       <th className={style.headCell}>Rating</th>
                       <th className={style.headCell}>Score</th>
-                      <th className={style.headCell}>Your error</th>
-                      <th className={style.headCell}>Opponent error</th>
+                      <th className={style.headCell}>
+                        <span title={SOURCE_PR_HINT} className={style.prHint}>
+                          Your PR
+                        </span>
+                      </th>
+                      <th className={style.headCell}>
+                        <span title={SOURCE_PR_HINT} className={style.prHint}>
+                          Opponent PR
+                        </span>
+                      </th>
                       <th className={style.headCell}></th>
                     </tr>
                   </thead>

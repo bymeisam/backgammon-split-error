@@ -8,26 +8,36 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // PageShell's.
 export const style = {
   link: shared.textLink,
-  // The Filter disclosure's row, and the form it shows.
-  filterRow: "-mt-3 flex flex-wrap items-center gap-x-4 gap-y-3",
+  // The Filter disclosure's form; the disclosure itself is in PageShell's
+  // header (its `controls`).
   form: shared.filterBar,
   applyButton: shared.buttonSecondary,
-  mutedText: shared.mutedText,
+  // The result line ("3 cards") and the table under it.
+  resultGroup: shared.resultGroup,
+  resultRow: clsx(shared.resultRow, "tabular-nums"),
   tableWrapper: shared.tableWrapper,
   table: shared.table,
   headCell: shared.tableHeadCell,
   headCellNumeric: shared.tableHeadCellNumeric,
+  // Type, Phase, Tags, Reps, Lapses and State are hidden below md, so
+  // Position, Due and the actions fit at 390.
+  headCellWide: clsx(shared.tableHeadCell, "max-md:hidden"),
+  headCellNumericWide: clsx(shared.tableHeadCellNumeric, "max-md:hidden"),
+  cellWide: clsx(shared.tableCell, "max-md:hidden"),
+  numCellWide: clsx(shared.tableCellNumeric, "max-md:hidden"),
   // Function, 1 param -> passed directly. Suspended rows are dimmed.
   row: (suspended: boolean): string => clsx(shared.tableRow, "align-top", suspended && "opacity-60"),
   cell: shared.tableCell,
   // The move played: notation, so mono.
   monoCell: clsx(shared.tableCell, "font-mono text-[13px]"),
   numCell: shared.tableCellNumeric,
-  positionText: "font-mono text-[12.5px] text-ink-muted",
-  positionLink: clsx(shared.textLink, "text-xs"),
+  positionText: "whitespace-nowrap font-mono text-[12.5px] text-ink-muted",
+  // Wraps as one unit, below the mono line.
+  positionLink: clsx(shared.textLink, "inline-block text-xs"),
   tagChip: clsx(shared.tagChip, "mr-1"),
   stateText: "text-xs text-ink-faint",
-  actions: "flex flex-wrap gap-2",
+  // Stacked below md, in a row from md.
+  actions: "flex flex-col items-end gap-1.5 md:flex-row md:items-center md:gap-2",
   actionButton: shared.buttonSmall,
   deleteButton: shared.buttonDanger,
   errorText: "text-xs text-blunder-ink",

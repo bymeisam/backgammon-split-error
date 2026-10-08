@@ -27,6 +27,8 @@ export const style = {
   table: shared.table,
   theadRow: shared.tableHeadRow,
   headCell: shared.tableHeadCell,
+  // "Your PR" / "Opponent PR": the label carries the hint (lib/sourcePr.ts).
+  prHint: shared.hintLabel,
   bodyRow: shared.tableRowClickable,
   opponentCell: clsx(shared.tableCell, "font-medium"),
   // Shared by the rating/score/your-error/opponent-error cells.

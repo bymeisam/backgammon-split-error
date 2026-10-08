@@ -1,6 +1,6 @@
 import { style as shared } from "@/lib/styles/shared.styles";
 
-// Page-local (see .claude/skills/styling-conventions) — MatchAnalysisPage
+// Page-local (see .claude/skills/styling-conventions) — MatchAnalysis.tsx
 // is the only component defined in this route folder. The page container,
 // breadcrumbs and header are PageShell's ("detail" variant, like the
 // replay's).

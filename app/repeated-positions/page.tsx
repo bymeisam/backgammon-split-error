@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import type { RepeatedPosition } from "@/lib/generated/prisma/client";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { findPositionOccurrences, loadDecisionItems } from "@/lib/decisionQueries";
 import { listRepeatedPositions } from "@/lib/repeatedPositionQueries";
@@ -107,8 +108,8 @@ async function PositionListSection({ filters }: { filters: Filters }) {
   };
 
   return (
-    <>
-      <p className={style.resultText}>
+    <div className={style.resultGroup}>
+      <p className={style.resultRow}>
         {describeResultCount(total, { phase, severity: errorSeverity, noun: "repeated position" })}
       </p>
 
@@ -120,10 +121,10 @@ async function PositionListSection({ filters }: { filters: Filters }) {
             <thead>
               <tr>
                 <th className={style.positionTableHeadCell}>Classification</th>
-                <th className={style.positionTableHeadCell}>Severity</th>
+                <th className={style.severityHeadCell}>Severity</th>
                 <th className={style.positionTableHeadCell}>Position ID</th>
                 <th className={style.positionTableHeadCellNumeric}>Times faced</th>
-                <th className={style.chevronCell} aria-hidden="true"></th>
+                <th className={style.chevronHeadCell} aria-hidden="true"></th>
               </tr>
             </thead>
             <tbody>
@@ -132,7 +133,7 @@ async function PositionListSection({ filters }: { filters: Filters }) {
                   <td className={style.positionCell}>
                     <ClassificationBadge type={p.classification} />
                   </td>
-                  <td className={style.positionCell}>
+                  <td className={style.severityCell}>
                     <SeverityBadge type={severityTier(p.errorSeverity)} />
                   </td>
                   <td className={style.positionCell}>
@@ -164,7 +165,7 @@ async function PositionListSection({ filters }: { filters: Filters }) {
         page={page}
         totalPages={totalPagesFor(total, pageSize)}
       />
-    </>
+    </div>
   );
 }
 
@@ -183,17 +184,10 @@ function PositionListFallback() {
 // exact position instead of a classification/severity filter (the query
 // itself, and why it's shaped the way it is, is
 // lib/decisionQueries.ts's findPositionOccurrences). Operates on one already-resolved
-// RepeatedPosition row (by numeric positionId), never on the Phase dropdown
-// value directly, so it needs no filter-resolution logic of its own.
-async function PositionDetailSection({
-  positionId,
-  baseParams,
-}: {
-  positionId: number;
-  baseParams: Record<string, string | undefined>;
-}) {
-  const position = await prisma.repeatedPosition.findUnique({ where: { id: positionId } });
-
+// RepeatedPosition row (the page looks it up by numeric positionId, for the
+// breadcrumb), never on the Phase dropdown value directly, so it needs no
+// filter-resolution logic of its own.
+async function PositionDetailSection({ position }: { position: RepeatedPosition | null }) {
   if (!position) {
     return (
       <p className={style.mutedText}>
@@ -206,19 +200,19 @@ async function PositionDetailSection({
   const items = await loadDecisionItems(await findPositionOccurrences(position));
 
   return (
-    <>
-      <div>
-        <Link href={`/repeated-positions${buildQueryString(baseParams)}`} className={style.backLink}>
-          ← back to repeated positions
-        </Link>
-      </div>
-      <p className={style.mutedText}>
-        {items.length} occurrence{items.length === 1 ? "" : "s"} of this position (
-        {getClassificationLabel(position.classification)}, {severityLabel(position.errorSeverity)}
-        {position.plyNumber ? `, ply ${position.plyNumber}` : ""}).
+    <div className={style.resultGroup}>
+      <p className={style.resultRow}>
+        {[
+          `${items.length} occurrence${items.length === 1 ? "" : "s"}`,
+          getClassificationLabel(position.classification),
+          severityLabel(position.errorSeverity),
+          position.plyNumber ? `ply ${position.plyNumber}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
       <DecisionListWithDetail items={items} showClassification={false} canEditNotes={isGalaxyEnabled()} />
-    </>
+    </div>
   );
 }
 
@@ -243,9 +237,22 @@ export default async function RepeatedPositionsPage({
   // runs until a filter is actually applied — a positionId deep link is
   // its own explicit, already-scoped action and bypasses this regardless.
   const hasFilter = Boolean(phase || severityParam);
+  // The drilldown's position (one row by primary key): its ID names the
+  // breadcrumb, and the section below lists its occurrences.
+  const position = positionId
+    ? await prisma.repeatedPosition.findUnique({ where: { id: positionId } })
+    : null;
 
   return (
     <PageShell
+      breadcrumbs={
+        positionId
+          ? [
+              { label: "Repeated positions", href: `/repeated-positions${buildQueryString(baseParams)}` },
+              { label: position?.sourcePositionId ?? "Position not found" },
+            ]
+          : undefined
+      }
       title="Repeated positions"
       subtitle={
         <>
@@ -255,8 +262,7 @@ export default async function RepeatedPositionsPage({
           </Link>
         </>
       }
-    >
-      <div className={style.filterRow}>
+      controls={
         <FilterDisclosure
           summary={filterSummary([
             [phase ? getPhaseLabel(phase) : undefined, "Any phase"],
@@ -282,11 +288,11 @@ export default async function RepeatedPositionsPage({
             </button>
           </form>
         </FilterDisclosure>
-      </div>
-
+      }
+    >
       {positionId ? (
         <Suspense fallback={<PositionListFallback />}>
-          <PositionDetailSection positionId={positionId} baseParams={baseParams} />
+          <PositionDetailSection position={position} />
         </Suspense>
       ) : hasFilter ? (
         <Suspense fallback={<PositionListFallback />}>

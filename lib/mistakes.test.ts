@@ -61,12 +61,12 @@ describe("scopeDecisions", () => {
 
 describe("partitionMistakes", () => {
   const decisions = [
-    d("c1", { kind: "checker", isMistake: true, absError: 0.05 }),
+    d("c1", { kind: "checker", isMistake: true, absError: 0.05, severity: "error" }),
     d("c2", { kind: "checker", isMistake: false }),
-    d("c3", { kind: "checker", isMistake: true, absError: 0.2 }),
-    d("q1", { kind: "cube", isMistake: true, absError: 0.1 }),
-    d("q2", { kind: "cube", isMistake: true, absError: 0.05 }),
-    d("r1", { kind: "resignation", isMistake: true, absError: 0.9 }),
+    d("c3", { kind: "checker", isMistake: true, absError: 0.2, severity: "blunder" }),
+    d("q1", { kind: "cube", isMistake: true, absError: 0.1, severity: "blunder" }),
+    d("q2", { kind: "cube", isMistake: true, absError: 0.05, severity: "error" }),
+    d("r1", { kind: "resignation", isMistake: true, absError: 0.9, severity: "blunder" }),
   ];
   const p = partitionMistakes(decisions);
 
@@ -126,6 +126,35 @@ describe("partitionMistakes — Good (doubtful) decisions aren't listed as mista
   it("keeps them in the decisions PR is computed over, so PR is unchanged", () => {
     expect(ids(p.checkerDecisions)).toEqual(["e", "g"]);
     expect(computePR(p.checkerDecisions, () => true).pr).toBeCloseTo((0.06 / 2) * 500);
+  });
+});
+
+describe("partitionMistakes — Best (none) decisions are never listed as mistakes", () => {
+  // Galaxy graded these none (severity null) though rawError is positive:
+  // the played move beat Galaxy's rank 1. Galaxy shows them as Best.
+  const decisions = [
+    d("e", { kind: "checker", isMistake: true, absError: 0.05, severity: "error" }),
+    d("n", { kind: "checker", isMistake: true, absError: 0.03, severity: null }),
+    d("nc", { kind: "cube", isMistake: true, absError: 0.04, severity: null }),
+    d("b", { kind: "cube", isMistake: true, absError: 0.2, severity: "blunder" }),
+  ];
+  const p = partitionMistakes(decisions);
+
+  it("leaves them out of both mistake lists", () => {
+    expect(isListedMistake(decisions[1])).toBe(false);
+    expect(isListedMistake(decisions[2])).toBe(false);
+    expect(ids(p.checkerMistakes)).toEqual(["e"]);
+    expect(ids(p.cubeMistakes)).toEqual(["b"]);
+    expect(ids(p.allMistakes)).toEqual(["b", "e"]);
+  });
+
+  it("keeps them in PR: computePR still counts their error", () => {
+    // (0.05 + 0.03) / 2 decisions * 500.
+    expect(ids(p.checkerDecisions)).toEqual(["e", "n"]);
+    const checker = computePR(p.checkerDecisions, () => true);
+    expect(checker.pr).toBeCloseTo((0.08 / 2) * 500);
+    // (0.04 + 0.2) / 2 * 500.
+    expect(computePR(p.cubeDecisions, () => true).pr).toBeCloseTo((0.24 / 2) * 500);
   });
 });
 

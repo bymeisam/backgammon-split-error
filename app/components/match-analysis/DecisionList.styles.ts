@@ -59,8 +59,10 @@ export const style = {
   trailingCell: "flex items-center justify-end gap-1.5 whitespace-nowrap",
   // The loss in a row's right-hand cell.
   loss: "font-mono text-xs tabular-nums text-ink-muted",
-  // "Has note" marker, inline before the move.
-  noteDot: "mr-1.5 inline-block h-1.5 w-1.5 shrink-0 self-center rounded-full bg-accent",
+  // "Has a note" marker, first in the right-hand cell, so the moves align
+  // left in every row.
+  noteDot: "inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-accent",
+  srOnly: "sr-only",
 
   // Function, 1 param -> passed directly. A cube row's square in the dice
   // column, coloured as Galaxy colours it: red for a blunder, amber for an

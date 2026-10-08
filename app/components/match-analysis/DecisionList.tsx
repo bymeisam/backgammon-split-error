@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { Decision } from "@/lib/mistakes";
 import type { MoveTab } from "@/lib/listSelection";
 import { useDecisionNotes } from "@/app/providers/DecisionNotesProvider";
@@ -85,6 +85,29 @@ export default function DecisionList({
   // A note saved in this tab wins over the row's own (possibly stale) note
   // — same rule as DecisionNote's useEffectiveNote, applied per row here.
   const { savedNotes } = useDecisionNotes();
+
+  // Keep the selected row in view: on mount and whenever the selection
+  // changes, scroll the list's own scroller (never the page) so the row
+  // sits in its top third. A list that doesn't scroll inside itself is
+  // left alone (scrollTo is a no-op there). The first scroll (on mount) is
+  // instant, so a page doesn't animate on load; later ones are smooth
+  // unless the user prefers reduced motion.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
+  const selectedIndex = rows.findIndex((row, index) => isSelected(row, index));
+  useEffect(() => {
+    const list = scrollerRef.current;
+    if (!list || selectedIndex < 0) return;
+    const row = list.querySelector<HTMLElement>('tr[aria-current="true"]');
+    if (!row) return;
+    const rowTop = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({
+      top: Math.max(0, rowTop - list.clientHeight / 3),
+      behavior: reduceMotion || !hasScrolledRef.current ? "instant" : "smooth",
+    });
+    hasScrolledRef.current = true;
+  }, [selectedIndex, rows.length]);
   const hasNote = (row: Decision): boolean => {
     const id = row.dbDecisionId;
     const note = id != null && savedNotes.has(id) ? savedNotes.get(id) : row.note;
@@ -101,7 +124,7 @@ export default function DecisionList({
       {rows.length === 0 ? (
         <p className={style.emptyText}>{emptyMessage}</p>
       ) : (
-        <div className={style.scroll}>
+        <div ref={scrollerRef} className={style.scroll}>
           <table className={style.table}>
             <tbody className={style.body}>
               {rows.map((row, index) => {
@@ -161,15 +184,18 @@ export default function DecisionList({
                       </td>
                     )}
                     <td className={style.moveCell}>
-                      {/* Only rendered when there's a note, so a row
-                          without one has exactly the markup it had before
-                          notes existed. */}
-                      {hasNote(row) && (
-                        <span role="img" aria-label="Has note" title="Has note" className={style.noteDot} />
-                      )}
                       <MoveDelta decision={row} activeTab={activeTab} onSelectTab={onSelectTab} />
                     </td>
-                    <td className={style.trailingCell}>{renderTrailing?.(row)}</td>
+                    <td className={style.trailingCell}>
+                      {/* First in the right-hand cell, so it never shifts
+                          the move. Only rendered when there's a note. */}
+                      {hasNote(row) && (
+                        <span title="Has a note" className={style.noteDot}>
+                          <span className={style.srOnly}>has a note</span>
+                        </span>
+                      )}
+                      {renderTrailing?.(row)}
+                    </td>
                   </tr>
                 );
               })}

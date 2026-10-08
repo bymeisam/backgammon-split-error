@@ -41,7 +41,7 @@ export type Severity = "good" | "error" | "blunder";
 // none = "Best" (null here), doubtful = "Good", error = "Error", blunder =
 // "Blunder". Since 2026-10-07 DOUBTFUL is its own mild "good" tier, not an
 // error: it's left out of the per-match mistake lists (partitionMistakes
-// below). Before that it was folded into "error". PR math doesn't read
+// below), and so is none (since 2026-10-08, isListedMistake). Before that it was folded into "error". PR math doesn't read
 // severity at all (it's equity-based), so it's unaffected.
 export function severityFromErrorSeverity(severity: RawErrorSeverity): Severity | null {
   switch (severity) {
@@ -353,11 +353,15 @@ export interface PartitionedDecisions {
 }
 
 // Whether a decision is listed as a mistake on the match pages: any error
-// at all, except Galaxy's mild "Good" tier (doubtful), which isn't an error
-// (since 2026-10-07). PR doesn't use this: computePR still counts every
-// isMistake decision, so hiding Good rows changes no PR.
+// at all that Galaxy grades Error or Blunder. Not Galaxy's mild "Good"
+// tier (doubtful), which isn't an error (since 2026-10-07), and not a
+// decision Galaxy grades none (Best, severity null; since 2026-10-08): as on
+// Galaxy, a Best decision is never among the mistakes, even when its
+// rawError is positive (the played move beat Galaxy's rank 1). PR doesn't
+// use this: computePR still counts every isMistake decision, so hiding
+// these rows changes no PR.
 export function isListedMistake(d: Decision): boolean {
-  return d.isMistake && d.severity !== "good";
+  return d.isMistake && (d.severity === "error" || d.severity === "blunder");
 }
 
 // Splits decisions into checker / cube (resignations belong to neither —

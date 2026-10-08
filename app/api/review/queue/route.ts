@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prismaReadOnly } from "@/lib/prisma";
-import { NEW_CARDS_PER_DAY, REVIEW_BATCH_SIZE, REVIEWS_PER_DAY } from "@/lib/settings";
-import { reviewDecisionWhere, reviewFiltersFrom } from "@/lib/review/filters";
-import { dailyProgress, parseIdList, planQueue, startOfLocalDay, startOfNextLocalDay } from "@/lib/review/queue";
+import { REVIEW_BATCH_SIZE } from "@/lib/settings";
+import { reviewFiltersFrom } from "@/lib/review/filters";
+import { parseIdList } from "@/lib/review/queue";
+import { loadQueuePlan } from "@/lib/review/queuePlan";
 import { buildCardPayload, REVIEW_CARD_SELECT } from "@/lib/review/cardPayload";
 import type { ReviewCardPayload, ReviewQueueResponse } from "@/lib/review/types";
 
@@ -12,7 +13,9 @@ export const dynamic = "force-dynamic";
 //
 // The next batch of due cards for a /review session (lib/review/queue.ts's
 // planQueue: learning cards, then review cards, then new cards, within
-// today's limits), up to REVIEW_BATCH_SIZE, plus the due counts. `exclude`
+// today's limits, read through lib/review/queuePlan.ts's loadQueuePlan,
+// which the dashboard's due widget shares), up to REVIEW_BATCH_SIZE, plus
+// the due counts. `exclude`
 // is every card the session already holds or has answered. Read-only
 // client: it only reads. Under /api/review/, so gated by proxy.ts like the
 // writes — /review itself only runs a session with write mode on.
@@ -22,27 +25,7 @@ export async function GET(req: NextRequest) {
   const exclude = new Set(parseIdList(sp.get("exclude")));
   const now = new Date();
 
-  const [candidates, todayLogs] = await Promise.all([
-    prismaReadOnly.reviewCard.findMany({
-      where: { suspended: false, due: { lt: startOfNextLocalDay(now) }, decision: reviewDecisionWhere(filters) },
-      orderBy: [{ due: "asc" }, { id: "asc" }],
-      select: { id: true, state: true, due: true },
-    }),
-    prismaReadOnly.reviewLog.findMany({
-      where: { reviewedAt: { gte: startOfLocalDay(now) } },
-      select: { cardId: true, reviewedAt: true, stateBefore: true },
-    }),
-  ]);
-
-  const plan = planQueue({
-    candidates,
-    now,
-    progress: dailyProgress(todayLogs),
-    newPerDay: NEW_CARDS_PER_DAY,
-    reviewsPerDay: REVIEWS_PER_DAY,
-    exclude,
-    batchSize: REVIEW_BATCH_SIZE,
-  });
+  const plan = await loadQueuePlan({ filters, exclude, batchSize: REVIEW_BATCH_SIZE, now });
 
   const rows =
     plan.batchIds.length === 0

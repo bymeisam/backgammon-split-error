@@ -1,80 +1,34 @@
-"use client";
+import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { GALAXY_SOURCE } from "@/lib/externalMatchUrl";
+import MatchAnalysis, { type MatchSummary } from "./MatchAnalysis";
 
-import { useMemo } from "react";
-import { useParams } from "next/navigation";
-import { localGamesError } from "@/lib/sequentialGames";
-import { GALAXY_SOURCE, externalMatchUrl } from "@/lib/externalMatchUrl";
-import { extractPlayerOptions } from "@/lib/mistakes";
-import { resolveMyIdentity, resolveOpponentIdentity } from "@/lib/playerIdentity";
-import { useSequentialGames } from "@/app/hooks/useSequentialGames";
-import { usePlayerIdentities } from "@/app/hooks/usePlayerIdentities";
-import MistakesSection from "@/app/components/match-analysis/MistakesSection";
-import PageShell, { VsTitle } from "@/app/components/ui/PageShell";
-import GameSwitcher from "@/app/components/ui/GameSwitcher";
-import { style } from "./matchDetail.styles";
+// Read per request (the match row can change on a re-sync).
+export const dynamic = "force-dynamic";
 
-export default function MatchAnalysisPage() {
-  const { matchId } = useParams<{ matchId: string }>();
+// /matches/[matchId]: one read-only lookup of the Match row for the header's
+// sub line ("Match 47816592 · 5 Oct 2026 · 2–5"); everything else is the
+// client part, which loads the games itself. Every match here is resolved
+// under the Galaxy source (lib/local-client.ts), as the client part assumes.
+// A failed lookup only drops the date and score: the page still works.
+export default async function MatchAnalysisPage({ params }: { params: Promise<{ matchId: string }> }) {
+  const { matchId } = await params;
 
-  const fetchGame = useMemo(
-    () => (matchId ? (gameIndex: number) => fetch(`/api/matches/${matchId}/${gameIndex}`) : null),
-    [matchId]
-  );
-  const { games, loading, stop } = useSequentialGames(fetchGame);
-  const error = localGamesError(stop);
-  const notIngested = stop?.kind === "missing";
-  // This page reads matches only through /api/matches/[matchId]/[gameIndex]
-  // (lib/local-client.ts), which resolves them under the Galaxy source —
-  // so every match shown here is a Galaxy match. If another source is ever
-  // routed here, pass that match's real source instead.
-  const externalHref = matchId ? externalMatchUrl(GALAXY_SOURCE, matchId) : null;
+  let summary: MatchSummary | null = null;
+  try {
+    const match = await prisma.match.findUnique({
+      where: { source_sourceMatchId: { source: GALAXY_SOURCE, sourceMatchId: matchId } },
+      select: { playedAt: true, userScore: true, opponentScore: true },
+    });
+    if (match) {
+      summary = {
+        playedAt: match.playedAt ? match.playedAt.toISOString() : null,
+        userScore: match.userScore,
+        opponentScore: match.opponentScore,
+      };
+    }
+  } catch (error) {
+    console.error(`[match page] Match ${matchId} lookup failed:`, error);
+  }
 
-  // The breadcrumb's opponent: the PlayerIdentity (non-isMe) among the
-  // loaded games' players — the same identity list MistakesSection loads.
-  // "Match <id>" until it resolves (or if it doesn't).
-  const identities = usePlayerIdentities();
-  const playerIds = useMemo(() => extractPlayerOptions(games).map((p) => p.userId), [games]);
-  const opponent = useMemo(() => resolveOpponentIdentity(identities, playerIds), [identities, playerIds]);
-  // "You: meisam2" in the sub line — the same rule MistakesSection uses to
-  // pick whose mistakes it lists (lib/playerIdentity.ts).
-  const me = useMemo(() => resolveMyIdentity(identities, playerIds), [identities, playerIds]);
-  const crumbLabel = opponent ? `${opponent.displayName} (${matchId})` : `Match ${matchId}`;
-
-  return (
-    <PageShell
-      variant="detail"
-      breadcrumbs={[{ label: "Matches", href: "/matches" }, { label: crumbLabel }]}
-      title={opponent ? <VsTitle name={opponent.displayName} /> : `Match ${matchId}`}
-      subtitle={
-        <>
-          Match {matchId}
-          {me && ` · You: ${me.displayName}`}
-        </>
-      }
-      actions={
-        games.length > 0 ? (
-          <>
-            <GameSwitcher matchId={matchId} games={games.map((g) => g.gameIndex)} label="Replay" />
-            {externalHref && (
-              <a href={externalHref} target="_blank" rel="noopener noreferrer" className={style.externalLink}>
-                View on Galaxy ↗
-              </a>
-            )}
-          </>
-        ) : null
-      }
-    >
-      {(loading || error || notIngested) && (
-        <div className={style.statusBlock}>
-          {loading && <p className={style.loadingText}>Loading…</p>}
-          {error && <p className={style.errorBox}>{error}</p>}
-          {notIngested && (
-            <p className={style.notIngestedBox}>This match hasn&apos;t been fully ingested yet.</p>
-          )}
-        </div>
-      )}
-
-      {!notIngested && <MistakesSection matchId={matchId} games={games} bleed />}
-    </PageShell>
-  );
+  return <MatchAnalysis summary={summary} />;
 }

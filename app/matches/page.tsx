@@ -7,7 +7,14 @@ import { formatShortMatchDate } from "@/lib/formatDate";
 import { jsonOrThrow } from "@/lib/galaxyPost";
 import Pager from "@/app/components/ui/Pager";
 import PageShell from "@/app/components/ui/PageShell";
+import { SOURCE_PR_HINT } from "@/lib/sourcePr";
 import { style } from "./matches.styles";
+
+// Ratings always with two decimals and a thousands separator: "2,077.21",
+// "2,800.00", "2,094.70".
+function formatRating(rating: number): string {
+  return rating.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export default function MatchesPage() {
   const [page, setPage] = useState(1);
@@ -69,8 +76,16 @@ export default function MatchesPage() {
                   <th className={style.tableHeadCell}>Opponent</th>
                   <th className={style.tableHeadCellWideNumeric}>Rating</th>
                   <th className={style.tableHeadCellWide}>Score</th>
-                  <th className={style.tableHeadCellNumeric}>Your error</th>
-                  <th className={style.tableHeadCellWideNumeric}>Opp. error</th>
+                  <th className={style.tableHeadCellNumeric}>
+                    <span title={SOURCE_PR_HINT} className={style.prHint}>
+                      Your PR
+                    </span>
+                  </th>
+                  <th className={style.tableHeadCellWideNumeric}>
+                    <span title={SOURCE_PR_HINT} className={style.prHint}>
+                      Opp. PR
+                    </span>
+                  </th>
                   <th className={style.chevronHeadCell} aria-hidden="true"></th>
                 </tr>
               </thead>
@@ -87,7 +102,7 @@ export default function MatchesPage() {
                         {m.opponentName}
                       </Link>
                     </td>
-                    <td className={style.ratingCell}>{m.opponentRating}</td>
+                    <td className={style.ratingCell}>{formatRating(m.opponentRating)}</td>
                     <td className={style.scoreCell}>
                       {m.userScore}–{m.opponentScore}
                     </td>

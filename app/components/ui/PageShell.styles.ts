@@ -55,6 +55,9 @@ export const style = {
   subtitle: (variant: PageVariant): string =>
     clsx(variant === "page" ? "mt-2 text-[14.5px] text-ink-muted" : "mt-1.5 text-[13px] text-ink-faint"),
   actions: "flex flex-wrap items-center gap-x-[18px] gap-y-2 text-sm",
+  // The list pages' Filter disclosure, 16px under the title row (the
+  // review's mt-4): the header's gap-2.5 (10px) plus mt-1.5 (6px).
+  controls: "mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-3",
   // The italic "vs" in a board page's title ("Game 2 vs cbj2").
   titleVs: "font-normal italic text-ink-muted",
 } as const;

@@ -74,7 +74,7 @@ export const style = {
       opts.isBest && "shadow-[inset_3px_0_0_var(--color-best)]",
       opts.chosenWrong && "shadow-[inset_3px_0_0_var(--color-blunder)]"
     ),
-  optionTag: "ml-2.5 font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-faint",
+  optionTag: "ml-2.5 whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-faint",
   // Function, 1 param -> passed directly. The loss; Blunder's ink on the
   // chosen wrong row.
   optionLoss: (chosenWrong: boolean): string =>
