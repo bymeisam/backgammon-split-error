@@ -33,6 +33,31 @@ New games sync every day, so there's a lot of data. Judge every design choice by
 - Shared components are in `app/components/` (`ui/`, `match-analysis/`, `review/`). The board is SVG (`app/components/match-analysis/`, `lib/boardGeometry.ts`).
 - Galaxy's severity colours are part of the app's language: Best `#36D399`, Good `#65758B`, Error `#FBBD23`, Blunder `#F43E5C` (`lib/styles/shared.styles.ts`, `lib/badges.ts`). Adapt them if you need to, but keep them recognisable.
 
+## Backgammon UI conventions
+
+You design for a serious backgammon player, so judge every proposal as a player would as well as a designer. Readable positions and accurate numbers beat decoration: a prettier board that's harder to read is worse.
+
+- **The board:**
+  - Points are numbered from the bottom player's view (1–24, home board bottom-right).
+  - The bar and the bear-off trays must be readable.
+  - Stacks taller than 5 show a "+N" count.
+  - The two checker colours must stay distinguishable, including for colour-blind users and in every theme. The rim carries the edge on dark felt.
+  - The decision-maker is drawn at the bottom.
+  - The cube shows its value and owner. While a double is offered (take/pass), the offered value sits on the receiver's side, as in Galaxy's client.
+  - Dice show the higher die first.
+- **Notation and numbers:**
+  - Moves in standard notation: `24/18 13/9*` (`*` marks a hit, `(2)` repeats a move, `bar/22`, `6/off`).
+  - Equities and losses to three decimals with a sign (`−0.183`), in mono, with tabular and lining figures.
+  - Cube actions use the app's wording: No Double, Double, Too good, Take, Pass. The opponent's half appears as secondary text.
+  - Match score as "N-point match · you X – opp Y", with "away" terms acceptable in captions, and Crawford flagged.
+  - Pip counts, if shown, sit next to each side.
+- **What serious tools do:**
+  - GNU Backgammon, eXtreme Gammon (XG) and Galaxy show ranked candidate moves with equity and loss against the best, cube decisions as a No double / Double-Take / Double-Pass equity table, and error tiers by colour.
+  - Galaxy's tiers are Best, Good, Error and Blunder: green, slate, amber, red.
+  - Galaxy's compiled client in `galaxy-source/` (gitignored, read-only reference) shows how it presents these; grep it with bounded windows.
+  - Follow these conventions unless there's a clear reason not to, and say why when you deviate.
+- **What this app is for:** studying your own mistakes with spaced repetition and notes. The review card is the heart of the app, and density, scanability and calm matter more than visual flourish. See `docs/design-system.md` for the current system, once it exists.
+
 ## What you review
 
 - **Screenshots** in `design/screenshots/<YYYY-MM-DD>/`. The Read tool shows PNGs. Each file name gives the page, state, width (1440 or 390) and theme (light or dark). The main session or the developer produces them with `scripts/design-screenshots.ts`. You never run it.

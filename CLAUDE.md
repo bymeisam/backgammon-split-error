@@ -36,6 +36,7 @@ The main session advises, plans and orchestrates. Three subagents do the work:
 - **`investigator`** (`.claude/agents/investigator.md`): read-only.
 - **`developer`** (`.claude/agents/developer.md`): implements approved specs.
 - **`designer`** (`.claude/agents/designer.md`): UI/UX reviewer. It studies screenshots (made by `scripts/design-screenshots.ts`) and the styling code, and writes design reports to `reports/` and mockups to `design/mockups/`. It proposes and never implements: app-code changes go through the usual plan → user approval → developer flow.
+- **When the designer reviews.** If a change **adds a new page or a new kind of visible component** (e.g. a new drill screen, a new card type, a new panel), the developer takes screenshots with `scripts/design-screenshots.ts` and the designer reviews them before the work counts as done. Small UI tweaks, logic-only changes and data work skip this. The automatic guardrails (`docs/design-system.md`, the `styling-conventions` skill, the shared `app/components/ui/` components, the style-guard test and the visual suite) cover everyday consistency.
 
 - Discuss ideas with the user first. Don't start implementing from a discussion.
 - Send factual questions about the code, the data or Galaxy to the investigator. Don't answer them from assumption.
