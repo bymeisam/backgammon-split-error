@@ -952,3 +952,21 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
 
     This needs a design decision, e.g. a gear icon, moving the sheet breakpoint to lg, or a shorter sync line.
   - **Next:** that navbar decision; the designer's look at the phase-3 shots; editable review settings.
+
+- **Navbar fix and three Settings fixes** (`reports/2026-10-09-design-review-phase3.md` §c and §d, approved by the user). No DB or schema change. The only logic change is the label split; sync itself is unchanged.
+  - **Navbar (`AppNav.styles.ts`):** the bar now collapses to Menu below `xl` (1280) instead of `md`, in both modes (the user accepted that read-only at 1024 gets the Menu too). Every `md:` is now `xl:`, and the entries are set exactly as in the report:
+    - `xl:gap-8` on `menu`, so there are always at least 32px between the links and the end group;
+    - `xl:gap-6` brand to links, `xl:gap-5` between links, `xl:gap-3` in the end group and the sync box;
+    - Settings, Status and "?" sit behind a hairline (`xl:border-l xl:pl-3`).
+    - Between md and xl the open menu is a 320px panel anchored to the right. Below md it's the full-width sheet, as before.
+  - **Sync line:** `lib/dashboardStats.ts` has a new `lastSyncedParts(run, now)` returning `{ when, count }`, and `lastSyncedLabel` is now `when + count` (its tests are unchanged, plus 3 new ones). `NavSync` passes `when`, `count` and a title "<date> · N matches". From xl, `SyncControl` shows only "Synced 4 days ago" (`syncCount` is `xl:hidden`), capped at `xl:max-w-40 truncate`. After a sync, the `role="status"` message replaces the label instead of sitting beside it.
+  - **Settings (`settings.styles.ts`):** the selected Mode segment and its track get rings (`ring-line-strong` / `ring-line`), `rowValue` is `whitespace-nowrap`, and `themeRadio` is `accent-ink`.
+  - **`scripts/design-screenshots.ts`:** new navbar shots at 768, 1024 and 1440 (light and dark): the top of /matches, the open Menu at 768 and 1024, and the Review › Cards dropdown at 1440. Names carry the server's mode (`nav-write-…`, `nav-readonly-…`). The bar is measured and the results are printed and written to `nav-metrics-<mode>.json`. A new `--nav-only` flag skips the rest and the review cards, for a read-only server.
+  - **Verified:**
+    - lint, tsc, 529/529 tests and build all pass.
+    - Visual 15/15 with no baseline changes (the suite captures no navbar or Settings element).
+    - Screenshots are in `design/screenshots/2026-10-09-phase3b/{clubroom,quiet-ink,midnight-felt}/`, 142 each. They come from local `next start` :3300 (write mode, full set, cards for 1258038/629849/1149353 added and removed) and :3301 (`ENABLE_WRITE_MODE=false` on the command line, `--nav-only`).
+    - After the runs, ReviewCard/ReviewLog/Tag/DecisionTag are 0/0/0/0 and DecisionNote is unchanged (2 rows).
+    - Nothing overflows at any width, theme or mode.
+    - Slack at 1440 in write mode, without a token (so "Add token to sync" shows instead of the narrower Sync button): Clubroom 73px, Quiet Ink 58px, Felt 46px. In read-only: 405, 390 and 389px.
+  - **Next:** the designer's sign-off on the phase-3b shots. The post-sync message swap hasn't been seen live, because that needs a Galaxy token and a real sync.

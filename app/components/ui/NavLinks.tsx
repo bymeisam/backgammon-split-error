@@ -40,10 +40,10 @@ function ModeBadge({ label, placement }: { label: RuntimeModeLabel; placement: "
 }
 
 // The navbar's client half: highlights the active route from the pathname
-// and, below md, folds the items into a sheet under the bar. Everything that
+// and, below xl, folds the items into a sheet under the bar. Everything that
 // needs the server (the item list, the mode label, the due badge, the sync
 // line, the "?" help) comes in as props from AppNav, and each renders once:
-// one DOM tree, laid out as a row from md and as the sheet below it.
+// one DOM tree, laid out as a row from xl and as the sheet below it.
 export default function NavLinks({
   items,
   modeLabel,

@@ -10,8 +10,23 @@
 //   npm run build && ENABLE_WRITE_MODE=true npx next start -p 3300
 //   npx tsx scripts/design-screenshots.ts
 //
+// Navbar shots (since 2026-10-09): at 768, 1024 and 1440, light and dark,
+// the top of /matches, the open Menu at 768 and 1024, and the Review ›
+// Cards dropdown at 1440. Each one also measures the bar (scrollWidth
+// against clientWidth, and the slack: the free space left in the row) and
+// prints a table, written to nav-metrics-<write|readonly>.json too. The
+// file names carry the server's mode (nav-write-… / nav-readonly-…), read
+// from the page's mode badge. For the read-only shots start a second
+// server with write mode off on the command line only, and pass
+// --nav-only:
+//
+//   ENABLE_WRITE_MODE=false npx next start -p 3301
+//   npx tsx scripts/design-screenshots.ts --base-url=http://localhost:3301 --nav-only
+//
 // Options:
 //   --base-url=<url>          default http://localhost:3300
+//   --nav-only                only the navbar shots (no review cards are
+//                             added, so it works on a read-only server)
 //   --date=<YYYY-MM-DD>       output folder name; default today (local time)
 //   --theme=<id>              a theme from lib/themes.ts (e.g. quiet-ink),
 //                             set the way /settings sets it: the bgtheme
@@ -34,14 +49,14 @@
 // The review session's shots take the cards in queue order (new cards in the
 // order they were added): card 1 answered right, card 2 answered wrong,
 // card 3 (if any) answered right.
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { chromium, type Browser, type Page } from "@playwright/test";
+import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { isThemeId, serializeThemeCookie, THEME_COOKIE, THEMES } from "../lib/themes";
 
 type Theme = "light" | "dark";
 interface Variant {
-  width: 1440 | 390;
+  width: 1440 | 1024 | 768 | 390;
   theme: Theme;
 }
 interface ShotContext {
@@ -51,8 +66,8 @@ interface ShotContext {
 }
 interface Shot {
   name: string;
-  // Narrow-screen-only shots (the Menu button only exists below md).
-  only?: 390 | 1440;
+  // Width-only shots (e.g. the 390 sheet).
+  only?: Variant["width"];
   run: (ctx: ShotContext) => Promise<void>;
 }
 interface QueueOption {
@@ -82,6 +97,7 @@ if (THEME !== undefined && !isThemeId(THEME)) {
   process.exit(1);
 }
 const OUT_DIR = path.resolve(process.cwd(), "design", "screenshots", DATE, ...(THEME ? [THEME] : []));
+const NAV_ONLY = process.argv.includes("--nav-only");
 const REVIEW_DECISIONS = (arg("review-decisions") ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -94,6 +110,12 @@ const VARIANTS: Variant[] = [
   { width: 390, theme: "light" },
   { width: 390, theme: "dark" },
 ];
+
+// The navbar shots' widths: below md (768 is md itself, the right-hand
+// Menu panel), the panel at 1024, and the full row at 1440 (from xl).
+const NAV_VARIANTS: Variant[] = ([768, 1024, 1440] as const).flatMap((width) =>
+  (["light", "dark"] as const).map((theme) => ({ width, theme }))
+);
 
 // The data the pages show: real local matches used throughout PROGRESS.md.
 const MATCH = "47816592";
@@ -281,7 +303,7 @@ const SHOTS: Shot[] = [
     name: "shortcuts-help",
     run: async (ctx) => {
       await openReplay(ctx.page, REPLAY_CHECKER_ERROR);
-      // Below md the "?" button is inside the collapsed menu.
+      // Below xl the "?" button is inside the collapsed menu.
       await openMenuIfNarrow(ctx);
       await ctx.page.getByRole("button", { name: "Keyboard shortcuts" }).click();
       await ctx.page.getByTestId("shortcuts-help").waitFor();
@@ -299,6 +321,103 @@ const SHOTS: Shot[] = [
     },
   },
 ];
+
+// One measurement of the bar, at one width/theme/mode.
+interface NavMetric {
+  width: number;
+  theme: Theme;
+  mode: "write" | "readonly";
+  // The bar's inner row: scrollWidth − clientWidth (0 = nothing overflows).
+  overflow: number;
+  // The menu row itself (from xl): scrollWidth − clientWidth.
+  menuOverflow: number;
+  // Free space left in the row. From xl: the gap between the links and the
+  // end group, minus the guaranteed 32px. Below xl: the gap between the
+  // brand and the mode badge + Menu, minus the row's 12px gap.
+  slack: number;
+  // From xl: the px between the last link and the mode badge (≥ 32).
+  linkToEnd: number | null;
+  // The end group's height (one line is the 30px buttons) and whether the
+  // sync label is cut by its truncate cap.
+  endHeight: number;
+  syncLabelTruncated: boolean | null;
+}
+
+async function navMode(page: Page): Promise<"write" | "readonly"> {
+  return (await page.locator('[data-app-nav] [title^="Read-only"]').count()) > 0 ? "readonly" : "write";
+}
+
+async function measureNav(page: Page, variant: Variant, mode: NavMetric["mode"]): Promise<NavMetric> {
+  // A string, not a function: tsx's __name helper breaks a function passed
+  // into the page (the same reason the Phase 2 init script was a string).
+  const m = (await page.evaluate(`(() => {
+    const inner = document.querySelector("[data-app-nav] > div");
+    const menu = document.getElementById("app-nav-menu");
+    const list = menu.children[0];
+    const end = menu.children[1];
+    const brand = inner.children[0];
+    const narrowEnd = inner.children[1];
+    const wide = getComputedStyle(narrowEnd).display === "none";
+    const label = document.querySelector('[data-testid="sync-control"] > span');
+    const linkToEnd = wide ? end.getBoundingClientRect().left - list.getBoundingClientRect().right : null;
+    return {
+      overflow: inner.scrollWidth - inner.clientWidth,
+      menuOverflow: wide ? menu.scrollWidth - menu.clientWidth : 0,
+      slack: wide
+        ? linkToEnd - 32
+        : narrowEnd.getBoundingClientRect().left - brand.getBoundingClientRect().right - 12,
+      linkToEnd,
+      endHeight: wide ? Math.round(end.getBoundingClientRect().height) : 0,
+      syncLabelTruncated: wide && label ? label.scrollWidth > label.clientWidth : null,
+    };
+  })()`)) as Omit<NavMetric, "width" | "theme" | "mode">;
+  return { width: variant.width, theme: variant.theme, mode, ...m, slack: Math.round(m.slack * 10) / 10 };
+}
+
+// The navbar pass: see the header. Returns one metric per variant.
+async function navShots(
+  browser: Browser,
+  addTheme: (ctx: BrowserContext) => Promise<void>,
+  written: string[],
+  failures: string[]
+): Promise<NavMetric[]> {
+  const metrics: NavMetric[] = [];
+  for (const variant of NAV_VARIANTS) {
+    const context = await browser.newContext({
+      viewport: { width: variant.width, height: 900 },
+      deviceScaleFactor: 1,
+      colorScheme: variant.theme,
+    });
+    await addTheme(context);
+    const page = await context.newPage();
+    const shoot = async (name: string) => {
+      const file = `${name}--${variant.width}-${variant.theme}--viewport.png`;
+      await page.screenshot({ path: path.join(OUT_DIR, file) });
+      written.push(file);
+    };
+    try {
+      await open(page, "/matches");
+      const mode = await navMode(page);
+      metrics.push(await measureNav(page, variant, mode));
+      await shoot(`nav-${mode}-top`);
+      if (variant.width < 1280) {
+        await page.getByRole("button", { name: "Menu" }).click();
+        await page.waitForTimeout(200);
+        await shoot(`nav-${mode}-menu-open`);
+      } else {
+        await page.locator("#app-nav-menu").getByRole("link", { name: /^Review/ }).hover();
+        await page.locator("#app-nav-menu").getByRole("link", { name: "Cards" }).waitFor({ state: "visible" });
+        await page.waitForTimeout(200);
+        await shoot(`nav-${mode}-review-dropdown`);
+      }
+    } catch (err) {
+      failures.push(`nav @ ${variant.width}-${variant.theme}: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
+    } finally {
+      await context.close();
+    }
+  }
+  return metrics;
+}
 
 // Pushes each new card id into `created` as soon as it exists, so a failure
 // part-way still lets the caller remove the ones already added.
@@ -339,22 +458,27 @@ async function main(): Promise<void> {
   const created: number[] = [];
   const written: string[] = [];
   const failures: string[] = [];
+  // The theme as the app stores it: the bgtheme cookie, in system mode so
+  // the colorScheme emulation picks light or dark.
+  const addTheme = async (context: BrowserContext) => {
+    if (THEME && isThemeId(THEME)) {
+      await context.addCookies([
+        { name: THEME_COOKIE, value: serializeThemeCookie({ theme: THEME, mode: "system" }), url: BASE_URL },
+      ]);
+    }
+  };
+  let metrics: NavMetric[] = [];
   try {
-    await addReviewCards(created);
+    if (!NAV_ONLY) await addReviewCards(created);
     browser = await chromium.launch({ args: ["--disable-gpu"] });
-    for (const variant of VARIANTS) {
+    metrics = await navShots(browser, addTheme, written, failures);
+    for (const variant of NAV_ONLY ? [] : VARIANTS) {
       const context = await browser.newContext({
         viewport: { width: variant.width, height: variant.width === 1440 ? 900 : 844 },
         deviceScaleFactor: variant.width === 390 ? 2 : 1,
         colorScheme: variant.theme,
       });
-      // The theme as the app stores it: the bgtheme cookie, in system mode
-      // so the colorScheme emulation above picks light or dark.
-      if (THEME && isThemeId(THEME)) {
-        await context.addCookies([
-          { name: THEME_COOKIE, value: serializeThemeCookie({ theme: THEME, mode: "system" }), url: BASE_URL },
-        ]);
-      }
+      await addTheme(context);
       for (const shot of SHOTS) {
         if (shot.only && shot.only !== variant.width) continue;
         const page = await context.newPage();
@@ -378,6 +502,15 @@ async function main(): Promise<void> {
     await removeReviewCards(created);
   }
 
+  if (metrics.length) {
+    console.log("nav: width theme mode | overflow menuOverflow | slack linkToEnd | endHeight labelTruncated");
+    for (const m of metrics) {
+      console.log(
+        `nav: ${m.width} ${m.theme} ${m.mode} | ${m.overflow} ${m.menuOverflow} | ${m.slack} ${m.linkToEnd ?? "-"} | ${m.endHeight} ${m.syncLabelTruncated ?? "-"}`
+      );
+    }
+    writeFileSync(path.join(OUT_DIR, `nav-metrics-${metrics[0].mode}.json`), JSON.stringify(metrics, null, 2));
+  }
   console.log(`${written.length} screenshots written.`);
   if (failures.length) {
     console.error(`${failures.length} shot(s) failed:\n  ${failures.join("\n  ")}`);

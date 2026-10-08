@@ -59,13 +59,24 @@ export function formatTimeAgo(then: Date, now: Date): string {
   return `${days} days ago`;
 }
 
-// The navbar's sync line: "Synced 5 min ago · 3 matches" /
+// The navbar's sync line in two parts: when ("Synced 5 min ago") and the
+// count (" · 3 matches", with its separator), so the bar can show the count
+// only in the menu sheet and the tooltip. No run: "Never synced", no count.
+export function lastSyncedParts(
+  run: { finishedAt: Date; matchesSynced: number } | null,
+  now: Date
+): { when: string; count: string } {
+  if (!run) return { when: "Never synced", count: "" };
+  const matches = `${run.matchesSynced} match${run.matchesSynced === 1 ? "" : "es"}`;
+  return { when: `Synced ${formatTimeAgo(run.finishedAt, now)}`, count: ` · ${matches}` };
+}
+
+// The navbar's sync line as one string: "Synced 5 min ago · 3 matches" /
 // "Never synced".
 export function lastSyncedLabel(
   run: { finishedAt: Date; matchesSynced: number } | null,
   now: Date
 ): string {
-  if (!run) return "Never synced";
-  const matches = `${run.matchesSynced} match${run.matchesSynced === 1 ? "" : "es"}`;
-  return `Synced ${formatTimeAgo(run.finishedAt, now)} · ${matches}`;
+  const { when, count } = lastSyncedParts(run, now);
+  return when + count;
 }

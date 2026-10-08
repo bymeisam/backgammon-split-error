@@ -17,12 +17,16 @@ type SyncState =
 // which wraps the whole app in the root layout — nothing new is stored.
 // With a token (pasted on /galaxy/matches this page load), "Sync" runs the
 // existing incremental sync route, unchanged. Without one (e.g. after a
-// reload), it links to /galaxy/matches to paste it.
+// reload), it links to /galaxy/matches to paste it. Once a sync finishes,
+// its result message takes the label's place (one bounded slot, so the bar
+// can't wrap); the count part is hidden from xl (style.syncCount).
 export default function SyncControl({
-  lastSyncedLabel,
+  lastSyncedWhen,
+  lastSyncedCount,
   lastSyncedTitle,
 }: {
-  lastSyncedLabel: string;
+  lastSyncedWhen: string;
+  lastSyncedCount: string;
   lastSyncedTitle: string | undefined;
 }) {
   const { token } = useGameStatsAuth();
@@ -47,7 +51,16 @@ export default function SyncControl({
 
   return (
     <div className={style.syncBox} data-testid="sync-control">
-      <span title={lastSyncedTitle}>{lastSyncedLabel}</span>
+      {state.kind === "done" ? (
+        <span role="status" title={state.message} className={style.syncMessage(state.ok)}>
+          {state.message}
+        </span>
+      ) : (
+        <span className={style.syncLabel} title={lastSyncedTitle}>
+          {lastSyncedWhen}
+          <span className={style.syncCount}>{lastSyncedCount}</span>
+        </span>
+      )}
       {token ? (
         <button type="button" onClick={onSync} disabled={state.kind === "syncing"} className={style.syncButton}>
           {state.kind === "syncing" ? "Syncing…" : "Sync"}
@@ -60,11 +73,6 @@ export default function SyncControl({
         >
           Add token to sync
         </Link>
-      )}
-      {state.kind === "done" && (
-        <span role="status" title={state.message} className={style.syncMessage(state.ok)}>
-          {state.message}
-        </span>
       )}
     </div>
   );

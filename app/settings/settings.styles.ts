@@ -21,7 +21,7 @@ export const style = {
       selected ? "border-ink" : "border-line hover:border-line-strong"
     ),
   themeOptionHead: "flex items-center gap-2.5",
-  themeRadio: "h-4 w-4 shrink-0 focus-visible:outline-none",
+  themeRadio: "h-4 w-4 shrink-0 accent-ink focus-visible:outline-none",
   themeName: "text-sm font-medium text-ink",
   themeFonts: "text-xs text-ink-faint",
 
@@ -58,14 +58,14 @@ export const style = {
   chipRow: "flex flex-wrap gap-1",
 
   // --- ThemeSettings.tsx: the mode switch (a segmented control) ---
-  modeTrack: "inline-flex w-fit gap-1 rounded-control bg-sunken p-[3px]",
+  modeTrack: "inline-flex w-fit gap-1 rounded-control bg-sunken p-[3px] ring-1 ring-inset ring-line",
   // Function, 1 param -> passed directly. The chosen mode raised on the
   // track; the radio inside is visually hidden.
   modeOption: (selected: boolean): string =>
     clsx(
       "cursor-pointer rounded-[7px] px-4 py-1.5 text-sm font-medium transition-colors",
       "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus",
-      selected ? "bg-surface text-ink shadow-card" : "text-ink-muted hover:text-ink"
+      selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
     ),
   modeRadio: "sr-only",
 
@@ -73,7 +73,7 @@ export const style = {
   rowList: "flex flex-col",
   rowWrapper: "flex items-center justify-between gap-4 border-t border-line py-2.5 text-[13.5px]",
   rowLabel: "text-ink-muted",
-  rowValue: "text-right tabular-nums text-ink",
+  rowValue: "whitespace-nowrap text-right tabular-nums text-ink",
 } as const;
 
 export type PreviewSwatch = "paper" | "surface" | "ink" | "accent" | "primary";
