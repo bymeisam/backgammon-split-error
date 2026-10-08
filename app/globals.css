@@ -91,10 +91,19 @@
   --font-sans: var(--theme-font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--theme-font-serif), ui-serif, Georgia, serif;
   --font-mono: var(--theme-font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  /* font-display: the theme's title weight (titles and the verdict word). */
+  --font-weight-display: var(--theme-display-weight);
 
   --shadow-card: 0 1px 2px var(--shadow-color), 0 6px 20px -12px var(--shadow-color);
   --shadow-raised: 0 12px 32px -12px var(--shadow-color), 0 2px 6px var(--shadow-color);
   --drop-shadow-board: 0 14px 22px var(--board-shadow);
+}
+
+/* font-emphasis: the theme's emphasis style (italic or normal) for the
+   verdict word ("Correct." / "Not quite.") and the "vs" in titles. Tailwind
+   has no font-style theme namespace, so it's a utility of its own. */
+@utility font-emphasis {
+  font-style: var(--theme-emphasis-style);
 }
 
 /* Theme-independent scales: type, radii. */

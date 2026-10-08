@@ -18,7 +18,7 @@ export const style = {
   // The session bar: one quiet line instead of a filter form and a counts
   // box.
   sessionBar: "-mb-1 flex flex-wrap items-center gap-[18px] px-4 md:px-0",
-  sessionTitle: "font-serif text-[26px] font-medium leading-none tracking-[-0.01em] text-ink",
+  sessionTitle: "font-serif text-[26px] font-display leading-none tracking-[-0.01em] text-ink",
   progress: "flex min-w-40 flex-1 items-center gap-3 text-[12.5px] tabular-nums text-ink-muted",
   track: "h-1 flex-1 overflow-hidden rounded-[2px] bg-line",
   trackFill: "block h-full bg-ink transition-[width]",
@@ -29,7 +29,7 @@ export const style = {
   sideColumn: "flex min-w-0 flex-col gap-[18px] px-4 md:px-0",
   contextLine: "flex flex-wrap gap-2 text-[12.5px] text-ink-faint",
   contextStrong: "font-medium text-ink-muted",
-  question: "mt-1.5 font-serif text-[26px] font-medium leading-[1.15] tracking-[-0.012em] text-ink md:text-[30px]",
+  question: "mt-1.5 font-serif text-[26px] font-display leading-[1.15] tracking-[-0.012em] text-ink md:text-[30px]",
   questionAsk: "font-normal italic text-ink-muted",
   optionList: "flex flex-col gap-2",
   optionButton: clsx(
@@ -42,11 +42,12 @@ export const style = {
 
   // The back.
   verdictRow: "mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-3.5",
-  // Function, 1 param -> passed directly. The verdict as a serif italic
-  // word in Best's or Blunder's ink.
+  // Function, 1 param -> passed directly. The verdict as a serif word in
+  // the theme's title weight and emphasis style (italic, or upright in
+  // Quiet Ink), in Best's or Blunder's ink.
   verdictWord: (correct: boolean): string =>
     clsx(
-      "font-serif text-[28px] font-medium italic leading-none",
+      "font-serif text-[28px] font-display font-emphasis leading-none",
       correct ? shared.severityText("best") : shared.severityText("blunder")
     ),
   verdictSub: "text-[13px] text-ink-muted",
@@ -114,5 +115,5 @@ export const style = {
   mutedText: clsx(shared.mutedText, "px-4 md:px-0"),
   errorText: shared.errorText,
   doneBox: clsx(shared.card, "mx-3 flex flex-col gap-4 p-6 md:mx-0"),
-  doneTitle: "font-serif text-title font-medium text-ink",
+  doneTitle: "font-serif text-title font-display text-ink",
 } as const;

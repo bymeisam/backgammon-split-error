@@ -54,9 +54,10 @@ export function isThemeMode(value: unknown): value is ThemeMode {
   return typeof value === "string" && (THEME_MODES as readonly string[]).includes(value);
 }
 
-// The theme and mode to render, from whatever was stored (a cookie, in
-// phase 3; nothing yet). Anything unknown or missing falls back to the
-// default, so a stale or hand-edited value can't break the page.
+// The theme and mode to render, from whatever was stored (the bgtheme
+// cookie, through themeSettingsFromCookie). Anything unknown or missing
+// falls back to the default, so a stale or hand-edited value can't break
+// the page.
 export function resolveThemeSettings(stored?: { theme?: unknown; mode?: unknown }): {
   theme: ThemeId;
   mode: ThemeMode;
@@ -65,4 +66,48 @@ export function resolveThemeSettings(stored?: { theme?: unknown; mode?: unknown 
     theme: isThemeId(stored?.theme) ? stored.theme : DEFAULT_THEME,
     mode: isThemeMode(stored?.mode) ? stored.mode : DEFAULT_MODE,
   };
+}
+
+export interface ThemeSettings {
+  theme: ThemeId;
+  mode: ThemeMode;
+}
+
+// The user's choice lives in one cookie, per browser (a display preference,
+// so not in the DB, and no write gate: it works on the read-only site too).
+// The value is "<theme>.<mode>", e.g. "midnight-felt.dark"; theme ids never
+// contain a dot. The root layout reads it on the server (app/layout.tsx), so
+// <html data-theme data-mode> arrives right in the first HTML; /settings
+// writes it in the browser (themeCookieString).
+export const THEME_COOKIE = "bgtheme";
+export const THEME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+// The cookie's raw value split into its two parts, unvalidated. Anything
+// that isn't "<a>.<b>" gives {}, which resolves to the defaults.
+export function parseThemeCookie(value: string | null | undefined): { theme?: string; mode?: string } {
+  if (typeof value !== "string" || value.length === 0 || value.length > 64) return {};
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return {};
+  }
+  const parts = decoded.split(".");
+  if (parts.length !== 2) return {};
+  return { theme: parts[0], mode: parts[1] };
+}
+
+// The cookie's value to the theme and mode to render: validated against the
+// registry, each part falling back on its own (Clubroom, System).
+export function themeSettingsFromCookie(value: string | null | undefined): ThemeSettings {
+  return resolveThemeSettings(parseThemeCookie(value));
+}
+
+export function serializeThemeCookie(settings: ThemeSettings): string {
+  return `${settings.theme}.${settings.mode}`;
+}
+
+// The whole string for document.cookie: one year, the whole site, Lax.
+export function themeCookieString(settings: ThemeSettings): string {
+  return `${THEME_COOKIE}=${serializeThemeCookie(settings)}; Path=/; Max-Age=${THEME_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
 }

@@ -45,7 +45,7 @@ export const style = {
   // (32px below md, 38 from md); the replay's 26/32 on a board page.
   title: (variant: PageVariant, hasOverline: boolean): string =>
     clsx(
-      "font-serif font-medium text-ink",
+      "font-serif font-display text-ink",
       variant === "page"
         ? "text-[2rem] leading-[1.08] tracking-[-0.018em] md:text-display"
         : "text-[26px] leading-[1.1] tracking-[-0.015em] md:text-[32px]",
@@ -58,6 +58,7 @@ export const style = {
   // The list pages' Filter disclosure, 16px under the title row (the
   // review's mt-4): the header's gap-2.5 (10px) plus mt-1.5 (6px).
   controls: "mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-3",
-  // The italic "vs" in a board page's title ("Game 2 vs cbj2").
-  titleVs: "font-normal italic text-ink-muted",
+  // The "vs" in a board page's title ("Game 2 vs cbj2"), in the theme's
+  // emphasis style (italic, or upright in Quiet Ink).
+  titleVs: "font-normal font-emphasis text-ink-muted",
 } as const;

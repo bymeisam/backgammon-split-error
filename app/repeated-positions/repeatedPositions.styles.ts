@@ -35,7 +35,7 @@ export const style = {
   positionCell: shared.tableCell,
   positionLink: clsx("font-mono text-[12px] text-ink-muted md:text-[12.5px]", shared.tableRowLink),
   positionCountCell: shared.tableCellNumeric,
-  occurrenceCount: "font-serif text-lg font-medium leading-none tabular-nums text-ink",
+  occurrenceCount: "font-serif text-lg font-medium leading-none tabular-nums lining-nums text-ink",
   occurrenceTimes: "ml-0.5 font-sans text-[11px] text-ink-faint",
   chevronCell: shared.tableChevronCell,
 } as const;

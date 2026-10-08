@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MODE, DEFAULT_THEME, THEMES, resolveThemeSettings } from "@/lib/themes";
+import {
+  DEFAULT_MODE,
+  DEFAULT_THEME,
+  THEME_COOKIE,
+  THEME_MODES,
+  THEMES,
+  parseThemeCookie,
+  resolveThemeSettings,
+  serializeThemeCookie,
+  themeCookieString,
+  themeSettingsFromCookie,
+} from "@/lib/themes";
 
 describe("resolveThemeSettings", () => {
   it("defaults to Clubroom, following the system mode", () => {
@@ -18,6 +29,44 @@ describe("resolveThemeSettings", () => {
   it("falls back on unknown values", () => {
     expect(resolveThemeSettings({ theme: "nope", mode: "dim" })).toEqual({ theme: "clubroom", mode: "system" });
     expect(resolveThemeSettings({ theme: 3, mode: null })).toEqual({ theme: "clubroom", mode: "system" });
+  });
+});
+
+describe("the bgtheme cookie", () => {
+  it("parses '<theme>.<mode>' into its two parts", () => {
+    expect(parseThemeCookie("midnight-felt.dark")).toEqual({ theme: "midnight-felt", mode: "dark" });
+    expect(parseThemeCookie("quiet-ink.system")).toEqual({ theme: "quiet-ink", mode: "system" });
+    expect(parseThemeCookie("midnight-felt%2Edark")).toEqual({ theme: "midnight-felt", mode: "dark" });
+  });
+
+  it("gives nothing for a missing or malformed value", () => {
+    expect(parseThemeCookie(undefined)).toEqual({});
+    expect(parseThemeCookie(null)).toEqual({});
+    expect(parseThemeCookie("")).toEqual({});
+    expect(parseThemeCookie("clubroom")).toEqual({});
+    expect(parseThemeCookie("a.b.c")).toEqual({});
+    expect(parseThemeCookie("%E0%A4%A")).toEqual({}); // bad percent-encoding
+    expect(parseThemeCookie(`${"x".repeat(70)}.dark`)).toEqual({});
+  });
+
+  it("validates against the registry, each part falling back on its own", () => {
+    for (const theme of THEMES) {
+      for (const mode of THEME_MODES) {
+        expect(themeSettingsFromCookie(serializeThemeCookie({ theme: theme.id, mode }))).toEqual({ theme: theme.id, mode });
+      }
+    }
+    expect(themeSettingsFromCookie("garbage")).toEqual({ theme: "clubroom", mode: "system" });
+    expect(themeSettingsFromCookie("<script>.dark")).toEqual({ theme: "clubroom", mode: "dark" });
+    expect(themeSettingsFromCookie("quiet-ink.dim")).toEqual({ theme: "quiet-ink", mode: "system" });
+    expect(themeSettingsFromCookie("Quiet-Ink.Dark")).toEqual({ theme: "clubroom", mode: "system" });
+    expect(themeSettingsFromCookie(undefined)).toEqual({ theme: "clubroom", mode: "system" });
+  });
+
+  it("writes one cookie for a year, site-wide, SameSite=Lax", () => {
+    expect(THEME_COOKIE).toBe("bgtheme");
+    expect(themeCookieString({ theme: "midnight-felt", mode: "dark" })).toBe(
+      "bgtheme=midnight-felt.dark; Path=/; Max-Age=31536000; SameSite=Lax"
+    );
   });
 });
 

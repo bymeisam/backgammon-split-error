@@ -68,7 +68,7 @@ export default function PageShell({
   );
 }
 
-// A board page's title with the italic "vs": "Game 2 vs cbj2", "vs cbj2".
+// A board page's title with the emphasised "vs": "Game 2 vs cbj2", "vs cbj2".
 export function VsTitle({ lead, name }: { lead?: ReactNode; name: ReactNode }) {
   return (
     <>

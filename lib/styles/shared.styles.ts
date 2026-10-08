@@ -33,7 +33,7 @@ export const style = {
   errorText: "text-sm text-blunder-ink",
   errorBox: "rounded-control border border-blunder/40 bg-blunder-tint px-3 py-2 text-sm text-blunder-ink",
   infoBox: "rounded-control border border-line bg-surface px-3 py-2 text-sm text-ink-muted",
-  pageSectionTitle: "font-serif text-heading font-medium text-ink",
+  pageSectionTitle: "font-serif text-heading font-display text-ink",
   spinner: "h-3 w-3 animate-spin rounded-full border-2 border-line-strong border-t-ink-muted",
 
   // --- buttons ---
@@ -155,7 +155,7 @@ export const style = {
   // would otherwise inherit its nowrap and run past the panel's edge.
   modalPanel:
     "flex max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col gap-4 overflow-y-auto overflow-x-hidden whitespace-normal rounded-card border border-line bg-surface p-6 shadow-raised",
-  modalHeading: "font-serif text-heading font-medium text-ink",
+  modalHeading: "font-serif text-heading font-display text-ink",
   modalText: "text-sm text-ink-muted",
   modalError: "text-sm text-blunder-ink",
   modalButtons: "flex justify-end gap-2",

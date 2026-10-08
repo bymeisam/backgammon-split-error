@@ -15,7 +15,7 @@ export const style = {
   bar: "sticky top-0 z-40 border-b border-line bg-nav-bg backdrop-blur-[10px]",
   inner: "relative mx-auto flex h-14 w-full max-w-[1240px] items-center gap-3 px-4 md:gap-8 md:px-6",
   brand:
-    "flex items-center gap-2.5 whitespace-nowrap font-serif text-[20px] font-medium leading-none tracking-[-0.01em] text-ink",
+    "flex items-center gap-2.5 whitespace-nowrap font-serif text-[20px] font-display leading-none tracking-[-0.01em] text-ink",
   brandMark: "h-[22px] w-[22px] shrink-0",
   brandMarkBack: "fill-current",
   brandMarkFront: "fill-surface stroke-current",
@@ -73,12 +73,13 @@ export const style = {
   dueBadge:
     "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-[5px] text-[11px] font-semibold tabular-nums text-on-accent",
   // The right end of the bar from md; the sheet's lower part below md (a
-  // hairline, the sync row, then Status and "?").
+  // hairline, the sync row, then Settings, Status and "?").
   endGroup:
     "flex flex-col border-t border-line text-[12.5px] text-ink-faint md:ml-auto md:flex-row md:items-center md:gap-4 md:whitespace-nowrap md:border-t-0",
   syncRow: "px-4 py-3 md:contents",
-  footRow: "flex items-center justify-between border-t border-line px-4 py-2 md:contents",
-  // Function, 1 param -> passed directly. Status.
+  // Below md: Settings and Status on the left, "?" pushed to the right.
+  footRow: "flex items-center gap-5 border-t border-line px-4 py-2 md:contents",
+  // Function, 1 param -> passed directly. Settings and Status.
   endLink: (active: boolean): string =>
     clsx("transition-colors hover:text-ink", active ? "text-ink" : "text-ink-faint"),
 
@@ -91,7 +92,7 @@ export const style = {
 
   // --- ShortcutsHelp.tsx ---
   helpButton:
-    "inline-flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border border-line text-[13px] font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink",
+    "ml-auto inline-flex h-[30px] w-[30px] md:ml-0 items-center justify-center rounded-[8px] border border-line text-[13px] font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink",
   modalHeading: shared.modalHeading,
   modalButtons: shared.modalButtons,
   modalSecondaryButton: shared.modalSecondaryButton,

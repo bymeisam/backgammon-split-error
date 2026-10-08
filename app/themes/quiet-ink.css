@@ -81,6 +81,10 @@
   --theme-font-sans: var(--font-geist-sans);
   --theme-font-serif: var(--font-geist-sans);
   --theme-font-mono: var(--font-geist-mono);
+  /* type: the title weight (the sheet's 600; an upright verdict, since a Geist oblique is weaker than an upright word in Best or Blunder ink), and the style of the
+     verdict word and the "vs" in titles */
+  --theme-display-weight: 600;
+  --theme-emphasis-style: normal;
 }
 
 [data-theme="quiet-ink"][data-mode="dark"] {
@@ -103,18 +107,18 @@
   --error-tint: #29220f;
   --blunder-tint: #2c141b;
   --board-frame: #1a1b1f;
-  --board-bone: #9ea3ac;
+  --board-bone: #b4b8bf; /* about Clubroom-dark brightness, so the arrows keep their hue */
   --board-point-dark: #4a505b;
-  --board-point-light: #c2c6cd;
+  --board-point-light: #959aa3; /* darker than the bone, as in light mode */
   --board-tray: #111215;
   --board-number: #7d828c;
   --board-shadow: rgb(0 0 0 / 0.6);
   --checker-mine-rim: #6a6f78; /* lighter, so a mine checker shows on the dark bar */
-  /* darkened to about 3.5:1 on the dimmed grey bone */
-  --arrow-best: #09543a;
-  --arrow-good: #3f4b5c;
-  --arrow-error: #654300;
-  --arrow-blunder: #92162b;
+  /* at least 3:1 on the bone (reports/2026-10-09-design-review-phase2.md, fix 2) */
+  --arrow-best: #0b6b48;
+  --arrow-good: #4e5d72;
+  --arrow-error: #835500;
+  --arrow-blunder: #b01a35;
   --shadow-color: rgb(0 0 0 / 0.45);
   --scrim: rgb(0 0 0 / 0.6);
   --on-primary: var(--paper);
@@ -143,18 +147,18 @@
     --error-tint: #29220f;
     --blunder-tint: #2c141b;
     --board-frame: #1a1b1f;
-    --board-bone: #9ea3ac;
+    --board-bone: #b4b8bf; /* about Clubroom-dark brightness, so the arrows keep their hue */
     --board-point-dark: #4a505b;
-    --board-point-light: #c2c6cd;
+    --board-point-light: #959aa3; /* darker than the bone, as in light mode */
     --board-tray: #111215;
     --board-number: #7d828c;
     --board-shadow: rgb(0 0 0 / 0.6);
     --checker-mine-rim: #6a6f78; /* lighter, so a mine checker shows on the dark bar */
-    /* darkened to about 3.5:1 on the dimmed grey bone */
-    --arrow-best: #09543a;
-    --arrow-good: #3f4b5c;
-    --arrow-error: #654300;
-    --arrow-blunder: #92162b;
+    /* at least 3:1 on the bone (reports/2026-10-09-design-review-phase2.md, fix 2) */
+    --arrow-best: #0b6b48;
+    --arrow-good: #4e5d72;
+    --arrow-error: #835500;
+    --arrow-blunder: #b01a35;
     --shadow-color: rgb(0 0 0 / 0.45);
     --scrim: rgb(0 0 0 / 0.6);
     --on-primary: var(--paper);

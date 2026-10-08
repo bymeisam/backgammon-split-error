@@ -917,3 +917,38 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - the designer's look at the phase-2 shots;
     - Phase 3 (the Settings page and the cookie);
     - the arrow-over-dark-point contrast, which is below 3:1 in Clubroom and Quiet Ink (see the report).
+
+- **Phase 2 theme fixes and Phase 3: the Settings page** (`reports/2026-10-09-design-review-phase2.md` §d, all approved by the user). No DB or schema change. Grading, sync, scheduling, notes and data reads are unchanged.
+  - **Theme fixes:**
+    1. Midnight Felt mine rim `#9a9584` in all three blocks. Measured: 3.53:1 on light felt, 3.11 on light oxblood, 4.17 on dark felt, 3.65 on dark oxblood, 5.4–6.1 on the walnut frame. The report said "more than 7:1 on the bar"; the measured figure is lower but still passes.
+    2. Quiet Ink dark board: bone `#b4b8bf`, point-light `#959aa3`, point-dark unchanged, arrows best `#0b6b48` 3.29:1, good `#4e5d72` 3.37, error `#835500` 3.23, blunder `#b01a35` 3.46 on the bone. The arrows now read as green and ochre in the dark shots.
+    3. The arrow halo is opaque (`opacity-100`). This is the only cause of the 10 changed visual baselines: with only this line reverted, all 15 pass against the old baselines.
+    4. `lining-nums` on `repeatTimes`, `occurrenceCount` and `statValue`.
+    5. Two new tokens in every theme file: `--theme-display-weight` (Clubroom 500, Quiet Ink 600, Midnight Felt 600, from its sheet's `--disp-w`) and `--theme-emphasis-style` (italic, normal for Quiet Ink). In Tailwind they are `font-display` (`--font-weight-display` in `@theme inline`) and `font-emphasis` (an `@utility`). They're used by the serif titles (PageShell, the brand, `pageSectionTitle`, `modalHeading`, the review titles and question), the verdict word and the "vs". Clubroom looks the same as before.
+  - **Settings (`/settings`):** a Settings link next to Status in the navbar. The page has three sections:
+    - **Theme:** a picker over `THEMES`. Each option has a live preview, scoped by `data-theme`/`data-mode` on the preview element: a title, the verdict word, swatches, a mini board and the four chips.
+    - **Mode:** System, Light or Dark.
+    - **Review:** the `lib/settings.ts` values, read-only.
+  - **The cookie:**
+    - One cookie, `bgtheme=<theme>.<mode>`, with a 1-year lifetime, `Path=/` and `SameSite=Lax`, written in the browser.
+    - `lib/themes.ts` has `parseThemeCookie`, `themeSettingsFromCookie`, `serializeThemeCookie` and `themeCookieString`. Each part is validated against the registry and falls back on its own (Clubroom, System).
+    - The root layout reads the cookie with `cookies()`, so the first HTML already carries the theme. Every route was already dynamic.
+    - A change sets the cookie and the `<html>` attributes at once, then calls `router.refresh()`.
+    - No write gate: it works on the read-only server.
+  - The page description no longer names Galaxy.
+  - `scripts/design-screenshots.ts --theme` now sets the cookie, in system mode, instead of the init script, and shoots `/settings`.
+  - **Verified:**
+    - lint, tsc, 526/526 tests and build pass. Visual 15/15 after the halo baselines were updated.
+    - Headless flow on `next start` in write mode (:3300) and read-only (:3301), all passing:
+      - picking Felt + Dark re-themes with no reload and sets the cookie;
+      - the reloaded HTML has `data-theme="midnight-felt" data-mode="dark"`;
+      - System follows `prefers-color-scheme` both ways;
+      - garbage, `a.b.c`, an empty value and `<script>.dark` all fall back;
+      - no console errors.
+    - Screenshots: `design/screenshots/2026-10-09-phase3/{clubroom,quiet-ink,midnight-felt}/`, 118 each. Afterwards ReviewCard/ReviewLog/Tag/DecisionTag are 0/0/0/0 and DecisionNote is unchanged.
+  - **Open: the navbar no longer fits at some widths.** The extra link takes 47px plus a 16px gap:
+    - read-only at 768px it overflows by 42px and the "?" is cut off; before, it had about 21px to spare;
+    - in write mode at 1440, Midnight Felt's sync line wraps (0px left), and Quiet Ink has 13px and Clubroom 28px left.
+
+    This needs a design decision, e.g. a gear icon, moving the sheet breakpoint to lg, or a shorter sync line.
+  - **Next:** that navbar decision; the designer's look at the phase-3 shots; editable review settings.

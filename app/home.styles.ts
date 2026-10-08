@@ -82,7 +82,7 @@ export const style = {
     shared.focusRingInset
   ),
   repeatPosition: "truncate font-mono text-[12.5px] text-ink-muted",
-  repeatTimes: "font-serif text-lg font-medium leading-none tabular-nums text-ink",
+  repeatTimes: "font-serif text-lg font-medium leading-none tabular-nums lining-nums text-ink",
   repeatTimesUnit: "ml-0.5 font-sans text-[11px] text-ink-faint",
   // "Your PR": the label carries the hint (lib/sourcePr.ts).
   prHint: shared.hintLabel,

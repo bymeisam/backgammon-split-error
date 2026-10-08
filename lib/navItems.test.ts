@@ -10,6 +10,7 @@ describe("navItems", () => {
       "Repeated",
       "Review",
       "Galaxy",
+      "Settings",
       "Status",
     ]);
     expect(navItems(false).map((i) => i.label)).toEqual([
@@ -18,15 +19,16 @@ describe("navItems", () => {
       "Mistakes",
       "Repeated",
       "Review",
+      "Settings",
       "Status",
     ]);
   });
 
-  it("puts Cards under Review and Status at the end", () => {
+  it("puts Cards under Review, and Settings and Status at the end", () => {
     const review = navItems(false).find((i) => i.label === "Review");
     expect(review?.children?.map((c) => c.href)).toEqual(["/review/cards"]);
     expect(review?.showsDueCount).toBe(true);
-    expect(navItems(false).find((i) => i.end)?.href).toBe("/status");
+    expect(navItems(false).filter((i) => i.end).map((i) => i.href)).toEqual(["/settings", "/status"]);
   });
 });
 
@@ -42,6 +44,7 @@ describe("activeNavHref", () => {
     expect(activeNavHref("/review/cards", items)).toBe("/review/cards");
     expect(activeNavHref("/galaxy/matches/123", items)).toBe("/galaxy/matches");
     expect(activeNavHref("/repeated-positions", items)).toBe("/repeated-positions");
+    expect(activeNavHref("/settings", items)).toBe("/settings");
   });
 
   it("needs a whole path segment to match", () => {

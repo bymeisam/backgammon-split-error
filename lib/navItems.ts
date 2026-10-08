@@ -7,7 +7,7 @@ export interface NavItem {
   label: string;
   // Sub-items, shown as a dropdown on wide screens (Review › Cards).
   children?: NavItem[];
-  // Pinned to the right end of the bar (Status).
+  // Pinned to the right end of the bar (Settings, Status).
   end?: boolean;
   // The review due-count badge goes on this item (write mode only).
   showsDueCount?: boolean;
@@ -28,6 +28,7 @@ export function navItems(galaxyEnabled: boolean): NavItem[] {
       children: [{ href: "/review/cards", label: "Cards" }],
     },
     ...(galaxyEnabled ? [{ href: "/galaxy/matches", label: "Galaxy" }] : []),
+    { href: "/settings", label: "Settings", end: true },
     { href: "/status", label: "Status", end: true },
   ];
 }

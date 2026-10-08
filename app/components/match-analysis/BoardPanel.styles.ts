@@ -85,7 +85,9 @@ export const style = {
       tier === "error" && "text-arrow-error",
       tier === "blunder" && "text-arrow-blunder"
     ),
-  arrowHalo: "stroke-board-bone opacity-75 [stroke-width:7.5] [stroke-linecap:round]",
+  // Opaque, so the arrow always sits on a solid bone (or felt) casing, even
+  // over a dark point (reports/2026-10-09-design-review-phase2.md, fix 3).
+  arrowHalo: "stroke-board-bone opacity-100 [stroke-width:7.5] [stroke-linecap:round]",
   arrowShaft: "[stroke:currentColor] [stroke-width:3.5] [stroke-linecap:round]",
   arrowHead: "fill-current",
   arrowHit: "fill-none [stroke:currentColor] [stroke-width:1.75] [stroke-dasharray:3_2.5]",

@@ -14,12 +14,13 @@
 //   --base-url=<url>          default http://localhost:3300
 //   --date=<YYYY-MM-DD>       output folder name; default today (local time)
 //   --theme=<id>              a theme from lib/themes.ts (e.g. quiet-ink),
-//                             set as data-theme on <html> in the browser
-//                             before every page's own scripts run (there's
-//                             no user-facing switch yet). The shots then go
-//                             to design/screenshots/<date>/<id>/. Without
-//                             it the app's own default is shot, into
-//                             design/screenshots/<date>/.
+//                             set the way /settings sets it: the bgtheme
+//                             cookie, "<id>.system", so the server renders
+//                             it and the light/dark emulation picks the
+//                             mode. The shots then go to
+//                             design/screenshots/<date>/<id>/. Without it
+//                             no cookie is set and the app's own default
+//                             is shot, into design/screenshots/<date>/.
 //   --review-decisions=a,b,c  Decision ids to put into review for the /review
 //                             shots. Each is added with POST /api/review/cards
 //                             before the shots and removed with
@@ -36,7 +37,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { isThemeId, THEMES } from "../lib/themes";
+import { isThemeId, serializeThemeCookie, THEME_COOKIE, THEMES } from "../lib/themes";
 
 type Theme = "light" | "dark";
 interface Variant {
@@ -270,6 +271,13 @@ const SHOTS: Shot[] = [
     },
   },
   {
+    name: "settings",
+    run: async ({ page, shoot }) => {
+      await open(page, "/settings");
+      await shoot("settings", "full");
+    },
+  },
+  {
     name: "shortcuts-help",
     run: async (ctx) => {
       await openReplay(ctx.page, REPLAY_CHECKER_ERROR);
@@ -291,23 +299,6 @@ const SHOTS: Shot[] = [
     },
   },
 ];
-
-function themeInitScript(theme: string): string {
-  return `(() => {
-    const theme = ${JSON.stringify(theme)};
-    const apply = () => {
-      const html = document.documentElement;
-      if (html && html.getAttribute("data-theme") !== theme) html.setAttribute("data-theme", theme);
-    };
-    apply();
-    new MutationObserver(apply).observe(document, {
-      subtree: true,
-      childList: true,
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-  })();`;
-}
 
 // Pushes each new card id into `created` as soon as it exists, so a failure
 // part-way still lets the caller remove the ones already added.
@@ -357,11 +348,13 @@ async function main(): Promise<void> {
         deviceScaleFactor: variant.width === 390 ? 2 : 1,
         colorScheme: variant.theme,
       });
-      // The theme on <html>, before the page's scripts, and again if
-      // anything resets it (React's hydration of <html>, a client
-      // navigation). A string, not a function: tsx compiles functions with
-      // esbuild's __name helper, which doesn't exist in the page.
-      if (THEME) await context.addInitScript({ content: themeInitScript(THEME) });
+      // The theme as the app stores it: the bgtheme cookie, in system mode
+      // so the colorScheme emulation above picks light or dark.
+      if (THEME && isThemeId(THEME)) {
+        await context.addCookies([
+          { name: THEME_COOKIE, value: serializeThemeCookie({ theme: THEME, mode: "system" }), url: BASE_URL },
+        ]);
+      }
       for (const shot of SHOTS) {
         if (shot.only && shot.only !== variant.width) continue;
         const page = await context.newPage();

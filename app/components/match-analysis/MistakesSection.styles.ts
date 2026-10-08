@@ -26,7 +26,7 @@ export const style = {
     clsx(shared.card, "grid grid-cols-3 overflow-hidden", bleed && "mx-3 md:mx-0"),
   statCell: "flex flex-col gap-2 px-3.5 py-3.5 [&+&]:border-l [&+&]:border-line sm:px-[18px]",
   statLabel: shared.overline,
-  statValue: "font-serif text-[26px] font-medium leading-none tabular-nums text-ink sm:text-[30px]",
+  statValue: "font-serif text-[26px] font-medium leading-none tabular-nums lining-nums text-ink sm:text-[30px]",
   statMeta: "text-xs text-ink-faint",
 
   // Function, 1 param -> passed directly. "Mistakes" with the Game select on

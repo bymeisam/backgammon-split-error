@@ -28,6 +28,9 @@
  *   nav mode   --mode-ok --mode-warn
  *   fonts      --theme-font-sans --theme-font-serif --theme-font-mono
  *              (the next/font variables from app/layout.tsx)
+ *   type       --theme-display-weight (titles, the verdict word)
+ *              --theme-emphasis-style (italic or normal: the verdict word
+ *              and the "vs" in titles)
  *
  * The dark values appear twice (explicit dark mode, and system mode on a
  * dark OS): plain CSS can't put one block under both a selector and a media
@@ -103,6 +106,10 @@
   --theme-font-sans: var(--font-geist-sans);
   --theme-font-serif: var(--font-newsreader);
   --theme-font-mono: var(--font-geist-mono);
+  /* type: the title weight (the sheet's Newsreader 500), and the style of the
+     verdict word and the "vs" in titles */
+  --theme-display-weight: 500;
+  --theme-emphasis-style: italic;
 }
 
 [data-theme="clubroom"][data-mode="dark"] {
