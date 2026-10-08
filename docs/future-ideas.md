@@ -138,3 +138,21 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Observed (2026-10-06, local):** filtering /mistakes to `middle_game` / CHECKER / BLUNDER took about 5.4s for the page query and 7.3s for its `COUNT(*)`, which matched 17,884 rows. It uses `Decision_kind_classification_idx` and a filesort over about 273k rows to `ORDER BY eventId DESC`.
 - **Idea:** a composite index that covers the filter columns plus `eventId`, or replacing the exact count with a cheaper one.
 - **Why deferred:** found while investigating decision notes. It's out of scope there, and it needs its own measurement on Oracle.
+
+## Playing
+
+### Play my Galaxy games on this site
+- **Idea:** play live Backgammon Galaxy matches from inside this app instead of Galaxy's own site, with the app's notes, review and analysis next to the board.
+- **Notes:** this would need Galaxy's game or play API. We only use its analysis endpoints today, and the play side isn't documented for third parties. Check Galaxy's terms before building anything, since automating play against their service may not be allowed. The client analysis in `galaxy-source/` would show how their play protocol works.
+- **Source:** user, 2026-10-08.
+
+### Own play platform: games against opponents, fully managed by this site (last, the biggest idea)
+- **Idea:** play backgammon against other people on this website, with everything run here: matches, dice, the cube, scoring, and post-game analysis.
+- **The pieces:**
+  - **Game engine:** legal moves, bear-off, cube and Crawford rules, match scoring. We already have position and match-ID encoding (`lib/gnuMatchId.ts`, GNU Position ID decoding).
+  - **Fair dice:** a server-side random number generator, with a verifiable log (e.g. commit-reveal) so neither player can doubt the dice.
+  - **Real-time multiplayer:** websockets or a hosted real-time service, lobbies and invites, clocks, and handling disconnects.
+  - **Accounts and auth:** a hard prerequisite (see "Vercel deploy behind auth").
+  - **Analysis:** the hardest part. Run an engine server-side: GNU Backgammon is open source and has a scriptable/Python interface. Then feed the results through a new source translator into the same `Decision`/review pipeline, so games played here get notes, cards and stats like Galaxy games.
+- **Why last:** it's a separate product in itself. It becomes realistic once auth, a second data source (the XG import idea) and the source-translator pattern are proven.
+- **Source:** user, 2026-10-08 ("a big one, but possible I think").
