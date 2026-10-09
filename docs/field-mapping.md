@@ -74,7 +74,7 @@ a code change.
 | Client | Used by |
 |---|---|
 | `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts`, the review and tag writes (`app/api/review/cards`, `app/api/review/cards/[id]`, `app/api/review/cards/[id]/answer`, `app/api/review/bulk`, `app/api/tags/attach`, `app/api/tags/detach`) |
-| `prismaReadOnly` (read-only) | `app/api/review/queue` (through `lib/review/queuePlan.ts`'s `loadQueuePlan`, which also gives the dashboard's due widget its "N new · N review" split, `dueSplit`, the /review header's own counts for an unfiltered session; since 2026-10-08 the dashboard's big number and the navbar's due badge are that split's sum, so they show what a session will serve; write mode only), `app/api/review/summary`, `app/api/tags` (GET), `app/review/page.tsx`, `app/review/cards/page.tsx`, `lib/review/dueCount.ts` (the due count before today's limits: since 2026-10-08 only the dashboard's "N more held back by today's limits" line, the count minus the split's sum; write mode only), `lib/dashboardQueries.ts` (the navbar's last finished `SyncRun`, write mode only; the dashboard's weekly mistake count), `lib/repeatedPositionQueries.ts` (`listRepeatedPositions`: the /repeated-positions list and, since 2026-10-08, the dashboard's "Most repeated blunders" panel, top 4 by `occurrenceCount` with `errorSeverity` BLUNDER), `app/page.tsx` (the dashboard, through those and `listMatches`), `app/matches/[matchId]/page.tsx` (since 2026-10-08: one `Match` row by `(source, sourceMatchId)`, its `playedAt`, `userScore` and `opponentScore`, for the header's sub line "Match 47816592 · 5 Oct 2026 · 2–5"; the games still load client-side), `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
+| `prismaReadOnly` (read-only) | `app/api/review/queue` (through `lib/review/queuePlan.ts`'s `loadQueuePlan`, which also gives the dashboard's due widget its "N new · N review" split, `dueSplit`, the /review header's own counts for an unfiltered session; since 2026-10-08 the dashboard's big number and the navbar's due badge are that split's sum, so they show what a session will serve; write mode only), `app/api/review/summary`, `app/api/tags` (GET), `app/review/page.tsx`, `app/review/cards/page.tsx`, `lib/review/dueCount.ts` (the due count before today's limits: since 2026-10-08 only the dashboard's "N more held back by today's limits" line, the count minus the split's sum; write mode only), `lib/dashboardQueries.ts` (the last finished `SyncRun`, for the Galaxy card's "Last synced" on `/sources` through `lib/sources.ts`'s `galaxyStatus`, write mode only — the navbar's sync line until 2026-10-09; the dashboard's weekly mistake count), `app/sources/page.tsx` (through `lib/sources.ts`; write mode only, gated by `proxy.ts`), `lib/repeatedPositionQueries.ts` (`listRepeatedPositions`: the /repeated-positions list and, since 2026-10-08, the dashboard's "Most repeated blunders" panel, top 4 by `occurrenceCount` with `errorSeverity` BLUNDER), `app/page.tsx` (the dashboard, through those and `listMatches`), `app/matches/[matchId]/page.tsx` (since 2026-10-08: one `Match` row by `(source, sourceMatchId)`, its `playedAt`, `userScore` and `opponentScore`, for the header's sub line "Match 47816592 · 5 Oct 2026 · 2–5"; the games still load client-side), `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/sources/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
 
 **`prisma migrate deploy` itself is a separate concern from these two app
 runtime clients.** It's configured in `prisma7.config.ts`, which reads
@@ -147,9 +147,9 @@ GNU Match ID (see "Derived from raw").
 | `opponentName` | `MatchAnalysis.opponentName` |
 | `opponentCountry` | `MatchAnalysis.opponentCountry` |
 | `opponentRating` | `MatchAnalysis.opponentRating` |
-| `opponentError` | `MatchAnalysis.opponentError`. The source's own PR figure for the opponent: shown as "Opp. PR" (/matches) and "Opponent PR" (/galaxy/matches), `toFixed(2)`. |
+| `opponentError` | `MatchAnalysis.opponentError`. The source's own PR figure for the opponent: shown as "Opp. PR" (/matches) and "Opponent PR" (/sources/galaxy/matches), `toFixed(2)`. |
 | `opponentScore` | `MatchAnalysis.opponentScore` |
-| `userError` | `MatchAnalysis.userError`. The source's own PR figure for the user (since 2026-10-08 labelled "Your PR" on the dashboard, /matches and /galaxy/matches, `toFixed(2)`; before, "Your error"). It includes resignations, so it can differ from the match page's PR, which this app computes from the decisions; the column labels carry that as a hover hint, source-neutral (`lib/sourcePr.ts`'s `SOURCE_PR_HINT`). |
+| `userError` | `MatchAnalysis.userError`. The source's own PR figure for the user (since 2026-10-08 labelled "Your PR" on the dashboard, /matches and /sources/galaxy/matches, `toFixed(2)`; before, "Your error"). It includes resignations, so it can differ from the match page's PR, which this app computes from the decisions; the column labels carry that as a hover hint, source-neutral (`lib/sourcePr.ts`'s `SOURCE_PR_HINT`). |
 | `userRating` | `MatchAnalysis.userRating` |
 | `userScore` | `MatchAnalysis.userScore` |
 | `playedAt` | `metadata.timestamp` of the first decision **by eventId** (not the earliest timestamp value) with a populated `error_analysis`, in the match's first game (lowest `gameIndex`) that has one. Computed in memory by `lib/ingest.ts`; since 2026-10-07 no per-game copy is stored (`Game.playedAt` was dropped — nothing read it), and the rule is unchanged. Displayed and sorted on `/matches`; since 2026-10-08 also in `/matches/[matchId]`'s sub line (formatted in the browser's time zone). See "playedAt: what it actually means" below. Null until detail-ingested — distinct from `createdAt`. |
@@ -375,7 +375,7 @@ reader for `Match.source`; Galaxy's are in `lib/analysis/galaxyFields.ts`).
 One rule per value, shared by the DB-row path (`lib/decisionFromRow.ts`:
 /mistakes, /repeated-positions, the replay) and the live path
 (`lib/mistakes.ts`'s `extractDecisions`: /matches/[matchId], whose events
-are rebuilt from stored `raw`, and /galaxy/matches/[matchId]). `raw` is
+are rebuilt from stored `raw`, and /sources/galaxy/matches/[matchId]). `raw` is
 never modified.
 
 | Value | Derivation | Replaces |
@@ -714,7 +714,7 @@ across call sites, flagged by the 2026-10-01 raw-field audit
 separate code comments:
 
 - **`lib/mistakes.ts`'s `extractDecisions`** (live-fetch: `/matches`,
-  `/galaxy/matches`) — **excludes the decision entirely**, from both the PR
+  `/sources/galaxy/matches`) — **excludes the decision entirely**, from both the PR
   numerator and denominator. An ungraded decision isn't a zero-error clean
   play, so it's treated the same as `count_as_decision: false` and an
   unrecognized `analysed_event`: skipped, not faked as a zero.
@@ -857,7 +857,7 @@ Display only (since 2026-10-07; `lib/cubeAction.ts`'s `cubePlayedLabel`/
 `cubeBestDisplay`, applied in `lib/mistakes.ts`'s `displayLabels` — shared by
 the live path and `lib/decisionFromRow.ts`, so every view shows the same
 words: BoardPanel, MoveDelta, the decision lists, the replay, /mistakes,
-/matches and /galaxy). Galaxy's own words and casing:
+/matches and /sources/galaxy). Galaxy's own words and casing:
 
 | Played label (`actionLabels`, from `raw`) | Shown |
 |---|---|
@@ -1043,7 +1043,7 @@ upsert so re-running any of them is idempotent:**
   this is unambiguous) and upserts a `PlayerIdentity` row for them with
   `displayName: indexData.opponentName`, `isMe: false`. **Depends on the
   `isMe: true` row already existing** — if it doesn't yet (a fresh DB that's
-  never synced or visited `/galaxy/matches`), `ingestMatch` can't tell "you"
+  never synced or visited `/sources/galaxy/matches`), `ingestMatch` can't tell "you"
   from "opponent" and simply skips opponent-identity population for that
   call, rather than risking misattributing your own `user_id` as an
   opponent's. Each individual `ingestMatch` call reflects only *that*

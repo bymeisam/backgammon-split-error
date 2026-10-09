@@ -32,7 +32,7 @@ export default defineConfig({
   use: {
     // :3100, not :3000 — a dedicated server (see webServer below), never
     // the real dev server. All 12 tests run against it: the 8
-    // /matches-/galaxy-matches ones don't care (their fetches are fully
+    // /matches and /sources/galaxy/matches ones don't care (their fetches are fully
     // mocked, so which server/DB serves the page shell is irrelevant), and
     // the 4 /mistakes ones need it specifically (DATABASE_URL pointed at
     // the seeded bg_test schema instead of whatever the real .env has).
@@ -77,7 +77,7 @@ export default defineConfig({
   // e2e/seed-test-db.ts) — never the real .env's values, and never the
   // real dev server on :3000 (a second `next dev` for the same project
   // can't share that one anyway — it refuses to start a second instance
-  // against the same .next build dir). The 8 /matches-/galaxy-matches
+  // against the same .next build dir). The 8 /matches and /sources/galaxy/matches
   // tests run against this same server too — harmless, since their
   // fetches are all mocked via page.route() (see board-visual.spec.ts), so
   // which DB the server is connected to never actually matters to them;

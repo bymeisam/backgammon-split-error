@@ -91,7 +91,7 @@ export default function MistakesSection({
   bleed = false,
 }: {
   // Galaxy's match id (Match.sourceMatchId) — used only to look up this
-  // match's notes in the DB. Omitted on /galaxy/matches/[matchId]: that page
+  // match's notes in the DB. Omitted on /sources/galaxy/matches/[matchId]: that page
   // shows live Galaxy data and is read-only, so it gets no notes at all (no
   // fetch, no note UI — DecisionNote renders nothing without a dbDecisionId).
   matchId?: string;

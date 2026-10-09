@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 // Read-only; no auth needed — checks which of a given set of Galaxy
 // sourceMatchIds are already fully ingested (ingestStatus: DONE) here, so
-// /galaxy/matches can hide/disable the per-row Sync button for matches that
+// /sources/galaxy/matches can hide/disable the per-row Sync button for matches that
 // don't need it. One batched IN query for the whole list passed in (a
 // single Galaxy page's worth, ~30 ids), never N individual per-match
 // lookups. A match that's merely index-synced (PENDING/INGESTING/FAILED)

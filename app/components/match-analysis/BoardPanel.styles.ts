@@ -8,7 +8,7 @@ import { style as shared } from "@/lib/styles/shared.styles";
 export type ArrowTier = SeverityTier;
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
-// used by /matches/[matchId], /galaxy/matches/[matchId] (via
+// used by /matches/[matchId], /sources/galaxy/matches/[matchId] (via
 // MistakesSection.tsx), /mistakes and /repeated-positions (via
 // DecisionCard.tsx), the game replay (GameReplay.tsx) and the review
 // session. Covers both BoardPanel.tsx and Board.tsx, its own subcomponent

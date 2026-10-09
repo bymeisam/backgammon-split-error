@@ -13,9 +13,9 @@ export interface NavItem {
   showsDueCount?: boolean;
 }
 
-// Galaxy only with write mode on (isGalaxyEnabled()), the same rule the home
-// page used; proxy.ts 404s /galaxy/* otherwise.
-export function navItems(galaxyEnabled: boolean): NavItem[] {
+// Sources only with write mode on (isGalaxyEnabled()); proxy.ts 404s
+// /sources and everything under it otherwise.
+export function navItems(writeEnabled: boolean): NavItem[] {
   return [
     { href: "/matches", label: "Matches" },
     { href: "/matches/analysis", label: "Analysis" },
@@ -27,7 +27,7 @@ export function navItems(galaxyEnabled: boolean): NavItem[] {
       showsDueCount: true,
       children: [{ href: "/review/cards", label: "Cards" }],
     },
-    ...(galaxyEnabled ? [{ href: "/galaxy/matches", label: "Galaxy" }] : []),
+    ...(writeEnabled ? [{ href: "/sources", label: "Sources" }] : []),
     { href: "/settings", label: "Settings", end: true },
     { href: "/status", label: "Status", end: true },
   ];

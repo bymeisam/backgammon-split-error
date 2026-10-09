@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { galaxyPost, jsonOrThrow } from "@/lib/galaxyPost";
 import { style } from "./galaxyMatches.styles";
 
-// Debug tool on /galaxy/matches: raw game_reviews JSON for a matchId /
+// Debug tool on /sources/galaxy/matches: raw game_reviews JSON for a matchId /
 // gameIndex, through the same route the detail page's game loop calls — no
 // new fetch path. Not a replacement for the PR/mistakes/board view, just a
 // quick way to inspect an event's real shape without leaving the browser.

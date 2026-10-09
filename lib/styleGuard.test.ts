@@ -180,18 +180,18 @@ export function tokenViolations(file: string, src: string): string[] {
 // Where naming Galaxy is right: [path prefix, reason], or [path prefix,
 // reason, phrase] to allow only lines containing that phrase.
 const GALAXY_ALLOWLIST: [string, string, string?][] = [
-  ["app/galaxy/", "The Galaxy pages: the live Galaxy match list and its token."],
+  ["app/sources/galaxy/", "The Galaxy pages under /sources: the live Galaxy match list and its matches."],
+  ["app/components/galaxy/", "The Galaxy token prompt (TokenModal), used by the Galaxy pages and the Galaxy card on /sources."],
+  ["lib/sources.ts", "The source registry: each source's own name and description, for its card on /sources (write mode only)."],
   ["app/api/galaxy/", "The routes that proxy Galaxy's API."],
   ["app/api/sync/", "Sync pulls from Galaxy."],
   ["app/status/notes.ts", "/status describes the architecture, data source included."],
-  ["app/components/ui/SyncControl.tsx", "The navbar's sync control: syncing needs the Galaxy token, pasted on the Galaxy page."],
   ["lib/externalMatchUrl.ts", "The \"View on Galaxy\" link helper."],
   ["lib/analysis/galaxy", "The Galaxy translator and readers (lib/analysis/galaxy.ts, galaxyFields.ts)."],
   ["lib/ingest.ts", "Ingest from Galaxy."],
   ["lib/sync.ts", "Sync from Galaxy."],
   ["lib/galaxy", "Galaxy's API client, endpoints, gate and list helpers (lib/galaxy*.ts)."],
-  ["lib/navItems.ts", "The navbar item that opens the Galaxy pages (write mode only).", 'label: "Galaxy"'],
-  ["lib/sequentialGames.ts", "galaxyGamesError's messages, shown only on /galaxy/matches/[matchId].", "Galaxy API"],
+  ["lib/sequentialGames.ts", "galaxyGamesError's messages, shown only on /sources/galaxy/matches/[matchId].", "Galaxy API"],
 ];
 
 // The external-link label: shown only next to externalMatchUrl's link,
@@ -263,7 +263,7 @@ describe("the rules catch what they should", () => {
     expect(galaxyViolations(f, "if (isGalaxyEnabled()) createGalaxyClient();")).toEqual([]);
     expect(galaxyViolations(f, "// Galaxy's own lists")).toEqual([]);
     expect(galaxyViolations(f, "<a>View on Galaxy ↗</a>")).toEqual([]);
-    expect(galaxyViolations("app/galaxy/matches/page.tsx", "<h1>Galaxy matches</h1>")).toEqual([]);
+    expect(galaxyViolations("app/sources/galaxy/matches/page.tsx", "<h1>Galaxy matches</h1>")).toEqual([]);
   });
 });
 

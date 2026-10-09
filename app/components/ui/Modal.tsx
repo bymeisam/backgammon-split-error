@@ -8,7 +8,7 @@ import { style } from "./Modal.styles";
 // navbar's backdrop-filter made a position:fixed overlay inside it take the
 // bar's box), and it traps focus and closes on Esc by itself. Used by the
 // "?" help, /mistakes' "Add all to review", /review/cards' delete
-// confirmation and /galaxy/matches' TokenModal.
+// confirmation and /sources/galaxy/matches' TokenModal.
 //
 // Keys pressed inside never reach the page's own window-level handlers (the
 // review session's Enter, the replay's arrows): React's stopPropagation runs

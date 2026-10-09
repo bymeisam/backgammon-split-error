@@ -19,7 +19,7 @@ export default function GalaxyMatchAnalysisPage() {
   // here without one — send the user back to connect.
   useEffect(() => {
     if (!token) {
-      router.replace("/galaxy/matches");
+      router.replace("/sources/galaxy/matches");
     }
   }, [token, router]);
 
@@ -38,7 +38,12 @@ export default function GalaxyMatchAnalysisPage() {
 
   return (
     <PageShell
-      breadcrumbs={[{ label: "Galaxy", href: "/galaxy/matches" }, { label: `Match ${matchId}` }]}
+      breadcrumbs={[
+        { label: "Sources", href: "/sources" },
+        { label: "Galaxy", href: "/sources#galaxy" },
+        { label: "Matches", href: "/sources/galaxy/matches" },
+        { label: `Match ${matchId}` },
+      ]}
       title={`Match ${matchId}`}
     >
       <div className={style.statusBlock}>
@@ -46,7 +51,7 @@ export default function GalaxyMatchAnalysisPage() {
         {error && <p className={style.errorBox}>{error}</p>}
       </div>
 
-      {/* No matchId: /galaxy is live Galaxy data and read-only, so no
+      {/* No matchId: /sources/galaxy is live Galaxy data and read-only, so no
           notes (see CLAUDE.md). */}
       <MistakesSection games={games} />
     </PageShell>

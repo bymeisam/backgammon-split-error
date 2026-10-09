@@ -13,7 +13,7 @@
 // Same underlying real data (match 46576635, games 5/6/7 — the same match
 // used by the Vitest suite's gnuPositionId regression tests), rendered
 // across its three real call sites. Not quite a uniform "N decisions x 3
-// contexts" grid: /matches/[matchId] and /galaxy/matches/[matchId] go
+// contexts" grid: /matches/[matchId] and /sources/galaxy/matches/[matchId] go
 // through MistakesSection.tsx's own tables, which only ever list
 // isMistake: true decisions outside the Good tier (lib/mistakes.ts's
 // partitionMistakes) — so those two contexts use MISTAKE_DECISIONS (2:
@@ -25,7 +25,7 @@
 // all run against one dedicated dev server (playwright.config.ts's
 // webServer, port 3100 — never the real dev server on :3000, and never
 // affected by whatever the real .env currently points at):
-//   - /matches/[matchId] and /galaxy/matches/[matchId]: client components
+//   - /matches/[matchId] and /sources/galaxy/matches/[matchId]: client components
 //     that fetch game data over the network — mocked via page.route() to
 //     serve the exact fixture JSON in e2e/fixtures/, so which DB (if any)
 //     the server is connected to is irrelevant to these 8.
@@ -42,7 +42,7 @@
 //     two of the five decisions share a filter combo (both middle_game/
 //     CHECKER/ERROR), so that filter alone isn't unique, but the
 //     click-by-label step already disambiguates it, same as /matches and
-//     /galaxy/matches do for their much larger mistake lists.
+//     /sources/galaxy/matches do for their much larger mistake lists.
 import fs from "node:fs";
 import path from "node:path";
 import { test, expect, type Page, type Route } from "@playwright/test";
@@ -54,7 +54,7 @@ function loadFixture(name: string): unknown {
   return JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, name), "utf8"));
 }
 
-// Both /matches/[matchId] and /galaxy/matches/[matchId] fetch gameIndex
+// Both /matches/[matchId] and /sources/galaxy/matches/[matchId] fetch gameIndex
 // 1, 2, 3, ... in order until they get a 404 — which literal gameIndex
 // number a fixture is served under is cosmetic (just becomes that page's
 // "Game N" label), so games 5/6/7 are remapped to slots 1/2/3 here purely
@@ -76,7 +76,7 @@ interface RepresentativeDecision {
   // click-by-label step below is what actually disambiguates.
   mistakesFilter: { classification: string; category: string; severity: string };
   // The exact my-move notation text MoveDelta renders — used to click the
-  // right row in MistakesSection's mistake table (/matches, /galaxy/matches)
+  // right row in MistakesSection's mistake table (/matches, /sources/galaxy/matches)
   // or DecisionListWithDetail's list (/mistakes). Must be unique enough
   // within the filtered results not to collide with another row's label.
   myLabel: string;
@@ -122,7 +122,7 @@ const DECISIONS: RepresentativeDecision[] = [
 // Galaxy's mild "Good" tier (stored DOUBTFUL — not an error since
 // 2026-10-07). clean-move (no error) and near-bearoff/both-arrows (both
 // Good) never appear there by design, so they're excluded from the
-// /matches and /galaxy/matches loops below (clicking for them there would
+// /matches and /sources/galaxy/matches loops below (clicking for them there would
 // just time out). /mistakes has no such restriction (its default/
 // unfiltered view includes clean decisions too, and its severity filter
 // still selects DOUBTFUL by value — see lib/decisionQueries.ts/
@@ -158,7 +158,7 @@ async function fulfillGame(route: Route) {
 }
 
 // Mocks every network dependency /matches/[matchId] and
-// /galaxy/matches/[matchId] have — same fixture data for both, so the only
+// /sources/galaxy/matches/[matchId] have — same fixture data for both, so the only
 // variable between their screenshot sets is the surrounding page.
 async function mockGameFetches(page: Page) {
   await page.route(`**/api/matches/${MATCH_ID}/*`, fulfillGame);
@@ -171,7 +171,7 @@ async function mockGameFetches(page: Page) {
     })
   );
   // MistakesSection's per-match decision-notes lookup (one fetch on mount,
-  // /matches/[matchId] only — /galaxy/matches/[matchId] never fetches notes,
+  // /matches/[matchId] only — /sources/galaxy/matches/[matchId] never fetches notes,
   // it's live Galaxy data and read-only). Mocked to "no DB decisions" so no
   // note UI ever renders on /matches, whatever the test server's DB/write
   // mode is — otherwise its arrival time would race the screenshots. The
@@ -205,7 +205,7 @@ const mistakesSection = (page: Page) => page.getByTestId("mistakes-section");
 // source of its own.
 const decisionCard = (page: Page) => page.getByTestId("decision-card");
 
-// Both /matches/[matchId] and /galaxy/matches/[matchId] fetch their 3
+// Both /matches/[matchId] and /sources/galaxy/matches/[matchId] fetch their 3
 // mocked games one at a time, re-rendering after each arrives — clicking a
 // row before the last one lands risked an intermittent extra re-render
 // landing right around the screenshot, which was flaking specifically on
@@ -232,25 +232,25 @@ test.describe("BoardPanel visual regression", () => {
       await expect(boardPanel(page)).toHaveScreenshot(`matches-${decision.name}.png`);
     });
 
-    test(`/galaxy/matches/[matchId] board — ${decision.name} (${decision.description})`, async ({
+    test(`/sources/galaxy/matches/[matchId] board — ${decision.name} (${decision.description})`, async ({
       page,
     }) => {
       await mockGameFetches(page);
 
       // Token is in-memory React context state (app/providers/GameStatsAuthProvider.tsx)
-      // — a fresh page.goto() to /galaxy/matches/[matchId] directly would
+      // — a fresh page.goto() to /sources/galaxy/matches/[matchId] directly would
       // always see it as null and redirect away. Go through the real
       // connect flow, then a client-side navigation (the "jump to match"
       // form, which uses router.push — no full reload) to preserve it.
       // The token value itself never has to be real: every fetch it's used
       // in is mocked above.
-      await page.goto("/galaxy/matches");
+      await page.goto("/sources/galaxy/matches");
       await page.getByRole("button", { name: "Paste authorization" }).click();
       await page.locator("#auth").fill("Bearer visual-test-token");
       await page.getByRole("button", { name: "Connect" }).click();
       await page.getByPlaceholder("Match ID").fill(MATCH_ID);
       await page.getByRole("button", { name: "Jump to match" }).click();
-      await page.waitForURL(`**/galaxy/matches/${MATCH_ID}`);
+      await page.waitForURL(`**/sources/galaxy/matches/${MATCH_ID}`);
       await waitForAllGamesLoaded(page);
 
       await page.getByText(decision.myLabel, { exact: true }).first().click();
@@ -393,15 +393,15 @@ test.describe("Shared markup visual regression", () => {
     await expect(mistakesSection(page)).toHaveScreenshot("mistakes-section-matches.png");
   });
 
-  test("mistakes-section on /galaxy/matches/[matchId]", async ({ page }) => {
+  test("mistakes-section on /sources/galaxy/matches/[matchId]", async ({ page }) => {
     await mockGameFetches(page);
-    await page.goto("/galaxy/matches");
+    await page.goto("/sources/galaxy/matches");
     await page.getByRole("button", { name: "Paste authorization" }).click();
     await page.locator("#auth").fill("Bearer visual-test-token");
     await page.getByRole("button", { name: "Connect" }).click();
     await page.getByPlaceholder("Match ID").fill(MATCH_ID);
     await page.getByRole("button", { name: "Jump to match" }).click();
-    await page.waitForURL(`**/galaxy/matches/${MATCH_ID}`);
+    await page.waitForURL(`**/sources/galaxy/matches/${MATCH_ID}`);
     await waitForAllGamesLoaded(page);
     await expect(mistakesSection(page)).toHaveScreenshot("mistakes-section-galaxy-matches.png");
   });

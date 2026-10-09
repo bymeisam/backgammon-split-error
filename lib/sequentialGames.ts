@@ -1,5 +1,5 @@
 // Pure core of app/hooks/useSequentialGames.ts: /matches/[matchId] and
-// /galaxy/matches/[matchId] load a match by requesting game 1, 2, 3, … until
+// /sources/galaxy/matches/[matchId] load a match by requesting game 1, 2, 3, … until
 // a 404 says there are no more — neither data source has a "list games"
 // call. Each page words the outcome its own way (the messages below).
 
@@ -29,7 +29,7 @@ export function localGamesError(stop: GameStop | null): string | null {
   return null;
 }
 
-// /galaxy/matches/[matchId] (live Galaxy). A failure after game 1 is
+// /sources/galaxy/matches/[matchId] (live Galaxy). A failure after game 1 is
 // treated as the end of the match rather than an error — whatever loaded
 // still shows.
 export function galaxyGamesError(stop: GameStop | null): string | null {

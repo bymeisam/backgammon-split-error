@@ -2,7 +2,7 @@
 
 Playwright suite protecting `app/components/match-analysis/BoardPanel.tsx`
 across its three real call sites — `/matches/[matchId]`,
-`/galaxy/matches/[matchId]`, and `/mistakes` — since it's shared, and a
+`/sources/galaxy/matches/[matchId]`, and `/mistakes` — since it's shared, and a
 change made while working on one page's board usage could silently break
 the others. This is a separate suite/runner from the Vitest unit tests
 (`vitest.config.ts` / `npm test`); it never runs as part of that command.
@@ -43,7 +43,7 @@ planned work.
 
 bar-checkers and normal-midgame are screenshotted in all three page
 contexts; **clean-move, near-bearoff and both-arrows only on `/mistakes`**
-— `MistakesSection.tsx`'s own tables (`/matches`/`/galaxy/matches`) only
+— `MistakesSection.tsx`'s own tables (`/matches`/`/sources/galaxy/matches`) only
 ever list `isMistake: true` decisions outside Galaxy's mild "Good" tier
 (`lib/mistakes.ts`'s `partitionMistakes`/`isListedMistake`; near-bearoff
 and both-arrows are stored DOUBTFUL = "Good", which stopped counting as an
@@ -52,9 +52,9 @@ error on 2026-10-07), so none of those three can appear there, and
 normal-midgame) for those two contexts' own loops rather than forcing all
 five through a uniform grid. 9 board screenshots total (2×2 + 5; 13 before
 2026-10-07, when the two Good-tier decisions were also shot on `/matches`
-and `/galaxy/matches`), each scoped to just the
+and `/sources/galaxy/matches`), each scoped to just the
 `[data-testid="board-panel"]` element — never a
-full-page screenshot. `/matches/[matchId]` and `/galaxy/matches/[matchId]`
+full-page screenshot. `/matches/[matchId]` and `/sources/galaxy/matches/[matchId]`
 are client components that fetch game data over the network; their fetches
 are mocked (`page.route()`) to serve the exact same fixture JSON
 (`e2e/fixtures/match-46576635-game-{5,6,7}.json`, real payloads, not
@@ -62,7 +62,7 @@ fabricated), so both are fully deterministic regardless of what's actually
 in the real DB right now. `/matches/[matchId]`'s decision-notes lookup
 (`GET /api/decision-notes?matchId=`) is mocked too, to "no DB decisions",
 so no note UI renders there and its arrival can't race a screenshot.
-`/galaxy/matches/[matchId]` never fetches notes (it's live Galaxy data and
+`/sources/galaxy/matches/[matchId]` never fetches notes (it's live Galaxy data and
 read-only). The note UI itself is covered by the `/mistakes`
 `decision-card` screenshot, which shows the editable note card (and, since
 2026-10-07, the review card below it: "Add to review" and the empty tag
@@ -82,7 +82,7 @@ selection technique as the other two contexts, not a special-cased deep
 link. `bg_test` is small enough (10 rows) that this needs no shortcut: two
 of the five decisions do share one filter combo, but the click-by-label
 step already disambiguates them, same as it does for the much larger real
-mistake lists on `/matches`/`/galaxy/matches`. All 9 board screenshots are now
+mistake lists on `/matches`/`/sources/galaxy/matches`. All 9 board screenshots are now
 fully deterministic, independent of the real dev DB's live state — the
 *only* variable across all three contexts is the surrounding page.
 
@@ -115,7 +115,7 @@ does" above), no other new live-data dependency:
   decision specifically (the one `DECISIONS` entry with `isMistake: false`).
   Asserts the element has exactly one child `<span>` (a structural check a
   screenshot diff alone can't make) before screenshotting it.
-- **`mistakes-section` on `/matches/[matchId]` and `/galaxy/matches/[matchId]`**
+- **`mistakes-section` on `/matches/[matchId]` and `/sources/galaxy/matches/[matchId]`**
   — screenshots `[data-testid="mistakes-section"]`, a new wrapper `<div>`
   around `MistakesSection.tsx`'s "You"/Game filters and the 3 PR summary
   cards. This is the one place this addition went beyond adding a bare
@@ -224,13 +224,13 @@ tell a genuine failure apart from noise that just hadn't been retried yet.
 - All 9 fail together → the bug is in `BoardPanel.tsx` or `Board.tsx`
   themselves (shared by all three).
 - Only the `/mistakes` tests fail (5, since `clean-move` has no
-  `/matches`/`/galaxy/matches` counterpart — see "What it does" above) →
+  `/matches`/`/sources/galaxy/matches` counterpart — see "What it does" above) →
   the bug is specific to `/mistakes`'s own integration (`DecisionCard.tsx`,
   `lib/decisionFromRow.ts`) — real, verified at the time there were 4
   representative decisions: swapping `myMoveNotation`/`bestMoveNotation` in
   `lib/decisionFromRow.ts` (used only by `/mistakes`) failed exactly those
   4 `/mistakes` tests and left the other 8 green.
-- Only the `/matches`/`/galaxy/matches` tests fail → the bug is in
+- Only the `/matches`/`/sources/galaxy/matches` tests fail → the bug is in
   `MistakesSection.tsx` (shared by those two, not `/mistakes`) or one of
   those two page files specifically.
 - `mistake-row-list` and `move-delta` fail together → the change is in
@@ -247,7 +247,7 @@ Headless Chromium's rasterization of some diagonal-arrow board states
 isn't fully deterministic between separate process runs, even with
 `--disable-gpu` (see `playwright.config.ts`) — typically ~1% of the
 board-panel image's pixels, on rows with two non-parallel arrows. This
-showed up on `/matches`/`/galaxy/matches` first (their mocked games load
+showed up on `/matches`/`/sources/galaxy/matches` first (their mocked games load
 one at a time and re-render as each arrives — fixed by waiting for game
 3's own option in the "Game" `<select>` to attach, a real settle signal,
 before clicking — see `waitForAllGamesLoaded`), and later on `/mistakes`

@@ -103,7 +103,7 @@ export const style = {
   filterSelect: "h-[38px] rounded-control border border-line-strong bg-surface pl-3 pr-8 text-sm text-ink",
 
   // --- tables (dashboard, /matches, /matches/analysis, /repeated-positions,
-  // /review/cards, /galaxy/matches) ---
+  // /review/cards, /sources/galaxy/matches) ---
   tableWrapper: "overflow-x-auto rounded-card border border-line bg-surface shadow-card",
   table: "w-full border-collapse text-left text-[13.5px]",
   tableHeadRow: "",
@@ -151,7 +151,7 @@ export const style = {
 
   // --- modal --- A centred dialog over the scrim: /mistakes' "Add all
   // to review", /review/cards' delete confirmation, the "?" help and
-  // /galaxy/matches' TokenModal.
+  // /sources/galaxy/matches' TokenModal.
   // The native <dialog> (app/components/ui/Modal.tsx) in the top layer: it
   // escapes the navbar's backdrop-filter containing block.
   modalDialog:

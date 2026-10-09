@@ -58,7 +58,7 @@ export const metadata: Metadata = {
 };
 
 // The navbar sits inside GameStatsAuthProvider: its sync button reads the
-// same in-memory Galaxy token the /galaxy pages set.
+// same in-memory Galaxy token the /sources/galaxy pages set.
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // The theme and mode on <html> (lib/themes.ts), from the user's bgtheme
   // cookie (set on /settings), so the first HTML already carries them and

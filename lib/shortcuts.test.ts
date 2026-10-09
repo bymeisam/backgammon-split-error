@@ -31,7 +31,7 @@ describe("shortcutsFor", () => {
   });
 
   it("lists the row and tab keys, with their vim keys, on the other move-table pages", () => {
-    for (const path of ["/mistakes", "/repeated-positions", "/matches/46576635", "/galaxy/matches/1"]) {
+    for (const path of ["/mistakes", "/repeated-positions", "/matches/46576635", "/sources/galaxy/matches/1"]) {
       const moveTable = shortcutsFor(path, false)[0];
       expect(moveTable.title).toBe("Move table");
       expect(moveTable.shortcuts.map((s) => s.keys)).toEqual([
@@ -59,11 +59,11 @@ describe("shortcutsFor", () => {
   });
 
   it("lists the move list, but no tag box, on a Galaxy match page", () => {
-    expect(titles("/galaxy/matches/1", true)).toEqual(["Move table", "Everywhere"]);
+    expect(titles("/sources/galaxy/matches/1", true)).toEqual(["Move table", "Everywhere"]);
   });
 
   it("lists only the help keys elsewhere", () => {
-    for (const path of ["/", "/matches", "/matches/analysis", "/review/cards", "/galaxy/matches", "/status"]) {
+    for (const path of ["/", "/matches", "/matches/analysis", "/review/cards", "/sources/galaxy/matches", "/status"]) {
       expect(titles(path, true)).toEqual(["Everywhere"]);
     }
   });

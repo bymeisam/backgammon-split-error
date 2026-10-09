@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // /matches/[matchId] uses Galaxy's own match id in its URL, which is exactly
 // what ingest stores as Match.sourceMatchId (String(matchId), see
 // docs/field-mapping.md). Its only caller is /matches/[matchId]:
-// /galaxy/matches/[matchId] shows live Galaxy data, is read-only, and never
+// /sources/galaxy/matches/[matchId] shows live Galaxy data, is read-only, and never
 // fetches notes.
 const SOURCE = "galaxy";
 

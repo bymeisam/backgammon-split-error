@@ -41,7 +41,7 @@ export interface ShortcutGroup {
 
 const REPLAY_PATH = /^\/matches\/[^/]+\/replay\/[^/]+\/?$/;
 const MATCH_PATH = /^\/matches\/(?!analysis\/?$)[^/]+\/?$/;
-const GALAXY_MATCH_PATH = /^\/galaxy\/matches\/[^/]+\/?$/;
+const GALAXY_MATCH_PATH = /^\/sources\/galaxy\/matches\/[^/]+\/?$/;
 
 function isReplay(pathname: string): boolean {
   return REPLAY_PATH.test(pathname);
@@ -53,7 +53,7 @@ function isReviewSession(pathname: string): boolean {
 
 // The pages whose boards carry the tag box (DecisionReviewTools, write mode
 // only): /mistakes, /repeated-positions, the match page, the replay and the
-// review session's back. Never /galaxy.
+// review session's back. Never /sources/galaxy.
 function hasTagBox(pathname: string): boolean {
   return (
     pathname === "/mistakes" ||

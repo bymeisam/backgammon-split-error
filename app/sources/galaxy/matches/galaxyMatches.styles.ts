@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { style as shared } from "@/lib/styles/shared.styles";
 
 // Page-local (see .claude/skills/styling-conventions) — covers MatchesPage
-// (page.tsx) and TokenModal.tsx, folded into one file since TokenModal is
-// exclusively used by this page and lives in the same folder. `errorBox` is
-// shared by both components.
+// (page.tsx) and JsonDumpPanel.tsx, which only this page uses. TokenModal
+// moved to app/components/galaxy/ (with its own styles) once the Galaxy
+// card on /sources started using it too.
 export const style = {
   // --- page.tsx --- (the page container, width and title row are
   // PageShell's)
@@ -42,23 +42,5 @@ export const style = {
   spinner: shared.spinner,
   syncedLabel: "text-xs font-medium text-best-ink",
   syncButton: shared.buttonSmall,
-
-  // --- TokenModal.tsx ---
-  modalHeading: shared.modalHeading,
-  modalSubtext: clsx(shared.modalText, "mt-1"),
-  tabRow: "inline-flex w-fit gap-1 rounded-control bg-sunken p-[3px]",
-  // Function, 1 param -> passed directly. A segmented control: the active
-  // tab raised on the track.
-  tabButton: (isActive: boolean): string =>
-    clsx(
-      "rounded-[7px] px-4 py-1.5 text-sm font-medium transition-colors",
-      isActive ? "bg-surface text-ink shadow-card" : "text-ink-muted hover:text-ink"
-    ),
-  // Shared by the curl-command label and the authorization label.
-  fieldWrapper: "flex flex-col gap-2",
-  fieldLabel: "text-sm font-medium text-ink-muted",
-  // Shared by the curl textarea and the plain authorization input.
-  textInput: clsx(shared.input, "p-3 font-mono text-xs"),
   errorBox: shared.errorBox,
-  connectButton: clsx(shared.buttonPrimary, "h-10 px-6"),
 } as const;

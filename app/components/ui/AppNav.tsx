@@ -4,10 +4,7 @@ import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { currentRuntimeModeLabel } from "@/lib/runtimeMode";
 import { navItems } from "@/lib/navItems";
 import { dueSplit } from "@/lib/review/queuePlan";
-import { latestFinishedSyncRun } from "@/lib/dashboardQueries";
-import { lastSyncedParts } from "@/lib/dashboardStats";
 import NavLinks from "./NavLinks";
-import SyncControl from "./SyncControl";
 import ShortcutsHelp from "./ShortcutsHelp";
 import { style } from "./AppNav.styles";
 
@@ -32,28 +29,12 @@ async function DueBadge() {
   ) : null;
 }
 
-// "Synced …" plus the sync button. Write mode only. Only the label parts
-// and the date leave the server. The title carries the count too, since
-// the bar hides it from xl ("4/10/2026, 09:00:00 · 28 matches").
-async function NavSync() {
-  const now = new Date();
-  let when = "Last sync unknown";
-  let count = "";
-  let title: string | undefined;
-  try {
-    const run = await latestFinishedSyncRun();
-    ({ when, count } = lastSyncedParts(run, now));
-    title = run ? `${run.finishedAt.toLocaleString()}${count}` : undefined;
-  } catch (error) {
-    console.error("[nav] last sync lookup failed:", error);
-  }
-  return <SyncControl lastSyncedWhen={when} lastSyncedCount={count} lastSyncedTitle={title} />;
-}
-
-// The app navbar, in the root layout. Rendered per request: the mode badge
-// and the Galaxy item depend on the running server's env (not the build's),
-// so connection() keeps it out of build-time prerendering. Only labels
-// reach the client: the mode label, never DATABASE_URL or its host.
+// The app navbar, in the root layout: navigation, the mode badge, Settings,
+// Status and "?". Rendered per request: the mode badge and the Sources item
+// depend on the running server's env (not the build's), so connection()
+// keeps it out of build-time prerendering. Only labels reach the client:
+// the mode label, never DATABASE_URL or its host. (The sync line moved to
+// the Galaxy card on /sources on 2026-10-09.)
 export default async function AppNav() {
   await connection();
   const galaxyEnabled = isGalaxyEnabled();
@@ -66,13 +47,6 @@ export default async function AppNav() {
         galaxyEnabled ? (
           <Suspense fallback={null}>
             <DueBadge />
-          </Suspense>
-        ) : null
-      }
-      syncControl={
-        galaxyEnabled ? (
-          <Suspense fallback={null}>
-            <NavSync />
           </Suspense>
         ) : null
       }

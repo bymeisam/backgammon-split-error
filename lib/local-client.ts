@@ -46,7 +46,7 @@ export async function listMatches(page: number): Promise<AnalysesListResponse> {
     // section: it reflects ingest-processing time for anything from the
     // original 2026-09 backfill, not real play dates), while matchId is
     // always populated and correlates with recency — the same proxy
-    // app/galaxy/matches/page.tsx already sorts by, for consistency.
+    // app/sources/galaxy/matches/page.tsx already sorts by, for consistency.
     // sourceMatchId is a VARCHAR (values range from 5 to 8+ digits), so a
     // plain `ORDER BY sourceMatchId` would sort lexicographically, not
     // numerically — raw SQL with an explicit CAST is required here, Prisma's

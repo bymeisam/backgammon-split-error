@@ -19,7 +19,7 @@ async function main() {
   const me = await prisma.playerIdentity.findFirst({ where: { source: SOURCE, isMe: true } });
   if (!me) {
     throw new Error(
-      `No "you" PlayerIdentity row found (source: "${SOURCE}", isMe: true) — visit /galaxy/matches once, or run a sync, before backfilling opponents.`
+      `No "you" PlayerIdentity row found (source: "${SOURCE}", isMe: true) — visit /sources/galaxy/matches once, or run a sync, before backfilling opponents.`
     );
   }
   console.log(`"You": sourceUserId=${me.sourceUserId} displayName=${me.displayName}`);

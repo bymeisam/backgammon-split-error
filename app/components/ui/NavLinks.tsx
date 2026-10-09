@@ -41,20 +41,18 @@ function ModeBadge({ label, placement }: { label: RuntimeModeLabel; placement: "
 
 // The navbar's client half: highlights the active route from the pathname
 // and, below xl, folds the items into a sheet under the bar. Everything that
-// needs the server (the item list, the mode label, the due badge, the sync
-// line, the "?" help) comes in as props from AppNav, and each renders once:
+// needs the server (the item list, the mode label, the due badge, the "?"
+// help) comes in as props from AppNav, and each renders once:
 // one DOM tree, laid out as a row from xl and as the sheet below it.
 export default function NavLinks({
   items,
   modeLabel,
   dueBadge,
-  syncControl,
   help,
 }: {
   items: NavItem[];
   modeLabel: RuntimeModeLabel;
   dueBadge: ReactNode;
-  syncControl: ReactNode;
   help: ReactNode;
 }) {
   const pathname = usePathname();
@@ -119,7 +117,6 @@ export default function NavLinks({
           <ul className={style.list}>{items.filter((i) => !i.end).map(renderItem)}</ul>
           <div className={style.endGroup}>
             <ModeBadge label={modeLabel} placement="end" />
-            {syncControl && <div className={style.syncRow}>{syncControl}</div>}
             <div className={style.footRow}>
               {items
                 .filter((i) => i.end)

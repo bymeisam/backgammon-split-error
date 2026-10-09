@@ -4,8 +4,7 @@ import { style as shared } from "@/lib/styles/shared.styles";
 
 // Shared/promoted component (see .claude/skills/styling-conventions) —
 // covers AppNav.tsx (the navbar in the root layout) and the subcomponents
-// only it uses, all in this folder: NavLinks.tsx, SyncControl.tsx and
-// ShortcutsHelp.tsx.
+// only it uses, all in this folder: NavLinks.tsx and ShortcutsHelp.tsx.
 export const style = {
   // --- NavLinks.tsx ---
   // Sticky and translucent, the same 1240px width as every page. The "?"
@@ -76,30 +75,17 @@ export const style = {
   dueBadge:
     "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-[5px] text-[11px] font-semibold tabular-nums text-on-accent",
   // The right end of the bar from xl; the sheet's lower part below xl (a
-  // hairline, the sync row, then Settings, Status and "?").
+  // hairline, then Settings, Status and "?").
   endGroup:
     "flex flex-col border-t border-line text-[12.5px] text-ink-faint xl:ml-auto xl:flex-row xl:items-center xl:gap-3 xl:whitespace-nowrap xl:border-t-0",
-  syncRow: "px-4 py-3 xl:contents",
   // The end cluster: Settings, Status and "?" behind a hairline from xl.
   // Below xl, the sheet's foot row: Settings and Status on the left, "?"
-  // pushed to the right.
-  footRow: "flex items-center gap-5 border-t border-line px-4 py-2 xl:gap-3 xl:border-l xl:border-t-0 xl:py-0 xl:pl-3 xl:pr-0",
+  // pushed to the right, under endGroup's own hairline (no second one now
+  // that the sync row between them is gone).
+  footRow: "flex items-center gap-5 border-line px-4 py-2 xl:gap-3 xl:border-l xl:py-0 xl:pl-3 xl:pr-0",
   // Function, 1 param -> passed directly. Settings and Status.
   endLink: (active: boolean): string =>
     clsx("transition-colors hover:text-ink", active ? "text-ink" : "text-ink-faint"),
-
-  // --- SyncControl.tsx ---
-  syncBox: "flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-ink-faint xl:flex-nowrap xl:gap-x-3",
-  // The label slot: "Synced 4 days ago", bounded so the bar can't wrap.
-  syncLabel: "max-w-64 truncate xl:max-w-40",
-  // " · 28 matches": shown in the sheet, in the tooltip only from xl.
-  syncCount: "xl:hidden",
-  syncButton: shared.buttonSmall,
-  syncLink: "underline decoration-line-strong underline-offset-[3px] hover:text-ink",
-  // Function, 1 param -> passed directly. The last sync's own result, shown
-  // in the label's place (same bounded slot).
-  syncMessage: (ok: boolean): string =>
-    clsx("max-w-64 truncate xl:max-w-40", ok ? "text-best-ink" : "text-blunder-ink"),
 
   // --- ShortcutsHelp.tsx ---
   helpButton:

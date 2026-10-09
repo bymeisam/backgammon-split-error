@@ -16,7 +16,7 @@ import PageShell from "@/app/components/ui/PageShell";
 import { SOURCE_PR_HINT } from "@/lib/sourcePr";
 import { style } from "./galaxyMatches.styles";
 import JsonDumpPanel, { useJsonDump } from "./JsonDumpPanel";
-import TokenModal from "./TokenModal";
+import TokenModal from "@/app/components/galaxy/TokenModal";
 
 const NO_DONE_IDS: ReadonlySet<string> = new Set();
 
@@ -133,12 +133,13 @@ export default function GalaxyMatchesPage() {
     e.preventDefault();
     const trimmed = jumpToMatchId.trim();
     if (!trimmed) return;
-    router.push(`/galaxy/matches/${trimmed}`);
+    router.push(`/sources/galaxy/matches/${trimmed}`);
   }
 
   return (
     <PageShell
       width="medium"
+      breadcrumbs={[{ label: "Sources", href: "/sources" }, { label: "Galaxy", href: "/sources#galaxy" }, { label: "Matches" }]}
       title="Matches"
       actions={
         token && (
@@ -228,7 +229,7 @@ export default function GalaxyMatchesPage() {
                       return (
                         <tr
                           key={m.matchId}
-                          onClick={() => router.push(`/galaxy/matches/${m.matchId}`)}
+                          onClick={() => router.push(`/sources/galaxy/matches/${m.matchId}`)}
                           className={style.bodyRow}
                         >
                           <td className={style.opponentCell}>{m.opponentName}</td>

@@ -31,6 +31,16 @@ const nextConfig: NextConfig = {
     "/*": ["./certs/oracle-mysql-ca.pem"],
   },
 
+  // Galaxy's pages moved under /sources on 2026-10-09: /galaxy/matches is
+  // now /sources/galaxy/matches (and /galaxy itself /sources/galaxy). One
+  // rule covers both, since :path* matches zero or more segments. Permanent
+  // (308), so old links and bookmarks keep working. Redirects run before
+  // proxy.ts, and every target is under /sources, which proxy.ts gates: on
+  // the read-only site the redirect ends in a 404 and exposes nothing.
+  async redirects() {
+    return [{ source: "/galaxy/:path*", destination: "/sources/galaxy/:path*", permanent: true }];
+  },
+
   // Only set by playwright.config.ts's webServer (the dedicated :3100 test
   // server) — hides Next's bottom-left dev-tools overlay there, since it was
   // intermittently landing inside a BoardPanel screenshot's clipped region

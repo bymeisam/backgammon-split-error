@@ -106,7 +106,10 @@ enough to keep Galaxy access off — the flag alone is never sufficient.
 This is the single source of truth, read in exactly two places:
 
 - **`proxy.ts`** (project root) — the one choke point. Its `matcher` covers
-  `/galaxy/matches`, `/galaxy/matches/:path*`, `/api/galaxy/:path*`,
+  `/sources` and `/sources/:path*` (the Sources page and Galaxy's pages
+  under it, `/sources/galaxy/matches[/…]`, since 2026-10-09), the old
+  `/galaxy` and `/galaxy/:path*` (which `next.config.ts` first redirects
+  permanently to `/sources/galaxy/…`, itself gated), `/api/galaxy/:path*`,
   `/api/sync/:path*`, and `/api/matches/check-existence`; when the gate is
   closed, every one of those returns a plain 404 before the route's own
   code ever runs. (This Next.js version renamed `middleware.ts` to

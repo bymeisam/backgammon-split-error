@@ -1,7 +1,8 @@
-// Read-only queries for the app shell: the navbar's "last synced" line and
-// the home dashboard's weekly mistakes. prismaReadOnly only; nothing here
-// writes. (The latest matches and the current rating reuse
-// lib/local-client.ts's listMatches; the due count is lib/review/dueCount.ts.)
+// Read-only queries for the app shell: the Galaxy card's "last synced" line
+// on /sources (lib/sources.ts) and the home dashboard's weekly mistakes.
+// prismaReadOnly only; nothing here writes. (The latest matches and the
+// current rating reuse lib/local-client.ts's listMatches; the due count is
+// lib/review/dueCount.ts.)
 import { ErrorSeverity } from "@/lib/generated/prisma/client";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { LISTED_KINDS } from "@/lib/listParams";
@@ -10,8 +11,8 @@ import { WEEK_MS, tallyWeeklyMistakes, type WeeklyMistakeRow, type WeeklyMistake
 // The latest sync run that finished (lib/sync.ts sets finishedAt at the
 // end of every run). finishedAt has no index (SyncRun has only its primary
 // key), which is fine: the table is one row per sync run (about 16 locally),
-// so the sort is over a handful of rows. Write mode only: the navbar never
-// calls this on the read-only site.
+// so the sort is over a handful of rows. Write mode only: /sources, its one
+// caller, is 404 on the read-only site.
 export async function latestFinishedSyncRun(): Promise<{ finishedAt: Date; matchesSynced: number } | null> {
   const run = await prisma.syncRun.findFirst({
     where: { finishedAt: { not: null } },

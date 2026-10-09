@@ -236,7 +236,7 @@ export default function BoardPanel({
           its own card below the board, so e2e's board-panel screenshots stay
           about the board itself. "Add to review" and tags are in it —
           DB-backed decisions only (nothing renders without a dbDecisionId,
-          e.g. on /galaxy). */}
+          e.g. on /sources/galaxy). */}
       {selected && !quiz && (
         <DecisionReviewTools
           key={`review-${selected.dbDecisionId ?? selected.id}`}

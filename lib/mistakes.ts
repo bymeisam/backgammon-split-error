@@ -27,7 +27,7 @@ export type Severity = "good" | "error" | "blunder";
 
 // The single mapping from Galaxy's own error_analysis.error_severity to
 // this app's Severity — both extractDecisions (live-fetch: /matches,
-// /galaxy/matches) and lib/decisionFromRow.ts's severityFor (DB-row:
+// /sources/galaxy/matches) and lib/decisionFromRow.ts's severityFor (DB-row:
 // replay, /mistakes, reading the errorSeverity column ingest already
 // populates from this exact raw field) now go through this one function,
 // after an audit found they'd been computing severity two different ways:
@@ -109,7 +109,7 @@ export interface Decision {
   // which case no note UI renders.
   dbDecisionId?: number | null;
   // The decision's spaced-repetition card (ReviewCard), null/absent when it
-  // isn't in review. Set only on DB-backed paths, never on /galaxy.
+  // isn't in review. Set only on DB-backed paths, never on /sources/galaxy.
   reviewCard?: DecisionReviewStatus | null;
   // Whether it can become a card (lib/review/eligibility.ts). Absent/false
   // where it wasn't worked out.

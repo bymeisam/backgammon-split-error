@@ -1,7 +1,7 @@
 // Single-match ingest: pulls a match's games from Galaxy (via galaxy-client,
 // same fetch behavior as everywhere else) and writes Match/Game/Decision
 // rows. Triggered manually, per match, from the "Sync" button on
-// /galaxy/matches — no scheduler, no multi-match loop yet (that's a later
+// /sources/galaxy/matches — no scheduler, no multi-match loop yet (that's a later
 // upgrade; this function is already shaped so looping it over several
 // matchIds is just a caller-side change).
 import { prisma } from "@/lib/prisma";
@@ -229,7 +229,7 @@ export async function ingestMatch(
   // Opponent identity resolution: a match is 1v1, so any user_id seen in
   // this match's events that isn't "you" is unambiguously the opponent.
   // Requires the "you" PlayerIdentity row to already exist (upserted during
-  // index-sync — see lib/sync.ts — or by visiting /galaxy/matches, which
+  // index-sync — see lib/sync.ts — or by visiting /sources/galaxy/matches, which
   // does the same upsert); if it doesn't, opponentUserId simply never gets
   // set and no opponent row is written for this call, rather than risking
   // misidentifying your own user_id as the opponent's.

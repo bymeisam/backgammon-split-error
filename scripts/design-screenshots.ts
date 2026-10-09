@@ -1,6 +1,7 @@
 // Screenshots of every main page for the designer agent
 // (.claude/agents/designer.md), at 1440 px and 390 px wide, in light and
-// dark (Playwright's colorScheme emulation). Written to
+// dark (Playwright's colorScheme emulation); since 2026-10-09 /sources
+// (with its token prompt) and /sources/galaxy/matches too. Written to
 // design/screenshots/<YYYY-MM-DD>/ (gitignored).
 //
 // It only talks HTTP to an already-running app; it never connects to a
@@ -10,11 +11,12 @@
 //   npm run build && ENABLE_WRITE_MODE=true npx next start -p 3300
 //   npx tsx scripts/design-screenshots.ts
 //
-// Navbar shots (since 2026-10-09): at 768, 1024 and 1440, light and dark,
-// the top of /matches, the open Menu at 768 and 1024, and the Review ›
-// Cards dropdown at 1440. Each one also measures the bar (scrollWidth
-// against clientWidth, and the slack: the free space left in the row) and
-// prints a table, written to nav-metrics-<write|readonly>.json too. The
+// Navbar shots (since 2026-10-09): at 768, 1024, 1280 and 1440, light and
+// dark, the top of /matches, the open Menu at 768 and 1024, and the Review ›
+// Cards dropdown at 1280 and 1440 (the row, from xl). Each one also
+// measures the bar (scrollWidth against clientWidth, the slack: the free
+// space left in the row, and from xl the width the row needs) and prints a
+// table, written to nav-metrics-<write|readonly>.json too. The
 // file names carry the server's mode (nav-write-… / nav-readonly-…), read
 // from the page's mode badge. For the read-only shots start a second
 // server with write mode off on the command line only, and pass
@@ -56,7 +58,7 @@ import { isThemeId, serializeThemeCookie, THEME_COOKIE, THEMES } from "../lib/th
 
 type Theme = "light" | "dark";
 interface Variant {
-  width: 1440 | 1024 | 768 | 390;
+  width: 1440 | 1280 | 1024 | 768 | 390;
   theme: Theme;
 }
 interface ShotContext {
@@ -112,15 +114,17 @@ const VARIANTS: Variant[] = [
 ];
 
 // The navbar shots' widths: below md (768 is md itself, the right-hand
-// Menu panel), the panel at 1024, and the full row at 1440 (from xl).
-const NAV_VARIANTS: Variant[] = ([768, 1024, 1440] as const).flatMap((width) =>
+// Menu panel), the panel at 1024, and the full row at 1280 (xl itself, the
+// tightest row) and 1440.
+const NAV_VARIANTS: Variant[] = ([768, 1024, 1280, 1440] as const).flatMap((width) =>
   (["light", "dark"] as const).map((theme) => ({ width, theme }))
 );
 
 // The data the pages show: real local matches used throughout PROGRESS.md.
 const MATCH = "47816592";
 const REPLAY = "/matches/45282503/replay/2";
-// Replay steps ("Move N of 25"), reached with the replay's own → key.
+// Replay steps ("Move N of 25"), reached with the replay's own ↓ key (→
+// until the keyboard batch of 2026-10-09 made ←/→ the Played/Best tabs).
 const REPLAY_CHECKER_ERROR = 2; // a checker error
 const REPLAY_CHECKER_CUBE_OWNED = 15; // a checker play, the opponent owns the 2-cube
 const REPLAY_CUBE_TAKE = 16; // "Opponent redoubles to 4: you took"
@@ -140,7 +144,7 @@ async function open(page: Page, url: string): Promise<void> {
 async function openReplay(page: Page, move: number): Promise<void> {
   await open(page, REPLAY);
   await page.getByText(/Move 1 of \d+/).first().waitFor();
-  for (let i = 1; i < move; i++) await page.keyboard.press("ArrowRight");
+  for (let i = 1; i < move; i++) await page.keyboard.press("ArrowDown");
   await page.getByText(new RegExp(`Move ${move} of \\d+`)).first().waitFor();
   await settle(page);
 }
@@ -198,6 +202,14 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     const verdict = option.correct ? "correct" : "incorrect";
     await shoot(`review-${step.label}-back-${verdict}`, "viewport");
     await shoot(`review-${step.label}-back-${verdict}`, "full");
+    // Checker backs have Yours / Best tabs under the board (Best is the
+    // default, shot above); h switches to Yours. Cube backs have none.
+    const tabs = page.getByRole("tablist", { name: "Move shown on the board" });
+    if (await tabs.isVisible()) {
+      await page.keyboard.press("h");
+      await page.waitForTimeout(200);
+      await shoot(`review-${step.label}-back-${verdict}-yours`, "viewport");
+    }
     // On to the next card: rate Good (right) or Next (wrong); both stubbed.
     if (option.correct) await page.getByRole("button", { name: "Good" }).click();
     else await page.getByRole("button", { name: "Next" }).click();
@@ -286,6 +298,29 @@ const SHOTS: Shot[] = [
     },
   },
   {
+    name: "sources",
+    run: async ({ page, shoot }) => {
+      await open(page, "/sources");
+      await shoot("sources", "full");
+      // No token in a fresh browser: "Add token" opens the token prompt.
+      await page.getByRole("button", { name: "Add token" }).click();
+      await page.getByRole("dialog").waitFor();
+      await page.waitForTimeout(200);
+      await shoot("sources-add-token", "viewport");
+    },
+  },
+  {
+    name: "sources-galaxy-matches",
+    run: async ({ page, shoot }) => {
+      // Without a token the page is its blocking token prompt over the
+      // header (breadcrumbs Sources › Galaxy › Matches).
+      await open(page, "/sources/galaxy/matches");
+      await page.getByRole("dialog").waitFor();
+      await page.waitForTimeout(200);
+      await shoot("sources-galaxy-matches", "viewport");
+    },
+  },
+  {
     name: "status",
     run: async ({ page, shoot }) => {
       await open(page, "/status");
@@ -337,10 +372,12 @@ interface NavMetric {
   slack: number;
   // From xl: the px between the last link and the mode badge (≥ 32).
   linkToEnd: number | null;
-  // The end group's height (one line is the 30px buttons) and whether the
-  // sync label is cut by its truncate cap.
+  // From xl: the narrowest bar the full row fits in with its 32px gap (the
+  // bar's width minus the slack). The bar is the viewport up to 1240px, so
+  // this is the smallest viewport the row could take before the Menu.
+  rowNeeds: number | null;
+  // The end group's height (one line is the 30px buttons).
   endHeight: number;
-  syncLabelTruncated: boolean | null;
 }
 
 async function navMode(page: Page): Promise<"write" | "readonly"> {
@@ -358,7 +395,6 @@ async function measureNav(page: Page, variant: Variant, mode: NavMetric["mode"])
     const brand = inner.children[0];
     const narrowEnd = inner.children[1];
     const wide = getComputedStyle(narrowEnd).display === "none";
-    const label = document.querySelector('[data-testid="sync-control"] > span');
     const linkToEnd = wide ? end.getBoundingClientRect().left - list.getBoundingClientRect().right : null;
     return {
       overflow: inner.scrollWidth - inner.clientWidth,
@@ -367,11 +403,18 @@ async function measureNav(page: Page, variant: Variant, mode: NavMetric["mode"])
         ? linkToEnd - 32
         : narrowEnd.getBoundingClientRect().left - brand.getBoundingClientRect().right - 12,
       linkToEnd,
+      rowNeeds: wide ? inner.getBoundingClientRect().width - (linkToEnd - 32) : null,
       endHeight: wide ? Math.round(end.getBoundingClientRect().height) : 0,
-      syncLabelTruncated: wide && label ? label.scrollWidth > label.clientWidth : null,
     };
   })()`)) as Omit<NavMetric, "width" | "theme" | "mode">;
-  return { width: variant.width, theme: variant.theme, mode, ...m, slack: Math.round(m.slack * 10) / 10 };
+  return {
+    width: variant.width,
+    theme: variant.theme,
+    mode,
+    ...m,
+    slack: Math.round(m.slack * 10) / 10,
+    rowNeeds: m.rowNeeds === null ? null : Math.round(m.rowNeeds * 10) / 10,
+  };
 }
 
 // The navbar pass: see the header. Returns one metric per variant.
@@ -503,10 +546,10 @@ async function main(): Promise<void> {
   }
 
   if (metrics.length) {
-    console.log("nav: width theme mode | overflow menuOverflow | slack linkToEnd | endHeight labelTruncated");
+    console.log("nav: width theme mode | overflow menuOverflow | slack linkToEnd rowNeeds | endHeight");
     for (const m of metrics) {
       console.log(
-        `nav: ${m.width} ${m.theme} ${m.mode} | ${m.overflow} ${m.menuOverflow} | ${m.slack} ${m.linkToEnd ?? "-"} | ${m.endHeight} ${m.syncLabelTruncated ?? "-"}`
+        `nav: ${m.width} ${m.theme} ${m.mode} | ${m.overflow} ${m.menuOverflow} | ${m.slack} ${m.linkToEnd ?? "-"} ${m.rowNeeds ?? "-"} | ${m.endHeight}`
       );
     }
     writeFileSync(path.join(OUT_DIR, `nav-metrics-${metrics[0].mode}.json`), JSON.stringify(metrics, null, 2));

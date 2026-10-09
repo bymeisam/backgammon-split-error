@@ -24,8 +24,17 @@ export function proxy() {
 
 export const config = {
   matcher: [
-    "/galaxy/matches",
-    "/galaxy/matches/:path*",
+    // The Sources page and Galaxy's pages under it (/sources/galaxy/matches
+    // and /sources/galaxy/matches/[matchId], moved from /galaxy/matches on
+    // 2026-10-09).
+    "/sources",
+    "/sources/:path*",
+    // The old /galaxy URLs. next.config.ts redirects them permanently to
+    // /sources/galaxy/... before this runs (redirects come first), and the
+    // target is gated above; kept here too so they stay 404 on the
+    // read-only site even if that redirect is ever removed.
+    "/galaxy",
+    "/galaxy/:path*",
     "/api/galaxy/:path*",
     "/api/sync/:path*",
     "/api/matches/check-existence",

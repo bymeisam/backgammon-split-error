@@ -1,4 +1,5 @@
-// Pure helpers for the home dashboard and the navbar's "last synced" line.
+// Pure helpers for the home dashboard and the Galaxy card's "last synced"
+// line on /sources (the navbar's, until 2026-10-09).
 // The queries that feed them are in lib/dashboardQueries.ts.
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -42,8 +43,8 @@ export function tallyWeeklyMistakes(rows: readonly WeeklyMistakeRow[]): WeeklyMi
 }
 
 // "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago" — the
-// navbar's "Synced …". A time in the future (clock skew) reads "just
-// now".
+// "Synced …" on /sources' Galaxy card. A time in the future (clock skew)
+// reads "just now".
 export function formatTimeAgo(then: Date, now: Date): string {
   const ms = now.getTime() - then.getTime();
   if (ms < 60_000) return "just now";
@@ -59,9 +60,10 @@ export function formatTimeAgo(then: Date, now: Date): string {
   return `${days} days ago`;
 }
 
-// The navbar's sync line in two parts: when ("Synced 5 min ago") and the
-// count (" · 3 matches", with its separator), so the bar can show the count
-// only in the menu sheet and the tooltip. No run: "Never synced", no count.
+// The last sync in two parts: when ("Synced 5 min ago") and the count
+// (" · 3 matches", with its separator). Split for the navbar's old sync
+// line; /sources (lib/sources.ts) joins them. No run: "Never synced", no
+// count.
 export function lastSyncedParts(
   run: { finishedAt: Date; matchesSynced: number } | null,
   now: Date
@@ -71,7 +73,7 @@ export function lastSyncedParts(
   return { when: `Synced ${formatTimeAgo(run.finishedAt, now)}`, count: ` · ${matches}` };
 }
 
-// The navbar's sync line as one string: "Synced 5 min ago · 3 matches" /
+// The last sync as one string: "Synced 5 min ago · 3 matches" /
 // "Never synced".
 export function lastSyncedLabel(
   run: { finishedAt: Date; matchesSynced: number } | null,

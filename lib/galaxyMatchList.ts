@@ -1,4 +1,4 @@
-// Pure logic behind /galaxy/matches' match table: row order and each row's
+// Pure logic behind /sources/galaxy/matches' match table: row order and each row's
 // Sync button state.
 import type { MatchAnalysis } from "@/lib/analysesTypes";
 

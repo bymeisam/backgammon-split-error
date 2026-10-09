@@ -13,7 +13,7 @@ import { style } from "./DecisionReviewTools.styles";
 // The note card below the board (BoardPanel): the note itself
 // (DecisionNote), "Add to review" in its head (or "In review ✓", linking to
 // the card on /review/cards), and the decision's tags in its foot.
-// DB-backed decisions only — no dbDecisionId (the /galaxy pages, or a match
+// DB-backed decisions only — no dbDecisionId (the /sources/galaxy pages, or a match
 // not in the DB) renders nothing. canEdit is isGalaxyEnabled() from the
 // server: without it the review control is hidden, the note and tags are
 // read-only, and the card shows only when there's a note or a tag. The add

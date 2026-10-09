@@ -12,7 +12,7 @@ import { style } from "./TagEditor.styles";
 // Enter adds the typed tag (creating it if new), ↑/↓ pick a suggestion, Esc
 // (or leaving it empty) closes it. Read-only: the chips alone, or nothing
 // when there are none. Never rendered for a decision without a DB id
-// (/galaxy).
+// (/sources/galaxy).
 export default function TagEditor({
   dbDecisionId,
   tags,

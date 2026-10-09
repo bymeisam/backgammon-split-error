@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { activeNavHref, isNavItemActive, navItems } from "./navItems";
 
 describe("navItems", () => {
-  it("lists Galaxy only in write mode", () => {
+  it("lists Sources only in write mode", () => {
     expect(navItems(true).map((i) => i.label)).toEqual([
       "Matches",
       "Analysis",
       "Mistakes",
       "Repeated",
       "Review",
-      "Galaxy",
+      "Sources",
       "Settings",
       "Status",
     ]);
@@ -42,7 +42,9 @@ describe("activeNavHref", () => {
     expect(activeNavHref("/matches/analysis", items)).toBe("/matches/analysis");
     expect(activeNavHref("/review", items)).toBe("/review");
     expect(activeNavHref("/review/cards", items)).toBe("/review/cards");
-    expect(activeNavHref("/galaxy/matches/123", items)).toBe("/galaxy/matches");
+    expect(activeNavHref("/sources", items)).toBe("/sources");
+    expect(activeNavHref("/sources/galaxy/matches", items)).toBe("/sources");
+    expect(activeNavHref("/sources/galaxy/matches/123", items)).toBe("/sources");
     expect(activeNavHref("/repeated-positions", items)).toBe("/repeated-positions");
     expect(activeNavHref("/settings", items)).toBe("/settings");
   });

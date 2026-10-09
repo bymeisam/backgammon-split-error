@@ -303,6 +303,22 @@ crumb (no `href`) is the current page. Don't render `Breadcrumbs` yourself.
 `PaginationLinks` for server-rendered, query-param lists; `Pager` (client)
 for client-side lists. Both are Prev / "Page N of M" / Next.
 
+### Sources (`app/sources/`, `lib/sources.ts`)
+
+`/sources` (write mode only, gated by `proxy.ts`) shows one `Card` per data
+source from the registry in `lib/sources.ts`: the label as a section title,
+a one-line description, one status line (an overline over its value, e.g.
+"Last synced"), then the actions row (the source's own client actions, from
+`SOURCE_ACTIONS` in `app/sources/page.tsx`, then its links as compact
+secondary `Button`s). A source's pages live under `/sources/<id>/`, with
+breadcrumbs starting `Sources › <label>` (the label crumb links to
+`/sources#<id>`, the card). Galaxy's actions: "Add token" (the shared
+`TokenModal`, dismissible here) or "Sync", with the result on the card. The
+navbar has no sync line; syncing starts from the card.
+
+- **Add a source** with a registry entry (and an actions component if it
+  has any), not a new page layout.
+
 ### The board (`app/components/match-analysis/`)
 
 `BoardPanel` is the only way to show a position: the SVG board (`Board.tsx`,
@@ -383,10 +399,13 @@ the three selectors, every mapped variable defined, the fonts loaded (and
   table, chip or modal per page.
 - **Don't name Galaxy in general UI.** The app is source-neutral: say "the
   source's PR" (`lib/sourcePr.ts`), not "Galaxy's". Galaxy is named only
-  on `/galaxy/**`, in the "View on Galaxy" link (`lib/externalMatchUrl.ts`),
-  the sync control, the navbar's Galaxy item, source-specific code (ingest,
+  on `/sources/galaxy/**`, in the "View on Galaxy" link
+  (`lib/externalMatchUrl.ts`), the Galaxy card on `/sources` (its entry in
+  the source registry, `lib/sources.ts`), the token prompt
+  (`app/components/galaxy/TokenModal.tsx`), source-specific code (ingest,
   sync, the Galaxy translator and client) and the `/status` notes. The
-  guard test enforces it, with an allowlist and a reason per entry.
+  navbar says "Sources", never a source's name. The guard test enforces
+  it, with an allowlist and a reason per entry.
 - **Don't** use colour except for severity and the accent. **Don't** add a
   new hue; if you need one, it's a new token in every theme, approved first.
 - **Don't** use mono for anything but notation, equities, IDs and kbd.
@@ -429,6 +448,10 @@ npm run build && ENABLE_WRITE_MODE=true npx next start -p 3300
 npx tsx scripts/design-screenshots.ts --theme=clubroom --date=2026-10-09-phase4
 ```
 
+The shots include `/sources` and `/sources/galaxy/matches` (its token
+prompt, since the script has no token), and the review session's checker
+backs on both tabs (Best, the default, and Yours).
+
 - `--theme=<id>`: a theme from `lib/themes.ts`, set through the `bgtheme`
   cookie in system mode; shots go to `<date>/<id>/`. Without it, the
   default theme into `<date>/`.
@@ -436,7 +459,7 @@ npx tsx scripts/design-screenshots.ts --theme=clubroom --date=2026-10-09-phase4
   `/review` shots, added through the API first and removed afterwards (also
   on failure). Answers are stubbed in the browser, so no `ReviewLog` rows.
   Check afterwards that the review tables are back to where they were.
-- `--nav-only`: only the navbar shots (768, 1024, 1440), for a read-only
+- `--nav-only`: only the navbar shots (768, 1024, 1280, 1440), for a read-only
   server (`ENABLE_WRITE_MODE=false npx next start -p 3301`, then
   `--base-url=http://localhost:3301 --nav-only`).
 - `--base-url=<url>` (default `http://localhost:3300`), `--date=<name>`
