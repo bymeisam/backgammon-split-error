@@ -1033,3 +1033,15 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - Screenshots are in `design/screenshots/2026-10-09-sources/{clubroom,quiet-ink,midnight-felt}/`, write and read-only. Temporary review cards for decisions 1268271, 1268199 and 1268281 were added and removed through the API; afterwards ReviewCard, ReviewLog, Tag and DecisionTag are 0/0/0/0.
     - **Navbar slack, write mode** (3 due cards in the badge): at 1280 the row has 281–299 px to spare beyond its 32 px gap, and needs a 941 px bar (Clubroom), 956 (Quiet Ink) or 959 (Midnight Felt). At 1024 that would leave about 65–83 px, so the Menu breakpoint could come down from xl to lg; that's the designer's call. Read-only needs 835–851 px.
   - **Next:** the designer reviews the new page and component (the Sources card). CLAUDE.md's `/galaxy/*` line (the read-only rule) needs the user's update to `/sources/galaxy/*`, and so does `.claude/skills/styling-conventions/SKILL.md`'s `/galaxy/matches/[matchId]` mention. The card's "Last synced / Synced 4 days ago" repeats the word; `lastSyncedParts` was reused as asked.
+
+- **Design review of Sources, the review back's Yours/Best tabs and the navbar** (main session; designer report `reports/2026-10-09-design-review-sources.md`). No code change in this entry.
+  - The designer's session ended on the weekly usage limit after the report was written. The report is complete.
+  - **Investigator check (at f6baad2):** every file and line reference holds, with two corrections. Fix 2c's rule (`SEVERITY_TIER_LABELS[tier] !== label`) removes only the Best chip's duplicate badge; "PLAYED [Best]" keeps its badge, which is right. `docs/design-system.md` never mentions the xl Menu breakpoint.
+  - **`SyncRun.matchesSynced`** counts matches fully ingested in that run (`lib/sync.ts:217-221`): new matches plus retries of earlier PENDING/FAILED ones. `matchesFound` is Galaxy's whole list. Locally, runs 16/14/13 match the new `Match` rows exactly; run 15's 1 was a retry of run 14's failure.
+  - **The visual suite** covers neither the navbar nor /review. Only fix 2c and the Good-tab change move baselines (the board-panel shots and decision-card).
+  - **User decisions:**
+    - a wrong answer is Error amber everywhere on the back (row, bar, loss and "Not quite.");
+    - the label is "LAST SYNC ADDED";
+    - the Sources card gains IN LIBRARY (DONE matches) and LATEST MATCH, not failures;
+    - the agents keep `model: inherit`.
+  - **Next:** the developer implements the report's 7 fixes; plan in `~/.claude/plans/my-claude-code-with-happy-valiant.md`.
