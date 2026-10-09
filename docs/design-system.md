@@ -330,7 +330,11 @@ navbar's end group, first (Sources · Settings · Status), as an admin page.
 `BoardPanel` is the only way to show a position: the SVG board (`Board.tsx`,
 private to it), the arrows, the Played / Best chips (`decisionChip`) and,
 on DB-backed pages, the note and review tools. `bleed` for pages without
-side padding below md. `Dice` is separate (also used by the lists).
+side padding below md. `Dice` is separate (also used by the lists). A
+chip's severity badge is left out when it would repeat its label (the Best
+chip). The review back's Yours / Best tabs become one static "Yours · Best"
+chip when your answer is the best. An active Good chip sits on `bg-sunken`
+(Good has no tint).
 
 - **Not** a new board drawing, and not colours for checkers, points or
   arrows outside the board tokens.
@@ -456,7 +460,9 @@ npx tsx scripts/design-screenshots.ts --theme=clubroom --date=2026-10-09-phase4
 
 The shots include `/sources` and `/sources/galaxy/matches` (its token
 prompt, since the script has no token), and the review session's checker
-backs on both tabs (Best, the default, and Yours).
+backs on both tabs (Best, the default, and Yours) where the answer isn't the
+best. Card 1 is answered with the best option (its single chip), card 2
+wrong, card 3 with a Good option when it has one.
 
 - `--theme=<id>`: a theme from `lib/themes.ts`, set through the `bgtheme`
   cookie in system mode; shots go to `<date>/<id>/`. Without it, the

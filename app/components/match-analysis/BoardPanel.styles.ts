@@ -28,18 +28,22 @@ export const style = {
   // The Played / Best chips under the board: buttons that switch the board
   // between the two (a tablist) where the page can switch, static boxes
   // otherwise.
-  // Function, 1 param -> passed directly. Inset from the screen edge when
-  // the page bleeds (see boardWrap).
-  decisionRow: (bleed: boolean): string => clsx("grid grid-cols-2 gap-2.5", bleed && "mx-3 md:mx-0"),
+  // Function, 2 params -> passed directly. Inset from the screen edge when
+  // the page bleeds (see boardWrap). `single`: one chip across the row (the
+  // review back's "Yours · Best", when your answer is the best).
+  decisionRow: (bleed: boolean, single: boolean): string =>
+    clsx("grid gap-2.5", single ? "grid-cols-1" : "grid-cols-2", bleed && "mx-3 md:mx-0"),
   // Function, 3+ params -> one options object. The shown one tinted in its
-  // severity with a bar on the left, the other quiet.
+  // severity with a bar on the left, the other quiet. Good has no tint
+  // token on purpose, so an active Good chip sits on the sunken surface,
+  // apart from the inactive chips' surface.
   decisionChip: (opts: { tier: SeverityTier; isActive: boolean; isButton: boolean }): string =>
     clsx(
       "flex min-w-0 flex-col gap-1 rounded-[11px] border px-3.5 py-3 text-left transition-[opacity,border-color]",
       opts.isActive
         ? clsx(
             opts.tier === "best" && "border-best/70 bg-best-tint shadow-[inset_3px_0_0_var(--color-best)]",
-            opts.tier === "good" && "border-good/70 bg-surface shadow-[inset_3px_0_0_var(--color-good)]",
+            opts.tier === "good" && "border-good/70 bg-sunken shadow-[inset_3px_0_0_var(--color-good)]",
             opts.tier === "error" && "border-error/70 bg-error-tint shadow-[inset_3px_0_0_var(--color-error)]",
             opts.tier === "blunder" && "border-blunder/70 bg-blunder-tint shadow-[inset_3px_0_0_var(--color-blunder)]"
           )

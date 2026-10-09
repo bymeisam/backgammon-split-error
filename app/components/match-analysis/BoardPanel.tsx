@@ -5,7 +5,7 @@ import type { Decision } from "@/lib/mistakes";
 import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
 import { parseNotation, mirrorSubMoves } from "@/lib/backgammonNotation";
 import { boardCubeFor, boardPositionFlipped } from "@/lib/boardFrame";
-import { playedMoveTier, type SeverityTier } from "@/lib/badges";
+import { playedMoveTier, SEVERITY_TIER_LABELS, type SeverityTier } from "@/lib/badges";
 import { formatLoss } from "@/lib/review/format";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import Board from "./Board";
@@ -13,7 +13,10 @@ import DecisionReviewTools from "./DecisionReviewTools";
 import { style, type ArrowTier } from "./BoardPanel.styles";
 
 // One of the Played / Best chips under the board: a tab button when the
-// page can switch the board between them, a static box otherwise.
+// page can switch the board between them, a static box otherwise. The
+// severity badge is left out when it would repeat the label ("Best" on the
+// Best chip); "Played [Best]" keeps it, since it says the played move was
+// the best one.
 function DecisionChip({
   label,
   tier,
@@ -32,13 +35,19 @@ function DecisionChip({
   isActive: boolean;
   onSelect?: () => void;
   // The move-table keys that switch to this tab (useMoveTableKeys), for
-  // aria-keyshortcuts on the tab button.
-  keyShortcuts: string;
+  // aria-keyshortcuts on the tab button. Unused on a static chip.
+  keyShortcuts?: string;
 }) {
   const content = (
     <>
       <span className={style.decisionLabel}>
-        {label} <SeverityBadge type={tier} />
+        {label}
+        {SEVERITY_TIER_LABELS[tier] !== label && (
+          <>
+            {" "}
+            <SeverityBadge type={tier} />
+          </>
+        )}
       </span>
       <span className={style.decisionMove(tier)}>{move}</span>
       {detail && <span className={style.bestDetail}>{detail}</span>}
@@ -103,9 +112,15 @@ export default function BoardPanel({
   quizArrowTier?: ArrowTier;
   // Review card back, checker cards: the Yours / Best tabs under the board
   // (the same chips as the Played / Best tabs, display only), switching
-  // which move `quizArrows` draws through `moveTab` / `onSelectTab`. Null
-  // (the front, and cube cards, which have no arrows) shows none.
-  quizTabs?: { yours: { label: string; tier: SeverityTier; loss: number }; best: { label: string } } | null;
+  // which move `quizArrows` draws through `moveTab` / `onSelectTab`. With
+  // `yoursIsBest` (your answer is the best move) one static "Yours · Best"
+  // chip instead, no tablist: the two tabs would be identical. Null (the
+  // front, and cube cards, which have no arrows) shows none.
+  quizTabs?: {
+    yours: { label: string; tier: SeverityTier; loss: number };
+    best: { label: string };
+    yoursIsBest?: boolean;
+  } | null;
   // The page has no side padding below md (replay, review): see
   // BoardPanel.styles.ts's boardWrap/inset.
   bleed?: boolean;
@@ -177,8 +192,21 @@ export default function BoardPanel({
 
         {belowBoard}
 
-        {selected && quiz && quizTabs && onSelectTab && (
-          <div className={style.decisionRow(bleed)} role="tablist" aria-label="Move shown on the board">
+        {selected && quiz && quizTabs?.yoursIsBest && (
+          <div className={style.decisionRow(bleed, true)}>
+            <DecisionChip
+              label="Yours · Best"
+              tier="best"
+              move={quizTabs.best.label}
+              detail={null}
+              loss={formatLoss(0)}
+              isActive
+            />
+          </div>
+        )}
+
+        {selected && quiz && quizTabs && !quizTabs.yoursIsBest && onSelectTab && (
+          <div className={style.decisionRow(bleed, false)} role="tablist" aria-label="Move shown on the board">
             <DecisionChip
               label="Yours"
               tier={quizTabs.yours.tier}
@@ -204,7 +232,7 @@ export default function BoardPanel({
 
         {selected && !quiz && (
           <div
-            className={style.decisionRow(bleed)}
+            className={style.decisionRow(bleed, false)}
             role={onSelectTab ? "tablist" : undefined}
             aria-label={onSelectTab ? "Move shown on the board" : undefined}
           >

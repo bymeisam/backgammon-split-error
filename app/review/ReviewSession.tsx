@@ -240,7 +240,9 @@ export default function ReviewSession({
               side: "back",
               correct: answer.correct,
               saveKind: save.kind,
-              hasTabs: current.card.question === "checker",
+              // No tabs when your answer is the best: one "Yours · Best" chip
+              // (BoardPanel), so ←/→ and h/l do nothing.
+              hasTabs: current.card.question === "checker" && answer.chosen !== current.card.bestKey,
             }
           : { side: "front", optionCount: current.card.options.length }
       );
@@ -424,6 +426,7 @@ export default function ReviewSession({
                 ? {
                     yours: { label: chosenOption.label, tier: yoursTier, loss: answer.loss },
                     best: { label: bestLabel },
+                    yoursIsBest: answer.chosen === card.bestKey,
                   }
                 : null
             }
