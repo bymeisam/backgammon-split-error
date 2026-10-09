@@ -43,11 +43,12 @@ export const style = {
   verdictRow: "mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-3.5",
   // Function, 1 param -> passed directly. The verdict as a serif word in
   // the theme's title weight and emphasis style (italic, or upright in
-  // Quiet Ink), in Best's or Blunder's ink.
+  // Quiet Ink), in Best's or Error's ink. A wrong answer is Error everywhere
+  // on the back (lib/badges.ts's reviewAnswerTier), never Blunder.
   verdictWord: (correct: boolean): string =>
     clsx(
       "font-serif text-[28px] font-display font-emphasis leading-none",
-      correct ? shared.severityText("best") : shared.severityText("blunder")
+      shared.severityText(correct ? "best" : "error")
     ),
   verdictSub: "text-[13px] text-ink-muted",
   summaryGrid: "grid grid-cols-[auto_1fr] gap-x-[18px] gap-y-1.5 text-[13px]",
@@ -60,29 +61,29 @@ export const style = {
   optionsTable: "w-full border-collapse",
   optionsCaption: clsx(shared.overline, "px-4 pb-2 pt-3.5 text-left"),
   // Function, 3+ params -> one options object. An option row: the best one
-  // tinted Best, the chosen wrong one tinted Blunder, the chosen right one
-  // (not the best) on the sunken surface.
+  // tinted Best, the chosen wrong one tinted Error (the same tier as the
+  // Yours tab), the chosen right one (not the best) on the sunken surface.
   optionRow: (opts: { isBest: boolean; isChosen: boolean; correct: boolean }): string =>
     clsx(
       opts.isBest && "bg-best-tint",
-      opts.isChosen && !opts.isBest && (opts.correct ? "bg-sunken" : "bg-blunder-tint")
+      opts.isChosen && !opts.isBest && (opts.correct ? "bg-sunken" : "bg-error-tint")
     ),
   // Function, 1 param (options object). The first cell carries the row's bar.
   optionCell: (opts: { isBest: boolean; chosenWrong: boolean }): string =>
     clsx(
       "border-t border-line px-4 py-[9px] font-mono text-[13.5px] font-medium text-ink",
       opts.isBest && "shadow-[inset_3px_0_0_var(--color-best)]",
-      opts.chosenWrong && "shadow-[inset_3px_0_0_var(--color-blunder)]"
+      opts.chosenWrong && "shadow-[inset_3px_0_0_var(--color-error)]"
     ),
   // On its own line below md, so neither the move nor the tag breaks.
   optionTag:
     "whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-faint max-md:mt-1 max-md:block md:ml-2.5",
-  // Function, 1 param -> passed directly. The loss; Blunder's ink on the
+  // Function, 1 param -> passed directly. The loss; Error's ink on the
   // chosen wrong row.
   optionLoss: (chosenWrong: boolean): string =>
     clsx(
       "border-t border-line px-4 py-[9px] text-right font-mono text-[13.5px] font-medium tabular-nums",
-      chosenWrong ? "text-blunder-ink" : "text-ink-muted"
+      chosenWrong ? shared.severityText("error") : "text-ink-muted"
     ),
   // The cube equities, in the same card under the options.
   equities: "grid grid-cols-3 border-t border-line",

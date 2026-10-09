@@ -81,7 +81,7 @@
   --theme-font-sans: var(--font-geist-sans);
   --theme-font-serif: var(--font-geist-sans);
   --theme-font-mono: var(--font-geist-mono);
-  /* type: the title weight (the sheet's 600; an upright verdict, since a Geist oblique is weaker than an upright word in Best or Blunder ink), and the style of the
+  /* type: the title weight (the sheet's 600; an upright verdict, since a Geist oblique is weaker than an upright word in Best or Error ink), and the style of the
      verdict word and the "vs" in titles */
   --theme-display-weight: 600;
   --theme-emphasis-style: normal;
