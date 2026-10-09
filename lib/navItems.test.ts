@@ -24,11 +24,22 @@ describe("navItems", () => {
     ]);
   });
 
-  it("puts Cards under Review, and Settings and Status at the end", () => {
+  it("puts Cards under Review, and Settings and Status at the end (no Sources read-only)", () => {
     const review = navItems(false).find((i) => i.label === "Review");
     expect(review?.children?.map((c) => c.href)).toEqual(["/review/cards"]);
     expect(review?.showsDueCount).toBe(true);
     expect(navItems(false).filter((i) => i.end).map((i) => i.href)).toEqual(["/settings", "/status"]);
+  });
+
+  it("puts Sources first in the end group in write mode", () => {
+    expect(navItems(true).filter((i) => i.end).map((i) => i.label)).toEqual(["Sources", "Settings", "Status"]);
+    expect(navItems(true).filter((i) => !i.end).map((i) => i.label)).toEqual([
+      "Matches",
+      "Analysis",
+      "Mistakes",
+      "Repeated",
+      "Review",
+    ]);
   });
 });
 

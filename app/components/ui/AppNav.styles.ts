@@ -80,15 +80,15 @@ export const style = {
   dueBadge:
     "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-[5px] text-[11px] font-semibold tabular-nums text-on-accent",
   // The right end of the bar from lg; the sheet's lower part below lg (a
-  // hairline, then Settings, Status and "?").
+  // hairline, then Sources, Settings, Status and "?").
   endGroup:
     "flex flex-col border-t border-line text-[12.5px] text-ink-faint lg:ml-auto lg:flex-row lg:items-center lg:gap-3 lg:whitespace-nowrap lg:border-t-0",
-  // The end cluster: Settings, Status and "?" behind a hairline from lg.
-  // Below lg, the sheet's foot row: Settings and Status on the left, "?"
+  // The end cluster: Sources, Settings, Status and "?" behind a hairline
+  // from lg. Below lg, the sheet's foot row: the links on the left, "?"
   // pushed to the right, under endGroup's own hairline (no second one now
   // that the sync row between them is gone).
   footRow: "flex items-center gap-5 border-line px-4 py-2 lg:gap-3 lg:border-l lg:py-0 lg:pl-3 lg:pr-0",
-  // Function, 1 param -> passed directly. Settings and Status.
+  // Function, 1 param -> passed directly. Sources, Settings and Status.
   endLink: (active: boolean): string =>
     clsx("transition-colors hover:text-ink", active ? "text-ink" : "text-ink-faint"),
 

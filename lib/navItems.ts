@@ -7,14 +7,16 @@ export interface NavItem {
   label: string;
   // Sub-items, shown as a dropdown on wide screens (Review › Cards).
   children?: NavItem[];
-  // Pinned to the right end of the bar (Settings, Status).
+  // Pinned to the right end of the bar (Sources, Settings, Status): the
+  // admin pages, apart from the study pages.
   end?: boolean;
   // The review due-count badge goes on this item (write mode only).
   showsDueCount?: boolean;
 }
 
 // Sources only with write mode on (isGalaxyEnabled()); proxy.ts 404s
-// /sources and everything under it otherwise.
+// /sources and everything under it otherwise. It's in the end group, first
+// (Sources · Settings · Status): you visit it to sync, not to study.
 export function navItems(writeEnabled: boolean): NavItem[] {
   return [
     { href: "/matches", label: "Matches" },
@@ -27,7 +29,7 @@ export function navItems(writeEnabled: boolean): NavItem[] {
       showsDueCount: true,
       children: [{ href: "/review/cards", label: "Cards" }],
     },
-    ...(writeEnabled ? [{ href: "/sources", label: "Sources" }] : []),
+    ...(writeEnabled ? [{ href: "/sources", label: "Sources", end: true }] : []),
     { href: "/settings", label: "Settings", end: true },
     { href: "/status", label: "Status", end: true },
   ];

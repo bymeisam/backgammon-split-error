@@ -319,7 +319,8 @@ Blunder's ink only on failure. A source's pages live under `/sources/<id>/`, wit
 breadcrumbs starting `Sources › <label>` (the label crumb links to
 `/sources#<id>`, the card). Galaxy's actions: "Add token" (the shared
 `TokenModal`, dismissible here) or "Sync", with the result on the card. The
-navbar has no sync line; syncing starts from the card.
+navbar has no sync line; syncing starts from the card. Sources sits in the
+navbar's end group, first (Sources · Settings · Status), as an admin page.
 
 - **Add a source** with a registry entry (and an actions component if it
   has any), not a new page layout.
