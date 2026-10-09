@@ -12,10 +12,11 @@
 //   npx tsx scripts/design-screenshots.ts
 //
 // Navbar shots (since 2026-10-09): at 768, 1024, 1280 and 1440, light and
-// dark, the top of /matches, the open Menu at 768 and 1024, and the Review ›
-// Cards dropdown at 1280 and 1440 (the row, from xl). Each one also
+// dark, the top of /matches, the open Menu at 768, and the Review › Cards
+// dropdown at 1024, 1280 and 1440 (the row, from lg). Each one also
 // measures the bar (scrollWidth against clientWidth, the slack: the free
-// space left in the row, and from xl the width the row needs) and prints a
+// space left in the row, and from lg the width the row needs; whether the
+// "Game Review" wordmark and the Menu button show) and prints a
 // table, written to nav-metrics-<write|readonly>.json too. The
 // file names carry the server's mode (nav-write-… / nav-readonly-…), read
 // from the page's mode badge. For the read-only shots start a second
@@ -49,8 +50,9 @@
 //                             are written.
 //
 // The review session's shots take the cards in queue order (new cards in the
-// order they were added): card 1 answered right, card 2 answered wrong,
-// card 3 (if any) answered right.
+// order they were added): card 1 answered with the best option, card 2
+// answered wrong, card 3 (if any) answered right but not best (a Good
+// answer) when it has such an option, else right.
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
@@ -77,7 +79,7 @@ interface QueueOption {
   correct: boolean;
 }
 interface QueueResponse {
-  cards: { cardId: number; options: QueueOption[] }[];
+  cards: { cardId: number; bestKey: string; options: QueueOption[] }[];
 }
 
 function arg(name: string): string | undefined {
@@ -113,9 +115,9 @@ const VARIANTS: Variant[] = [
   { width: 390, theme: "dark" },
 ];
 
-// The navbar shots' widths: below md (768 is md itself, the right-hand
-// Menu panel), the panel at 1024, and the full row at 1280 (xl itself, the
-// tightest row) and 1440.
+// The navbar shots' widths: the Menu panel at 768 (md itself), the full
+// row at 1024 (lg itself, the tightest row, with the wordmark hidden), 1280
+// (xl, the wordmark back) and 1440.
 const NAV_VARIANTS: Variant[] = ([768, 1024, 1280, 1440] as const).flatMap((width) =>
   (["light", "dark"] as const).map((theme) => ({ width, theme }))
 );
@@ -183,10 +185,10 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     return;
   }
 
-  const plan: { label: string; correct: boolean }[] = [
-    { label: "card1", correct: true },
-    { label: "card2", correct: false },
-    { label: "card3", correct: true },
+  const plan: { label: string; want: "best" | "wrong" | "good" }[] = [
+    { label: "card1", want: "best" },
+    { label: "card2", want: "wrong" },
+    { label: "card3", want: "good" },
   ];
   for (const [i, step] of plan.entries()) {
     const card = queue.cards[i];
@@ -194,7 +196,13 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     await page.locator(`[data-testid="review-question"][data-card-id="${card.cardId}"]`).waitFor();
     await settle(page);
     await shoot(`review-${step.label}-front`, "viewport");
-    const option = card.options.find((o) => o.correct === step.correct) ?? card.options[0];
+    const option =
+      (step.want === "best" && card.options.find((o) => o.key === card.bestKey)) ||
+      (step.want === "good" && card.options.find((o) => o.correct && o.key !== card.bestKey)) ||
+      card.options.find((o) => o.correct === (step.want !== "wrong")) ||
+      card.options[0];
+    const kind = option.key === card.bestKey ? "best" : option.correct ? "good" : "wrong";
+    console.log(`review: ${step.label} answered ${kind} (${option.key})`);
     await page.locator(`[data-option-key="${option.key.replace(/"/g, '\\"')}"]`).click();
     await page.getByTestId("review-verdict").waitFor();
     if (!option.correct) await page.getByText("Recorded as Again ·").waitFor();
@@ -203,7 +211,9 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     await shoot(`review-${step.label}-back-${verdict}`, "viewport");
     await shoot(`review-${step.label}-back-${verdict}`, "full");
     // Checker backs have Yours / Best tabs under the board (Best is the
-    // default, shot above); h switches to Yours. Cube backs have none.
+    // default, shot above); h switches to Yours. Cube backs have none, and
+    // neither does a back whose answer is the best (one "Yours · Best"
+    // chip).
     const tabs = page.getByRole("tablist", { name: "Move shown on the board" });
     if (await tabs.isVisible()) {
       await page.keyboard.press("h");
@@ -338,7 +348,7 @@ const SHOTS: Shot[] = [
     name: "shortcuts-help",
     run: async (ctx) => {
       await openReplay(ctx.page, REPLAY_CHECKER_ERROR);
-      // Below xl the "?" button is inside the collapsed menu.
+      // Below lg the "?" button is inside the collapsed menu.
       await openMenuIfNarrow(ctx);
       await ctx.page.getByRole("button", { name: "Keyboard shortcuts" }).click();
       await ctx.page.getByTestId("shortcuts-help").waitFor();
@@ -364,20 +374,24 @@ interface NavMetric {
   mode: "write" | "readonly";
   // The bar's inner row: scrollWidth − clientWidth (0 = nothing overflows).
   overflow: number;
-  // The menu row itself (from xl): scrollWidth − clientWidth.
+  // The menu row itself (from lg): scrollWidth − clientWidth.
   menuOverflow: number;
-  // Free space left in the row. From xl: the gap between the links and the
-  // end group, minus the guaranteed 32px. Below xl: the gap between the
+  // Free space left in the row. From lg: the gap between the links and the
+  // end group, minus the guaranteed 32px. Below lg: the gap between the
   // brand and the mode badge + Menu, minus the row's 12px gap.
   slack: number;
-  // From xl: the px between the last link and the mode badge (≥ 32).
+  // From lg: the px between the last link and the mode badge (≥ 32).
   linkToEnd: number | null;
-  // From xl: the narrowest bar the full row fits in with its 32px gap (the
+  // From lg: the narrowest bar the full row fits in with its 32px gap (the
   // bar's width minus the slack). The bar is the viewport up to 1240px, so
   // this is the smallest viewport the row could take before the Menu.
   rowNeeds: number | null;
   // The end group's height (one line is the 30px buttons).
   endHeight: number;
+  // Whether the "Game Review" wordmark is visible (sr-only from lg to xl)
+  // and whether the Menu button shows (below lg only).
+  wordmark: boolean;
+  menuButton: boolean;
 }
 
 async function navMode(page: Page): Promise<"write" | "readonly"> {
@@ -396,6 +410,7 @@ async function measureNav(page: Page, variant: Variant, mode: NavMetric["mode"])
     const narrowEnd = inner.children[1];
     const wide = getComputedStyle(narrowEnd).display === "none";
     const linkToEnd = wide ? end.getBoundingClientRect().left - list.getBoundingClientRect().right : null;
+    const wordmark = brand.querySelector("span");
     return {
       overflow: inner.scrollWidth - inner.clientWidth,
       menuOverflow: wide ? menu.scrollWidth - menu.clientWidth : 0,
@@ -405,6 +420,8 @@ async function measureNav(page: Page, variant: Variant, mode: NavMetric["mode"])
       linkToEnd,
       rowNeeds: wide ? inner.getBoundingClientRect().width - (linkToEnd - 32) : null,
       endHeight: wide ? Math.round(end.getBoundingClientRect().height) : 0,
+      wordmark: !!wordmark && wordmark.getBoundingClientRect().width > 1,
+      menuButton: !wide,
     };
   })()`)) as Omit<NavMetric, "width" | "theme" | "mode">;
   return {
@@ -443,7 +460,7 @@ async function navShots(
       const mode = await navMode(page);
       metrics.push(await measureNav(page, variant, mode));
       await shoot(`nav-${mode}-top`);
-      if (variant.width < 1280) {
+      if (variant.width < 1024) {
         await page.getByRole("button", { name: "Menu" }).click();
         await page.waitForTimeout(200);
         await shoot(`nav-${mode}-menu-open`);
@@ -546,10 +563,10 @@ async function main(): Promise<void> {
   }
 
   if (metrics.length) {
-    console.log("nav: width theme mode | overflow menuOverflow | slack linkToEnd rowNeeds | endHeight");
+    console.log("nav: width theme mode | overflow menuOverflow | slack linkToEnd rowNeeds | endHeight | wordmark menuButton");
     for (const m of metrics) {
       console.log(
-        `nav: ${m.width} ${m.theme} ${m.mode} | ${m.overflow} ${m.menuOverflow} | ${m.slack} ${m.linkToEnd ?? "-"} ${m.rowNeeds ?? "-"} | ${m.endHeight}`
+        `nav: ${m.width} ${m.theme} ${m.mode} | ${m.overflow} ${m.menuOverflow} | ${m.slack} ${m.linkToEnd ?? "-"} ${m.rowNeeds ?? "-"} | ${m.endHeight} | ${m.wordmark} ${m.menuButton}`
       );
     }
     writeFileSync(path.join(OUT_DIR, `nav-metrics-${metrics[0].mode}.json`), JSON.stringify(metrics, null, 2));
