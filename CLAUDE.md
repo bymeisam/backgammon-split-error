@@ -26,7 +26,7 @@ Note: MySQL collation cannot be set via Prisma's schema DSL — it must be hand-
 
 When proposing a new column, say which of these it meets. Don't add columns ahead of a real need. Promote a value to a column deliberately when one of these appears (that means a migration plus a backfill, local first, then Oracle).
 
-`/galaxy/*` pages (and `/api/galaxy/*`) show data fetched live from Galaxy's website, not from our DB. They are read-only views: never attach user-authored data (notes, tags, etc.) or any other app write to them. User features go on DB-backed views only, such as /matches, /mistakes, /repeated-positions and the replay.
+`/sources/galaxy/*` pages (old `/galaxy/*` URLs redirect there) and `/api/galaxy/*` show data fetched live from Galaxy's website, not from our DB. They are read-only views: never attach user-authored data (notes, tags, etc.) or any other app write to them. User features go on DB-backed views only, such as /matches, /mistakes, /repeated-positions and the replay.
 
 `/status` (app/status/page.tsx) is a live snapshot — stack/DB versions, connection health, row counts, and latest migration are all read live and need no maintenance. After a change to the stack, DB engine, auth model, or overall architecture (not every feature — this is a much narrower trigger than the PROGRESS.md one above), update app/status/notes.ts so the page's "Notes" section stays accurate.
 

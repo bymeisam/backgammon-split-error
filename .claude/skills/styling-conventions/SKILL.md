@@ -233,7 +233,7 @@ export const style = {
 `app/components/match-analysis/BoardPanel.styles.ts` and
 `app/components/match-analysis/Dice.styles.ts` (both shared/promoted —
 `BoardPanel` is used across `/matches/[matchId]`,
-`/galaxy/matches/[matchId]`, and `/mistakes`; `Dice` is used
+`/sources/galaxy/matches/[matchId]`, and `/mistakes`; `Dice` is used
 independently by both `BoardPanel`'s render tree and
 `MistakesSection.tsx`, so it isn't exclusively either one's subcomponent
 and got its own file too), plus each of those three pages' own
