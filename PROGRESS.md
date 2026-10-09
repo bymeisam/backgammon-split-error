@@ -1045,3 +1045,30 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - the Sources card gains IN LIBRARY (DONE matches) and LATEST MATCH, not failures;
     - the agents keep `model: inherit`.
   - **Next:** the developer implements the report's 7 fixes; plan in `~/.claude/plans/my-claude-code-with-happy-valiant.md`.
+
+- **The design review's 7 fixes** (developer; `reports/2026-10-09-design-review-sources.md`). Commits `b56649b`, `3fecae3`, `8694363`, `6712f99`, `ace502e`. Local only: no schema change, no migration, no Oracle step.
+  - **Review back (fix 1, `b56649b`):** a wrong answer is Error amber everywhere: the chosen row (`bg-error-tint`), its bar, its loss and "Not quite." Cube cards too.
+  - **Navbar (fix 2, `3fecae3`):** the Menu breakpoint moves from xl to lg, and the "Game Review" wordmark is `sr-only` from lg to xl. `scripts/design-screenshots.ts` now:
+    - shoots the Review dropdown from 1024;
+    - records whether the wordmark and the Menu button show;
+    - answers card 1 with the best option and card 3 with a Good one where it can.
+  - **Sources card (fixes 3 and 7, `8694363`):** a `<dl>` of LAST SYNC ("4 days ago", with the exact time visible under it), LAST SYNC ADDED, IN LIBRARY (DONE matches) and LATEST MATCH.
+    - The new `sourceLibrary` aggregate on `prismaReadOnly` runs in parallel with the sync-run lookup.
+    - Edge states: never synced reads "Never" and a failed lookup "Unknown", each without ADDED. The library items hide at 0 DONE matches, or when their own lookup fails.
+    - Layout: title left and actions right from md, then the facts under a hairline. The sync success text is neutral.
+    - `lastSyncedParts`/`lastSyncedLabel` are removed; nothing else called them.
+  - **Nav order (fix 5, `6712f99`):** Sources is first in the end group (Sources · Settings · Status), write mode only.
+  - **Board chips (fixes 4 and 6, `ace502e`):**
+    - When your answer is the best, the review back shows one static "Yours · Best" chip, with no tabs and no ←/→ / h/l.
+    - The Best chip drops its duplicate "Best" badge.
+    - The active Good chip sits on `bg-sunken`.
+    - 10 visual baselines changed on purpose: the 9 board panels and decision-card (the Best badge), with near-bearoff and both-arrows also showing Good on sunken. The other 6 are unchanged.
+  - **Checks:** lint, tsc, 567 tests and the build pass, and the visual suite passes (15). Screenshots are in `design/screenshots/2026-10-09-sources-fixes/{clubroom,quiet-ink,midnight-felt}/`, plus `cube/clubroom/` for a wrong cube answer.
+    - Nav `overflow` is 0 at every width, theme and mode. The wordmark is hidden only at 1024, and the Menu button shows only at 768.
+    - Write-mode `rowNeeds` at 1024 / 1280: Clubroom 805.6 / 927.6, Quiet Ink 805.6 / 943.2, Midnight Felt 816 / 946.5 (3 due cards).
+    - /sources shows 4,378 matches, 28 added, the last sync at 5 Oct 2026, 15:00 and the latest match on 5 Oct 2026, the same as the DB.
+    - Temporary review cards (decisions 1268199, 1268271, 1268151, 1268281) went in and out through the API. ReviewCard, ReviewLog, Tag and DecisionTag are 0/0/0/0 before and after, and DecisionNote is unchanged (2 rows, same checksum).
+  - **Next:** the designer looks at the new shots. Open points:
+    - The single chip reads "YOURS · BEST [Best]", because the spec's badge rule only drops an exact label match.
+    - Without the badge, the Best chip's move sits a few px higher than the Played chip's.
+    - The 1024 nav with `Writes: Oracle · Reads: Local` still needs the user's env to shoot.
