@@ -30,7 +30,7 @@ export const style = {
   // otherwise.
   // Function, 2 params -> passed directly. Inset from the screen edge when
   // the page bleeds (see boardWrap). `single`: one chip across the row (the
-  // review back's "Yours · Best", when your answer is the best).
+  // review back's "Yours [Best]", when your answer is the best).
   decisionRow: (bleed: boolean, single: boolean): string =>
     clsx("grid gap-2.5", single ? "grid-cols-1" : "grid-cols-2", bleed && "mx-3 md:mx-0"),
   // Function, 3+ params -> one options object. The shown one tinted in its
@@ -49,8 +49,12 @@ export const style = {
           )
         : clsx("border-line bg-surface", opts.isButton && "opacity-85 hover:opacity-100")
     ),
+  // min-h-[16.5px] is the SeverityBadge's height (shared.severityChipShape:
+  // 10.5px text at leading-none plus py-[3px] twice), so a label without
+  // its badge (the Best chip) takes the same height as one with it and the
+  // moves under them line up.
   decisionLabel:
-    "flex items-center gap-2 text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-ink-faint",
+    "flex min-h-[16.5px] items-center gap-2 text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-ink-faint",
   // Function, 1 param -> passed directly. The move in its severity's ink.
   decisionMove: (tier: SeverityTier): string =>
     clsx("break-words font-mono text-[17px] font-medium leading-[1.2]", shared.severityText(tier)),

@@ -212,7 +212,7 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     await shoot(`review-${step.label}-back-${verdict}`, "full");
     // Checker backs have Yours / Best tabs under the board (Best is the
     // default, shot above); h switches to Yours. Cube backs have none, and
-    // neither does a back whose answer is the best (one "Yours · Best"
+    // neither does a back whose answer is the best (one "Yours [Best]"
     // chip).
     const tabs = page.getByRole("tablist", { name: "Move shown on the board" });
     if (await tabs.isVisible()) {

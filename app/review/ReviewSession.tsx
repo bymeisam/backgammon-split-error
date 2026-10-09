@@ -240,7 +240,7 @@ export default function ReviewSession({
               side: "back",
               correct: answer.correct,
               saveKind: save.kind,
-              // No tabs when your answer is the best: one "Yours · Best" chip
+              // No tabs when your answer is the best: one "Yours [Best]" chip
               // (BoardPanel), so ←/→ and h/l do nothing.
               hasTabs: current.card.question === "checker" && answer.chosen !== current.card.bestKey,
             }

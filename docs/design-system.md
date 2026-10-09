@@ -332,9 +332,10 @@ private to it), the arrows, the Played / Best chips (`decisionChip`) and,
 on DB-backed pages, the note and review tools. `bleed` for pages without
 side padding below md. `Dice` is separate (also used by the lists). A
 chip's severity badge is left out when it would repeat its label (the Best
-chip). The review back's Yours / Best tabs become one static "Yours · Best"
-chip when your answer is the best. An active Good chip sits on `bg-sunken`
-(Good has no tint).
+chip), and the label line is held at the badge's height so the moves line
+up either way. The review back's Yours / Best tabs become one static
+"Yours" chip with its Best badge ("YOURS [Best]") when your answer is the
+best. An active Good chip sits on `bg-sunken` (Good has no tint).
 
 - **Not** a new board drawing, and not colours for checkers, points or
   arrows outside the board tokens.

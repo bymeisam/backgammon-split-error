@@ -15,8 +15,8 @@ import { style, type ArrowTier } from "./BoardPanel.styles";
 // One of the Played / Best chips under the board: a tab button when the
 // page can switch the board between them, a static box otherwise. The
 // severity badge is left out when it would repeat the label ("Best" on the
-// Best chip); "Played [Best]" keeps it, since it says the played move was
-// the best one.
+// Best chip); "Played [Best]" and the review back's single "Yours [Best]"
+// keep it, since they say the move was the best one.
 function DecisionChip({
   label,
   tier,
@@ -113,7 +113,7 @@ export default function BoardPanel({
   // Review card back, checker cards: the Yours / Best tabs under the board
   // (the same chips as the Played / Best tabs, display only), switching
   // which move `quizArrows` draws through `moveTab` / `onSelectTab`. With
-  // `yoursIsBest` (your answer is the best move) one static "Yours · Best"
+  // `yoursIsBest` (your answer is the best move) one static "Yours [Best]"
   // chip instead, no tablist: the two tabs would be identical. Null (the
   // front, and cube cards, which have no arrows) shows none.
   quizTabs?: {
@@ -195,7 +195,7 @@ export default function BoardPanel({
         {selected && quiz && quizTabs?.yoursIsBest && (
           <div className={style.decisionRow(bleed, true)}>
             <DecisionChip
-              label="Yours · Best"
+              label="Yours"
               tier="best"
               move={quizTabs.best.label}
               detail={null}
