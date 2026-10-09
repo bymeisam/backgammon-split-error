@@ -1,5 +1,6 @@
-// Read-only queries for the app shell: the Galaxy card's "last synced" line
-// on /sources (lib/sources.ts) and the home dashboard's weekly mistakes.
+// Read-only queries for the app shell: the Galaxy card's status on /sources
+// (lib/sources.ts: the last sync and the library) and the home dashboard's
+// weekly mistakes.
 // prismaReadOnly only; nothing here writes. (The latest matches and the
 // current rating reuse lib/local-client.ts's listMatches; the due count is
 // lib/review/dueCount.ts.)
@@ -20,6 +21,21 @@ export async function latestFinishedSyncRun(): Promise<{ finishedAt: Date; match
     select: { finishedAt: true, matchesSynced: true },
   });
   return run?.finishedAt ? { finishedAt: run.finishedAt, matchesSynced: run.matchesSynced } : null;
+}
+
+// A source's library: how many of its matches are fully ingested
+// (ingestStatus DONE, the matches every view shows) and the latest played
+// date among them (Match.playedAt, Galaxy's serve time; see
+// docs/field-mapping.md). One aggregate. Match has no index on
+// ingestStatus, which is fine: it's about 4.4k rows, and /sources (write
+// mode only) is its one caller.
+export async function sourceLibrary(source: string): Promise<{ matches: number; latestPlayedAt: Date | null }> {
+  const agg = await prisma.match.aggregate({
+    where: { source, ingestStatus: "DONE" },
+    _count: { _all: true },
+    _max: { playedAt: true },
+  });
+  return { matches: agg._count._all, latestPlayedAt: agg._max.playedAt };
 }
 
 // The user's own errors and blunders in matches played in the last 7 days

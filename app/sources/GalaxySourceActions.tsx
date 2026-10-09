@@ -34,7 +34,7 @@ export default function GalaxySourceActions({ children }: { children?: ReactNode
         message?: string;
       };
       setState({ kind: "done", ok: true, message: json.message ?? "Sync finished." });
-      // Re-renders the server components (the card's "Last synced", the
+      // Re-renders the server components (the card's status facts, the
       // navbar's due count) with the new data.
       router.refresh();
     } catch (e) {

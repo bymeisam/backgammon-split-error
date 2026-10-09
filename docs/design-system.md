@@ -306,11 +306,16 @@ for client-side lists. Both are Prev / "Page N of M" / Next.
 ### Sources (`app/sources/`, `lib/sources.ts`)
 
 `/sources` (write mode only, gated by `proxy.ts`) shows one `Card` per data
-source from the registry in `lib/sources.ts`: the label as a section title,
-a one-line description, one status line (an overline over its value, e.g.
-"Last synced"), then the actions row (the source's own client actions, from
+source from the registry in `lib/sources.ts`, in two rows. The top row has
+the label as a section title and a one-line description on the left and,
+from md, the actions on the right (the source's own client actions, from
 `SOURCE_ACTIONS` in `app/sources/page.tsx`, then its links as compact
-secondary `Button`s). A source's pages live under `/sources/<id>/`, with
+secondary `Button`s); below md they stack. Under a hairline, the status
+facts as a `<dl>`: each an overline over its value, with an optional faint
+detail line (Galaxy: LAST SYNC "4 days ago" over the exact time, LAST SYNC
+ADDED, IN LIBRARY, LATEST MATCH), two per row on a phone and one line from
+sm. The sync's own result message is neutral (`text-ink-muted`), and
+Blunder's ink only on failure. A source's pages live under `/sources/<id>/`, with
 breadcrumbs starting `Sources › <label>` (the label crumb links to
 `/sources#<id>`, the card). Galaxy's actions: "Add token" (the shared
 `TokenModal`, dismissible here) or "Sync", with the result on the card. The

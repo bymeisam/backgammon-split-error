@@ -30,22 +30,29 @@ function SourceCard({ source, status }: { source: Source; status: SourceStatus }
       data-testid={`source-card-${source.id}`}
       className={style.card}
     >
-      <div className={style.cardHeader}>
-        <h2 id={`source-${source.id}-title`} className={style.cardTitle}>
-          {source.label}
-        </h2>
-        <p className={style.cardDescription}>{source.description}</p>
+      <div className={style.cardTop}>
+        <div className={style.cardHeader}>
+          <h2 id={`source-${source.id}-title`} className={style.cardTitle}>
+            {source.label}
+          </h2>
+          <p className={style.cardDescription}>{source.description}</p>
+        </div>
+        {Actions ? (
+          <Actions>{links}</Actions>
+        ) : (
+          <div className={style.actionsRow}>{links}</div>
+        )}
       </div>
-      <div className={style.status}>
-        <span className={style.statusLabel}>{status.label}</span>
-        <span className={style.statusValue} title={status.title}>
-          {status.value}
-        </span>
-      </div>
-      {Actions ? (
-        <Actions>{links}</Actions>
-      ) : (
-        <div className={style.actionsRow}>{links}</div>
+      {status.items.length > 0 && (
+        <dl className={style.statusList} data-testid={`source-status-${source.id}`}>
+          {status.items.map((item) => (
+            <div key={item.label} className={style.statusItem}>
+              <dt className={style.statusLabel}>{item.label}</dt>
+              <dd className={style.statusValue}>{item.value}</dd>
+              {item.detail && <dd className={style.statusDetail}>{item.detail}</dd>}
+            </div>
+          ))}
+        </dl>
       )}
     </Card>
   );

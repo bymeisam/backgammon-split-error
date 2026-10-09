@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTimeAgo, lastSyncedLabel, lastSyncedParts, tallyWeeklyMistakes } from "./dashboardStats";
+import { formatTimeAgo, tallyWeeklyMistakes } from "./dashboardStats";
 
 describe("tallyWeeklyMistakes", () => {
   it("folds grouped rows into the checker/cube grid, BigInt counts included", () => {
@@ -47,48 +47,5 @@ describe("formatTimeAgo", () => {
 
   it("reads a future time as just now", () => {
     expect(formatTimeAgo(new Date(2026, 9, 8, 16, 0, 0), now)).toBe("just now");
-  });
-});
-
-describe("lastSyncedLabel", () => {
-  const now = new Date(2026, 9, 8, 15, 0, 0);
-
-  it("says when and how many", () => {
-    expect(lastSyncedLabel({ finishedAt: new Date(2026, 9, 8, 14, 50, 0), matchesSynced: 3 }, now)).toBe(
-      "Synced 10 min ago · 3 matches"
-    );
-    expect(lastSyncedLabel({ finishedAt: new Date(2026, 9, 8, 14, 50, 0), matchesSynced: 1 }, now)).toBe(
-      "Synced 10 min ago · 1 match"
-    );
-  });
-
-  it("says never without a finished run", () => {
-    expect(lastSyncedLabel(null, now)).toBe("Never synced");
-  });
-});
-
-describe("lastSyncedParts", () => {
-  const now = new Date(2026, 9, 8, 15, 0, 0);
-
-  it("splits when from the count, the separator on the count", () => {
-    expect(lastSyncedParts({ finishedAt: new Date(2026, 9, 4, 9, 0, 0), matchesSynced: 28 }, now)).toEqual({
-      when: "Synced 4 days ago",
-      count: " · 28 matches",
-    });
-    expect(lastSyncedParts({ finishedAt: new Date(2026, 9, 8, 14, 50, 0), matchesSynced: 1 }, now)).toEqual({
-      when: "Synced 10 min ago",
-      count: " · 1 match",
-    });
-  });
-
-  it("says never, with no count, without a finished run", () => {
-    expect(lastSyncedParts(null, now)).toEqual({ when: "Never synced", count: "" });
-  });
-
-  it("joins back into lastSyncedLabel", () => {
-    const run = { finishedAt: new Date(2026, 9, 8, 12, 0, 0), matchesSynced: 0 };
-    const { when, count } = lastSyncedParts(run, now);
-    expect(when + count).toBe(lastSyncedLabel(run, now));
-    expect(when + count).toBe("Synced 3 h ago · 0 matches");
   });
 });
