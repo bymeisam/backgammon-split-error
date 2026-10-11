@@ -187,6 +187,11 @@ row if needed and shows the pending-approval state without exposing application
 data. APIs return an unauthorized/protection response for signed-out requests
 and deny non-owners.
 
+Temporary exception: `/position-builder` is public while the builder is being
+developed. It is client-only, keeps edits in memory, and must not read or
+write application data. Remove its public `proxy.ts` and root-layout
+exceptions before connecting save or analysis.
+
 `ENABLE_WRITE_MODE` remains the deployment-level Galaxy/write gate. Clerk
 ownership does not turn hosted Galaxy writes on: hosted deployments should
 continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. The separate
@@ -196,9 +201,11 @@ not have access to the source/study write paths.
 ## Auth verification (do this after every deploy)
 
 Open the production URL in a private/incognito window. It must redirect to
-`/sign-in`; a signed-in user lacking either owner flag must land on
-`/auth/complete` and receive no application data. Verify the approved owner's
-Clerk private metadata and local `AppUser` row separately after migrations.
+`/sign-in`; `/position-builder` is the only temporary public application
+route and must render without database access. A signed-in user lacking
+either owner flag must land on `/auth/complete` and receive no application
+data. Verify the approved owner's Clerk private metadata and local
+`AppUser` row separately after migrations.
 
 ## Making the Claude PR review actually block merges (manual, GitHub settings)
 

@@ -1,14 +1,18 @@
 "use client";
 
+import type { KeyboardEvent } from "react";
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { ParsedSubMove } from "@/lib/backgammonNotation";
 import type { BoardCube } from "@/lib/boardFrame";
 import {
+  BAR_W,
+  CENTER_Y,
   BAR_COL,
   BOARD_H,
   BOARD_W,
   CUBE_BADGE_R,
   DIE_SIZE,
+  ROW_H,
   MAX_STACK,
   NUMBER_BOTTOM_Y,
   NUMBER_TOP_Y,
@@ -207,8 +211,11 @@ export default function Board({
   subMoves = [],
   arrowTier = "blunder",
   roll = [],
+  rollSide,
   flipped = false,
   cube = null,
+  onPointClick,
+  onBarClick,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
@@ -216,6 +223,10 @@ export default function Board({
   // BoardPanel.styles.ts's arrow).
   arrowTier?: ArrowTier;
   roll?: number[];
+  // The side whose dice are being shown. Existing callers inherit the
+  // perspective-derived default; the position builder can keep a fixed board
+  // orientation while changing whose roll it is.
+  rollSide?: Side;
   // Checker positions and arrow anchoring both come from `decoded`/
   // `subMoves` as given — BoardPanel.tsx applies flipPerspective/
   // mirrorSubMoves to them *before* they arrive here when a
@@ -230,9 +241,24 @@ export default function Board({
   // lib/boardFrame.ts's boardCubeFor. Default null renders no cube at all
   // (e.g. no selected decision yet), not a centered one.
   cube?: BoardCube | null;
+  // Optional keyboard-accessible edit targets used by the position builder.
+  onPointClick?: (point: number) => void;
+  onBarClick?: (side: Side) => void;
 }) {
+  const interactive = Boolean(onPointClick || onBarClick);
+  const drawnRollSide = rollSide ?? (flipped ? "opponent" : "mine");
+  const activate = (event: KeyboardEvent<SVGElement>, callback: () => void) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    callback();
+  };
   return (
-    <svg viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} className={style.boardSvg} role="img" aria-label="Backgammon board">
+    <svg
+      viewBox={`0 0 ${BOARD_W} ${BOARD_H}`}
+      className={style.boardSvg}
+      role={interactive ? "group" : "img"}
+      aria-label="Backgammon board"
+    >
       {/* The walnut frame: the outer band, the cube gutter, the bar and the
           tray column are all frame; the two playing halves are bone. */}
       <rect x={0} y={0} width={BOARD_W} height={BOARD_H} rx={14} className={style.boardFrame} />
@@ -316,8 +342,40 @@ export default function Board({
       {/* dice, in roll order, in the mover's colour (a flipped board is
           showing the opponent's turn) */}
       {roll.slice(0, 2).map((value, i) => (
-        <BoardDie key={i} value={value} index={i} side={flipped ? "opponent" : "mine"} />
+        <BoardDie key={i} value={value} index={i} side={drawnRollSide} />
       ))}
+      {onPointClick &&
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
+          <polygon
+            key={`target-point-${point}`}
+            points={trianglePoints(point)}
+            fill="transparent"
+            className={style.interactiveTarget}
+            role="button"
+            tabIndex={0}
+            aria-label={`Edit point ${point}`}
+            onClick={() => onPointClick(point)}
+            onKeyDown={(event) => activate(event, () => onPointClick(point))}
+          />
+        ))}
+
+      {onBarClick &&
+        (["opponent", "mine"] as const).map((side) => (
+          <rect
+            key={`target-bar-${side}`}
+            x={colX(BAR_COL)}
+            y={side === "mine" ? CENTER_Y : Y0}
+            width={BAR_W}
+            height={ROW_H}
+            fill="transparent"
+            className={style.interactiveTarget}
+            role="button"
+            tabIndex={0}
+            aria-label={`Edit ${side === "mine" ? "bottom" : "top"} bar`}
+            onClick={() => onBarClick(side)}
+            onKeyDown={(event) => activate(event, () => onBarClick(side))}
+          />
+        ))}
     </svg>
   );
 }

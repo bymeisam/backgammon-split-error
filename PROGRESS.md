@@ -1099,4 +1099,9 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
 - Checks: The final guard cleanup passes `npm run lint`, `npx tsc --noEmit`, and `npm run build`.
 - What changed: Restored the missing `import "./globals.css";` in `app/layout.tsx`; auth-layout edits had removed the root stylesheet import, leaving the main page unstyled.
 - Checks: `npm run build` passes and emits the compiled stylesheet at `.next/static/chunks/2l4bv8dm33-cg.css`.
+- **Position builder (approved feature, no persistence):** Added the public `/position-builder` route as a temporary auth-wall exception. It is client-only and keeps all edits in memory; no database schema, match, game, decision, source, or study table changed.
+  - `lib/positionBuilder.ts` owns the pure position state, standard/empty presets, checker editing, and validation for 15-checker totals, point collisions, rolls, scores, match lengths, and cube ownership.
+  - `app/components/match-analysis/Board.tsx` now exposes keyboard-accessible point and bar hit targets. The builder supports side/action selection, starting/clear presets, roll, player to move, score, match length, cube value, and cube owner.
+  - Added `lib/positionBuilder.test.ts`; the builder is documented as temporary in `app/status/notes.ts` and `docs/deploy.md`. Remove the public `proxy.ts` and root-layout exceptions before adding save or analysis.
+  - Checks: lint, typecheck, 49 test files / 571 tests, production build, and a browser smoke of `/position-builder` passed. Smoke verified a checker edit, dice selection, accessible controls, and rendered board; no DB access was used.
 

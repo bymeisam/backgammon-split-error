@@ -18,7 +18,14 @@ function isGalaxyPath(pathname: string): boolean {
 }
 
 function isPublicPath(pathname: string): boolean {
-  return pathname === "/sign-in" || pathname.startsWith("/sign-in/") || pathname === "/auth/complete";
+  // Temporary: the builder is client-only and does not read application data.
+  return (
+    pathname === "/sign-in" ||
+    pathname.startsWith("/sign-in/") ||
+    pathname === "/auth/complete" ||
+    pathname === "/position-builder" ||
+    pathname.startsWith("/position-builder/")
+  );
 }
 
 export default clerkMiddleware(async (auth, req) => {
