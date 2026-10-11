@@ -1072,3 +1072,31 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - The single chip reads "YOURS · BEST [Best]", because the spec's badge rule only drops an exact label match.
     - Without the badge, the Best chip's move sits a few px higher than the Played chip's.
     - The 1024 nav with `Writes: Oracle · Reads: Local` still needs the user's env to shoot.
+
+## 2026-10-11
+- What changed: Added repository-level assistant restrictions to `AGENTS.md`, adapted from the Claude project rules so future coding sessions preserve the read-only investigator role, approved-spec implementation boundary, environment and Oracle safety rules, schema/source-data invariants, styling convention, design-review trigger, verification requirement, and progress-log upkeep.
+- What's next: Apply these restrictions to future repository work.
+- What changed: Converted the Claude hook behavior into explicit assistant tool policies in `AGENTS.md`: safe inspection and mutation tools, path and environment-file protections, investigator/designer/developer capability boundaries, database and network restrictions, and fail-closed handling.
+- What changed: Mapped the Claude `investigator`, `developer`, and `designer` roles to this runtime's `scout`, `task`, and `reviewer`/constrained `task` agents in `AGENTS.md`, while keeping orchestration and final verification in the main session.
+- What changed: Made the assistant's orchestrator role explicit in `AGENTS.md`: it selects agents, owns planning and handoffs, integrates results, and performs final verification.
+
+## 2026-10-11
+- What changed: Implemented the Clerk invite-only authentication wall. Added the `AppUser` table and migration only; existing Match, Game, Decision, source, and study tables remain unchanged. First signed-in access provisions the local row with the Clerk display name and `isOwner=false`.
+- What changed: Protected pages and API handlers with Clerk plus the dual owner check: local `AppUser.isOwner=true` and Clerk private metadata `isOwner=true`. Added the sign-in and auth-completion surfaces, user control in the navigation, narrow `DATABASE_URL_AUTH` handling, and deployment documentation.
+- What changed: Added Clerk proxy route coverage while preserving the existing Galaxy write gate.
+- Checks: `npx prisma generate`, `npm run lint`, `npx tsc --noEmit`, `npm test` (48 files, 567 tests), and `npm run build` pass. Production smoke reached the app but Clerk correctly failed closed because the required keys are not configured. Visual tests could not start for the same missing-key condition. No environment file was read or modified, and no Oracle migration was run.
+- What's next: Configure deployed Clerk keys and invite-only settings, apply the AppUser migration in each target database, grant `DATABASE_URL_AUTH` only `SELECT/INSERT/UPDATE` on `AppUser`, invite the owner, then set both owner flags and exercise the sign-in flow.
+
+## 2026-10-11
+- What changed: Fixed the post-login Clerk runtime error. `/auth/complete` and `/sign-in` now run through `clerkMiddleware()` without calling `auth.protect()`, so Clerk's `auth()` context is available while those routes remain public.
+- What changed: Removed the app navigation from public auth surfaces and rebuilt the sign-in landing surface with the app's theme tokens, branding, invitation-only copy, and Clerk sign-in card.
+- Checks: `npm run lint`, `npx tsc --noEmit`, `npm test` (48 files, 567 tests), and `npm run build` pass. Direct local smoke was limited because the local Clerk session/backend was unavailable; the server response timed out without completing a browser-authenticated flow.
+- What changed: Approved users now redirect from `/auth/complete` to `/` after both owner checks pass; unapproved users remain on the pending screen.
+- What changed: Applied `20261011120000_add_app_user` to the local MySQL `app_dev` database after the reported missing-table error. `npx prisma migrate status` now reports the database schema is up to date. No Oracle or production migration was run.
+- What changed: Replaced the root-layout `notFound()` path with a redirect to `/auth/complete` for signed-in users who lack either owner flag. API guards retain their 404/unauthorized behavior. Updated deployment and status documentation.
+- Checks: `npm run lint`, `npx tsc --noEmit`, `npm test` (48 files, 567 tests), and `npm run build` pass.
+- What changed: Database failures in the root document guard now remain visible as errors instead of being misclassified as pending approval; only a signed-in user who fails the owner flags is redirected.
+- Checks: The final guard cleanup passes `npm run lint`, `npx tsc --noEmit`, and `npm run build`.
+- What changed: Restored the missing `import "./globals.css";` in `app/layout.tsx`; auth-layout edits had removed the root stylesheet import, leaving the main page unstyled.
+- Checks: `npm run build` passes and emits the compiled stylesheet at `.next/static/chunks/2l4bv8dm33-cg.css`.
+

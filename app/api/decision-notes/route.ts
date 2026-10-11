@@ -3,6 +3,7 @@ import { prismaReadOnly } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import type { MatchDecisionNotesResponse } from "@/lib/decisionNotes";
 import { isReviewEligible } from "@/lib/review/eligibility";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,8 @@ const SOURCE = "galaxy";
 // through prismaReadOnly, same as /api/matches/*. canEdit tells the client
 // whether the (gated) save route is reachable.
 export async function GET(req: NextRequest) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const matchId = req.nextUrl.searchParams.get("matchId");
   if (!matchId) {
     return NextResponse.json({ error: "matchId is required." }, { status: 400 });

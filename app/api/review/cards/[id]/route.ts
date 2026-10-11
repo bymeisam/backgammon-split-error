@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { positiveId, readJsonObject } from "@/lib/review/requests";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ type Params = { params: Promise<{ id: string }> };
 //
 // Read-write client. Gated by proxy.ts (/api/review/:path*).
 export async function PATCH(req: Request, { params }: Params) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const id = positiveId((await params).id);
   if (id === null) return NextResponse.json({ error: "Card id must be a positive integer." }, { status: 400 });
   const body = await readJsonObject(req);
@@ -28,6 +31,8 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const id = positiveId((await params).id);
   if (id === null) return NextResponse.json({ error: "Card id must be a positive integer." }, { status: 400 });
   const deleted = await prisma.reviewCard.deleteMany({ where: { id } });

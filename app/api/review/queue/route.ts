@@ -7,6 +7,7 @@ import { loadQueuePlan } from "@/lib/review/queuePlan";
 import { buildCardPayload, REVIEW_CARD_SELECT } from "@/lib/review/cardPayload";
 import type { ReviewCardPayload, ReviewQueueResponse } from "@/lib/review/types";
 
+import { requireOwnerApi } from "@/lib/app-auth";
 export const dynamic = "force-dynamic";
 
 // GET /api/review/queue?tag=&phase=&category=&severity=&exclude=1,2,3
@@ -20,6 +21,8 @@ export const dynamic = "force-dynamic";
 // client: it only reads. Under /api/review/, so gated by proxy.ts like the
 // writes — /review itself only runs a session with write mode on.
 export async function GET(req: NextRequest) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const sp = req.nextUrl.searchParams;
   const filters = reviewFiltersFrom((k) => sp.get(k) ?? undefined);
   const exclude = new Set(parseIdList(sp.get("exclude")));

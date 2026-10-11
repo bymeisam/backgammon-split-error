@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireOwnerApi } from "@/lib/app-auth";
 import { ingestMatch, parseMatchIndexData } from "@/lib/ingest";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +8,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> }
 ) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const { matchId: matchIdParam } = await params;
   const matchId = Number(matchIdParam);
 

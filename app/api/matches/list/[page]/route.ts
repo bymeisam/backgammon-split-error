@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { localClient } from "@/lib/local-client";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,8 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ page: string }> }
 ) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const { page: pageParam } = await params;
   const page = Number(pageParam);
 

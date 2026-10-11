@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireOwnerApi } from "@/lib/app-auth";
 import { runSync } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
 const MAX_MATCHES_PER_REQUEST = 20;
 
 export async function POST(req: NextRequest) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   let body: { authorization?: string };
   try {
     body = await req.json();

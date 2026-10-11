@@ -388,3 +388,14 @@ model DecisionTag {
   @@id([decisionId, tagId])
   @@index([tagId])
 }
+// Clerk-authenticated application user. The externally sourced Clerk ID is
+// pinned to binary collation in the migration SQL (Prisma schema cannot express
+// MySQL collations).
+model AppUser {
+  id          Int      @id @default(autoincrement())
+  clerkUserId String   @unique @db.VarChar(191)
+  displayName String
+  isOwner     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

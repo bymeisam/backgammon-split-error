@@ -95,8 +95,8 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Why deferred:** for now, notes appear wherever a decision is shown, plus a dot on list rows. Build this once there are enough notes to make browsing them worthwhile.
 
 ### Notes visible only to the match owner
-- **Idea:** once the app has auth, show a note (pages and `/api/decision-notes`) only to the owner of the match it belongs to. Today, notes on Oracle are readable by anyone on the public read-only site.
-- **Why deferred:** there's no auth yet. The user accepted public notes for now (2026-10-06).
+- **Idea:** once the app has auth, show a note (pages and `/api/decision-notes`) only to the owner of the match it belongs to. The current Clerk wall protects the single approved app owner; per-match ownership is still not modeled.
+- **Why deferred:** source data remains shared and the current deployment admits one owner. Per-user study ownership will require a separate data-model decision.
 
 ## Progress tracking
 
@@ -107,8 +107,9 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 ## Deployment and auth
 
 ### Vercel deploy behind auth
-- **Idea:** deploy to Vercel as a read-only viewer first, with the Galaxy pages and routes hidden until the app sits behind an auth wall that admits only you.
-- **Notes:** the first part already exists. The app is deployable as a read-only viewer (`app/status/notes.ts`, `docs/deploy.md`), and `/galaxy/*` plus the write routes return 404 unless `ENABLE_WRITE_MODE` is set (`proxy.ts`, `lib/galaxyGate.ts`). The open part is the auth wall. That same auth is what [owner-only notes](#notes-visible-only-to-the-match-owner) and the [forum](#forum) need.
+- **Idea:** deploy to Vercel as a read-only viewer behind an auth wall that admits only you.
+- **Status:** implemented with Clerk's invite-only sign-in, a local `AppUser` allowlist, and independent owner flags in Clerk private metadata and the local database. The app remains read-only unless `ENABLE_WRITE_MODE` and the regular write credential are deliberately enabled.
+- **Follow-up:** configure the Vercel Clerk keys, create the `DATABASE_URL_AUTH` AppUser-only grant, apply the AppUser migration, and set both owner flags for the approved account.
 - **Source:** user's idea list, 2026-10-06.
 
 ## Settings

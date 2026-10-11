@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
 // "which side is you" by hand. Uses the read-only client — this route never
 // writes.
 export async function GET() {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const identities = await prisma.playerIdentity.findMany();
   return NextResponse.json(identities);
 }

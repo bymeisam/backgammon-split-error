@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismaReadOnly } from "@/lib/prisma";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 // autocomplete. Read-only client. Under /api/tags, so gated by proxy.ts:
 // only the (write-mode) tag editor uses it.
 export async function GET() {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const tags = await prismaReadOnly.tag.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true, _count: { select: { decisions: true } } },

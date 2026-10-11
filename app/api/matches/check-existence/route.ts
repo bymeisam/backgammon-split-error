@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 // lookups. A match that's merely index-synced (PENDING/INGESTING/FAILED)
 // isn't "done" yet, so it's deliberately excluded here and still needs Sync.
 export async function GET(req: NextRequest) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const raw = req.nextUrl.searchParams.get("matchIds") ?? "";
   const matchIds = raw
     .split(",")

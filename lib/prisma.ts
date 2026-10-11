@@ -53,7 +53,7 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
   // holds its own pool), and Oracle HeatWave's Always Free tier caps total
   // concurrent connections low. mariadb's own default (10 per pool, see
   // node_modules/mariadb/lib/config/pool-options.js) was never overridden
-  // here, so each of this file's two pools (prisma, prismaReadOnly) — times
+  // this file's three pools (prisma, prismaReadOnly, prismaAuth) — times
   // however many concurrent serverless instances Vercel spins up — could
   // multiply into the dozens/hundreds. A small fixed cap keeps any single
   // instance's footprint tiny; the mariadb driver queues excess concurrent
@@ -92,10 +92,9 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
 // log a clear, actionable hint before rethrowing the original error
 // unchanged. Purely additive — no caller's existing catch/retry behavior
 // changes, this only adds a console line pointing at the real cause.
-// Applied to both `prisma`/`prismaReadOnly` below, so it covers everything
-// that goes through either shared client (ingest, sync, every page/route
-// that reads/writes via them) — not just the few call sites that happen to
-// check for this explicitly (app/status/page.tsx, lib/sync.ts).
+// Applied to all shared clients (ingest, sync, every page/route that reads or
+// writes via them) — not just the few call sites that happen to check this
+// explicitly.
 function withOracleCertCheck(client: PrismaClient): PrismaClient {
   return client.$extends({
     query: {
@@ -113,46 +112,33 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
   }) as unknown as PrismaClient;
 }
 
-// Two separate clients, each scoped to the minimum privilege its callers
+// Three separate clients, each scoped to the minimum privilege its callers
 // actually need — see docs/field-mapping.md's "Credential scoping" section
 // for the full call-site list and rationale.
 //
 //   prisma          -> DATABASE_URL. Read-write/admin (bg_db_rw in
-//                      production) — ingest (lib/ingest.ts), sync
-//                      (lib/sync.ts, scripts/backfill.ts,
-//                      scripts/incremental-sync.ts, /api/sync/incremental),
-//                      and `prisma migrate deploy` itself all read this same
-//                      var. Migrations need CREATE/ALTER/INDEX/REFERENCES
-//                      beyond plain app read-write, so this intentionally
-//                      stays on full admin credentials rather than a
-//                      narrower app-only read-write user.
+//                      production) — ingest, sync and migrations.
 //   prismaReadOnly  -> DATABASE_URL_READONLY. SELECT-only (bg_db_ro in
-//                      production) — anything that only ever queries:
-//                      lib/local-client.ts, app/api/player-identities,
-//                      app/status, and future read-only diagnostic scripts.
+//                      production) — pages, APIs and diagnostics that only
+//                      read.
+//   prismaAuth      -> DATABASE_URL_AUTH in production. It only provisions
+//                      AppUser rows; local development falls back to
+//                      DATABASE_URL so the existing local setup keeps working.
 //
-// A single helper builds both, so the two don't duplicate the
-// adapter/client construction boilerplate.
+// The production auth credential should have SELECT/INSERT/UPDATE permission
+// on AppUser only. It must not be the ingest/migration credential.
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
   prismaReadOnly?: PrismaClient;
+  prismaAuth?: PrismaClient;
 };
 
-// Lazy on purpose: this module is imported by anything that touches either
-// client, including files that only ever use prismaReadOnly (e.g.
-// lib/local-client.ts, app/status/page.tsx, app/api/player-identities). ES
-// module evaluation runs every top-level statement in a file regardless of
-// which export the importer actually uses, so an eager `new PrismaClient(...)`
-// here for `prisma` would throw the instant DATABASE_URL is unset — which is
-// the normal, expected state in production/preview (only DATABASE_URL_READONLY
-// is set there; see docs/deploy.md) and in CI (no real DB credentials at all,
-// see .github/workflows/ci.yml). A Proxy defers both the env-var check and
-// the actual PrismaClient/pool construction until the first real property
-// access (e.g. `prisma.match.findMany`), so importing this module — or even
-// importing `prisma` without ever calling a method on it — never throws.
-// Real usage of an unconfigured client still throws immediately and loudly;
-// nothing about the write client actually
-// being used without DATABASE_URL is silently tolerated.
+// Lazy on purpose: this module is imported by anything that touches a client,
+// including files that only ever use prismaReadOnly. ES module evaluation runs
+// every top-level statement in a file regardless of which export the importer
+// actually uses, so an eager client would throw when an environment variable
+// is absent. A Proxy defers each environment-variable check and pool
+// construction until the first real property access.
 function createLazyClient(url: string | undefined, envVarName: string): PrismaClient {
   let client: PrismaClient | undefined;
   function get(): PrismaClient {
@@ -183,9 +169,19 @@ export const prismaReadOnly =
   globalForPrisma.prismaReadOnly ??
   createLazyClient(process.env.DATABASE_URL_READONLY, "DATABASE_URL_READONLY");
 
+const authDatabaseUrl =
+  process.env.DATABASE_URL_AUTH ??
+  (process.env.NODE_ENV === "production" ? undefined : process.env.DATABASE_URL);
+const authDatabaseEnvName =
+  process.env.NODE_ENV === "production" ? "DATABASE_URL_AUTH" : "DATABASE_URL_AUTH or DATABASE_URL";
+
+export const prismaAuth =
+  globalForPrisma.prismaAuth ?? createLazyClient(authDatabaseUrl, authDatabaseEnvName);
+
 // Standard Next.js dev singleton: without this, hot reload creates new
 // PrismaClients (and connection pools) on every edit.
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
   globalForPrisma.prismaReadOnly = prismaReadOnly;
+  globalForPrisma.prismaAuth = prismaAuth;
 }

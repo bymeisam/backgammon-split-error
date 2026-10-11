@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createGalaxyClient } from "@/lib/galaxy-client";
+import { requireOwnerApi } from "@/lib/app-auth";
 import { prisma } from "@/lib/prisma";
 
 const SOURCE = "galaxy";
@@ -10,6 +11,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ page: string }> }
 ) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const { page: pageParam } = await params;
   const page = Number(pageParam);
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { positiveId, readJsonObject } from "@/lib/review/requests";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
 //
 // Read-write client. Gated by proxy.ts (/api/tags/:path*).
 export async function POST(req: Request) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const body = await readJsonObject(req);
   const decisionId = positiveId(body?.decisionId);
   const tagId = positiveId(body?.tagId);
