@@ -129,6 +129,7 @@ export default function CheckerMoveExplorer({
           interactiveBarLabel={() => selected === "bar" ? "Move checker from the bar" : "Select checker on the bar"}
           interactiveBarClassName={barClassName}
         />
+      </div>
       <div className={style.statusRow} aria-live="polite">
         <span className={status === "complete" ? style.statusComplete : status === "no-legal-move" ? style.statusNoMove : style.status}>
           {status === "complete" && "Move complete."}
