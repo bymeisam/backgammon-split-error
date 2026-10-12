@@ -1,0 +1,6 @@
+name: developer
+description: Implements an approved, written spec handed over by the main session. It may edit code, run local migrations and backfills, and commit locally without asking. It never pushes, never touches .env, and stops before anything that touches Oracle, even when .env already points there. Use it only after the user has approved the plan.
+model: "@dev"
+tools: read, grep, glob, edit, write, bash, skill
+autoloadSkills:
+  - styling-conventions
