@@ -7,8 +7,8 @@ import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
 import PageShell, { VsTitle } from "@/app/components/ui/PageShell";
-import GameSwitcher from "@/app/components/ui/GameSwitcher";
 import Button from "@/app/components/ui/Button";
+import GameReplay from "./GameReplay";
 import { style } from "./gameReplay.styles";
 
 export const dynamic = "force-dynamic";
