@@ -9,7 +9,7 @@ This app is a personal training tool. The user is building it to improve their o
 
 New games are synced every day, so there's plenty of data. Judge features and data fixes by whether they help with that. Imperfect or unanalysed data that never shows up in the user's error and blunder lists doesn't need special handling (exclusion flags, filters, clean-up). Don't build machinery for it unless asked.
 
-See PROGRESS.md for session-by-session history before starting new work.
+Start a session by reading `docs/current-state.md` (a short snapshot of where things stand). Don't read `PROGRESS.md` at the start of a session. It's the history log, so read it only when you need it: grep it (and `docs/progress-archive/`) for the history behind something, for example why a decision was made, or what has already been run on Oracle.
 
 After completing a meaningful piece of work — a schema change, a working feature, a fixed bug, not every small edit — append a dated entry to PROGRESS.md summarizing what changed and what's next. If today's date already has an entry, add to it rather than creating a duplicate heading.
 
@@ -38,6 +38,8 @@ The main session advises, plans and orchestrates. Three subagents do the work:
 - **`designer`** (`.claude/agents/designer.md`): UI/UX reviewer. It studies screenshots (made by `scripts/design-screenshots.ts`) and the styling code, and writes design reports to `reports/` and mockups to `design/mockups/`. It proposes and never implements: app-code changes go through the usual plan → user approval → developer flow.
 - **When the designer reviews.** If a change **adds a new page or a new kind of visible component** (e.g. a new drill screen, a new card type, a new panel), the developer takes screenshots with `scripts/design-screenshots.ts` and the designer reviews them before the work counts as done. Small UI tweaks, logic-only changes and data work skip this. The automatic guardrails (`docs/design-system.md`, the `styling-conventions` skill, the shared `app/components/ui/` components, the style-guard test and the visual suite) cover everyday consistency.
 
+- **One batch of work per session.** Everything in a session is re-sent on every turn, so a session that runs for days gets expensive on every call. When a batch is done (developer reported, investigator checked, PROGRESS.md updated), run `/wrap-up`, which rewrites `docs/current-state.md`, and tell the user it's a good point to `/clear`. `.claude/settings.json` sets `autoCompactWindow` to 350k as a safety net, not as the plan.
+- **Keep handoffs lean.** Agents re-send everything they've loaded on every call. In specs and questions, name the exact files and sections (for example "docs/field-mapping.md § Decision") so agents don't explore. Keep developer specs to one phase per run.
 - Discuss ideas with the user first. Don't start implementing from a discussion.
 - Send factual questions about the code, the data or Galaxy to the investigator. Don't answer them from assumption.
 - Write a plan and wait for the user's explicit approval before handing anything to the developer.

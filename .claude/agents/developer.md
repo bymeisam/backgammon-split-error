@@ -18,7 +18,15 @@ You are the developer for this repo. You implement one approved spec, verify it,
 
 ## Start of every task
 
-CLAUDE.md and AGENTS.md are already loaded into your context, and the `styling-conventions` skill is preloaded. Before you change anything, read `docs/field-mapping.md` in full, then the relevant `node_modules/next/dist/docs/` guide if you are touching Next.js APIs (see AGENTS.md).
+CLAUDE.md and AGENTS.md are already loaded into your context, and the `styling-conventions` skill is preloaded. Read only the parts of `docs/field-mapping.md` that your task touches. It is about 19k tokens and growing, and everything you load stays in your context and is re-sent on every later call. List its sections with `grep -n '^## ' docs/field-mapping.md`, then Read just those sections with `offset`/`limit`. Start with any sections the spec names. It is the source of truth for what every column means and where it comes from in Galaxy's raw payloads. If you add a column, also read its "Collation for externally-sourced identifiers" section. Then read the relevant `node_modules/next/dist/docs/` guide if you are touching Next.js APIs (see AGENTS.md).
+
+## Keep your context small
+
+Everything you read or run stays in your context and is re-sent on every later call, so a run's cost grows with everything it loads. Do the spec's work without loading more than it needs:
+- Read the files and sections the spec names. Grep for a symbol before reading a whole file, and read large files with `offset`/`limit`. Don't re-read a file you've already read unless it has changed.
+- Cut long command output down before it reaches you. For example: `npm run build 2>&1 | tail -40`, `npm test 2>&1 | tail -40`, `npm run test:visual 2>&1 | tail -60`. Re-run with fuller output only to diagnose a failure.
+- Screenshots: open only the ones your change affects, once each. Find changed visual baselines by file name first; don't open every image.
+- If the spec turns out to be much bigger than one phase, stop after a coherent part, commit it, and report what's left, so the next part starts in a fresh run.
 
 ## Work only from the spec
 
