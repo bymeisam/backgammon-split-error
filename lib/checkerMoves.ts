@@ -193,11 +193,14 @@ export function legalHops(position: DecodedPosition, dice: readonly number[]): C
 export function createCheckerExplorer(position: DecodedPosition, dice: readonly number[]): CheckerExplorerState {
   const initialPosition = cloneCheckerPosition(position);
   const normalizedDice = dice.filter(validDie);
+  const explorerDice = normalizedDice.length === 2 && normalizedDice[0] === normalizedDice[1]
+    ? [...normalizedDice, ...normalizedDice]
+    : normalizedDice;
   return {
     initialPosition,
     position: cloneCheckerPosition(initialPosition),
-    dice: [...normalizedDice],
-    remainingDice: [...normalizedDice],
+    dice: [...explorerDice],
+    remainingDice: [...explorerDice],
     usedDice: [],
     hops: [],
     history: [],

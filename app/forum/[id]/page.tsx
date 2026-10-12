@@ -4,7 +4,7 @@ import Card from "@/app/components/ui/Card";
 import Board from "@/app/components/match-analysis/Board";
 import CheckerMoveExplorer from "@/app/components/match-analysis/CheckerMoveExplorer";
 import { prismaReadOnly } from "@/lib/prisma";
-import { decodeGnuMatchId } from "@/lib/gnuMatchId";
+import { decodeGnuMatchId, diceRollFor } from "@/lib/gnuMatchId";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 import { style } from "../forum.styles";
 import ForumActions from "./ForumActions";
@@ -32,7 +32,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
             value: match.cubeValue,
             owner: owner as "center" | "mine" | "opponent",
           };
-          const dice = match.dice.filter((die) => die >= 1 && die <= 6);
+          const dice = diceRollFor(studyPosition.kind === "CHECKER" ? "move" : null, match);
           return (
             <div className={style.position} key={studyPosition.id}>
               <div className={style.attachmentMeta}>

@@ -57,12 +57,13 @@ describe("checker move legality", () => {
     expect(hops).toEqual([{ from: "bar", to: 22, die: 3, hit: false }]);
   });
 
-  it("uses four copies of a double when four checkers can move", () => {
-    const sequences = legalSequences(withMine(13, 4), [2, 2]);
-    expect(sequences.length).toBeGreaterThan(0);
-    expect(sequences.every((sequence) => sequence.hops.length === 2)).toBe(true);
-    const fourDice = legalSequences(withMine(13, 4), [2, 2, 2, 2]);
-    expect(fourDice.some((sequence) => sequence.hops.length === 4)).toBe(true);
+  it("expands a double to four usable dice in the explorer", () => {
+    const initial = createCheckerExplorer(withMine(13, 4), [2, 2]);
+    expect(initial.remainingDice).toEqual([2, 2, 2, 2]);
+    const sequences = legalSequences(initial.position, initial.remainingDice);
+    expect(sequences.some((sequence) => sequence.hops.length === 4)).toBe(true);
+    const fourDice = createCheckerExplorer(withMine(13, 4), [2, 2, 2, 2]);
+    expect(fourDice.remainingDice).toEqual([2, 2, 2, 2]);
   });
 
   it("uses the larger die when only one die can be played", () => {
