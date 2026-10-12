@@ -185,7 +185,7 @@ export default async function GameReplayPage({
       subtitle={`Match ${matchId} · replay`}
       actions={
         <>
-          <Button variant="secondary" size="small" href={decisions[0]?.dbDecisionId ? `/forum/new?decision=${decisions[0].dbDecisionId}` : undefined}>Post to forum</Button>
+          <Button variant="secondary" size="small" href={decisions[initialIndex]?.dbDecisionId ? `/forum/new?decision=${decisions[initialIndex].dbDecisionId}` : undefined}>Post to forum</Button>
           <span className={style.headLinks}>
             <Link href={`/matches/${matchId}`} className={style.backLink}>
               Back to match
