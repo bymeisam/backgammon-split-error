@@ -69,6 +69,7 @@ export const style = {
   interactiveTarget:
     "stroke-transparent focus-visible:stroke-focus focus-visible:[stroke-width:2]",
   interactiveTargetEnabled: "cursor-pointer touch-none",
+  interactiveTargetDisabled: "cursor-default",
   interactiveDestination: "fill-primary/20 stroke-primary/70 [stroke-width:2]",
   interactiveSelected: "fill-accent/35 stroke-accent [stroke-width:2]",
   interactiveDie: "group cursor-pointer focus:outline-none",

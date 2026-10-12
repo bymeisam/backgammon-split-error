@@ -136,8 +136,8 @@ export default function CheckerMoveExplorer({
           onPointPointerDown={beginPointerSelection}
           onPointPointerUp={endPointerSelection}
           onPointPointerCancel={cancelPointerSelection}
-          onBarPointerDown={beginPointerSelection}
-          onBarPointerUp={endPointerSelection}
+          onBarPointerDown={() => beginPointerSelection("bar")}
+          onBarPointerUp={() => endPointerSelection("bar")}
           onBarPointerCancel={cancelPointerSelection}
           interactiveBarSides={["mine"]}
           interactivePointEnabled={(point) =>
