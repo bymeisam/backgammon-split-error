@@ -61,9 +61,21 @@ export const metadata: Metadata = {
 };
 
 // The navbar sits inside GameStatsAuthProvider: its sync button reads the
-// same in-memory Galaxy token the /sources/galaxy pages set.
+// same in-memory Galaxy token the /sources/galaxy pages set. ClerkProvider
+// wraps everything so client components can read the signed-in user.
 export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // The theme and mode on <html> (lib/themes.ts), from the user's bgtheme
+  // cookie (set on /settings), so the first HTML already carries them and
+  // nothing flashes. No cookie, or anything unknown in it: Clubroom,
+  // following the OS's light/dark. Reading cookies() (and headers() below)
+  // makes every page dynamic.
   const { theme, mode } = themeSettingsFromCookie((await cookies()).get(THEME_COOKIE)?.value);
+
+  // Owner wall for pages. proxy.ts has already made sure the visitor is
+  // signed in and passes the request path as x-app-route; here every page
+  // except the sign-in pages and /auth/complete also needs the signed-in
+  // user to be the approved owner (lib/app-auth.ts). Public pages get no
+  // navbar. The local AUTH_BYPASS skips the check (lib/localAuthBypass.ts).
   const requestHeaders = await headers();
   const appRoute = requestHeaders.get("x-app-route");
   const isPublicRoute =

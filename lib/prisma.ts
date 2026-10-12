@@ -53,7 +53,7 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
   // holds its own pool), and Oracle HeatWave's Always Free tier caps total
   // concurrent connections low. mariadb's own default (10 per pool, see
   // node_modules/mariadb/lib/config/pool-options.js) was never overridden
-  // this file's three pools (prisma, prismaReadOnly, prismaAuth) — times
+  // here, so each of this file's three pools (prisma, prismaReadOnly, prismaAuth) — times
   // however many concurrent serverless instances Vercel spins up — could
   // multiply into the dozens/hundreds. A small fixed cap keeps any single
   // instance's footprint tiny; the mariadb driver queues excess concurrent
@@ -92,9 +92,11 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
 // log a clear, actionable hint before rethrowing the original error
 // unchanged. Purely additive — no caller's existing catch/retry behavior
 // changes, this only adds a console line pointing at the real cause.
-// Applied to all shared clients (ingest, sync, every page/route that reads or
-// writes via them) — not just the few call sites that happen to check this
-// explicitly.
+// Applied to all three clients below (`prisma`, `prismaReadOnly`,
+// `prismaAuth`), so it covers everything that goes through a shared client
+// (ingest, sync, sign-in provisioning, every page/route that reads/writes via
+// them) — not just the few call sites that happen to check for this
+// explicitly (app/status/page.tsx, lib/sync.ts).
 function withOracleCertCheck(client: PrismaClient): PrismaClient {
   return client.$extends({
     query: {
@@ -117,16 +119,30 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 // for the full call-site list and rationale.
 //
 //   prisma          -> DATABASE_URL. Read-write/admin (bg_db_rw in
-//                      production) — ingest, sync and migrations.
+//                      production) — ingest (lib/ingest.ts), sync
+//                      (lib/sync.ts, scripts/backfill.ts,
+//                      scripts/incremental-sync.ts, /api/sync/incremental),
+//                      app writes (notes, review, tags, forum), and
+//                      `prisma migrate deploy` itself all read this same
+//                      var. Migrations need CREATE/ALTER/INDEX/REFERENCES
+//                      beyond plain app read-write, so this intentionally
+//                      stays on full admin credentials rather than a
+//                      narrower app-only read-write user.
 //   prismaReadOnly  -> DATABASE_URL_READONLY. SELECT-only (bg_db_ro in
-//                      production) — pages, APIs and diagnostics that only
-//                      read.
+//                      production) — anything that only ever queries:
+//                      lib/local-client.ts, app/api/player-identities,
+//                      app/status, the forum's read paths, and read-only
+//                      diagnostic scripts.
 //   prismaAuth      -> DATABASE_URL_AUTH in production. It only provisions
-//                      AppUser rows; local development falls back to
+//                      and looks up AppUser rows (lib/app-auth.ts,
+//                      lib/forum.ts); local development falls back to
 //                      DATABASE_URL so the existing local setup keeps working.
 //
 // The production auth credential should have SELECT/INSERT/UPDATE permission
 // on AppUser only. It must not be the ingest/migration credential.
+//
+// A single helper (createLazyClient below) builds all three, so they don't
+// duplicate the adapter/client construction boilerplate.
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
   prismaReadOnly?: PrismaClient;
@@ -134,11 +150,20 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Lazy on purpose: this module is imported by anything that touches a client,
-// including files that only ever use prismaReadOnly. ES module evaluation runs
-// every top-level statement in a file regardless of which export the importer
-// actually uses, so an eager client would throw when an environment variable
-// is absent. A Proxy defers each environment-variable check and pool
-// construction until the first real property access.
+// including files that only ever use prismaReadOnly (e.g.
+// lib/local-client.ts, app/status/page.tsx, app/api/player-identities). ES
+// module evaluation runs every top-level statement in a file regardless of
+// which export the importer actually uses, so an eager `new PrismaClient(...)`
+// here for `prisma` would throw the instant DATABASE_URL is unset — which is
+// the normal, expected state in production/preview (DATABASE_URL_READONLY
+// and DATABASE_URL_AUTH are set there, not DATABASE_URL; see docs/deploy.md)
+// and in CI (no real DB credentials at all, see .github/workflows/ci.yml).
+// A Proxy defers both the env-var check and the actual PrismaClient/pool
+// construction until the first real property access (e.g.
+// `prisma.match.findMany`), so importing this module — or even importing a
+// client without ever calling a method on it — never throws. Real usage of
+// an unconfigured client still throws immediately and loudly; nothing about
+// a client actually being used without its env var is silently tolerated.
 function createLazyClient(url: string | undefined, envVarName: string): PrismaClient {
   let client: PrismaClient | undefined;
   function get(): PrismaClient {
