@@ -67,7 +67,7 @@ describe("checker move legality", () => {
   });
 
   it("uses the larger die when only one die can be played", () => {
-    const sequences = legalSequences(withMine(6), [5, 6]);
+    const sequences = legalSequences(withOpponent(1, 2, withMine(6)), [5, 6]);
     expect(sequences).toHaveLength(1);
     expect(sequences[0].hops).toEqual([{ from: 6, to: "off", die: 6, hit: false }]);
   });
@@ -81,7 +81,9 @@ describe("checker move legality", () => {
   it("supports exact and oversized bear-off only when permitted", () => {
     expect(legalHopsForDie(withMine(3), 3)).toEqual([{ from: 3, to: "off", die: 3, hit: false }]);
     expect(legalHopsForDie(withMine(3), 5)).toEqual([{ from: 3, to: "off", die: 5, hit: false }]);
-    expect(legalHopsForDie(withMine(3, 1, withMine(5)), 5)).toEqual([]);
+    expect(legalHopsForDie(withMine(3, 1, withMine(5)), 5)).toEqual([
+      { from: 5, to: "off", die: 5, hit: false },
+    ]);
   });
 });
 
