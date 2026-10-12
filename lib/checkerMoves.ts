@@ -53,9 +53,9 @@ function destinationFor(from: CheckerLocation, die: number): CheckerDestination 
 }
 
 function canBearOff(position: DecodedPosition, from: number, die: number): boolean {
-  if (from <= die) return true;
+  if (from === die) return true;
   // An oversized die may bear off only when no checker is farther from home.
-  return position.mine.slice(from).every((count) => count === 0);
+  return from < die && position.mine.slice(from).every((count) => count === 0);
 }
 
 function hopKey(hop: CheckerHop): string {
