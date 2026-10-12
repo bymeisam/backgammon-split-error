@@ -118,12 +118,17 @@ export default function CheckerMoveExplorer({
           onPointClick={selectPoint}
           onBarClick={selectBar}
           interactiveBarSides={["mine"]}
+          interactivePointEnabled={(point) =>
+            selected === point || available.some((hop) => hop.from === point || hop.to === point)
+          }
+          interactiveBarEnabled={(side) =>
+            side === "mine" && (selected === "bar" || available.some((hop) => hop.from === "bar"))
+          }
           interactivePointLabel={pointLabel}
           interactivePointClassName={pointClassName}
           interactiveBarLabel={() => selected === "bar" ? "Move checker from the bar" : "Select checker on the bar"}
           interactiveBarClassName={barClassName}
         />
-      </div>
       <div className={style.statusRow} aria-live="polite">
         <span className={status === "complete" ? style.statusComplete : status === "no-legal-move" ? style.statusNoMove : style.status}>
           {status === "complete" && "Move complete."}

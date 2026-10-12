@@ -249,9 +249,11 @@ export default function Board({
   onRollDieClick,
   interactivePointLabel,
   interactivePointClassName,
+  interactivePointEnabled,
   interactiveBarSides = ["opponent", "mine"],
   interactiveBarLabel,
   interactiveBarClassName,
+  interactiveBarEnabled,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
@@ -265,9 +267,11 @@ export default function Board({
   onRollDieClick?: (index: number) => void;
   interactivePointLabel?: (point: number) => string;
   interactivePointClassName?: (point: number) => string | undefined;
+  interactivePointEnabled?: (point: number) => boolean;
   interactiveBarSides?: Side[];
   interactiveBarLabel?: (side: Side) => string;
   interactiveBarClassName?: (side: Side) => string | undefined;
+  interactiveBarEnabled?: (side: Side) => boolean;
 }) {
   const interactive = Boolean(onPointClick || onBarClick || onRollDieClick);
   const drawnRollSide = rollSide ?? (flipped ? "opponent" : "mine");
@@ -364,37 +368,45 @@ export default function Board({
       </g>
 
       {onPointClick &&
-        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
-          <polygon
-            key={`target-point-${point}`}
-            points={trianglePoints(point)}
-            fill="transparent"
-            className={`${style.interactiveTarget} ${interactivePointClassName?.(point) ?? ""}`}
-            role="button"
-            tabIndex={0}
-            aria-label={interactivePointLabel?.(point) ?? `Edit point ${point}`}
-            onClick={() => onPointClick(point)}
-            onKeyDown={(event) => activate(event, () => onPointClick(point))}
-          />
-        ))}
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
+          const enabled = interactivePointEnabled?.(point) ?? true;
+          return (
+            <polygon
+              key={`target-point-${point}`}
+              points={trianglePoints(point)}
+              fill="transparent"
+              className={`${style.interactiveTarget} ${enabled ? style.interactiveTargetEnabled : style.interactiveTargetDisabled} ${interactivePointClassName?.(point) ?? ""}`}
+              role="button"
+              tabIndex={enabled ? 0 : -1}
+              aria-disabled={enabled ? undefined : true}
+              aria-label={interactivePointLabel?.(point) ?? `Edit point ${point}`}
+              onClick={enabled ? () => onPointClick(point) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => onPointClick(point)) : undefined}
+            />
+          );
+        })}
 
       {onBarClick &&
-        interactiveBarSides.map((side) => (
-          <rect
-            key={`target-bar-${side}`}
-            x={colX(BAR_COL)}
-            y={side === "mine" ? CENTER_Y : Y0}
-            width={BAR_W}
-            height={ROW_H}
-            fill="transparent"
-            className={`${style.interactiveTarget} ${interactiveBarClassName?.(side) ?? ""}`}
-            role="button"
-            tabIndex={0}
-            aria-label={interactiveBarLabel?.(side) ?? `Edit ${side === "mine" ? "bottom" : "top"} bar`}
-            onClick={() => onBarClick(side)}
-            onKeyDown={(event) => activate(event, () => onBarClick(side))}
-          />
-        ))}
+        interactiveBarSides.map((side) => {
+          const enabled = interactiveBarEnabled?.(side) ?? true;
+          return (
+            <rect
+              key={`target-bar-${side}`}
+              x={colX(BAR_COL)}
+              y={side === "mine" ? CENTER_Y : Y0}
+              width={BAR_W}
+              height={ROW_H}
+              fill="transparent"
+              className={`${style.interactiveTarget} ${enabled ? style.interactiveTargetEnabled : style.interactiveTargetDisabled} ${interactiveBarClassName?.(side) ?? ""}`}
+              role="button"
+              tabIndex={enabled ? 0 : -1}
+              aria-disabled={enabled ? undefined : true}
+              aria-label={interactiveBarLabel?.(side) ?? `Edit ${side === "mine" ? "bottom" : "top"} bar`}
+              onClick={enabled ? () => onBarClick(side) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => onBarClick(side)) : undefined}
+            />
+          );
+        })}
       {/* Checker rolls are always centered on the board. */}
       {roll.slice(0, 2).map((value, i) => (
         <BoardDie

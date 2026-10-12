@@ -66,8 +66,9 @@ export const style = {
   // --- Board.tsx ---
   boardSvg: "block h-auto w-full drop-shadow-board",
   interactiveTarget:
-    "cursor-pointer stroke-transparent focus-visible:stroke-focus focus-visible:[stroke-width:2]",
-  interactiveSource: "fill-accent/20 stroke-accent/65 [stroke-width:1.5]",
+    "stroke-transparent focus-visible:stroke-focus focus-visible:[stroke-width:2]",
+  interactiveTargetEnabled: "cursor-pointer",
+  interactiveTargetDisabled: "cursor-default",
   interactiveDestination: "fill-primary/20 stroke-primary/70 [stroke-width:2]",
   interactiveSelected: "fill-accent/35 stroke-accent [stroke-width:2]",
   interactiveDie: "group cursor-pointer focus:outline-none",
