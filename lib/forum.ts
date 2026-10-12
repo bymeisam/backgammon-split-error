@@ -6,7 +6,7 @@ import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 
-export const FORUM_LIMITS = { title: 191, body: 20_000 } as const;
+export const FORUM_LIMITS = { title: 191, body: 20_000, positions: 4 } as const;
 
 export function textField(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;

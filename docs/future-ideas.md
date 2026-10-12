@@ -86,7 +86,7 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
   3. Discuss it.
   4. Resolve the discussion.
   5. Review the position later.
-- **Current foundation:** forum posts attach immutable `StudyPosition` rows. A position can originate from the position builder or from a Galaxy match decision. The local owner-only forum vertical slice is implemented; public multi-user access remains future work.
+- **Current foundation:** forum posts attach immutable `StudyPosition` rows. A position can originate from the position builder or from a Galaxy match decision. Posts now support up to four ordered position attachments, including mixed manual and match-decision sources. The local owner-only forum vertical slice is implemented; public multi-user access remains future work.
 - **Source:** user's product context and forum planning, 2026-10-12.
 
 #### Recommended additions
@@ -94,7 +94,7 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 ##### Position discussion quality
 - **Position provenance links:** link an attachment back to its originating match, game, replay decision, or builder context.
 - **Structured position metadata:** show checker/cube type, dice, cube value and owner, score, match length, GNU Position ID, GNU Match ID, and source decision.
-- **Multiple position attachments:** support before/after/candidate positions in one post. The current attachment model already supports multiple positions.
+- **Multiple position attachments:** support before/after/candidate positions in one post. **Status:** implemented with up to four ordered manual or match-decision attachments.
 - **Multiple candidate moves:** compare the played move, best move, and alternative ideas in one discussion.
 
 ##### Discovery and organization
