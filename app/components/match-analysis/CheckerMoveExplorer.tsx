@@ -119,7 +119,9 @@ export default function CheckerMoveExplorer({
           onBarClick={selectBar}
           interactiveBarSides={["mine"]}
           interactivePointEnabled={(point) =>
-            selected === point || available.some((hop) => hop.from === point || hop.to === point)
+            selected === point ||
+            available.some((hop) => hop.from === point) ||
+            (selected !== null && selectedHops.some((hop) => hop.to === point))
           }
           interactiveBarEnabled={(side) =>
             side === "mine" && (selected === "bar" || available.some((hop) => hop.from === "bar"))
