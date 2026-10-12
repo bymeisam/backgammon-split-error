@@ -27,5 +27,7 @@ export const style = {
   kbd: shared.kbd,
   where: "text-[13px] tabular-nums text-ink-muted",
   whereStrong: "font-semibold text-ink",
-  perspectiveToggle: "ml-auto hidden items-center gap-2 text-[12.5px] text-ink-muted md:flex",
+  // Right end of the stepper: the perspective toggle and "Post to forum".
+  stepperEnd: "ml-auto flex items-center gap-3",
+  perspectiveToggle: "hidden items-center gap-2 text-[12.5px] text-ink-muted md:flex",
 } as const;

@@ -7,7 +7,7 @@ import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
 import PageShell, { VsTitle } from "@/app/components/ui/PageShell";
-import Button from "@/app/components/ui/Button";
+import GameSwitcher from "@/app/components/ui/GameSwitcher";
 import GameReplay from "./GameReplay";
 import { style } from "./gameReplay.styles";
 
@@ -185,7 +185,7 @@ export default async function GameReplayPage({
       subtitle={`Match ${matchId} · replay`}
       actions={
         <>
-          <Button variant="secondary" size="small" href={decisions[initialIndex]?.dbDecisionId ? `/forum/new?decision=${decisions[initialIndex].dbDecisionId}` : undefined}>Post to forum</Button>
+          <GameSwitcher matchId={matchId} games={allGames.map((g) => g.gameIndex)} current={gameIndex} />
           <span className={style.headLinks}>
             <Link href={`/matches/${matchId}`} className={style.backLink}>
               Back to match
@@ -210,6 +210,8 @@ export default async function GameReplayPage({
           initialIndex={initialIndex}
           myColor={myColor}
           canEditNotes={isGalaxyEnabled()}
+          // Same gate as the forum write routes (lib/forum.ts writeAllowed).
+          canPostToForum={isGalaxyEnabled()}
         />
       )}
     </PageShell>
