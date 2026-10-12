@@ -1,6 +1,6 @@
 import type { CubeOwner, Side } from "@/lib/boardGeometry";
-import type { DecodedPosition } from "@/lib/gnuPositionId";
-
+import { encodeGnuMatchId, type DecodedMatchId, type GnuPlayer } from "@/lib/gnuMatchId";
+import { encodeGnuPositionId, type DecodedPosition } from "@/lib/gnuPositionId";
 export type BuilderAction = "add" | "remove";
 export type BuilderLocation = number | "bar";
 export type DecisionType = "checker" | "cube";
@@ -182,4 +182,33 @@ export function validateBuilderState(state: PositionBuilderState): string[] {
   }
 
   return errors;
+}
+
+export function canonicalPositionForForum(state: PositionBuilderState): {
+  positionId: string;
+  gnuMatchId: string;
+  kind: "CHECKER" | "CUBE";
+} {
+  const errors = validateBuilderState(state);
+  if (errors.length > 0) throw new Error(errors.join(" "));
+  const diceOwner: GnuPlayer = state.playerToMove === "mine" ? 1 : 0;
+  const otherPlayer: GnuPlayer = diceOwner === 1 ? 0 : 1;
+  const match: DecodedMatchId = {
+    cubeValue: state.cubeValue,
+    cubeOwner: state.cubeOwner === "center" ? null : state.cubeOwner === "mine" ? diceOwner : otherPlayer,
+    diceOwner,
+    crawford: false,
+    gameState: 0,
+    turn: diceOwner,
+    doubleOffered: false,
+    resignationOffered: 0,
+    dice: state.decisionType === "checker" && state.roll ? state.roll : [0, 0],
+    matchLength: state.matchLength,
+    score: state.playerToMove === "mine" ? [state.score[1], state.score[0]] : [state.score[0], state.score[1]],
+  };
+  return {
+    positionId: encodeGnuPositionId(state.position),
+    gnuMatchId: encodeGnuMatchId(match),
+    kind: state.decisionType === "checker" ? "CHECKER" : "CUBE",
+  };
 }

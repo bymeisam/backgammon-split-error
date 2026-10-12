@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { CubeOwner, Side } from "@/lib/boardGeometry";
 import type { BoardCube } from "@/lib/boardFrame";
 import {
@@ -11,6 +12,7 @@ import {
   initialPositionBuilderState,
   normalizeRoll,
   validateBuilderState,
+  canonicalPositionForForum,
   type BuilderAction,
   type BuilderLocation,
   type PositionBuilderState,
@@ -36,6 +38,7 @@ function numberValue(value: string): number {
 }
 
 export default function PositionBuilder() {
+  const router = useRouter();
   const [state, setState] = useState<PositionBuilderState>(initialPositionBuilderState);
   const [editingSide, setEditingSide] = useState<Side>("mine");
   const [action, setAction] = useState<BuilderAction>("add");
@@ -101,6 +104,20 @@ export default function PositionBuilder() {
       cubeOwner: owner,
       cubeValue: owner === "center" ? 1 : previous.cubeValue === 1 ? 2 : previous.cubeValue,
     }));
+  }
+
+  function postToForum() {
+    try {
+      const canonical = canonicalPositionForForum(state);
+      const query = new URLSearchParams({
+        positionId: canonical.positionId,
+        gnuMatchId: canonical.gnuMatchId,
+        kind: canonical.kind,
+      });
+      router.push(`/forum/new?${query.toString()}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The position is not valid.");
+    }
   }
 
   return (
@@ -298,6 +315,7 @@ export default function PositionBuilder() {
           </div>
           <p className={style.footerNote}>Save and analysis are intentionally not connected yet.</p>
         </Card>
+          <Button variant="primary" onClick={postToForum} disabled={errors.length > 0}>Post to forum</Button>
       </div>
     </div>
   );

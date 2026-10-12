@@ -8,7 +8,7 @@ import { resolveMyIdentity } from "@/lib/playerIdentity";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
 import PageShell, { VsTitle } from "@/app/components/ui/PageShell";
 import GameSwitcher from "@/app/components/ui/GameSwitcher";
-import GameReplay from "./GameReplay";
+import Button from "@/app/components/ui/Button";
 import { style } from "./gameReplay.styles";
 
 export const dynamic = "force-dynamic";
@@ -185,7 +185,7 @@ export default async function GameReplayPage({
       subtitle={`Match ${matchId} · replay`}
       actions={
         <>
-          <GameSwitcher matchId={matchId} games={allGames.map((g) => g.gameIndex)} current={gameIndex} />
+          <Button variant="secondary" size="small" href={decisions[0]?.dbDecisionId ? `/forum/new?decision=${decisions[0].dbDecisionId}` : undefined}>Post to forum</Button>
           <span className={style.headLinks}>
             <Link href={`/matches/${matchId}`} className={style.backLink}>
               Back to match
