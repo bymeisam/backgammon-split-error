@@ -9,6 +9,7 @@ describe("navItems", () => {
       "Mistakes",
       "Repeated",
       "Review",
+      "Forum",
       "Sources",
       "Settings",
       "Status",
@@ -19,6 +20,7 @@ describe("navItems", () => {
       "Mistakes",
       "Repeated",
       "Review",
+      "Forum",
       "Settings",
       "Status",
     ]);
@@ -39,6 +41,7 @@ describe("navItems", () => {
       "Mistakes",
       "Repeated",
       "Review",
+      "Forum",
     ]);
   });
 });
