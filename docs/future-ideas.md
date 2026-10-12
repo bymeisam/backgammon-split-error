@@ -80,9 +80,65 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Source:** user's idea list, 2026-10-06.
 
 ### Forum
-- **Idea:** discuss or chat about specific positions.
-- **Notes:** needs auth and multiple users first (see [Vercel deploy](#vercel-deploy-behind-auth)).
-- **Source:** user's idea list, 2026-10-06.
+- **Idea:** a position-centered discussion space for questions, explanations, and future review. The core loop is:
+  1. See a position.
+  2. Post a question or analysis.
+  3. Discuss it.
+  4. Resolve the discussion.
+  5. Review the position later.
+- **Current foundation:** forum posts attach immutable `StudyPosition` rows. A position can originate from the position builder or from a Galaxy match decision. The local owner-only forum vertical slice is implemented; public multi-user access remains future work.
+- **Source:** user's product context and forum planning, 2026-10-12.
+
+#### Recommended additions
+
+##### Position discussion quality
+- **Position provenance links:** link an attachment back to its originating match, game, replay decision, or builder context.
+- **Structured position metadata:** show checker/cube type, dice, cube value and owner, score, match length, GNU Position ID, GNU Match ID, and source decision.
+- **Multiple position attachments:** support before/after/candidate positions in one post. The current attachment model already supports multiple positions.
+- **Multiple candidate moves:** compare the played move, best move, and alternative ideas in one discussion.
+
+##### Discovery and organization
+- **Controlled tags:** begin with tags such as `checker-play`, `cube-decision`, `opening`, `bearoff`, `match-play`, and `question`.
+- **Search and filters:** search title/body and filter by tag, position kind, source, and match ID.
+- **Duplicate detection:** warn when the same GNU Position ID + GNU Match ID is already being discussed.
+
+##### Discussion lifecycle
+- **Post status:** support `Open`, `Resolved`, and `For review`.
+- **Best answer:** mark one reply as the accepted explanation.
+- **Edit history:** preserve changes to post bodies and attachments once discussions become valuable historical study records.
+- **Add to review:** convert a forum position into a self-rated review card without duplicating the board representation.
+
+##### Later community features
+- **Notifications and following:** notify a user when a followed discussion receives a reply. Defer until there are multiple users.
+- **Moderation and reporting:** add ownership, visibility, report, and moderation controls before opening the forum publicly.
+
+#### Architectural direction
+- Keep these concepts separate:
+  - **Forum post:** user-authored discussion and explanation.
+  - **Study position:** immutable board and match context.
+  - **Review card:** scheduling state and learning workflow.
+  - **Reply:** discussion response, optionally marked as the best answer.
+- A post should reference a study position. A review card should reference the study position or post attachment, not duplicate the board representation.
+- Preserve exact position and match identifiers so a forum discussion remains reproducible.
+
+#### Suggested sequence
+1. Position provenance and metadata.
+2. Multiple position attachments.
+3. Tags and search.
+4. Self-rated “Add to review”.
+5. Resolved/best-answer workflow.
+6. Public-user authorization and moderation.
+7. Notifications and other social features.
+
+#### Defer for now
+- Likes and upvotes.
+- Reputation systems.
+- Followers and social graphs beyond the later notification idea.
+- Categories and subforums.
+- Rich-text editing.
+- Real-time updates.
+- Generic social-post abstractions.
+- Public moderation infrastructure before public access is actually approved.
 
 ## Decision notes
 
