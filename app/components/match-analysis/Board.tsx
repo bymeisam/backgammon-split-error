@@ -244,6 +244,8 @@ export default function Board({
   rollSide,
   flipped = false,
   cube = null,
+  onPointKeyDown,
+  onBarKeyDown,
   onPointClick,
   onBarClick,
   onPointPointerDown,
@@ -268,6 +270,8 @@ export default function Board({
   rollSide?: Side;
   flipped?: boolean;
   cube?: BoardCube | null;
+  onPointKeyDown?: (point: number) => void;
+  onBarKeyDown?: (side: Side) => void;
   onPointClick?: (point: number) => void;
   onBarClick?: (side: Side) => void;
   onPointPointerDown?: (point: number) => void;
@@ -286,7 +290,9 @@ export default function Board({
   interactiveBarEnabled?: (side: Side) => boolean;
 }) {
   const interactive = Boolean(
-    onPointClick ||
+    onPointKeyDown ||
+      onBarKeyDown ||
+      onPointClick ||
       onBarClick ||
       onPointPointerDown ||
       onPointPointerUp ||
@@ -389,7 +395,7 @@ export default function Board({
         ))}
       </g>
 
-      {(onPointClick || onPointPointerDown || onPointPointerUp || onPointPointerCancel) &&
+      {(onPointKeyDown || onPointClick || onPointPointerDown || onPointPointerUp || onPointPointerCancel) &&
         Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
           const enabled = interactivePointEnabled?.(point) ?? true;
           return (
@@ -406,12 +412,12 @@ export default function Board({
               onPointerUp={enabled ? () => onPointPointerUp?.(point) : undefined}
               onPointerCancel={enabled ? () => onPointPointerCancel?.(point) : undefined}
               onClick={enabled ? () => onPointClick?.(point) : undefined}
-              onKeyDown={enabled ? (event) => activate(event, () => onPointClick?.(point)) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => (onPointKeyDown ?? onPointClick)?.(point)) : undefined}
             />
           );
         })}
 
-      {(onBarClick || onBarPointerDown || onBarPointerUp || onBarPointerCancel) &&
+      {(onBarKeyDown || onBarClick || onBarPointerDown || onBarPointerUp || onBarPointerCancel) &&
         interactiveBarSides.map((side) => {
           const enabled = interactiveBarEnabled?.(side) ?? true;
           return (
@@ -431,10 +437,11 @@ export default function Board({
               onPointerUp={enabled ? () => onBarPointerUp?.(side) : undefined}
               onPointerCancel={enabled ? () => onBarPointerCancel?.(side) : undefined}
               onClick={enabled ? () => onBarClick?.(side) : undefined}
-              onKeyDown={enabled ? (event) => activate(event, () => onBarClick?.(side)) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => (onBarKeyDown ?? onBarClick)?.(side)) : undefined}
             />
           );
         })}
+
       {/* Checker rolls are always centered on the board. */}
       {roll.slice(0, 2).map((value, i) => (
         <BoardDie

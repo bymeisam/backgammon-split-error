@@ -80,6 +80,19 @@ export default function CheckerMoveExplorer({
     if (source) chooseHop(source);
   };
 
+  const selectPointByKeyboard = (point: number) => {
+    const destination = selectedHops.find((hop) => hop.to === point);
+    if (destination) {
+      chooseHop(destination);
+      return;
+    }
+    if (available.some((hop) => hop.from === point)) setSelected(point);
+  };
+
+  const selectBarByKeyboard = () => {
+    if (available.some((hop) => hop.from === "bar")) setSelected("bar");
+  };
+
   const beginPointerSelection = (location: CheckerLocation) => {
     if (available.some((hop) => sameLocation(hop.from, location))) setSelected(location);
   };
@@ -131,6 +144,8 @@ export default function CheckerMoveExplorer({
           roll={state.dice}
           rollSide="mine"
           cube={cube}
+          onPointKeyDown={selectPointByKeyboard}
+          onBarKeyDown={selectBarByKeyboard}
           onPointClick={selectPoint}
           onBarClick={selectBar}
           onPointPointerDown={beginPointerSelection}
