@@ -193,12 +193,15 @@ The authenticated `/position-builder` route is part of the normal owner document
 
 ### Temporary local development auth bypass
 
-`next dev` temporarily bypasses the Clerk document and API owner checks through
-`lib/localAuthBypass.ts` so the local forum and position-builder flows can be
-smoke-tested without a Clerk browser session. The bypass uses the reserved
-`local-dev-owner` `AppUser` identity when a write needs an author. It is active
-only when `NODE_ENV=development`, never in production builds, and does not
-disable `isGalaxyEnabled()` or its database/write-mode gate. Remove this
+Setting `AUTH_BYPASS=true` temporarily bypasses the Clerk document and API
+owner checks through `lib/localAuthBypass.ts` so the local forum and
+position-builder flows can be smoke-tested without a Clerk browser session. The
+bypass uses the reserved `local-dev-owner` `AppUser` identity when a write needs
+an author. It is an explicit opt-in (off unless exactly `true`), refuses to turn
+on and logs a warning when `DATABASE_URL`, `DATABASE_URL_AUTH` or
+`DATABASE_URL_READONLY` points anywhere but localhost, and does not disable
+`isGalaxyEnabled()` or its database/write-mode gate. Never set it on a deployed
+environment. Remove this
 bypass after local authenticated smoke and visual review are complete.
 
 ## Auth verification (do this after every deploy)
