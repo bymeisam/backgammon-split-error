@@ -246,6 +246,12 @@ export default function Board({
   cube = null,
   onPointClick,
   onBarClick,
+  onPointPointerDown,
+  onPointPointerUp,
+  onPointPointerCancel,
+  onBarPointerDown,
+  onBarPointerUp,
+  onBarPointerCancel,
   onRollDieClick,
   interactivePointLabel,
   interactivePointClassName,
@@ -264,6 +270,12 @@ export default function Board({
   cube?: BoardCube | null;
   onPointClick?: (point: number) => void;
   onBarClick?: (side: Side) => void;
+  onPointPointerDown?: (point: number) => void;
+  onPointPointerUp?: (point: number) => void;
+  onPointPointerCancel?: (point: number) => void;
+  onBarPointerDown?: (side: Side) => void;
+  onBarPointerUp?: (side: Side) => void;
+  onBarPointerCancel?: (side: Side) => void;
   onRollDieClick?: (index: number) => void;
   interactivePointLabel?: (point: number) => string;
   interactivePointClassName?: (point: number) => string | undefined;
@@ -273,7 +285,17 @@ export default function Board({
   interactiveBarClassName?: (side: Side) => string | undefined;
   interactiveBarEnabled?: (side: Side) => boolean;
 }) {
-  const interactive = Boolean(onPointClick || onBarClick || onRollDieClick);
+  const interactive = Boolean(
+    onPointClick ||
+      onBarClick ||
+      onPointPointerDown ||
+      onPointPointerUp ||
+      onPointPointerCancel ||
+      onBarPointerDown ||
+      onBarPointerUp ||
+      onBarPointerCancel ||
+      onRollDieClick
+  );
   const drawnRollSide = rollSide ?? (flipped ? "opponent" : "mine");
   const activate = (event: KeyboardEvent<SVGElement>, callback: () => void) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -367,7 +389,7 @@ export default function Board({
         ))}
       </g>
 
-      {onPointClick &&
+      {(onPointClick || onPointPointerDown || onPointPointerUp || onPointPointerCancel) &&
         Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
           const enabled = interactivePointEnabled?.(point) ?? true;
           return (
@@ -380,13 +402,16 @@ export default function Board({
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}
               aria-label={interactivePointLabel?.(point) ?? `Edit point ${point}`}
-              onClick={enabled ? () => onPointClick(point) : undefined}
-              onKeyDown={enabled ? (event) => activate(event, () => onPointClick(point)) : undefined}
+              onPointerDown={enabled ? () => onPointPointerDown?.(point) : undefined}
+              onPointerUp={enabled ? () => onPointPointerUp?.(point) : undefined}
+              onPointerCancel={enabled ? () => onPointPointerCancel?.(point) : undefined}
+              onClick={enabled ? () => onPointClick?.(point) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => onPointClick?.(point)) : undefined}
             />
           );
         })}
 
-      {onBarClick &&
+      {(onBarClick || onBarPointerDown || onBarPointerUp || onBarPointerCancel) &&
         interactiveBarSides.map((side) => {
           const enabled = interactiveBarEnabled?.(side) ?? true;
           return (
@@ -402,8 +427,11 @@ export default function Board({
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}
               aria-label={interactiveBarLabel?.(side) ?? `Edit ${side === "mine" ? "bottom" : "top"} bar`}
-              onClick={enabled ? () => onBarClick(side) : undefined}
-              onKeyDown={enabled ? (event) => activate(event, () => onBarClick(side)) : undefined}
+              onPointerDown={enabled ? () => onBarPointerDown?.(side) : undefined}
+              onPointerUp={enabled ? () => onBarPointerUp?.(side) : undefined}
+              onPointerCancel={enabled ? () => onBarPointerCancel?.(side) : undefined}
+              onClick={enabled ? () => onBarClick?.(side) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => onBarClick?.(side)) : undefined}
             />
           );
         })}

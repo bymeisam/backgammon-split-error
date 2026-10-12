@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { BoardCube } from "@/lib/boardFrame";
 import {
   checkerMoveStatus,
@@ -44,6 +44,7 @@ export default function CheckerMoveExplorer({
 }) {
   const [state, setState] = useState(() => createCheckerExplorer(position, dice));
   const [selected, setSelected] = useState<SelectedLocation>(null);
+  const suppressClick = useRef(false);
   const available = useMemo(() => legalHops(state.position, state.remainingDice), [state.position, state.remainingDice]);
   const selectedHops = selected === null ? [] : available.filter((hop) => sameLocation(hop.from, selected));
   const status = checkerMoveStatus(state);
@@ -51,32 +52,47 @@ export default function CheckerMoveExplorer({
     setState((current) => playCheckerHop(current, hop));
     setSelected(null);
   };
+  const preferredHop = (location: CheckerLocation): CheckerHop | undefined =>
+    available
+      .filter((hop) => sameLocation(hop.from, location))
+      .sort((left, right) => right.die - left.die)[0];
 
   const selectPoint = (point: number) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
     const destination = selectedHops.find((hop) => hop.to === point);
     if (destination) {
       chooseHop(destination);
       return;
     }
-    if (selected === point) {
-      setSelected(null);
-      return;
-    }
-    if (available.some((hop) => hop.from === point)) setSelected(point);
+    const source = preferredHop(point);
+    if (source) chooseHop(source);
   };
 
   const selectBar = () => {
-    const destination = selectedHops.find((hop) => hop.to === "off");
-    if (destination) {
-      chooseHop(destination);
+    if (suppressClick.current) {
+      suppressClick.current = false;
       return;
     }
-    if (selected === "bar") {
-      setSelected(null);
-      return;
-    }
-    if (available.some((hop) => hop.from === "bar")) setSelected("bar");
+    const source = preferredHop("bar");
+    if (source) chooseHop(source);
   };
+
+  const beginPointerSelection = (location: CheckerLocation) => {
+    if (available.some((hop) => sameLocation(hop.from, location))) setSelected(location);
+  };
+
+  const endPointerSelection = (location: CheckerLocation) => {
+    if (selected === null) return;
+    const destination = selectedHops.find((hop) => hop.to === location);
+    if (!destination) return;
+    chooseHop(destination);
+    suppressClick.current = true;
+  };
+
+  const cancelPointerSelection = () => setSelected(null);
 
   const reset = () => {
     setState((current) => resetCheckerExplorer(current));
@@ -117,6 +133,12 @@ export default function CheckerMoveExplorer({
           cube={cube}
           onPointClick={selectPoint}
           onBarClick={selectBar}
+          onPointPointerDown={beginPointerSelection}
+          onPointPointerUp={endPointerSelection}
+          onPointPointerCancel={cancelPointerSelection}
+          onBarPointerDown={beginPointerSelection}
+          onBarPointerUp={endPointerSelection}
+          onBarPointerCancel={cancelPointerSelection}
           interactiveBarSides={["mine"]}
           interactivePointEnabled={(point) =>
             selected === point ||
