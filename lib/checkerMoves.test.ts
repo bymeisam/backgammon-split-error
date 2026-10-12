@@ -85,6 +85,42 @@ describe("checker move legality", () => {
       { from: 5, to: "off", die: 5, hit: false },
     ]);
   });
+
+  it("refuses bear-off while a checker is outside the home board", () => {
+    const hops = legalHopsForDie(withMine(13, 1, withMine(3)), 3);
+    expect(hops).toEqual([{ from: 13, to: 10, die: 3, hit: false }]);
+    expect(hops.some((hop) => hop.to === "off")).toBe(false);
+  });
+
+  it("allows bear-off once every checker is home", () => {
+    const hops = legalHopsForDie(withMine(6, 1, withMine(3)), 3);
+    expect(hops).toContainEqual({ from: 3, to: "off", die: 3, hit: false });
+  });
+
+  it("refuses bear-off while a checker is on the bar", () => {
+    const hops = legalHopsForDie({ ...withMine(3), mineBar: 1 }, 3);
+    expect(hops.some((hop) => hop.to === "off")).toBe(false);
+  });
+
+  it("bears off with an oversized die only from the highest occupied point", () => {
+    const hops = legalHopsForDie(withMine(4, 1, withMine(2)), 6);
+    expect(hops).toEqual([{ from: 4, to: "off", die: 6, hit: false }]);
+  });
+
+  it("enables bear-off with the second die after the last outside checker comes home", () => {
+    const start = withMine(7, 1, withMine(2));
+    expect(legalHopsForDie(start, 2).some((hop) => hop.to === "off")).toBe(false);
+
+    const initial = createCheckerExplorer(start, [1, 2]);
+    const home = playCheckerHop(initial, { from: 7, to: 6, die: 1, hit: false });
+    expect(legalHops(home.position, home.remainingDice)).toContainEqual({
+      from: 2,
+      to: "off",
+      die: 2,
+      hit: false,
+    });
+    expect(legalSequences(start, [1, 2]).map((sequence) => sequence.notation)).toContain("7/6 2/off");
+  });
 });
 
 describe("checker explorer history", () => {

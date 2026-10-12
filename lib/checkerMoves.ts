@@ -52,7 +52,13 @@ function destinationFor(from: CheckerLocation, die: number): CheckerDestination 
   return from === "bar" ? 25 - die : from - die > 0 ? from - die : "off";
 }
 
+/** Bearing off needs every checker home: none on the bar, none above point 6. */
+function allCheckersHome(position: DecodedPosition): boolean {
+  return position.mineBar === 0 && position.mine.slice(6).every((count) => count === 0);
+}
+
 function canBearOff(position: DecodedPosition, from: number, die: number): boolean {
+  if (!allCheckersHome(position)) return false;
   if (from === die) return true;
   // An oversized die may bear off only when no checker is farther from home.
   return from < die && position.mine.slice(from).every((count) => count === 0);
