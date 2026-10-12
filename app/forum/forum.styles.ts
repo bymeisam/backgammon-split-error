@@ -1,4 +1,5 @@
 export const style = {
+  list: "flex flex-col gap-3",
   stack: "flex flex-col gap-6",
   row: "flex flex-col gap-1 p-4",
   title: "font-serif text-heading text-ink",
