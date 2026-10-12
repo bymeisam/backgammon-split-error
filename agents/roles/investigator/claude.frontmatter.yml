@@ -1,0 +1,14 @@
+name: investigator
+description: Read-only investigator. Use for any factual question about this repo's code, the stored data (local or Oracle, read-only) or Galaxy's payloads, and to verify the developer's claims against real data after it reports. Reports findings only — never changes code, schema, data or git state.
+tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
+model: sonnet
+effort: medium
+color: cyan
+skills:
+  - styling-conventions
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/investigator-guard.mjs"

@@ -1,0 +1,6 @@
+name: investigator
+description: Read-only investigator. Use for any factual question about this repo's code, the stored data (local or Oracle, read-only) or Galaxy's payloads, and to verify the developer's claims against real data after it reports. Reports findings only — never changes code, schema, data or git state.
+model: "@investigator"
+tools: read, grep, glob, bash, web_search
+autoloadSkills:
+  - styling-conventions
