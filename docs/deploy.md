@@ -191,6 +191,16 @@ The authenticated `/position-builder` route is part of the normal owner document
 
 `ENABLE_WRITE_MODE` remains the deployment-level Galaxy/write gate. Clerk ownership does not turn hosted Galaxy writes on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. The separate `DATABASE_URL_AUTH` credential is only for the `AppUser` allowlist and must not have access to source/study write paths.
 
+### Temporary local development auth bypass
+
+`next dev` temporarily bypasses the Clerk document and API owner checks through
+`lib/localAuthBypass.ts` so the local forum and position-builder flows can be
+smoke-tested without a Clerk browser session. The bypass uses the reserved
+`local-dev-owner` `AppUser` identity when a write needs an author. It is active
+only when `NODE_ENV=development`, never in production builds, and does not
+disable `isGalaxyEnabled()` or its database/write-mode gate. Remove this
+bypass after local authenticated smoke and visual review are complete.
+
 ## Auth verification (do this after every deploy)
 
 Open the production URL in a private/incognito window. It must redirect to `/sign-in`. A signed-in user lacking either owner flag must land on `/auth/complete` and receive no application data. Verify the approved owner's Clerk private metadata and local `AppUser` row separately after migrations.

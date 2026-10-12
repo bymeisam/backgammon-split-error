@@ -3,6 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { prismaAuth, prismaReadOnly } from "@/lib/prisma";
+import { isLocalAuthBypass, LOCAL_DEV_OWNER_CLERK_ID } from "@/lib/localAuthBypass";
 
 type ClerkUser = {
   id: string;
@@ -38,6 +39,15 @@ async function signedInUser(): Promise<{ userId: string; user: ClerkUser } | nul
 
 /** Reads the local identity and Clerk's private owner flag without writing. */
 export async function getAppAuthState(): Promise<AppAuthState | null> {
+  if (isLocalAuthBypass()) {
+    return {
+      clerkUserId: LOCAL_DEV_OWNER_CLERK_ID,
+      displayName: "Local development owner",
+      appUserExists: true,
+      isOwner: true,
+      clerkIsOwner: true,
+    };
+  }
   const signedIn = await signedInUser();
   if (!signedIn) return null;
   const appUser = await prismaReadOnly.appUser.findUnique({
@@ -55,6 +65,20 @@ export async function getAppAuthState(): Promise<AppAuthState | null> {
 
 /** Provisions the local identity and evaluates both independent owner flags. */
 export async function provisionAppUser(): Promise<AppAuthState | null> {
+  if (isLocalAuthBypass()) {
+    await prismaAuth.appUser.upsert({
+      where: { clerkUserId: LOCAL_DEV_OWNER_CLERK_ID },
+      create: { clerkUserId: LOCAL_DEV_OWNER_CLERK_ID, displayName: "Local development owner", isOwner: true },
+      update: { displayName: "Local development owner", isOwner: true },
+    });
+    return {
+      clerkUserId: LOCAL_DEV_OWNER_CLERK_ID,
+      displayName: "Local development owner",
+      appUserExists: true,
+      isOwner: true,
+      clerkIsOwner: true,
+    };
+  }
   const signedIn = await signedInUser();
   if (!signedIn) return null;
   const displayName = displayNameFor(signedIn.user);

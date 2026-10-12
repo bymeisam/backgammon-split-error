@@ -1,3 +1,4 @@
+import { isLocalAuthBypass } from "@/lib/localAuthBypass";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
@@ -32,11 +33,9 @@ export default clerkMiddleware(async (auth, req) => {
   if (isGalaxyPath(req.nextUrl.pathname) && !isGalaxyEnabled()) {
     return new NextResponse("Not Found", { status: 404 });
   }
-
-  if (isPublicPath(req.nextUrl.pathname)) {
+  if (isPublicPath(req.nextUrl.pathname) || isLocalAuthBypass()) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
-
   await auth.protect();
   return NextResponse.next({ request: { headers: requestHeaders } });
 });

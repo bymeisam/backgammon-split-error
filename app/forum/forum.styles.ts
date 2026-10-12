@@ -10,5 +10,8 @@ export const style = {
   actions: "flex flex-wrap gap-3",
   error: "rounded-control border border-error/40 bg-error-tint px-3 py-2 text-sm text-error-ink",
   position: "overflow-x-auto rounded-card border border-line bg-sunken p-2",
+  boardViewport: "min-w-[562px]",
+  attachmentMeta: "flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line pb-2 text-xs text-ink-muted",
+  identifier: "font-mono text-ink-faint",
   reply: "flex flex-col gap-1 border-t border-line pt-4",
 } as const;

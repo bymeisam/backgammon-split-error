@@ -10,6 +10,7 @@ import AppNav from "./components/ui/AppNav";
 import { THEME_COOKIE, themeSettingsFromCookie } from "@/lib/themes";
 import { style } from "./layout.styles";
 import { requireOwnerDocument } from "@/lib/app-auth";
+import { isLocalAuthBypass } from "@/lib/localAuthBypass";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -69,7 +70,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     appRoute === "/auth/complete" ||
     appRoute === "/sign-in" ||
     appRoute?.startsWith("/sign-in/");
-  if (appRoute && !isPublicRoute) await requireOwnerDocument();
+  if (appRoute && !isPublicRoute && !isLocalAuthBypass()) await requireOwnerDocument();
   return (
     <html
       lang="en"
