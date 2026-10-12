@@ -23,6 +23,7 @@ export function navItems(writeEnabled: boolean): NavItem[] {
     { href: "/matches/analysis", label: "Analysis" },
     { href: "/mistakes", label: "Mistakes" },
     { href: "/repeated-positions", label: "Repeated" },
+    { href: "/forum", label: "Forum" },
     {
       href: "/review",
       label: "Review",

@@ -24,9 +24,10 @@ to a false match under a case-insensitive collation.
 
 Columns currently pinned this way: `Match.sourceMatchId`,
 `PlayerIdentity.sourceUserId`, `Decision.userId`,
-`RepeatedPosition.sourcePositionId`, `Decision.sourcePositionId`.
-(`Decision.cubeOwnerUserId` was pinned too until it was dropped on
-2026-10-07; its pin went with it.)
+`RepeatedPosition.sourcePositionId`, `Decision.sourcePositionId`,
+`StudyPosition.positionId`, and `StudyPosition.gnuMatchId`.
+`Decision.cubeOwnerUserId` was pinned too until it was dropped on
+2026-10-07; its pin went with it.
 
 `Decision.eventId` is also an externally-sourced identifier (Galaxy's own
 event ID), but it does not need a collation pin — collation only governs

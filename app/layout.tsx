@@ -65,13 +65,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { theme, mode } = themeSettingsFromCookie((await cookies()).get(THEME_COOKIE)?.value);
   const requestHeaders = await headers();
   const appRoute = requestHeaders.get("x-app-route");
-  // Temporary: /position-builder is client-only and has no application-data access.
   const isPublicRoute =
     appRoute === "/auth/complete" ||
     appRoute === "/sign-in" ||
-    appRoute?.startsWith("/sign-in/") ||
-    appRoute === "/position-builder" ||
-    appRoute?.startsWith("/position-builder/");
+    appRoute?.startsWith("/sign-in/");
   if (appRoute && !isPublicRoute) await requireOwnerDocument();
   return (
     <html

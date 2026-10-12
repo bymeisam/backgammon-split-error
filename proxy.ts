@@ -18,13 +18,10 @@ function isGalaxyPath(pathname: string): boolean {
 }
 
 function isPublicPath(pathname: string): boolean {
-  // Temporary: the builder is client-only and does not read application data.
   return (
     pathname === "/sign-in" ||
     pathname.startsWith("/sign-in/") ||
-    pathname === "/auth/complete" ||
-    pathname === "/position-builder" ||
-    pathname.startsWith("/position-builder/")
+    pathname === "/auth/complete"
   );
 }
 

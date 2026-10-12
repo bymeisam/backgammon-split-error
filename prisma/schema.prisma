@@ -13,6 +13,17 @@ enum DecisionKind {
   RESIGNATION
 }
 
+enum StudyPositionOrigin {
+  MANUAL
+  MATCH_DECISION
+}
+
+enum StudyPositionKind {
+  CHECKER
+  CUBE
+}
+
+
 enum ErrorSeverity {
   NONE
   DOUBTFUL
@@ -151,6 +162,7 @@ model Decision {
   // the user's tags on it (see ReviewCard / DecisionTag below).
   reviewCard ReviewCard?
   tags       DecisionTag[]
+  studyPositions StudyPosition[]
 
   @@unique([gameId, eventId])
   @@index([kind, classification])
@@ -398,4 +410,62 @@ model AppUser {
   isOwner     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  studyPositions StudyPosition[] @relation("StudyPositionCreator")
+  forumPosts     ForumPost[]     @relation("ForumPostAuthor")
+  forumReplies   ForumReply[]    @relation("ForumReplyAuthor")
+}
+
+model StudyPosition {
+  id                 Int                 @id @default(autoincrement())
+  createdByAppUserId Int
+  creator            AppUser             @relation("StudyPositionCreator", fields: [createdByAppUserId], references: [id])
+  origin             StudyPositionOrigin
+  positionId         String              @db.VarChar(191)
+  gnuMatchId         String              @db.VarChar(191)
+  kind               StudyPositionKind
+  sourceDecisionId   Int?
+  sourceDecision     Decision?           @relation(fields: [sourceDecisionId], references: [id])
+  createdAt          DateTime            @default(now())
+  attachments        ForumPostPosition[]
+
+  @@index([sourceDecisionId])
+  @@index([positionId])
+  @@index([createdByAppUserId, createdAt])
+}
+
+model ForumPost {
+  id              Int                 @id @default(autoincrement())
+  authorAppUserId Int
+  author          AppUser             @relation("ForumPostAuthor", fields: [authorAppUserId], references: [id])
+  title           String              @db.VarChar(191)
+  body            String              @db.Text
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  positions       ForumPostPosition[]
+  replies         ForumReply[]
+}
+
+model ForumPostPosition {
+  postId          Int
+  studyPositionId Int
+  displayOrder    Int
+  post            ForumPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  studyPosition   StudyPosition @relation(fields: [studyPositionId], references: [id])
+
+  @@id([postId, studyPositionId])
+  @@index([studyPositionId])
+}
+
+model ForumReply {
+  id              Int       @id @default(autoincrement())
+  postId          Int
+  post            ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorAppUserId Int
+  author          AppUser   @relation("ForumReplyAuthor", fields: [authorAppUserId], references: [id])
+  body            String    @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([postId, createdAt])
 }
