@@ -9,6 +9,7 @@ import {
   editChecker,
   emptyPosition,
   initialPositionBuilderState,
+  normalizeRoll,
   validateBuilderState,
   type BuilderAction,
   type BuilderLocation,
@@ -19,7 +20,6 @@ import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import { style } from "./positionBuilder.styles";
 
-const DICE = [1, 2, 3, 4, 5, 6] as const;
 
 function sideLabel(side: Side): string {
   return side === "mine" ? "Bottom" : "Top";
@@ -58,18 +58,21 @@ export default function PositionBuilder() {
     setMessage(null);
   }
 
-  function updateDie(index: 0 | 1, value: string) {
-    const die = numberValue(value);
-    if (die < 1 || die > 6) {
-      setState((previous) => ({ ...previous, roll: null }));
-      return;
-    }
+  function updateDie(index: 0 | 1, value?: number) {
     setState((previous) => {
       const next: [number, number] = previous.roll ? [...previous.roll] : [1, 1];
-      next[index] = die;
-      return { ...previous, roll: next };
+      next[index] = value ?? (next[index] === 6 ? 1 : next[index] + 1);
+      return { ...previous, roll: normalizeRoll(next) };
     });
   }
+
+  function toggleRollSide() {
+    setState((previous) => ({
+      ...previous,
+      playerToMove: previous.playerToMove === "mine" ? "opponent" : "mine",
+    }));
+  }
+
 
   function updateMatchLength(value: string) {
     const matchLength = numberValue(value);
@@ -124,17 +127,20 @@ export default function PositionBuilder() {
         </div>
 
         <div className={style.boardWrap}>
-          <Board
-            decoded={state.position}
-            roll={state.roll ?? []}
-            rollSide={state.playerToMove}
-            cube={cube}
-            onPointClick={(point) => edit(point)}
-            onBarClick={(side) => {
-              setEditingSide(side);
-              edit("bar", side);
-            }}
-          />
+          <div className={style.boardViewport}>
+            <Board
+              decoded={state.position}
+              roll={state.decisionType === "checker" ? state.roll ?? [] : []}
+              rollSide={state.playerToMove}
+              cube={cube}
+              onPointClick={(point) => edit(point)}
+              onBarClick={(side) => {
+                setEditingSide(side);
+                edit("bar", side);
+              }}
+              onRollDieClick={(index) => updateDie(index as 0 | 1)}
+            />
+          </div>
         </div>
 
         <div className={style.boardStatus}>
@@ -142,7 +148,7 @@ export default function PositionBuilder() {
             Bottom <b className={style.counter}>{15 - state.position.mineOff}/15</b> · Top{" "}
             <b className={style.counter}>{15 - state.position.opponentOff}/15</b>
           </span>
-          <span>{errors.length === 0 ? "Position is valid" : `${errors.length} issue${errors.length === 1 ? "" : "s"}`}</span>
+          <span>{sideLabel(state.playerToMove)} {state.decisionType} decision</span>
         </div>
       </Card>
 
@@ -193,44 +199,31 @@ export default function PositionBuilder() {
         <Card as="section" className={style.controlCard} aria-labelledby="position-builder-match-title">
           <h2 id="position-builder-match-title" className={style.controlTitle}>Match context</h2>
 
-          <fieldset className={style.fieldset}>
-            <legend className={style.legend}>Roll</legend>
+          <p className={style.controlHint}>
+            Choose the decision mode. Checker decisions show a centered roll; cube decisions have no roll.
+          </p>
+          <div className={style.segmented}>
+            {(["checker", "cube"] as const).map((type) => (
+              <button key={type} type="button" aria-pressed={state.decisionType === type} className={style.actionOption(state.decisionType === type)} onClick={() => setState((previous) => ({ ...previous, decisionType: type, roll: type === "checker" ? previous.roll ?? [1, 1] : null }))}>
+                {type === "checker" ? "Checker decision" : "Cube decision"}
+              </button>
+            ))}
+          </div>
+          <Button variant="secondary" size="compact" onClick={toggleRollSide}>
+            Switch decision side ({sideLabel(state.playerToMove)})
+          </Button>
+          {state.decisionType === "checker" && (
             <div className={style.fieldGrid}>
               {[0, 1].map((index) => (
                 <label key={index} className={style.field}>
                   Die {index + 1}
-                  <select
-                    className={style.select}
-                    value={state.roll?.[index] ?? ""}
-                    onChange={(event) => updateDie(index as 0 | 1, event.target.value)}
-                  >
-                    <option value="">—</option>
-                    {DICE.map((die) => <option key={die} value={die}>{die}</option>)}
+                  <select className={style.select} value={state.roll?.[index] ?? 1} onChange={(event) => updateDie(index as 0 | 1, numberValue(event.target.value))}>
+                    {[1, 2, 3, 4, 5, 6].map((value) => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </label>
               ))}
             </div>
-            <Button variant="quiet" size="small" onClick={() => setState((previous) => ({ ...previous, roll: null }))}>
-              Clear roll
-            </Button>
-          </fieldset>
-
-          <fieldset className={style.fieldset}>
-            <legend className={style.legend}>Player to move</legend>
-            <div className={style.segmented}>
-              {(["mine", "opponent"] as const).map((side) => (
-                <button
-                  key={side}
-                  type="button"
-                  aria-pressed={state.playerToMove === side}
-                  className={style.sideOption(state.playerToMove === side)}
-                  onClick={() => setState((previous) => ({ ...previous, playerToMove: side }))}
-                >
-                  {sideLabel(side)}
-                </button>
-              ))}
-            </div>
-          </fieldset>
+          )}
 
           <fieldset className={style.fieldset}>
             <legend className={style.legend}>Score</legend>

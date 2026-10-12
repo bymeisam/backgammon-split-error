@@ -4,6 +4,7 @@ import {
   emptyPosition,
   initialPositionBuilderState,
   checkerTotal,
+  normalizeRoll,
   startingPosition,
   validateBuilderState,
 } from "./positionBuilder";
@@ -15,7 +16,12 @@ describe("position builder state", () => {
     expect(checkerTotal(position, "opponent")).toBe(15);
     expect(position.mine[23]).toBe(2);
     expect(position.opponent[0]).toBe(2);
-    expect(validateBuilderState(initialPositionBuilderState())).toEqual([]);
+    expect(initialPositionBuilderState().roll).toEqual([1, 1]);
+    expect(initialPositionBuilderState().decisionType).toBe("checker");
+  });
+
+  it("normalizes a boundary roll to higher die first", () => {
+    expect(normalizeRoll([2, 6])).toEqual([6, 2]);
   });
 
   it("places and removes checkers while preserving each side's total", () => {

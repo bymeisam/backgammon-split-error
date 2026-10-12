@@ -143,13 +143,24 @@ function Cube({ cube }: { cube: BoardCube | null }) {
   );
 }
 
-// One die, drawn in the mover's checker colour with the other side's pips.
-// Board-only: the lists' small dice are Dice.tsx.
-function BoardDie({ value, index, side }: { value: number; index: number; side: Side }) {
+// One die, drawn in the mover's checker colour. In builder mode it is also
+// the value editor, so the die itself is an accessible button.
+function BoardDie({
+  value,
+  index,
+  side,
+  onClick,
+}: {
+  value: number;
+  index: number;
+  side: Side;
+  onClick?: () => void;
+}) {
   const { x, y } = diePosition(index);
   const s = DIE_SIZE;
-  return (
-    <g>
+  const die = (
+    <>
+      {onClick && <rect x={x - 3} y={y - 3} width={s + 6} height={s + 6} rx={5} className={style.dieFocusRing} />}
       <rect
         x={x}
         y={y}
@@ -162,9 +173,28 @@ function BoardDie({ value, index, side }: { value: number; index: number; side: 
       {diePips(value).map(([px, py], i) => (
         <circle key={i} cx={x + px * s} cy={y + py * s} r={s * 0.09} fill={CHECKER_PALETTE[side].contrast} />
       ))}
+    </>
+  );
+
+  if (!onClick) return <g>{die}</g>;
+  return (
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`Die ${index + 1}, showing ${value}. Click to change`}
+      className={style.interactiveDie}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onClick();
+      }}
+    >
+      {die}
     </g>
   );
 }
+
 
 // One sub-move's arrow: a shaft over a bone halo, a filled head 4u short of
 // the target, and a dot on the origin (the mockup's arrow). The hit ring
@@ -216,36 +246,20 @@ export default function Board({
   cube = null,
   onPointClick,
   onBarClick,
+  onRollDieClick,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
-  // The arrows' colour: the severity of the move drawn (theme tokens,
-  // BoardPanel.styles.ts's arrow).
   arrowTier?: ArrowTier;
   roll?: number[];
-  // The side whose dice are being shown. Existing callers inherit the
-  // perspective-derived default; the position builder can keep a fixed board
-  // orientation while changing whose roll it is.
   rollSide?: Side;
-  // Checker positions and arrow anchoring both come from `decoded`/
-  // `subMoves` as given — BoardPanel.tsx applies flipPerspective/
-  // mirrorSubMoves to them *before* they arrive here when a
-  // fixed-perspective view is active. This prop's direct effects here are
-  // the printed point-number label (the fixed physical loop index below,
-  // not derived from `decoded`, so a data-only transform upstream can't
-  // correct it), the dice color (a flipped board is showing the
-  // opponent's turn), and telling moveAnchor which side's data is the
-  // mover's. Default false — only the replay's BoardPanel ever sets it.
   flipped?: boolean;
-  // Already relativized and flipped (if applicable) by BoardPanel.tsx — see
-  // lib/boardFrame.ts's boardCubeFor. Default null renders no cube at all
-  // (e.g. no selected decision yet), not a centered one.
   cube?: BoardCube | null;
-  // Optional keyboard-accessible edit targets used by the position builder.
   onPointClick?: (point: number) => void;
   onBarClick?: (side: Side) => void;
+  onRollDieClick?: (index: number) => void;
 }) {
-  const interactive = Boolean(onPointClick || onBarClick);
+  const interactive = Boolean(onPointClick || onBarClick || onRollDieClick);
   const drawnRollSide = rollSide ?? (flipped ? "opponent" : "mine");
   const activate = (event: KeyboardEvent<SVGElement>, callback: () => void) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -339,11 +353,6 @@ export default function Board({
         ))}
       </g>
 
-      {/* dice, in roll order, in the mover's colour (a flipped board is
-          showing the opponent's turn) */}
-      {roll.slice(0, 2).map((value, i) => (
-        <BoardDie key={i} value={value} index={i} side={drawnRollSide} />
-      ))}
       {onPointClick &&
         Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
           <polygon
@@ -376,6 +385,16 @@ export default function Board({
             onKeyDown={(event) => activate(event, () => onBarClick(side))}
           />
         ))}
+      {/* Checker rolls are always centered on the board. */}
+      {roll.slice(0, 2).map((value, i) => (
+        <BoardDie
+          key={i}
+          value={value}
+          index={i}
+          side={drawnRollSide}
+          onClick={onRollDieClick ? () => onRollDieClick(i) : undefined}
+        />
+      ))}
     </svg>
   );
 }

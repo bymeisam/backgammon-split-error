@@ -3,6 +3,7 @@ import type { DecodedPosition } from "@/lib/gnuPositionId";
 
 export type BuilderAction = "add" | "remove";
 export type BuilderLocation = number | "bar";
+export type DecisionType = "checker" | "cube";
 
 export const CUBE_VALUES = [1, 2, 4, 8, 16, 32, 64] as const;
 export const MATCH_LENGTHS = [0, 1, 3, 5, 7, 9, 11, 13, 15] as const;
@@ -10,6 +11,7 @@ export const MATCH_LENGTHS = [0, 1, 3, 5, 7, 9, 11, 13, 15] as const;
 export interface PositionBuilderState {
   position: DecodedPosition;
   roll: [number, number] | null;
+  decisionType: DecisionType;
   playerToMove: Side;
   score: [number, number];
   matchLength: number;
@@ -54,13 +56,19 @@ export function startingPosition(): DecodedPosition {
 export function initialPositionBuilderState(): PositionBuilderState {
   return {
     position: startingPosition(),
-    roll: null,
+    roll: [1, 1],
+    decisionType: "checker",
     playerToMove: "mine",
     score: [0, 0],
     matchLength: 7,
     cubeValue: 1,
     cubeOwner: "center",
   };
+}
+
+/** Keep rolls in backgammon's higher-die-first display order. */
+export function normalizeRoll(roll: [number, number]): [number, number] {
+  return roll[0] >= roll[1] ? roll : [roll[1], roll[0]];
 }
 
 export function clonePosition(position: DecodedPosition): DecodedPosition {

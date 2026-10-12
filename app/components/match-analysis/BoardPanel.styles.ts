@@ -67,6 +67,8 @@ export const style = {
   boardSvg: "block h-auto w-full drop-shadow-board",
   interactiveTarget:
     "cursor-pointer stroke-transparent focus-visible:stroke-focus focus-visible:[stroke-width:2]",
+  interactiveDie: "group cursor-pointer focus:outline-none",
+  dieFocusRing: "pointer-events-none fill-none opacity-0 group-focus-visible:opacity-100 stroke-focus [stroke-width:2]",
   boardFrame: "fill-board-frame",
   boardSurface: "fill-board-bone",
   boardTray: "fill-board-tray",
