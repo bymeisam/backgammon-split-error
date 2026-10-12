@@ -1,0 +1,17 @@
+export const style = {
+  explorer: "flex flex-col gap-3",
+  boardViewport: "w-full",
+  statusRow: "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line pt-3 text-sm",
+  status: "text-ink-muted",
+  statusComplete: "font-medium text-ink",
+  statusNoMove: "font-medium text-ink-muted",
+  dice: "font-mono tabular-nums text-ink",
+  controls: "flex flex-wrap gap-2",
+  destinationGroup: "flex flex-col gap-2",
+  destinationHeading: "text-sm font-medium text-ink",
+  destinationList: "flex flex-wrap gap-2",
+  destinationButton: "font-mono tabular-nums",
+  selectedHint: "text-sm text-ink-muted",
+  notation: "font-mono text-xs text-ink-faint",
+  explanation: "text-sm text-ink-muted",
+} as const;

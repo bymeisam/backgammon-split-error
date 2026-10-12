@@ -74,6 +74,16 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Why deferred:** it needs an interactive board that takes move input, which is a big piece of UI work. The first version uses a multiple-choice list (decided 2026-10-06).
 - **Notes:** the same interactive board would also serve [position search](#position-search-from-a-manual-board).
 
+### Interactive forum checker explorer (phase 1, 2026-10-12)
+Forum checker attachments with valid GNU Position and Match IDs now include a
+client-only legal-move explorer. It supports bar entry, blocked points, hits,
+doubles, dice ordering, maximum dice use, bearing off and oversized bear-off,
+with ephemeral undo/reset state. Cube attachments remain static. The pure
+checker engine is intentionally independent of React and ForumPost so the same
+explorer can later be reused by review cards; engine evaluation, best-move
+comparison, cube interaction, match scoring and spaced repetition remain
+future phases.
+
 ### Position search from a manual board
 - **Idea:** set up a position on screen, encode it to a GNU Position ID, and search your decisions for that exact position.
 - **Notes:** other sources may use a different position-ID format, such as XG's, so this needs a common representation. Closely related to [notes on a position](#notes-on-a-position-not-just-a-decision).

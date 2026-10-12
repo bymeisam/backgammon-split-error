@@ -247,6 +247,11 @@ export default function Board({
   onPointClick,
   onBarClick,
   onRollDieClick,
+  interactivePointLabel,
+  interactivePointClassName,
+  interactiveBarSides = ["opponent", "mine"],
+  interactiveBarLabel,
+  interactiveBarClassName,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
@@ -258,6 +263,11 @@ export default function Board({
   onPointClick?: (point: number) => void;
   onBarClick?: (side: Side) => void;
   onRollDieClick?: (index: number) => void;
+  interactivePointLabel?: (point: number) => string;
+  interactivePointClassName?: (point: number) => string | undefined;
+  interactiveBarSides?: Side[];
+  interactiveBarLabel?: (side: Side) => string;
+  interactiveBarClassName?: (side: Side) => string | undefined;
 }) {
   const interactive = Boolean(onPointClick || onBarClick || onRollDieClick);
   const drawnRollSide = rollSide ?? (flipped ? "opponent" : "mine");
@@ -359,17 +369,17 @@ export default function Board({
             key={`target-point-${point}`}
             points={trianglePoints(point)}
             fill="transparent"
-            className={style.interactiveTarget}
+            className={`${style.interactiveTarget} ${interactivePointClassName?.(point) ?? ""}`}
             role="button"
             tabIndex={0}
-            aria-label={`Edit point ${point}`}
+            aria-label={interactivePointLabel?.(point) ?? `Edit point ${point}`}
             onClick={() => onPointClick(point)}
             onKeyDown={(event) => activate(event, () => onPointClick(point))}
           />
         ))}
 
       {onBarClick &&
-        (["opponent", "mine"] as const).map((side) => (
+        interactiveBarSides.map((side) => (
           <rect
             key={`target-bar-${side}`}
             x={colX(BAR_COL)}
@@ -377,10 +387,10 @@ export default function Board({
             width={BAR_W}
             height={ROW_H}
             fill="transparent"
-            className={style.interactiveTarget}
+            className={`${style.interactiveTarget} ${interactiveBarClassName?.(side) ?? ""}`}
             role="button"
             tabIndex={0}
-            aria-label={`Edit ${side === "mine" ? "bottom" : "top"} bar`}
+            aria-label={interactiveBarLabel?.(side) ?? `Edit ${side === "mine" ? "bottom" : "top"} bar`}
             onClick={() => onBarClick(side)}
             onKeyDown={(event) => activate(event, () => onBarClick(side))}
           />
