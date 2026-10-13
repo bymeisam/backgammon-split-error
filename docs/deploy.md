@@ -223,7 +223,7 @@ The authenticated `/position-builder` route is a member page. It keeps edits in 
 
 ### Clerk domain (read this if sign-in breaks after a domain change)
 
-- **Clerk's production instance needs a domain you own.** It doesn't accept a `*.vercel.app` address ([Clerk's Vercel guide](https://clerk.com/docs/guides/development/deployment/vercel)). Until the app has its own domain, the live site runs on Clerk's **development** instance (`pk_test_` / `sk_test_` keys), which does work on `*.vercel.app`.
+- **Today the production instance uses the `*.vercel.app` URL.** On 2026-10-13 Clerk accepted the Vercel URL as the production application domain and showed its domains as verified, even though [Clerk's Vercel guide](https://clerk.com/docs/guides/development/deployment/vercel) says production needs a domain you own. If sign-in on the live site breaks, suspect this first. The fallback is Clerk's **development** instance (`pk_test_` / `sk_test_` keys), which works on `*.vercel.app`, or moving to the planned domain below.
 - **Planned domain:** `backgammon.bymeisam.dev` (decided 2026-10-13). When the app moves there:
   1. Add the domain to the Vercel project (Settings → Domains) and set its DNS.
   2. In Clerk, create the production instance (clone the development one), enter `backgammon.bymeisam.dev` as the application domain, and add the DNS records Clerk lists (CNAMEs such as `clerk.` and `accounts.` under the domain). Wait until Clerk shows them verified and the SSL certificates issued.
