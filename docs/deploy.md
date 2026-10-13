@@ -194,6 +194,12 @@ up automatically.
    row counts (4,288 matches as of the last check in PROGRESS.md; expect
    this to have grown if you've synced since). If `/status` shows a
    connection error instead, step 3 is almost certainly the cause.
+6. **Before opening the site to members: turn off Vercel Deployment
+   Protection for production** (Vercel → Settings → Deployment Protection →
+   Vercel Authentication). While it's on, every visitor has to log in to
+   Vercel before the app loads, and members are backgammon players without
+   Vercel accounts. Clerk is the app's real login. Keep it on until launch
+   (decided 2026-10-14), since the site isn't open to members yet.
 
 ## App authentication, owner and members
 
