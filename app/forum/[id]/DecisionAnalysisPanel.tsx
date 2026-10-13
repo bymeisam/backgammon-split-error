@@ -22,24 +22,25 @@ export default function DecisionAnalysisPanel({ analysis }: { analysis: ForumDec
 
   return (
     <div className={style.analysis}>
-      <Button
-        size="compact"
-        className={style.analysisToggle}
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        {open ? "Hide analysis" : "Show analysis"}
-      </Button>
+      <div className={style.analysisHeader}>
+        <span className={style.analysisLabel}>Engine analysis</span>
+        <Button size="compact" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)}>
+          {open ? "Hide analysis" : "Show analysis"}
+        </Button>
+      </div>
       {open && (
         <div id={panelId} data-testid="forum-analysis">
           {analysis.kind === "checker" ? (
-            <Table>
+            <Table className={style.analysisTable}>
               <TableHead>
                 <TableHeadCell>#</TableHeadCell>
                 <TableHeadCell>Move</TableHeadCell>
-                <TableHeadCell numeric>Equity</TableHeadCell>
-                <TableHeadCell numeric>Loss</TableHeadCell>
+                <TableHeadCell numeric className={style.analysisNumberHead}>
+                  Equity
+                </TableHeadCell>
+                <TableHeadCell numeric className={style.analysisNumberHead}>
+                  Loss
+                </TableHeadCell>
               </TableHead>
               <TableBody>
                 {analysis.options.map((option, index) => {
@@ -49,7 +50,10 @@ export default function DecisionAnalysisPanel({ analysis }: { analysis: ForumDec
                       <TableCell kind="muted" className={style.analysisRankCell(isBest)}>
                         {index + 1}
                       </TableCell>
-                      <TableCell className={style.analysisMove}>{option.move}</TableCell>
+                      <TableCell className={style.analysisMove}>
+                        {option.move}
+                        {isBest && <span className={style.analysisBestTag}>Best</span>}
+                      </TableCell>
                       <TableCell kind="numeric" className={style.analysisNumber}>
                         {formatEquity(option.equity)}
                       </TableCell>
@@ -68,12 +72,18 @@ export default function DecisionAnalysisPanel({ analysis }: { analysis: ForumDec
                 {analysis.bestDetail && <span className={style.analysisBestDetail}> · {analysis.bestDetail}</span>}
               </p>
               <div className={style.analysisEquities} aria-label="Cube equities, doubler's view">
-                {CUBE_CELLS.map(({ key, label }) => (
-                  <div key={key} className={style.analysisEquityCell(key === analysis.bestCell)}>
-                    <span className={style.analysisEquityLabel}>{label}</span>
-                    <span className={style.analysisEquityValue}>{formatEquity(analysis[key])}</span>
-                  </div>
-                ))}
+                {CUBE_CELLS.map(({ key, label }) => {
+                  const isBest = key === analysis.bestCell;
+                  return (
+                    <div key={key} className={style.analysisEquityCell(isBest)}>
+                      <span className={style.analysisEquityLabel(isBest)}>
+                        {label}
+                        {isBest && <span className={style.analysisEquityBestTag}>Best</span>}
+                      </span>
+                      <span className={style.analysisEquityValue}>{formatEquity(analysis[key])}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

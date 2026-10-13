@@ -1,6 +1,11 @@
 import clsx from "clsx";
 import { style as shared } from "@/lib/styles/shared.styles";
 
+// The small "Best" tag on the analysis panel's best option and best cube
+// cell: the review card's optionTag shape, in ink-muted (ink-faint isn't
+// checked on the Best wash).
+const bestTag = "whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-muted";
+
 export const style = {
   list: "flex flex-col gap-3",
   stack: "flex flex-col gap-6",
@@ -47,30 +52,53 @@ export const style = {
   modalText: shared.modalText,
   modalButtons: shared.modalButtons,
   reply: "flex flex-col gap-1 border-t border-line pt-4",
-  // The "Permanently hide analysis" checkbox (new-post form, post edit).
-  checkboxLabel: "flex items-center gap-2 text-sm text-ink",
+  // HideAnalysisCheckbox (new-post form, post edit): the checkbox row with
+  // its one-line hint underneath. py-1 brings the row near 32px on phones.
+  checkboxField: "flex flex-col",
+  checkboxLabel: "flex items-center gap-2 py-1 text-sm text-ink",
   checkbox: "h-4 w-4 shrink-0 accent-ink",
+  // Indented to line up with the label text (checkbox width + gap).
+  checkboxHint: "pl-6 text-xs text-ink-muted",
 
   // DecisionAnalysisPanel, under a game-sourced position's board. Inset
   // like the caption on phones, where the position panel has no padding.
-  analysis: "flex flex-col gap-3 px-2 pt-2 sm:px-0",
-  analysisToggle: "self-start",
+  // A hairline above it, so it reads as its own section and not as a third
+  // board-explorer control.
+  analysis: "mt-1 flex flex-col gap-3 border-t border-line px-2 pt-3 sm:px-0",
+  // The "Engine analysis" label with the Show/Hide button under it.
+  analysisHeader: "flex flex-col items-start gap-2",
+  analysisLabel: shared.overline,
+  // Caps the checker table from sm up, so move, equity and loss sit together.
+  analysisTable: "sm:max-w-xl",
   // Function, 1 param -> passed directly. The best option's row: Best tint
   // plus the Best bar on its first cell (as on the review card).
   analysisRow: (isBest: boolean): string => clsx(isBest && "bg-best-tint"),
   analysisRankCell: (isBest: boolean): string =>
     clsx("w-10 text-ink-muted", isBest && "shadow-[inset_3px_0_0_var(--color-best)]"),
   analysisMove: "font-mono",
-  analysisNumber: "font-mono",
+  // "Best" after the best move, so Best isn't shown by colour alone.
+  analysisBestTag: clsx("ml-2.5", bestTag),
+  // Fixed-width number columns from sm up (header and cells): the move
+  // column takes the slack. Phones keep the table's own column sizing.
+  analysisNumberHead: "sm:w-24",
+  analysisNumber: "font-mono sm:w-24",
   // The cube equities: three cells in one hairline card, the best one tinted.
-  analysisEquities: "grid grid-cols-3 overflow-hidden rounded-card border border-line bg-surface",
+  // Capped from sm up (as previewBoard), so the strip reads as one object.
+  analysisEquities: "grid grid-cols-3 overflow-hidden rounded-card border border-line bg-surface sm:max-w-md",
   // Function, 1 param -> passed directly.
   analysisEquityCell: (isBest: boolean): string =>
     clsx(
       "flex flex-col gap-0.5 px-4 py-2.5 [&+&]:border-l [&+&]:border-line",
       isBest && "bg-best-tint shadow-[inset_0_3px_0_var(--color-best)]"
     ),
-  analysisEquityLabel: "text-[11.5px] text-ink-faint",
+  // Function, 1 param -> passed directly. ink-faint is only guaranteed
+  // 4.5:1 on paper and surface, so the best cell's label (on the Best wash)
+  // uses ink-muted.
+  analysisEquityLabel: (isBest: boolean): string =>
+    clsx("flex items-center gap-1.5 text-[11.5px]", isBest ? "text-ink-muted" : "text-ink-faint"),
+  // From sm up only: in a phone's narrow cell it wraps and drops the best
+  // value below the other two (the Best bar and wash still mark it there).
+  analysisEquityBestTag: clsx("hidden sm:inline", bestTag),
   analysisEquityValue: "font-mono text-[15px] font-medium text-ink",
   analysisCube: "flex flex-col gap-2",
   analysisBest: "text-sm text-ink",

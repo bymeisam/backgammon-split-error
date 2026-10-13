@@ -5,6 +5,7 @@ import Button from "@/app/components/ui/Button";
 import Board from "@/app/components/match-analysis/Board";
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { BoardCube } from "@/lib/boardFrame";
+import HideAnalysisCheckbox from "../HideAnalysisCheckbox";
 import { style } from "../forum.styles";
 
 type AttachmentSource = "manual" | "match";
@@ -209,15 +210,7 @@ export default function NewPostForm({ preview }: { preview: DecisionPreview | nu
         </Button>
       </div>
       {hasGamePosition && (
-        <label className={style.checkboxLabel}>
-          <input
-            type="checkbox"
-            className={style.checkbox}
-            checked={hideAnalysis}
-            onChange={(event) => setHideAnalysis(event.target.checked)}
-          />
-          Permanently hide analysis
-        </label>
+        <HideAnalysisCheckbox checked={hideAnalysis} onChange={setHideAnalysis} />
       )}
       <div className={style.actions}>
         <Button type="submit" variant="primary" disabled={saving}>

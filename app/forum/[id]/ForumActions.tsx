@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import Modal from "@/app/components/ui/Modal";
+import HideAnalysisCheckbox from "../HideAnalysisCheckbox";
 import { style } from "../forum.styles";
 
 type ForumActionsProps = {
@@ -16,7 +17,7 @@ type ForumActionsProps = {
   // The post's reply count, for its delete confirmation (post actions only).
   replyCount?: number;
   // Post actions only: whether any attached position comes from a game (the
-  // "Permanently hide analysis" checkbox shows only then), and its value.
+  // "Hide engine analysis" checkbox shows only then), and its value.
   hasGamePosition?: boolean;
   hideAnalysis?: boolean;
   // Decided by the server page: write mode (isGalaxyEnabled(), the forum API
@@ -109,15 +110,7 @@ export default function ForumActions({
           onChange={(event) => setNextBody(event.target.value)}
         />
         {replyId === undefined && hasGamePosition && (
-          <label className={style.checkboxLabel}>
-            <input
-              type="checkbox"
-              className={style.checkbox}
-              checked={nextHideAnalysis}
-              onChange={(event) => setNextHideAnalysis(event.target.checked)}
-            />
-            Permanently hide analysis
-          </label>
+          <HideAnalysisCheckbox checked={nextHideAnalysis} onChange={setNextHideAnalysis} />
         )}
         <div className={style.actions}>
           <Button type="submit" variant="primary">
