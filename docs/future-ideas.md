@@ -181,6 +181,11 @@ repetition remain future phases.
 - **Follow-up:** configure the Vercel Clerk keys, create the `DATABASE_URL_AUTH` AppUser-only grant, apply the AppUser migration, and set both owner flags for the approved account.
 - **Source:** user's idea list, 2026-10-06.
 
+### Per-user permissions and an admin page
+- **Idea:** store per-user permissions on `AppUser` (at least "can sync" and "can write in the app"), and add an owner-only admin page to turn them on and off per user. Today these are deployment-wide switches: `isGalaxyEnabled()` (to become `isSyncEnabled()` once there's a second source) and `isAppWriteEnabled()`, plus the role.
+- **Notes:** the env switches stay as the deployment-level layer (does this deployment have a write credential at all?). The `AppUser` flags would add a per-user layer on top (may this user write?). The role and the access table in `lib/accessRules.ts` already decide who can reach what; the admin page could also manage roles, replacing the hand-run `UPDATE AppUser SET role = …`.
+- **Source:** user, 2026-10-13. Deferred: not needed until there are more users or more sources.
+
 ## Settings
 
 ### Settings page
