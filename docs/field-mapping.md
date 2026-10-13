@@ -73,7 +73,7 @@ rows, for `lib/app-auth.ts` and `lib/forum.ts`. In production it needs
 `DATABASE_URL_AUTH`, a credential with `SELECT`/`INSERT`/`UPDATE` on
 `AppUser` only (never the ingest/migration credential). Outside production,
 when `DATABASE_URL_AUTH` is unset, it falls back to `DATABASE_URL`, so the
-existing local setup keeps working without a third user.
+existing local setup keeps working without a separate auth user.
 
 `prismaForum` is the fourth client (since 2026-10-13). It does every forum
 write: posts, replies, edits, deletes, attached positions (`StudyPosition`,
@@ -85,9 +85,12 @@ write: posts, replies, edits, deletes, attached positions (`StudyPosition`,
 falls back to `DATABASE_URL` there. Outside production it falls back to
 `DATABASE_URL` (`forumDatabaseUrl()`). Forum writes are gated by
 `isForumWriteEnabled()` (`lib/forumGate.ts`), not `isGalaxyEnabled()`, so the
-live site, which has no `DATABASE_URL`, can accept forum posts. The local Docker MySQL has the same two users
+live site, which has no `DATABASE_URL`, can accept forum posts.
+
+The local Docker MySQL has only the first two users
 (`bg_db_rw`/`bg_db_ro`, same grant shapes, on `app_dev` and `bg_test`), and
-the local `.env` uses them, so the split can be tested locally.
+the local `.env` uses them, so the split can be tested locally; `prismaAuth`
+and `prismaForum` fall back to `DATABASE_URL` there.
 `.env.example` still defaults both vars to the docker-compose `app` user
 for a fresh checkout. The split exists in the code regardless of
 environment, so production (`bg_db_rw`/`bg_db_ro`) is a config change, not
