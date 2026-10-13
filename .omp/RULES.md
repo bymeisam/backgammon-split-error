@@ -15,4 +15,6 @@ The repo's roles are omp agents of the same name in `.omp/agents/`:
 - `architect`: read-only architecture advice, on demand.
 - `visual-reviewer`: read-only screenshot QA after a visible UI change. Pass the screenshot folder and the changed files. It returns its report and writes no files.
 
+Use only these five roles for repo work. omp's built-in agents (`task`, `sonic`, and any other that can edit files) carry none of the repo rules, including "never touch `prisma/`" on `omp/main`, so never use them for edits. The read-only built-ins (`scout`, `reviewer`, `security-reviewer`) are fine for looking around and reviewing.
+
 The main session is the orchestrator: it owns planning, user approval, agent choice, complete handoffs, integration and final verification. Delegated agents don't spawn further agents.
