@@ -52,7 +52,9 @@
 //   --set=forum               only the forum shots (since 2026-10-13): /forum,
 //                             /forum/<id> for each --forum-posts id (and the
 //                             interactive move explorer after one click and
-//                             after one hop), /forum/new empty and prefilled
+//                             after one hop; since Phase 2b also every
+//                             "Show analysis" panel expanded, and the post's
+//                             edit form when it has an Edit button), /forum/new empty and prefilled
 //                             from ?decision=<--forum-decision>,
 //                             /position-builder, and the replay's "Post to
 //                             forum" button. At 1280 and 390, light and dark;
@@ -434,6 +436,25 @@ const FORUM_SHOTS: Shot[] = [
         const { page } = ctx;
         await open(page, `/forum/${id}`);
         await forumShoot(ctx, `post-${id}`, "full");
+        // The engine analysis panels, every one expanded (none on a post
+        // with built positions only or with its analysis hidden).
+        const toggles = page.getByRole("button", { name: "Show analysis" });
+        const toggleCount = await toggles.count();
+        if (toggleCount > 0) {
+          for (let i = 0; i < toggleCount; i++) await toggles.first().click();
+          await page.waitForTimeout(200);
+          await forumShoot(ctx, `post-${id}-analysis`, "full");
+          await open(page, `/forum/${id}`);
+        }
+        // The post's edit form (the first Edit is the post's own; write
+        // mode and the author only).
+        const edit = page.getByRole("button", { name: "Edit", exact: true }).first();
+        if ((await edit.count()) > 0) {
+          await edit.click();
+          await page.waitForTimeout(200);
+          await forumShoot(ctx, `post-${id}-edit`, "full");
+          await open(page, `/forum/${id}`);
+        }
         // The interactive move explorer: one checker picked up, then moved.
         const source = page.locator('[aria-label^="Select checker on point"]').first();
         if ((await source.count()) === 0) return;

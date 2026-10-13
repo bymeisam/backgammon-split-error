@@ -27,6 +27,14 @@ export function textField(value: unknown, max: number): string | null {
   return text.length > 0 && text.length <= max ? text : null;
 }
 
+// An optional boolean field (e.g. a post's hideAnalysis): "absent" when it
+// isn't in the request, the boolean when it is one, "invalid" otherwise
+// (null, a string, a number…).
+export function optionalBoolean(value: unknown): boolean | "absent" | "invalid" {
+  if (value === undefined) return "absent";
+  return typeof value === "boolean" ? value : "invalid";
+}
+
 // Whether both are strings that decode as a GNU Position ID and GNU Match ID.
 export function validIds(positionId: unknown, gnuMatchId: unknown): positionId is string {
   return (

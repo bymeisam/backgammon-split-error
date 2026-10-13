@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma, prismaReadOnly } from "@/lib/prisma";
 import { requireMemberApi } from "@/lib/app-auth";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { forumIdentity, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
+import { forumIdentity, optionalBoolean, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
 import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 
 export const dynamic = "force-dynamic";
@@ -34,9 +34,11 @@ export async function GET(_request: NextRequest, context: Context) {
   return post ? NextResponse.json(post) : NextResponse.json({ error: "Not found." }, { status: 404 });
 }
 
-// PATCH /api/forum/posts/[id]   body: { "title": string, "body": string }
+// PATCH /api/forum/posts/[id]   body: { "title": string, "body": string,
+//                                     "hideAnalysis"?: boolean }
 //
-// Edits a post's title and body. Only its author may, and only with write
+// Edits a post's title and body, and its hideAnalysis flag when given (left
+// as it is when absent). Only its author may, and only with write
 // mode on (isGalaxyEnabled(), the same gate as every other write).
 export async function PATCH(request: NextRequest, context: Context) {
   const denied = await requireMemberApi();
@@ -51,7 +53,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
   if (!canEditForumItem(user, existing.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
-  let input: { title?: unknown; body?: unknown };
+  let input: { title?: unknown; body?: unknown; hideAnalysis?: unknown };
   try {
     input = await request.json();
   } catch {
@@ -60,8 +62,13 @@ export async function PATCH(request: NextRequest, context: Context) {
   const title = textField(input.title, FORUM_LIMITS.title);
   const body = textField(input.body, FORUM_LIMITS.body);
   if (!title || !body) return NextResponse.json({ error: "Title and body are required." }, { status: 400 });
+  const hideAnalysis = optionalBoolean(input.hideAnalysis);
+  if (hideAnalysis === "invalid") return NextResponse.json({ error: "hideAnalysis must be a boolean." }, { status: 400 });
 
-  await prisma.forumPost.update({ where: { id }, data: { title, body } });
+  await prisma.forumPost.update({
+    where: { id },
+    data: { title, body, ...(hideAnalysis === "absent" ? {} : { hideAnalysis }) },
+  });
   return NextResponse.json({ ok: true });
 }
 

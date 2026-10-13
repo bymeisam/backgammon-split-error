@@ -47,4 +47,33 @@ export const style = {
   modalText: shared.modalText,
   modalButtons: shared.modalButtons,
   reply: "flex flex-col gap-1 border-t border-line pt-4",
+  // The "Permanently hide analysis" checkbox (new-post form, post edit).
+  checkboxLabel: "flex items-center gap-2 text-sm text-ink",
+  checkbox: "h-4 w-4 shrink-0 accent-ink",
+
+  // DecisionAnalysisPanel, under a game-sourced position's board. Inset
+  // like the caption on phones, where the position panel has no padding.
+  analysis: "flex flex-col gap-3 px-2 pt-2 sm:px-0",
+  analysisToggle: "self-start",
+  // Function, 1 param -> passed directly. The best option's row: Best tint
+  // plus the Best bar on its first cell (as on the review card).
+  analysisRow: (isBest: boolean): string => clsx(isBest && "bg-best-tint"),
+  analysisRankCell: (isBest: boolean): string =>
+    clsx("w-10 text-ink-muted", isBest && "shadow-[inset_3px_0_0_var(--color-best)]"),
+  analysisMove: "font-mono",
+  analysisNumber: "font-mono",
+  // The cube equities: three cells in one hairline card, the best one tinted.
+  analysisEquities: "grid grid-cols-3 overflow-hidden rounded-card border border-line bg-surface",
+  // Function, 1 param -> passed directly.
+  analysisEquityCell: (isBest: boolean): string =>
+    clsx(
+      "flex flex-col gap-0.5 px-4 py-2.5 [&+&]:border-l [&+&]:border-line",
+      isBest && "bg-best-tint shadow-[inset_0_3px_0_var(--color-best)]"
+    ),
+  analysisEquityLabel: "text-[11.5px] text-ink-faint",
+  analysisEquityValue: "font-mono text-[15px] font-medium text-ink",
+  analysisCube: "flex flex-col gap-2",
+  analysisBest: "text-sm text-ink",
+  analysisBestLabel: "font-medium",
+  analysisBestDetail: "text-ink-muted",
 } as const;

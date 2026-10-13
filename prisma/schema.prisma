@@ -451,6 +451,9 @@ model ForumPost {
   author          AppUser             @relation("ForumPostAuthor", fields: [authorAppUserId], references: [id])
   title           String              @db.VarChar(191)
   body            String              @db.Text
+  // Author's choice: never show the engine analysis of this post's
+  // game-sourced positions (the forum post page sends none).
+  hideAnalysis    Boolean             @default(false)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   positions       ForumPostPosition[]

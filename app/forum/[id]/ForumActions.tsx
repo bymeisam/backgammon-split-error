@@ -15,6 +15,10 @@ type ForumActionsProps = {
   replyBody?: string;
   // The post's reply count, for its delete confirmation (post actions only).
   replyCount?: number;
+  // Post actions only: whether any attached position comes from a game (the
+  // "Permanently hide analysis" checkbox shows only then), and its value.
+  hasGamePosition?: boolean;
+  hideAnalysis?: boolean;
   // Decided by the server page: write mode (isGalaxyEnabled(), the forum API
   // routes' gate) and lib/forumPermissions.ts. Edit is the author's only;
   // Delete is the author's, or the owner's on anyone's (moderation).
@@ -30,6 +34,8 @@ export default function ForumActions({
   replyId,
   replyBody,
   replyCount = 0,
+  hasGamePosition = false,
+  hideAnalysis = false,
   canEdit,
   canDelete,
 }: ForumActionsProps) {
@@ -37,6 +43,7 @@ export default function ForumActions({
   const [editing, setEditing] = useState(false);
   const [nextTitle, setNextTitle] = useState(title ?? "");
   const [nextBody, setNextBody] = useState(body ?? replyBody ?? "");
+  const [nextHideAnalysis, setNextHideAnalysis] = useState(hideAnalysis);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,7 +69,12 @@ export default function ForumActions({
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    const ok = await send("PATCH", replyId ? { body: nextBody } : { title: nextTitle, body: nextBody });
+    const ok = await send(
+      "PATCH",
+      replyId
+        ? { body: nextBody }
+        : { title: nextTitle, body: nextBody, ...(hasGamePosition ? { hideAnalysis: nextHideAnalysis } : {}) }
+    );
     if (ok) setEditing(false);
   }
 
@@ -96,6 +108,17 @@ export default function ForumActions({
           value={nextBody}
           onChange={(event) => setNextBody(event.target.value)}
         />
+        {replyId === undefined && hasGamePosition && (
+          <label className={style.checkboxLabel}>
+            <input
+              type="checkbox"
+              className={style.checkbox}
+              checked={nextHideAnalysis}
+              onChange={(event) => setNextHideAnalysis(event.target.checked)}
+            />
+            Permanently hide analysis
+          </label>
+        )}
         <div className={style.actions}>
           <Button type="submit" variant="primary">
             Save

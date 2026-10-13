@@ -14,10 +14,14 @@ import { formatShortMatchDate } from "@/lib/formatDate";
 import { style } from "../forum.styles";
 import ForumActions from "./ForumActions";
 import ReplyComposer from "./ReplyComposer";
+import DecisionAnalysisPanel from "./DecisionAnalysisPanel";
+import { forumPostAnalyses } from "@/lib/forumAnalysis";
 import { requireMemberDocument } from "@/lib/app-auth";
 
 // /forum/[id]: one post, its attached positions (checker positions get the
-// move explorer, cube positions a plain board) and its replies.
+// move explorer, cube positions a plain board, and a game-sourced position
+// a collapsed "Show analysis" panel unless the author hid it) and its
+// replies.
 export default async function ForumPostPage({ params }: { params: Promise<{ id: string }> }) {
   await requireMemberDocument();
   const id = Number((await params).id);
@@ -30,11 +34,18 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
       positions: {
         orderBy: { displayOrder: "asc" },
         include: {
-          // The source decision only for the replay link; never its raw.
+          // The source decision for the replay link, plus its raw and its
+          // match's source for the engine analysis. raw stays on the server:
+          // only forumPostAnalyses' sanitized result (no played move) is
+          // passed to the client panel.
           studyPosition: {
             include: {
               sourceDecision: {
-                select: { id: true, game: { select: { gameIndex: true, match: { select: { sourceMatchId: true } } } } },
+                select: {
+                  id: true,
+                  raw: true,
+                  game: { select: { gameIndex: true, match: { select: { sourceMatchId: true, source: true } } } },
+                },
               },
             },
           },
@@ -56,6 +67,16 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
   });
   const now = new Date();
 
+  // The engine analysis per position (none when the author hid it, and none
+  // for built positions). Sanitized server-side: no played move.
+  const analyses = forumPostAnalyses(
+    post.hideAnalysis,
+    post.positions.map(({ studyPosition: { sourceDecision } }) =>
+      sourceDecision ? { source: sourceDecision.game.match.source, raw: sourceDecision.raw } : null
+    )
+  );
+  const hasGamePosition = post.positions.some(({ studyPosition }) => studyPosition.sourceDecision !== null);
+
   return (
     <PageShell width="medium" title={post.title} breadcrumbs={[{ label: "Forum", href: "/forum" }, { label: post.title }]}>
       <div className={style.stack}>
@@ -67,6 +88,8 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
             title={post.title}
             body={post.body}
             replyCount={post.replies.length}
+            hasGamePosition={hasGamePosition}
+            hideAnalysis={post.hideAnalysis}
             {...actionsFor(post.authorAppUserId)}
           />
         </Card>
@@ -75,6 +98,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
           if (!decoded) return null;
           const { position, match, cube, dice } = decoded;
           const source = studyPosition.sourceDecision;
+          const analysis = analyses[index];
 
           return (
             <div className={style.position} key={studyPosition.id}>
@@ -104,6 +128,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
               ) : (
                 <Board decoded={position} cube={cube} />
               )}
+              {analysis && <DecisionAnalysisPanel analysis={analysis} />}
             </div>
           );
         })}

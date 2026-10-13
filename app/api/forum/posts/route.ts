@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma, prismaReadOnly } from "@/lib/prisma";
 import { requireMemberApi } from "@/lib/app-auth";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { FORUM_LIMITS, forumIdentity, rawMatchId, sourceDecision, textField, validIds } from "@/lib/forum";
+import { FORUM_LIMITS, forumIdentity, optionalBoolean, rawMatchId, sourceDecision, textField, validIds } from "@/lib/forum";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 export const dynamic = "force-dynamic";
@@ -100,12 +100,14 @@ async function resolvePosition(input: unknown): Promise<{ position: ResolvedPosi
 }
 
 // POST /api/forum/posts   body: { "title": string, "body": string,
-//                                 "positions": attachment[] }
+//                                 "positions": attachment[],
+//                                 "hideAnalysis"?: boolean }
 //
 // Creates a post with 1 to FORUM_LIMITS.positions attached positions, as the
 // signed-in member or owner. Write mode only (isGalaxyEnabled(), the same gate as every
 // other write). The post, its StudyPositions and the attachment rows are
-// created in one transaction.
+// created in one transaction. hideAnalysis (default false) permanently hides
+// the engine analysis of the post's game-sourced positions.
 export async function POST(request: NextRequest) {
   const denied = await requireMemberApi();
   if (denied) return denied;
@@ -120,10 +122,12 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
-  const input = payload as { title?: unknown; body?: unknown; positions?: unknown };
+  const input = payload as { title?: unknown; body?: unknown; positions?: unknown; hideAnalysis?: unknown };
   const title = textField(input.title, FORUM_LIMITS.title);
   const body = textField(input.body, FORUM_LIMITS.body);
   if (!title || !body) return NextResponse.json({ error: "Title and body are required." }, { status: 400 });
+  const hideAnalysis = optionalBoolean(input.hideAnalysis);
+  if (hideAnalysis === "invalid") return NextResponse.json({ error: "hideAnalysis must be a boolean." }, { status: 400 });
   if (
     !Array.isArray(input.positions) ||
     input.positions.length === 0 ||
@@ -145,7 +149,9 @@ export async function POST(request: NextRequest) {
   }
 
   const post = await prisma.$transaction(async (tx) => {
-    const createdPost = await tx.forumPost.create({ data: { authorAppUserId: user.id, title, body } });
+    const createdPost = await tx.forumPost.create({
+      data: { authorAppUserId: user.id, title, body, hideAnalysis: hideAnalysis === true },
+    });
 
     // One new StudyPosition per attachment, linked in the order given.
     for (const [displayOrder, position] of positions.entries()) {

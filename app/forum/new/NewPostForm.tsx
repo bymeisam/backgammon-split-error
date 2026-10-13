@@ -52,6 +52,10 @@ export default function NewPostForm({ preview }: { preview: DecisionPreview | nu
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(preview !== null);
   const [saving, setSaving] = useState(false);
+  const [hideAnalysis, setHideAnalysis] = useState(false);
+  // The checkbox only matters (and only shows) when a position comes from a
+  // game; built positions never have analysis.
+  const hasGamePosition = attachments.some((attachment) => attachment.source === "match");
 
   function updateAttachment(index: number, patch: Partial<PositionAttachment>) {
     setAttachments((current) =>
@@ -90,7 +94,7 @@ export default function NewPostForm({ preview }: { preview: DecisionPreview | nu
     const response = await fetch("/api/forum/posts", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, body, positions }),
+      body: JSON.stringify({ title, body, positions, hideAnalysis: hasGamePosition && hideAnalysis }),
     });
     if (!response.ok) {
       const result = await response.json().catch(() => null);
@@ -204,6 +208,17 @@ export default function NewPostForm({ preview }: { preview: DecisionPreview | nu
           Add position
         </Button>
       </div>
+      {hasGamePosition && (
+        <label className={style.checkboxLabel}>
+          <input
+            type="checkbox"
+            className={style.checkbox}
+            checked={hideAnalysis}
+            onChange={(event) => setHideAnalysis(event.target.checked)}
+          />
+          Permanently hide analysis
+        </label>
+      )}
       <div className={style.actions}>
         <Button type="submit" variant="primary" disabled={saving}>
           {saving ? "Posting…" : "Post"}

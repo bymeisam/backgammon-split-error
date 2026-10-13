@@ -463,6 +463,21 @@ type DecisionAnalysis =
 **`v` versions the shape.** Changing the shape, or how a translator fills
 it, bumps `v`.
 
+**Forum posts (since 2026-10-13, Phase 2b)** are a second consumer. The
+forum post page (`app/forum/[id]/page.tsx`) loads each attached position's
+source `Decision.raw` and `Match.source` on the server, calls
+`getDecisionAnalysis`, and maps the result through `lib/forumAnalysis.ts`'s
+`forumAnalysisFrom` to a sanitized shape that has **no played
+information**: checker `{ kind, options: { move, equity, loss }[] }` (best
+first; `played`, `rank` and `probs` dropped), cube
+`{ kind, nd, dt, dp, best, bestDetail, bestCell }` (the best label from
+`lib/cubeAction.ts`'s `doublerAction`/`receiverAction` + `cubeBestDisplay`
+by `role`; `role` itself dropped). Only that object reaches the client
+(`DecisionAnalysisPanel`); `raw` never does. `ForumPost.hideAnalysis`
+(Boolean, default false; no collation, not a string) is the author's
+choice to send no analysis for any of the post's positions. Built (MANUAL)
+positions have none.
+
 The translator reads the event type itself, from `raw`'s
 `reviews[0].result.analysed_event` (since 2026-10-07, when the
 `Decision.analysedEvent` column it used to be passed was dropped). The same
