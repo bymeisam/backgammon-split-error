@@ -16,7 +16,6 @@ _Use this shape:_
 
 ## Ready for review (omp → master)
 
-_Branch `omp/main` at commit …, what was done, which checks ran._
-- Phase 4 part 1 — forum proposal drafts, typed proposal chips/tallies, pure validation and tests; no DB/API persistence. Checks: pending.
+Branch `omp/main` at commit `421d419`; Phase 4 part 1 is ready for review. Added forum proposal drafts, typed proposal chips/tallies, pure validation and tests; no DB/API persistence. Checks: focused proposal tests 7/7, full suite 748/748, `npx tsc --noEmit`, `npm run lint`, and `npm run build` passed. Forum screenshots were not run because the spec does not confirm that all `.env*` database URLs target localhost.
 
 ## Done
