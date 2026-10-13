@@ -92,6 +92,14 @@ repetition remain future phases.
 - **Notes:** other sources may use a different position-ID format, such as XG's, so this needs a common representation. Closely related to [notes on a position](#notes-on-a-position-not-just-a-decision).
 - **Source:** user's idea list, 2026-10-06.
 
+### Snaps: position from a photo of a real board
+- **Idea:** take or upload a photo of a physical board and turn it into a position. Inspired by [GammonSnap](https://www.gammonsnap.de/) (Android).
+- **Shape:** a "From photo" entry into `/position-builder`, not a separate flow: the photo pre-fills the builder, the user fixes mistakes (the builder's 15-checkers-a-side check catches miscounts) and then posts or saves as usual. Needs an orientation control (which colour is "you", flip/swap), because a photo can't settle it reliably. Photos aren't stored, so no schema change. Members could use it too, since the builder is shared.
+- **How GammonSnap does it** (from its site; the method itself is inferred): recognition runs on the phone in real time, almost certainly a small trained object detector (board, checkers, dice, cube) plus geometry to map checkers to points. Only the XGID goes to a server, where GNU Backgammon evaluates it. Its own limits: stacked checkers aren't reliably detected, landscape boards only, cube values up to 8.
+- **Decision (user, 2026-10-13):** start with **Google's Gemini API free tier** (a general vision model asked for the position as JSON), not a trained detector. Check the free tier's current limits and data-use terms before building (free tiers have been used for training). It needs an API key on Vercel (the user sets it). A trained detector (e.g. from the public Roboflow backgammon datasets) stays the fallback if accuracy is poor.
+- **First step:** a small test, about 10 real photos of the user's board scored against the true positions, before any UI. This is omp's area (forum and builder); queue it there when the user says.
+- **Source:** user, 2026-10-13.
+
 ### Forum
 - **Idea:** a position-centered discussion space for questions, explanations, and future review. The core loop is:
   1. See a position.
