@@ -22,9 +22,11 @@ import {
   OFF_TRACK_X,
   R,
   RING_R,
+  TRI_HALF_W,
   Y0,
   Y1,
   barStackBase,
+  colCenterX,
   colX,
   cubeBadgeCenter,
   diePips,
@@ -35,6 +37,7 @@ import {
   offeredCubeCenter,
   offTrayBounds,
   offTrayRect,
+  pointColumn,
   pointRow,
   stackBase,
   stackSlotY,
@@ -47,8 +50,9 @@ import { style, type ArrowTier } from "./BoardPanel.styles";
 
 // Drawn in the order of the Clubroom mockup's board() (design/mockups/
 // replay.html): frame, bone, trays, points, numbers, off-tray contents,
-// checkers, bar checkers, cube, arrows, dice. Every position comes from
-// lib/boardGeometry.ts.
+// checkers, bar checkers, cube, arrows, dice. Interactive boards add their
+// highlights under the checkers, landing markers over them, and transparent
+// hit areas on top. Every position comes from lib/boardGeometry.ts.
 
 function OffTray({ side, count }: { side: Side; count: number }) {
   const { fill, contrast, rim } = CHECKER_PALETTE[side];
@@ -236,6 +240,50 @@ interface Point {
   y: number;
 }
 
+// How an interactive caller (the move explorer) marks a point or the bar:
+// a movable checker, the selected one, or where it can land.
+export type BoardHighlight = "source" | "selected" | "destination";
+
+const SOURCE_BAR_H = 3;
+
+// The under-checker half of a highlight: the selected tint over the whole
+// point, and the source bar along its base edge (selected keeps the bar, so
+// it reads as the same checker, picked up). A destination draws nothing here.
+function PointHighlight({ point, highlight }: { point: number; highlight: BoardHighlight }) {
+  if (highlight === "destination") return null;
+  const cx = colCenterX(pointColumn(point));
+  const barY = pointRow(point) === "bottom" ? Y1 - SOURCE_BAR_H : Y0;
+  return (
+    <>
+      {highlight === "selected" && <polygon points={trianglePoints(point)} className={style.interactiveSelected} />}
+      <rect x={cx - TRI_HALF_W} y={barY} width={2 * TRI_HALF_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
+    </>
+  );
+}
+
+function BarHighlight({ side, highlight }: { side: Side; highlight: BoardHighlight }) {
+  if (highlight === "destination") return null;
+  const x = colX(BAR_COL);
+  const top = side === "mine" ? CENTER_Y : Y0;
+  const barY = side === "mine" ? Y1 - SOURCE_BAR_H : Y0;
+  return (
+    <>
+      {highlight === "selected" && (
+        <rect x={x} y={top} width={BAR_W} height={ROW_H} className={style.interactiveSelected} />
+      )}
+      <rect x={x} y={barY} width={BAR_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
+    </>
+  );
+}
+
+// The landing marker: a dashed ghost checker in the next free slot. On a
+// blot it would hit, that's slot 0, over the blot.
+function LandingMarker({ point, decoded }: { point: number; decoded: DecodedPosition }) {
+  const base = stackBase(point);
+  const cy = stackSlotY(base, decoded.mine[point - 1]);
+  return <circle cx={base.cx} cy={cy} r={R - 1} className={style.interactiveDestination} />;
+}
+
 export default function Board({
   decoded,
   subMoves = [],
@@ -256,11 +304,11 @@ export default function Board({
   onBarPointerCancel,
   onRollDieClick,
   interactivePointLabel,
-  interactivePointClassName,
+  interactivePointHighlight,
   interactivePointEnabled,
   interactiveBarSides = ["opponent", "mine"],
   interactiveBarLabel,
-  interactiveBarClassName,
+  interactiveBarHighlight,
   interactiveBarEnabled,
 }: {
   decoded: DecodedPosition;
@@ -282,11 +330,11 @@ export default function Board({
   onBarPointerCancel?: (side: Side) => void;
   onRollDieClick?: (index: number) => void;
   interactivePointLabel?: (point: number) => string;
-  interactivePointClassName?: (point: number) => string | undefined;
+  interactivePointHighlight?: (point: number) => BoardHighlight | undefined;
   interactivePointEnabled?: (point: number) => boolean;
   interactiveBarSides?: Side[];
   interactiveBarLabel?: (side: Side) => string;
-  interactiveBarClassName?: (side: Side) => string | undefined;
+  interactiveBarHighlight?: (side: Side) => BoardHighlight | undefined;
   interactiveBarEnabled?: (side: Side) => boolean;
 }) {
   const interactive = Boolean(
@@ -353,6 +401,18 @@ export default function Board({
         </text>
       ))}
 
+      {/* explorer highlights, under the checkers so they never wash them out */}
+      {interactivePointHighlight &&
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
+          const highlight = interactivePointHighlight(point);
+          return highlight && <PointHighlight key={`highlight-point-${point}`} point={point} highlight={highlight} />;
+        })}
+      {interactiveBarHighlight &&
+        interactiveBarSides.map((side) => {
+          const highlight = interactiveBarHighlight(side);
+          return highlight && <BarHighlight key={`highlight-bar-${side}`} side={side} highlight={highlight} />;
+        })}
+
       {/* off tray halves */}
       <OffTray side="opponent" count={decoded.opponentOff} />
       <OffTray side="mine" count={decoded.mineOff} />
@@ -395,6 +455,14 @@ export default function Board({
         ))}
       </g>
 
+      {/* landing markers, over the checkers (a hit lands on a blot) */}
+      {interactivePointHighlight &&
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) =>
+          interactivePointHighlight(point) === "destination" ? (
+            <LandingMarker key={`landing-${point}`} point={point} decoded={decoded} />
+          ) : null
+        )}
+
       {(onPointKeyDown || onPointClick || onPointPointerDown || onPointPointerUp || onPointPointerCancel) &&
         Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
           const enabled = interactivePointEnabled?.(point) ?? true;
@@ -403,7 +471,7 @@ export default function Board({
               key={`target-point-${point}`}
               points={trianglePoints(point)}
               fill="transparent"
-              className={style.interactiveTarget(enabled, interactivePointClassName?.(point))}
+              className={style.interactiveTarget(enabled)}
               role="button"
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}
@@ -428,7 +496,7 @@ export default function Board({
               width={BAR_W}
               height={ROW_H}
               fill="transparent"
-              className={style.interactiveTarget(enabled, interactiveBarClassName?.(side))}
+              className={style.interactiveTarget(enabled)}
               role="button"
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}
