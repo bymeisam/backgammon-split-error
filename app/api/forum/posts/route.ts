@@ -7,12 +7,21 @@ import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 export const dynamic = "force-dynamic";
 
+// GET /api/forum/posts
+//
+// Every post, newest first, with its author, attachments and counts.
+// Owner-only; a read, so it isn't behind the write gate.
 export async function GET() {
   const denied = await requireOwnerApi();
   if (denied) return denied;
+
   const posts = await prismaReadOnly.forumPost.findMany({
     orderBy: { createdAt: "desc" },
-    include: { author: { select: { displayName: true } }, positions: true, _count: { select: { replies: true, positions: true } } },
+    include: {
+      author: { select: { displayName: true } },
+      positions: true,
+      _count: { select: { replies: true, positions: true } },
+    },
   });
   return NextResponse.json(posts);
 }
@@ -30,16 +39,23 @@ type PositionInput = {
   match?: { decisionId?: unknown };
 };
 
+// Turns one attachment from the request into the StudyPosition to create.
+// An attachment is either manual (GNU Position ID, GNU Match ID and kind,
+// e.g. from the position builder) or a match decision, whose IDs are read
+// from the stored Decision: sourcePositionId, and the GNU Match ID from raw
+// (lib/forum.ts rawMatchId).
 async function resolvePosition(input: unknown): Promise<{ position: ResolvedPosition } | { error: string; status: number }> {
   if (typeof input !== "object" || input === null) {
     return { error: "Invalid position attachment.", status: 400 };
   }
+
   const candidate = input as PositionInput;
   const hasManual = candidate.manual !== undefined;
   const hasMatch = candidate.match !== undefined;
   if (hasManual === hasMatch) {
     return { error: "Each attachment must choose exactly one position source.", status: 400 };
   }
+
   if (hasManual) {
     const manual = candidate.manual!;
     const kind = manual.kind === "CHECKER" || manual.kind === "CUBE" ? manual.kind : null;
@@ -55,6 +71,7 @@ async function resolvePosition(input: unknown): Promise<{ position: ResolvedPosi
       },
     };
   }
+
   const decisionId = candidate.match?.decisionId;
   if (typeof decisionId !== "number" || !Number.isInteger(decisionId) || decisionId < 1) {
     return { error: "Invalid decision ID.", status: 400 };
@@ -82,12 +99,21 @@ async function resolvePosition(input: unknown): Promise<{ position: ResolvedPosi
   };
 }
 
+// POST /api/forum/posts   body: { "title": string, "body": string,
+//                                 "positions": attachment[] }
+//
+// Creates a post with 1 to FORUM_LIMITS.positions attached positions, as the
+// signed-in owner. Write mode only (isGalaxyEnabled(), the same gate as every
+// other write). The post, its StudyPositions and the attachment rows are
+// created in one transaction.
 export async function POST(request: NextRequest) {
   const denied = await requireOwnerApi();
   if (denied) return denied;
   if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
+
   const user = await ownerIdentity();
   if (!user) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
   let payload: unknown;
   try {
     payload = await request.json();
@@ -98,10 +124,19 @@ export async function POST(request: NextRequest) {
   const title = textField(input.title, FORUM_LIMITS.title);
   const body = textField(input.body, FORUM_LIMITS.body);
   if (!title || !body) return NextResponse.json({ error: "Title and body are required." }, { status: 400 });
-  if (!Array.isArray(input.positions) || input.positions.length === 0 || input.positions.length > FORUM_LIMITS.positions) {
-    return NextResponse.json({ error: `Add between 1 and ${FORUM_LIMITS.positions} position attachments.` }, { status: 400 });
+  if (
+    !Array.isArray(input.positions) ||
+    input.positions.length === 0 ||
+    input.positions.length > FORUM_LIMITS.positions
+  ) {
+    return NextResponse.json(
+      { error: `Add between 1 and ${FORUM_LIMITS.positions} position attachments.` },
+      { status: 400 }
+    );
   }
 
+  // Resolve every attachment before writing anything, so one bad attachment
+  // fails the whole request.
   const positions: ResolvedPosition[] = [];
   for (const attachment of input.positions) {
     const resolved = await resolvePosition(attachment);
@@ -111,6 +146,8 @@ export async function POST(request: NextRequest) {
 
   const post = await prisma.$transaction(async (tx) => {
     const createdPost = await tx.forumPost.create({ data: { authorAppUserId: user.id, title, body } });
+
+    // One new StudyPosition per attachment, linked in the order given.
     for (const [displayOrder, position] of positions.entries()) {
       const study = await tx.studyPosition.create({
         data: {
@@ -126,5 +163,6 @@ export async function POST(request: NextRequest) {
     }
     return createdPost;
   });
+
   return NextResponse.json({ id: post.id }, { status: 201 });
 }

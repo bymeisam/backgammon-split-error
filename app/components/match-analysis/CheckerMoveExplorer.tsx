@@ -136,6 +136,11 @@ export default function CheckerMoveExplorer({
     return undefined;
   };
 
+  const statusClassName =
+    status === "complete" ? style.statusComplete : status === "no-legal-move" ? style.statusNoMove : style.status;
+  const usedDice = state.usedDice.length ? state.usedDice.join(", ") : "none";
+  const remainingDice = state.remainingDice.length ? state.remainingDice.join(", ") : "none";
+
   return (
     <div className={style.explorer}>
       <div className={style.boardViewport}>
@@ -170,13 +175,16 @@ export default function CheckerMoveExplorer({
         />
       </div>
       <div className={style.statusRow} aria-live="polite">
-        <span className={status === "complete" ? style.statusComplete : status === "no-legal-move" ? style.statusNoMove : style.status}>
+        <span className={statusClassName}>
           {status === "complete" && "Move complete."}
           {status === "no-legal-move" && "No legal checker move for this roll."}
-          {status === "ready" && (selected ? `Choose a destination for the checker on ${locationLabel(selected)}.` : "Select a checker to begin.")}
+          {status === "ready" &&
+            (selected
+              ? `Choose a destination for the checker on ${locationLabel(selected)}.`
+              : "Select a checker to begin.")}
         </span>
         <span className={style.dice}>
-          Used: {state.usedDice.length ? state.usedDice.join(", ") : "none"} · Remaining: {state.remainingDice.length ? state.remainingDice.join(", ") : "none"}
+          Used: {usedDice} · Remaining: {remainingDice}
         </span>
       </div>
       {selected !== null && selectedHops.length > 0 && (
@@ -197,11 +205,21 @@ export default function CheckerMoveExplorer({
           </div>
         </div>
       )}
-      {selected !== null && selectedHops.length === 0 && <p className={style.explanation}>That checker has no legal destination for the remaining dice.</p>}
-      {state.hops.length > 0 && <p className={style.notation} aria-label="Explored move sequence">{state.hops.map((hop) => `${hop.from}/${hop.to}${hop.hit ? "*" : ""}`).join(" ")}</p>}
+      {selected !== null && selectedHops.length === 0 && (
+        <p className={style.explanation}>That checker has no legal destination for the remaining dice.</p>
+      )}
+      {state.hops.length > 0 && (
+        <p className={style.notation} aria-label="Explored move sequence">
+          {state.hops.map((hop) => `${hop.from}/${hop.to}${hop.hit ? "*" : ""}`).join(" ")}
+        </p>
+      )}
       <div className={style.controls}>
-        <Button size="compact" onClick={undo} disabled={state.history.length === 0}>Undo last hop</Button>
-        <Button size="compact" onClick={reset}>Reset position</Button>
+        <Button size="compact" onClick={undo} disabled={state.history.length === 0}>
+          Undo last hop
+        </Button>
+        <Button size="compact" onClick={reset}>
+          Reset position
+        </Button>
       </div>
     </div>
   );

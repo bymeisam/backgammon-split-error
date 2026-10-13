@@ -85,7 +85,11 @@ export default function NewForumPostPage() {
   }
 
   return (
-    <PageShell width="medium" title="New forum post" breadcrumbs={[{ label: "Forum", href: "/forum" }, { label: "New post" }]}>
+    <PageShell
+      width="medium"
+      title="New forum post"
+      breadcrumbs={[{ label: "Forum", href: "/forum" }, { label: "New post" }]}
+    >
       <form className={style.form} onSubmit={submit}>
         {error && <p className={style.error}>{error}</p>}
         <label>
@@ -94,7 +98,13 @@ export default function NewForumPostPage() {
         </label>
         <label>
           Body
-          <textarea className={style.input} rows={8} value={body} onChange={(event) => setBody(event.target.value)} required />
+          <textarea
+            className={style.input}
+            rows={8}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            required
+          />
         </label>
         <div className={style.attachmentList}>
           {attachments.map((attachment, index) => (
@@ -134,15 +144,31 @@ export default function NewForumPostPage() {
                 <>
                   <label>
                     GNU Position ID
-                    <input className={style.input} value={attachment.positionId} onChange={(event) => updateAttachment(index, { positionId: event.target.value })} required />
+                    <input
+                      className={style.input}
+                      value={attachment.positionId}
+                      onChange={(event) => updateAttachment(index, { positionId: event.target.value })}
+                      required
+                    />
                   </label>
                   <label>
                     GNU Match ID
-                    <input className={style.input} value={attachment.gnuMatchId} onChange={(event) => updateAttachment(index, { gnuMatchId: event.target.value })} required />
+                    <input
+                      className={style.input}
+                      value={attachment.gnuMatchId}
+                      onChange={(event) => updateAttachment(index, { gnuMatchId: event.target.value })}
+                      required
+                    />
                   </label>
                   <label>
                     Kind
-                    <select className={style.input} value={attachment.kind} onChange={(event) => updateAttachment(index, { kind: event.target.value as PositionAttachment["kind"] })}>
+                    <select
+                      className={style.input}
+                      value={attachment.kind}
+                      onChange={(event) =>
+                        updateAttachment(index, { kind: event.target.value as PositionAttachment["kind"] })
+                      }
+                    >
                       <option value="CHECKER">Checker</option>
                       <option value="CUBE">Cube</option>
                     </select>
@@ -153,8 +179,12 @@ export default function NewForumPostPage() {
           ))}
         </div>
         <div className={style.actions}>
-          <Button type="button" onClick={addAttachment}>Add position</Button>
-          <Button type="submit" variant="primary" disabled={saving}>{saving ? "Posting…" : "Post"}</Button>
+          <Button type="button" onClick={addAttachment}>
+            Add position
+          </Button>
+          <Button type="submit" variant="primary" disabled={saving}>
+            {saving ? "Posting…" : "Post"}
+          </Button>
           <Button href="/forum">Cancel</Button>
         </div>
       </form>

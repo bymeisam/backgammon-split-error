@@ -22,7 +22,6 @@ import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import { style } from "./positionBuilder.styles";
 
-
 function sideLabel(side: Side): string {
   return side === "mine" ? "Bottom" : "Top";
 }
@@ -69,13 +68,22 @@ export default function PositionBuilder() {
     });
   }
 
+  // A checker decision needs a roll (keep the current one, or start at 1-1);
+  // a cube decision has none.
+  function updateDecisionType(type: PositionBuilderState["decisionType"]) {
+    setState((previous) => ({
+      ...previous,
+      decisionType: type,
+      roll: type === "checker" ? previous.roll ?? [1, 1] : null,
+    }));
+  }
+
   function toggleRollSide() {
     setState((previous) => ({
       ...previous,
       playerToMove: previous.playerToMove === "mine" ? "opponent" : "mine",
     }));
   }
-
 
   function updateMatchLength(value: string) {
     const matchLength = numberValue(value);
@@ -221,7 +229,13 @@ export default function PositionBuilder() {
           </p>
           <div className={style.segmented}>
             {(["checker", "cube"] as const).map((type) => (
-              <button key={type} type="button" aria-pressed={state.decisionType === type} className={style.actionOption(state.decisionType === type)} onClick={() => setState((previous) => ({ ...previous, decisionType: type, roll: type === "checker" ? previous.roll ?? [1, 1] : null }))}>
+              <button
+                key={type}
+                type="button"
+                aria-pressed={state.decisionType === type}
+                className={style.actionOption(state.decisionType === type)}
+                onClick={() => updateDecisionType(type)}
+              >
                 {type === "checker" ? "Checker decision" : "Cube decision"}
               </button>
             ))}
@@ -234,8 +248,16 @@ export default function PositionBuilder() {
               {[0, 1].map((index) => (
                 <label key={index} className={style.field}>
                   Die {index + 1}
-                  <select className={style.select} value={state.roll?.[index] ?? 1} onChange={(event) => updateDie(index as 0 | 1, numberValue(event.target.value))}>
-                    {[1, 2, 3, 4, 5, 6].map((value) => <option key={value} value={value}>{value}</option>)}
+                  <select
+                    className={style.select}
+                    value={state.roll?.[index] ?? 1}
+                    onChange={(event) => updateDie(index as 0 | 1, numberValue(event.target.value))}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
                   </select>
                 </label>
               ))}
@@ -270,9 +292,15 @@ export default function PositionBuilder() {
 
           <label className={style.field}>
             Match length
-            <select className={style.select} value={state.matchLength} onChange={(event) => updateMatchLength(event.target.value)}>
+            <select
+              className={style.select}
+              value={state.matchLength}
+              onChange={(event) => updateMatchLength(event.target.value)}
+            >
               {MATCH_LENGTHS.map((length) => (
-                <option key={length} value={length}>{length === 0 ? "Money game" : `${length}-point match`}</option>
+                <option key={length} value={length}>
+                  {length === 0 ? "Money game" : `${length}-point match`}
+                </option>
               ))}
             </select>
           </label>
@@ -283,15 +311,29 @@ export default function PositionBuilder() {
           <div className={style.fieldGrid}>
             <label className={style.field}>
               Value
-              <select className={style.select} value={state.cubeValue} onChange={(event) => updateCubeValue(event.target.value)}>
-                {CUBE_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}
+              <select
+                className={style.select}
+                value={state.cubeValue}
+                onChange={(event) => updateCubeValue(event.target.value)}
+              >
+                {CUBE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
               </select>
             </label>
             <label className={style.field}>
               Owner
-              <select className={style.select} value={state.cubeOwner} onChange={(event) => updateCubeOwner(event.target.value as CubeOwner)}>
+              <select
+                className={style.select}
+                value={state.cubeOwner}
+                onChange={(event) => updateCubeOwner(event.target.value as CubeOwner)}
+              >
                 {(["center", "mine", "opponent"] as const).map((owner) => (
-                  <option key={owner} value={owner}>{cubeOwnerLabel(owner)}</option>
+                  <option key={owner} value={owner}>
+                    {cubeOwnerLabel(owner)}
+                  </option>
                 ))}
               </select>
             </label>
@@ -303,19 +345,33 @@ export default function PositionBuilder() {
           <h2 id="position-builder-status-title" className={style.controlTitle}>Position status</h2>
           {errors.length > 0 ? (
             <ul className={style.error}>
-              {errors.map((error) => <li key={error}>{error}</li>)}
+              {errors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
             </ul>
           ) : (
             <p className={style.valid}>The checker counts and match metadata are internally valid.</p>
           )}
           <div className={style.statList}>
-            <div className={style.stat}><span className={style.statLabel}>Bottom off</span><b className={style.statValue}>{state.position.mineOff}</b></div>
-            <div className={style.stat}><span className={style.statLabel}>Top off</span><b className={style.statValue}>{state.position.opponentOff}</b></div>
-            <div className={style.stat}><span className={style.statLabel}>Cube owner</span><b className={style.statValue}>{cubeOwnerLabel(state.cubeOwner)}</b></div>
+            <div className={style.stat}>
+              <span className={style.statLabel}>Bottom off</span>
+              <b className={style.statValue}>{state.position.mineOff}</b>
+            </div>
+            <div className={style.stat}>
+              <span className={style.statLabel}>Top off</span>
+              <b className={style.statValue}>{state.position.opponentOff}</b>
+            </div>
+            <div className={style.stat}>
+              <span className={style.statLabel}>Cube owner</span>
+              <b className={style.statValue}>{cubeOwnerLabel(state.cubeOwner)}</b>
+            </div>
           </div>
           <p className={style.footerNote}>Save and analysis are intentionally not connected yet.</p>
         </Card>
-          <Button variant="primary" onClick={postToForum} disabled={errors.length > 0}>Post to forum</Button>
+
+        <Button variant="primary" onClick={postToForum} disabled={errors.length > 0}>
+          Post to forum
+        </Button>
       </div>
     </div>
   );
