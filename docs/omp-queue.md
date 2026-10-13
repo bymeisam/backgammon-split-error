@@ -36,13 +36,23 @@ _Use this shape:_
 - **Schema rule met:** 1, 2 or 3 (AGENTS.md § Schema rule)
 
 ## Ready for review (omp → master)
-### Queued review refinement: tally alignment, wrapped chips, and review focus (2026-10-14)
-Implemented the queued styling and keyboard-contract refinements: proposal tally counts now follow the chip; the open draft explorer is full-column up to `max-w-xl`; proposal chips keep move notation intact and wrap at separators; the reason Yes focus uses the theme focus ring; Hard-only saved state uses the primary button treatment with spaced, label-sized Enter kbd; keyboard comments distinguish saved advances from Good rating; review radii use `rounded-control` and a design-system track radius.
+### Queued review refinement: tally alignment, wrapped chips, and review focus (completed 2026-10-14)
+Implemented the queued styling and keyboard-contract refinements: proposal tally counts now follow the chip; the open draft explorer is full-column up to `max-w-xl`; proposal chips keep each move/score segment intact and wrap only between `·` separators; the reason Yes focus uses the theme focus ring; Hard-only saved state uses the primary button treatment with spaced, label-sized Enter kbd; keyboard comments distinguish saved advances from Good rating; review radii use design-system tokens.
 
-Checks: `npm run lint`, `npx tsc --noEmit`, `npm test` (791/791), and `NEXT_DIST_DIR=.next-test npm run build` passed. `npm run test:visual` and real-app screenshot capture were not run: the omp task context does not confirm that every `.env*` and shell `DATABASE_URL` points to localhost, so Playwright and the screenshot script (tsx/local app/API) are blocked under the no-database-without-localhost-confirmation rule. No screenshots captured or opened; `/api/review/queue` status was not observed.
+Checks: `npm test` **791/791**, `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (**15/15**) passed. Real local app screenshots were captured after starting the local server with `AUTH_BYPASS=true ENABLE_WRITE_MODE=true`; `/api/review/queue` returned HTTP 200.
 
-Screenshot handoff: blocked pending explicit confirmation that all `.env*` database URLs and the shell `DATABASE_URL` are localhost. Once confirmed, capture and inspect the requested real-app states; required representative files are the 390px tally-open, checker draft-open, wrapped proposal chip, reason-yes-focus, and settled `review-hard-only-saved` PNGs in the new dated screenshot directory.
-Implementation commit: `0ab1743` (`Polish queued forum and review refinements`).
+Opened and inspected these final representatives:
+- `design/screenshots/2026-10-14-review-refinement-5/forum-write-post-5-checker-chip-focus--390-dark--viewport.png`
+- `design/screenshots/2026-10-14-review-refinement-5/forum-write-post-7-cube-draft-open--390-dark--full.png`
+- `design/screenshots/2026-10-14-review-refinement-5/forum-write-post-5-checker-draft-open--1280-dark--full.png`
+- `design/screenshots/2026-10-14-review-refinement-5/forum-write-post-7-cube-draft-open--1280-dark--full.png`
+- `design/screenshots/2026-10-14-review-refinement-5/forum-write-post-5-tally-open--1280-dark--full.png`
+- `design/screenshots/2026-10-14-review-refinement-4/review-card1-reason-yes-focus--390-dark--viewport.png`
+- `design/screenshots/2026-10-14-review-refinement-4/review-hard-only-saved--390-dark--viewport.png`
+
+The delegated visual-reviewer did not return a report; the main session opened the listed representatives and found no visible Must/Should defects. No Prisma, migration, Oracle, or `.env*` changes.
+
+Implementation commits: `0ab1743`, `ec30993`; handoff commit: `1fee3df`.
 
 ### Review notes: responsive proposal chips and review-state screenshots (completed 2026-10-14)
 Completed the follow-up on `omp/main`: checker chips wrap within a shared 34px-minimum chip shape with a board-view affordance; cube chips remain non-clickable, with the separator attached to the action. Tally counts now sit beside the chip as “1 vote” / “2 votes”; the proposal draft board grows at desktop. Review retry hints/radii use tokens, the Hard-only saved state uses the primary grade treatment with reserved bottom space, and its status uses sans text plus a kbd-only Enter hint. Corrected the successful reply-clearing comment, retained the full POST header with `{ body?, proposals? }` and `isAppWriteEnabled()`, expanded review keyboard/save-flow comments, and formatted Good/Easy buttons. Updated the reply API test mock to follow merged `prismaApp`/`isAppWriteEnabled()` exports. No schema, migration, Oracle, or `.env*` changes.
