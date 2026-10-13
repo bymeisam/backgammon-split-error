@@ -16,7 +16,7 @@ import ForumActions from "./ForumActions";
 import ReplyComposer from "./ReplyComposer";
 import DecisionAnalysisPanel from "./DecisionAnalysisPanel";
 import { forumPostAnalyses } from "@/lib/forumAnalysis";
-import { tallyProposals } from "@/lib/forumProposals";
+import { tallyProposals, type ProposalTallyInput } from "@/lib/forumProposals";
 import type { ProposalTallyViewModel, ReplyProposalViewModel } from "./proposalTypes";
 import PositionProposalTally from "./ProposalDisplay";
 import { ReplyProposalChip } from "./ProposalDisplay";
@@ -128,19 +128,27 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
           const source = studyPosition.sourceDecision;
           const analysis = analyses[index];
           const positionLabel = `Position ${index + 1} · ${forumPositionCaption(match, studyPosition.kind)}`;
-          const positionProposals = post.replies.flatMap((reply) => reply.proposals
+          const positionProposals: ProposalTallyInput[] = post.replies.flatMap((reply) => reply.proposals
             .filter((proposal) => proposal.studyPositionId === studyPosition.id)
             .map((proposal) => proposal.cubeAction
-              ? { key: `${reply.id}:${proposal.id}`, kind: "CUBE" as const, cubeAction: proposal.cubeAction }
-              : { key: `${reply.id}:${proposal.id}`, kind: "CHECKER" as const, resultPositionId: proposal.resultPositionId! }));
+              ? { key: `${reply.id}:${proposal.id}`, proposalId: proposal.id, kind: "CUBE" as const, cubeAction: proposal.cubeAction }
+              : { key: `${reply.id}:${proposal.id}`, proposalId: proposal.id, notation: proposal.notation!, kind: "CHECKER" as const, resultPositionId: proposal.resultPositionId! }));
           const grouped = tallyProposals(positionProposals);
           const proposals: ProposalTallyViewModel[] = grouped.map((item) => {
-            const first = positionProposals.find((candidate) => candidate.kind === item.kind &&
-              (item.kind === "CUBE" ? candidate.kind === "CUBE" && candidate.cubeAction === item.cubeAction : candidate.kind === "CHECKER" && candidate.resultPositionId === item.resultPositionId))!;
-            const proposal: ReplyProposalViewModel = item.kind === "CUBE"
-              ? { kind: "CUBE", key: first.key, positionLabel, cubeAction: item.cubeAction, position, cube }
-              : { kind: "CHECKER", key: first.key, positionLabel, notation: post.replies.flatMap((reply) => reply.proposals).find((p) => p.id === Number(first.key.split(":")[1]))!.notation!, position, dice, cube, resultPositionId: item.resultPositionId };
-            return { key: first.key, label: proposal.kind === "CHECKER" ? proposal.notation : proposal.cubeAction, count: item.count, proposal };
+            let proposal: ReplyProposalViewModel;
+            let proposalId: number;
+            if (item.kind === "CUBE") {
+              const first = positionProposals.find((candidate): candidate is Extract<ProposalTallyInput, { kind: "CUBE" }> =>
+                candidate.kind === "CUBE" && candidate.cubeAction === item.cubeAction)!;
+              proposal = { kind: "CUBE", key: first.key, positionLabel, cubeAction: item.cubeAction, position, cube };
+              proposalId = first.proposalId;
+            } else {
+              const first = positionProposals.find((candidate): candidate is Extract<ProposalTallyInput, { kind: "CHECKER" }> =>
+                candidate.kind === "CHECKER" && candidate.resultPositionId === item.resultPositionId)!;
+              proposal = { kind: "CHECKER", key: first.key, positionLabel, notation: first.notation, position, dice, cube, resultPositionId: item.resultPositionId };
+              proposalId = first.proposalId;
+            }
+            return { key: proposal.key, proposalId, count: item.count, proposal };
           });
           return (
             <div className={style.position} key={studyPosition.id}>

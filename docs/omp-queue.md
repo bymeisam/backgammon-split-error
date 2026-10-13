@@ -33,6 +33,30 @@ _Use this shape:_
 - **Schema rule met:** 1, 2 or 3 (AGENTS.md § Schema rule)
 
 ## Ready for review (omp → master)
+### Queued review follow-up: keyboard contracts, proposal tally, and screenshots (2026-10-13)
+Implemented on `omp/main`: restored the review keyboard-contract comments, hid grade hints from assistive technology, limited rating buttons by `ratingLimit`, added the reason key hint, and retained Hard-only saved state until Next card/Enter. Fixed current-card progress during the reason step. Forum tally construction carries proposal IDs/notation, dead checker/cube code and unused tally label are removed, the checker chip has a hover affordance, proposal drafts align to start, and the reply POST route header is restored. `ReplyComposer`’s existing completed-plays comment was already correctly placed.
+
+Local test proposals were created through the real app API without modifying existing rows: post 5 / StudyPosition 6 — reply 8 / ForumMoveProposal 1, checker `hmfwATDEc/ABMA`; reply 9 / ForumMoveProposal 2, checker `hmfwATCoc/ABMA`. Post 7 / StudyPosition 8 — reply 10 / ForumMoveProposal 3, cube action `NO_DOUBLE`.
+
+Captured 68 forum and 44 review screenshots from the real local app at 390/1280 in light/dark under `design/screenshots/2026-10-13-review-followup/`; recaptured all 44 review screenshots after the phase-aware progress fix. The obsolete `forum-write-replay-move2` files are absent.
+
+Visual review: the main session opened and inspected all eight representatives plus the four corrected reason screenshots, with no visible Must/Should defects:
+- `forum-write-post-5-checker-modal--390-light--viewport.png`
+- `forum-write-post-5-tally-open--1280-dark--full.png`
+- `forum-write-post-7-cube-draft-open--390-dark--full.png`
+- `forum-write-post-5-checker-draft-open--1280-light--full.png`
+- `review-card1-reason-question--390-light--viewport.png`
+- `review-card1-reason-question--390-dark--viewport.png`
+- `review-card1-reason-question--1280-light--viewport.png`
+- `review-card1-reason-question--1280-dark--viewport.png`
+- `review-retry-front--1280-dark--viewport.png`
+- `review-hard-only-saved--390-dark--viewport.png`
+- `review-hard-good-back--1280-light--viewport.png`
+
+Two delegated visual-reviewer attempts did not return after receiving exact screenshot paths; the main session performed the image review instead. `npm test` passed (62 files, 759 tests), `npx tsc --noEmit`, `npm run lint`, and `NEXT_DIST_DIR=.next-test npm run build` passed. `npm run test:visual` exits before tests because `.env.test` is absent; it was left untouched.
+
+The task remains in the queue for main-session review; no Oracle, schema, migration, or `.env*` changes.
+
 ### Review: note-aware second try and "Do you know the reason?" (2026-10-13)
 Implemented on `omp/main`: note-bearing right answers ask whether the learner knows the reason before revealing the note; wrong non-receiver answers reveal only the note and allow a retry with the first choice disabled. Final outcomes save once, with whole-session duration; second-try right answers save Hard, and wrong outcomes save Again. Added reason/retry keyboard contexts, constrained ratings, and shortcut help.
 

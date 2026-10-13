@@ -1,16 +1,16 @@
-// The /review session's pure keyboard contract; tests live in reviewKeys.test.ts.
-
-// Front navigation/selection applies before answering and on a retry. Excluded
-// indices remain visible but cannot be chosen on the retry.
-// Back ratings are constrained by ratingLimit for note-aware outcomes.
-
-// Plain h / g / e no longer rate (since 2026-10-09). The rating letters are
-// read by their `key` value, "H" (Shift+h, or Caps Lock), like the
-// replay's J / K.
+// /review keyboard contract; tests live in reviewKeys.test.ts and the
+// "?" help is lib/shortcuts.ts. Keep both in sync with this state machine.
 //
-// Pure, so it's unit-tested (lib/reviewKeys.test.ts). The "?" help lists
-// these keys (lib/shortcuts.ts); change both together. The ignore rules
-// (typing, a dialog, Cmd/Ctrl/Alt) are moveTableKeys.ts's shouldIgnoreKey.
+// On the front, 1–9 choose an option and ↓ / ↑ or J / K move focus. A retry
+// front keeps the first wrong choice visible but excludes it from selection.
+// A noted correct choice enters the reason step: Y / Enter means yes; N no.
+// On the back, H / G / E rate Hard / Good / Easy. A second-try correct answer
+// is Hard-only; a correct answer after "No" is Hard/Good. After a Hard-only
+// save, Enter advances. Wrong answers save Again, then Enter advances.
+//
+// Plain h / g / e no longer rate (since 2026-10-09). Rating letters are
+// read by their key values ("H", etc.; Shift or Caps Lock), like replay J / K.
+// The caller ignores typing, dialogs and Cmd/Ctrl/Alt via shouldIgnoreKey.
 
 import type { MoveTab } from "./listSelection";
 

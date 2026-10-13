@@ -56,8 +56,8 @@
 //                             "Show analysis" panel expanded, and the post's
 //                             edit form when it has an Edit button), /forum/new empty and prefilled
 //                             from ?decision=<--forum-decision>,
-//                             /position-builder, and the replay's "Post to
-//                             forum" button. At 1280 and 390, light and dark;
+//                             /position-builder. Reply proposals show their
+//                             tally, checker modal, and open checker/cube drafts.
 //                             no navbar shots, no review cards. File names
 //                             carry the server's mode (forum-write-… /
 //                             forum-readonly-…), so run it once against a
@@ -75,6 +75,11 @@
 //
 //   --forum-posts=a,b         ForumPost ids for the /forum/<id> shots
 //   --forum-decision=<id>     a Decision id for the prefilled /forum/new shot
+//   --set=review             only review-session screenshots at 1280 and 390,
+//                             light and dark. It also adds any supplied
+//                             --review-decisions first; answer POSTs remain
+//                             browser-stubbed. Captures note reason, retry,
+//                             Hard-only and Hard/Good states.
 //   --set=auth                only /sign-in and /auth/complete, at 1280 and
 //                             390, light and dark. Point it at a server
 //                             WITHOUT AUTH_BYPASS so the real screens show.
@@ -139,9 +144,8 @@ const REVIEW_DECISIONS = (arg("review-decisions") ?? "")
   .map(Number);
 
 const SET = arg("set");
-if (SET !== undefined && SET !== "forum" && SET !== "auth") {
-  console.error(`Unknown --set=${SET}; known: forum, auth`);
-  process.exit(1);
+if (SET !== undefined && SET !== "forum" && SET !== "auth" && SET !== "review") {
+  console.error(`Unknown --set=${SET}; known: forum, auth, review`);
 }
 const FORUM_POSTS = (arg("forum-posts") ?? "")
   .split(",")
@@ -222,11 +226,24 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
       }),
     });
   });
+  page.on("response", (response) => {
+    if (response.url().includes("/api/review/queue")) {
+      console.log(`review queue response: ${response.status()} ${response.url()}`);
+    }
+  });
+  page.on("requestfailed", (request) => {
+    if (request.url().includes("/api/review/queue")) {
+      console.log(`review queue request failed: ${request.failure()?.errorText ?? "unknown"}`);
+    }
+  });
 
-  const queueResponse = page.waitForResponse((r) => r.url().includes("/api/review/queue"));
-  await page.goto(`${BASE_URL}/review`, { waitUntil: "networkidle" });
+  const queueResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === "/api/review/queue" && response.request().method() === "GET" && response.status() === 200;
+  }, { timeout: 30_000 });
+  await page.goto(`${BASE_URL}/review`, { waitUntil: "domcontentloaded" });
   const queue = (await (await queueResponse).json()) as QueueResponse;
-  await settle(page);
+  await page.getByTestId("review-header").waitFor();
   if (queue.cards.length === 0) {
     await shoot("review-empty", "full");
     return;
@@ -254,7 +271,7 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
       await page.getByRole("heading", { name: "Do you know the reason?" }).waitFor();
       await settle(page);
       await shoot(`review-${step.label}-reason-question`, "viewport");
-      await page.getByRole("button", { name: "Yes" }).click();
+      await page.getByRole("button", { name: "No" }).click();
     } else if (!option.correct && card.decision?.note && card.options.length !== 2) {
       await page.getByText("Try again. Your first choice is crossed out.").waitFor();
       await settle(page);
@@ -271,6 +288,10 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     const verdict = finalOption.correct ? "correct" : "incorrect";
     await shoot(`review-${step.label}-back-${verdict}`, "viewport");
     await shoot(`review-${step.label}-back-${verdict}`, "full");
+    if (option.correct && card.decision?.note) {
+      await shoot("review-hard-good-back", "viewport");
+      await shoot("review-hard-good-back", "full");
+    }
     // Checker backs have Yours / Best tabs under the board (Best is the
     // default, shot above); h switches to Yours. Cube backs have none, and
     // neither does a back whose answer is the best (one "Yours [Best]" chip).
@@ -283,13 +304,20 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     if (finalOption.correct) {
       const rateButton = card.decision?.note && !option.correct ? "Hard" : "Good";
       await page.getByRole("button", { name: rateButton }).click();
+      if (card.decision?.note && !option.correct) {
+        await page.getByRole("button", { name: "Next card" }).waitFor();
+        await page.getByRole("button", { name: "Next card" }).click();
+      }
     } else await page.getByRole("button", { name: "Next" }).click();
     await page.waitForTimeout(300);
   }
   const noted = queue.cards.find((card) => card.decision?.note && card.options.length > 2);
   if (noted) {
-    const refreshed = page.waitForResponse((r) => r.url().includes("/api/review/queue"));
-    await page.goto(`${BASE_URL}/review`, { waitUntil: "networkidle" });
+    const refreshed = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/review/queue" && response.request().method() === "GET" && response.status() === 200;
+    }, { timeout: 30_000 });
+    await page.goto(`${BASE_URL}/review`, { waitUntil: "domcontentloaded" });
     await refreshed;
     await page.locator(`[data-testid="review-question"][data-card-id="${noted.cardId}"]`).waitFor();
     const wrong = noted.options.find((option) => !option.correct);
@@ -303,6 +331,12 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
       await page.getByTestId("review-verdict").waitFor();
       await settle(page);
       await shoot("review-second-try-right-back", "viewport");
+      await shoot("review-hard-only-back", "viewport");
+      await shoot("review-hard-only-back", "full");
+      await page.getByRole("button", { name: "Hard" }).click();
+      await page.getByRole("button", { name: "Next card" }).waitFor();
+      await settle(page);
+      await shoot("review-hard-only-saved", "viewport");
     }
   }
   await settle(page);
@@ -488,6 +522,31 @@ const FORUM_SHOTS: Shot[] = [
           await forumShoot(ctx, `post-${id}-edit`, "full");
           await open(page, `/forum/${id}`);
         }
+        const tally = page.getByText(/^Show proposals/);
+        if (await tally.count()) {
+          console.log(`forum post ${id}: opening tally`);
+          await tally.first().click();
+          await page.waitForTimeout(200);
+          await forumShoot(ctx, `post-${id}-tally-open`, "full");
+          await open(page, `/forum/${id}`);
+        }
+        if (id === 5) {
+          const checkerChip = page.getByRole("button", { name: /^Position 1/ }).first();
+          if (await checkerChip.count()) {
+            console.log(`forum post ${id}: opening checker modal`);
+            await checkerChip.click();
+            await page.getByRole("dialog").waitFor();
+            await forumShoot(ctx, `post-${id}-checker-modal`, "viewport");
+            await open(page, `/forum/${id}`);
+          }
+        }
+        if (id === 5 || id === 7) {
+          console.log(`forum post ${id}: opening proposal draft`);
+          const propose = page.getByRole("button", { name: "Propose this move" }).first();
+          await propose.click();
+          await page.waitForTimeout(200);
+          await forumShoot(ctx, `post-${id}-${id === 5 ? "checker" : "cube"}-draft-open`, "full");
+        }
         // The interactive move explorer: one checker picked up, then moved.
         const source = page.locator('[aria-label^="Select checker on point"]').first();
         if ((await source.count()) === 0) return;
@@ -525,14 +584,7 @@ const FORUM_SHOTS: Shot[] = [
       await forumShoot(ctx, "position-builder", "full");
     },
   },
-  {
-    name: "replay-post-to-forum",
-    run: async (ctx) => {
-      await openReplay(ctx.page, REPLAY_CHECKER_ERROR);
-      await forumShoot(ctx, "replay-move2", "viewport");
-      await forumShoot(ctx, "replay-move2", "full");
-    },
-  },
+
 ];
 
 // The auth set (--set=auth): the real Clerk screens, so no bypass.
@@ -715,11 +767,11 @@ async function main(): Promise<void> {
   };
   let metrics: NavMetric[] = [];
   try {
-    if (!NAV_ONLY && !SET) await addReviewCards(created);
+    if (!NAV_ONLY && (!SET || SET === "review")) await addReviewCards(created);
     browser = await chromium.launch({ args: ["--disable-gpu"] });
     if (!SET) metrics = await navShots(browser, addTheme, written, failures);
     const variants = SET ? SET_VARIANTS : NAV_ONLY ? [] : VARIANTS;
-    const shots = SET === "forum" ? FORUM_SHOTS : SET === "auth" ? AUTH_SHOTS : SHOTS;
+    const shots = SET === "forum" ? FORUM_SHOTS : SET === "auth" ? AUTH_SHOTS : SET === "review" ? SHOTS.filter((shot) => shot.name === "review") : SHOTS;
     for (const variant of variants) {
       const context = await browser.newContext({
         viewport: { width: variant.width, height: variant.width === 390 ? 844 : 900 },
@@ -732,6 +784,7 @@ async function main(): Promise<void> {
         const page = await context.newPage();
         const shoot = async (name: string, mode: "full" | "viewport") => {
           const file = `${name}--${variant.width}-${variant.theme}--${mode}.png`;
+          await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
           await page.screenshot({ path: path.join(OUT_DIR, file), fullPage: mode === "full" });
           written.push(file);
         };

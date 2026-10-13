@@ -54,11 +54,11 @@ describe("cubeActionsFor", () => {
 describe("tallyProposals", () => {
   it("groups proposals and sorts by count descending with ties in first-seen order", () => {
     expect(tallyProposals([
-      { key: "a", kind: "CHECKER", resultPositionId: "result-1" },
-      { key: "b", kind: "CUBE", cubeAction: "TAKE" },
-      { key: "a", kind: "CHECKER", resultPositionId: "result-1" },
-      { key: "b", kind: "CUBE", cubeAction: "TAKE" },
-      { key: "c", kind: "CHECKER", resultPositionId: "result-2" },
+      { key: "a", proposalId: 1, notation: "6/5", kind: "CHECKER", resultPositionId: "result-1" },
+      { key: "b", proposalId: 2, kind: "CUBE", cubeAction: "TAKE" },
+      { key: "a2", proposalId: 3, notation: "6/5", kind: "CHECKER", resultPositionId: "result-1" },
+      { key: "b2", proposalId: 4, kind: "CUBE", cubeAction: "TAKE" },
+      { key: "c", proposalId: 5, notation: "6/4", kind: "CHECKER", resultPositionId: "result-2" },
     ])).toEqual([
       { kind: "CHECKER", resultPositionId: "result-1", count: 2 },
       { kind: "CUBE", cubeAction: "TAKE", count: 2 },

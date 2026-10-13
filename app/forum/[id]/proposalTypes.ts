@@ -25,7 +25,7 @@ export type ReplyProposalViewModel =
 
 export interface ProposalTallyViewModel {
   key: string;
-  label: string;
+  proposalId: number;
   count: number;
   proposal: ReplyProposalViewModel;
 }

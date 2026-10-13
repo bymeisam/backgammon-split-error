@@ -25,12 +25,12 @@ function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
 
   return (
     <>
-      <Button size="compact" className={style.proposalChip} onClick={() => setOpen(true)} aria-label={`${proposal.positionLabel}: ${action}`}>
-        {proposal.positionLabel} · {proposal.kind === "CHECKER" ? <span className={style.proposalChecker}>{proposal.notation}</span> : action}
+      <Button size="compact" className={style.proposalInteractiveChip} onClick={() => setOpen(true)} aria-label={`${proposal.positionLabel}: ${action}`}>
+        {proposal.positionLabel} · <span className={style.proposalChecker}>{proposal.notation}</span>
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} labelledBy={headingId}>
         <h2 id={headingId} className={style.modalHeading}>{proposal.positionLabel} · {action}</h2>
-        <p className={style.proposalModalText}>{proposal.kind === "CHECKER" ? "Position after the proposed play" : "Position for the proposed cube action"}</p>
+        <p className={style.proposalModalText}>Position after the proposed play</p>
         {previewPosition && (
           <div className={style.proposalBoard}>
             <Board decoded={previewPosition} roll={[]} cube={proposal.cube} />

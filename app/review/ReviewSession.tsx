@@ -54,6 +54,11 @@ const NO_STATS: Stats = { answered: 0, correct: 0, streak: 0, bestStreak: 0 };
 // second-try front before their final answer is saved; cards without notes
 // retain the existing immediate Again / Hard-Good-Easy flow.
 //
+// Keyboard contract is in lib/reviewKeys.ts and its tests; the "?" help is
+// lib/shortcuts.ts. In brief: the reason step accepts Y / Enter for yes and
+// N for no; retry fronts keep the first wrong choice crossed out; a correct
+// second try is Hard-only, while answering "No" limits the back to Hard/Good.
+//
 // The session bar on top: "Review", the progress ("Card N of M" and a
 // track, N of the session's own total: what was answered plus what's still
 // due — client state only), the due split, and `filterControls` (the page's
@@ -232,7 +237,8 @@ export default function ReviewSession({
       advance();
       return;
     }
-    if (await submit(current, answer, ratingLimit === "hard" ? "hard" : rating)) advance();
+    const saved = await submit(current, answer, ratingLimit === "hard" ? "hard" : rating);
+    if (saved && ratingLimit !== "hard") advance();
   }
 
   async function retryWrong() {
@@ -313,7 +319,7 @@ export default function ReviewSession({
   const dueReview = beyond.review + localReview;
   // Progress through this session: answered so far (not counting the card
   // on screen) plus what's left, the card on screen included.
-  const answeredBefore = stats.answered - (answer ? 1 : 0);
+  const answeredBefore = stats.answered - (phase === "back" && answer ? 1 : 0);
   const sessionTotal = answeredBefore + dueNew + dueReview;
   const progressPct = sessionTotal > 0 ? Math.min(100, (stats.answered / sessionTotal) * 100) : 0;
 
@@ -474,6 +480,7 @@ export default function ReviewSession({
               {phase === "reason" ? (
                 <>
                   <h2 className={style.question}>Do you know the reason?</h2>
+                  <p className={style.hint}>Y / Enter: yes · N: no</p>
                   <div className={style.reasonActions}>
                     <button type="button" onClick={() => answerReason(true)} className={style.gradeButton({ primary: true, wide: false })}>Yes</button>
                     <button type="button" onClick={() => answerReason(false)} className={style.gradeButton({ primary: false, wide: false })}>No</button>
@@ -606,28 +613,25 @@ export default function ReviewSession({
                     save.kind === "error" ? (
                       <button type="button" onClick={() => rate("hard")} className={style.gradeButton({ primary: true, wide: true })}>
                         <span className={style.gradeLabel}>Retry saving</span>
-                        <span className={style.gradeKey(true)}>Not recorded yet</span>
+                        <span aria-hidden="true" className={style.gradeKey(true)}>Not recorded yet</span>
                       </button>
                     ) : (
                       <button type="button" disabled={save.kind === "saving"} onClick={() => rate("hard")}
                         className={style.gradeButton({ primary: true, wide: true })} aria-keyshortcuts={save.kind === "saved" ? "Enter" : "Shift+H"}>
                         <span className={style.gradeLabel}>{save.kind === "saved" ? "Next card" : "Hard"}</span>
-                        <span className={style.gradeKey(true)}>{save.kind === "saved" ? "Recorded as Hard · Enter" : "⇧H"}</span>
+                        <span aria-hidden="true" className={style.gradeKey(true)}>{save.kind === "saved" ? "Recorded as Hard · Enter" : "⇧H"}</span>
                       </button>
                     )
                   ) : (
                     <>
                       <button type="button" disabled={save.kind === "saving"} onClick={() => rate("hard")} className={style.gradeButton({ primary: false, wide: false })} aria-keyshortcuts="Shift+H">
-                        <span className={style.gradeLabel}>Hard</span><span className={style.gradeKey(false)}>⇧H</span>
+                        <span className={style.gradeLabel}>Hard</span><span aria-hidden="true" className={style.gradeKey(false)}>⇧H</span>
                       </button>
-                      {ratingLimit !== "hard-good" && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("good")} className={style.gradeButton({ primary: true, wide: false })} aria-keyshortcuts="Shift+G Enter">
-                        <span className={style.gradeLabel}>Good</span><span className={style.gradeKey(true)}>⇧G · Enter</span>
-                      </button>}
-                      {ratingLimit !== "hard-good" && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("easy")} className={style.gradeButton({ primary: false, wide: false })} aria-keyshortcuts="Shift+E">
-                        <span className={style.gradeLabel}>Easy</span><span className={style.gradeKey(false)}>⇧E</span>
-                      </button>}
-                      {ratingLimit === "hard-good" && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("good")} className={style.gradeButton({ primary: true, wide: false })} aria-keyshortcuts="Shift+G Enter">
-                        <span className={style.gradeLabel}>Good</span><span className={style.gradeKey(true)}>⇧G · Enter</span>
+                      <button type="button" disabled={save.kind === "saving"} onClick={() => rate("good")} className={style.gradeButton({ primary: true, wide: false })} aria-keyshortcuts="Shift+G Enter">
+                        <span className={style.gradeLabel}>Good</span><span aria-hidden="true" className={style.gradeKey(true)}>⇧G · Enter</span>
+                      </button>
+                      {ratingLimit === undefined && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("easy")} className={style.gradeButton({ primary: false, wide: false })} aria-keyshortcuts="Shift+E">
+                        <span className={style.gradeLabel}>Easy</span><span aria-hidden="true" className={style.gradeKey(false)}>⇧E</span>
                       </button>}
                     </>
                   )
@@ -638,7 +642,7 @@ export default function ReviewSession({
                     className={style.gradeButton({ primary: true, wide: true })}
                   >
                     <span className={style.gradeLabel}>Retry saving</span>
-                    <span className={style.gradeKey(true)}>Not recorded yet</span>
+                    <span aria-hidden="true" className={style.gradeKey(true)}>Not recorded yet</span>
                   </button>
                 ) : (
                   <button
@@ -649,7 +653,7 @@ export default function ReviewSession({
                     aria-keyshortcuts="Enter"
                   >
                     <span className={style.gradeLabel}>Next card</span>
-                    <span className={style.gradeKey(true)}>
+                    <span aria-hidden="true" className={style.gradeKey(true)}>
                       {save.kind === "saved" ? "Recorded as Again · Enter" : "Recording as Again…"}
                     </span>
                   </button>

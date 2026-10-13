@@ -45,8 +45,8 @@ export type ProposalTallyItem =
   | { kind: "CUBE"; cubeAction: CubeAction; count: number };
 
 export type ProposalTallyInput =
-  | { kind: "CHECKER"; resultPositionId: string; key: string }
-  | { kind: "CUBE"; cubeAction: CubeAction; key: string };
+  | { kind: "CHECKER"; resultPositionId: string; key: string; proposalId: number; notation: string }
+  | { kind: "CUBE"; cubeAction: CubeAction; key: string; proposalId: number };
 
 export function tallyProposals(proposals: readonly ProposalTallyInput[]): ProposalTallyItem[] {
   const tallies = new Map<string, ProposalTallyItem>();

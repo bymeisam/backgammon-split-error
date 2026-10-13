@@ -19,6 +19,8 @@ const eslintConfig = defineConfig([
     // of auto-generated, unlinted content as .next/** above, just under a
     // different name since both can't share one distDir.
     ".next-test/**",
+    // Temporary local follow-up dev server output; generated like .next-test.
+    ".next-followup/**",
   ]),
 ]);
 
