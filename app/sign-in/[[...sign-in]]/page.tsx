@@ -13,14 +13,13 @@ export default function SignInPage() {
           <p className={style.brandName}>Game Review</p>
           <p className={style.tagline}>A quiet study space for your matches, mistakes, and next move.</p>
         </div>
-        <div className={style.card}>
-          <SignIn
-            routing="path"
-            path="/sign-in"
-            withSignUp={false}
-            forceRedirectUrl="/auth/complete"
-          />
-        </div>
+        <SignIn
+          routing="path"
+          path="/sign-in"
+          withSignUp={false}
+          forceRedirectUrl="/auth/complete"
+          appearance={{ elements: style.clerk }}
+        />
         <p className={style.note}>Private access. Use the email address that received your invitation.</p>
       </div>
     </main>
