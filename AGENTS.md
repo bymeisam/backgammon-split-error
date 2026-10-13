@@ -65,3 +65,15 @@ The main session is the orchestrator (omp's `orch` model role): it advises, plan
 - **No Oracle changes without the user's explicit approval, every time.** That covers migrations, backfills, writes and admin credentials. It applies even when `.env` already points at Oracle: the user leaving `.env` on Oracle is not approval. Ask first, with the exact commands. Read-only investigator queries to Oracle (`bg_db_ro`) are fine.
 - Nobody pushes. The user pushes after reviewing.
 - Subagents don't spawn subagents. None of them has a tool for it, so every handoff goes through the main session.
+
+## Two worktrees, one local DB (Claude Code and omp)
+
+omp works in a second git worktree, `../backgammon-omp` on branch `omp/main`, and runs its dev server on port 3400. Claude Code works on `master` in this folder. **Both use the same local database**, so the schema must never differ between the two branches.
+- **Only master changes `prisma/`** (the schema and the migrations), and only master edits `agents/roles/` and AGENTS.md. On `omp/main`, never edit `prisma/schema.prisma` or `prisma/migrations/`, and never run `prisma migrate deploy`, `migrate dev`, `db push` or `migrate reset`. `npx prisma generate` is fine.
+- **When omp needs a schema change**, it stops that part of the work and writes a request under "Schema requests" in `docs/omp-queue.md`: the table or column, its type, why it's needed and which schema rule above it meets. The main session on master reviews it, the developer lands it on master (schema + hand-written migration, applied to the local DB), and omp then merges `master` into `omp/main` before carrying on.
+- **Schema changes are additive only** while both branches are live: new tables, and new nullable or defaulted columns. No renames, drops or type changes, because the other branch's code still reads the old shape.
+- **Check every migration for `DROP`.** Local migrations are hand-written from `prisma migrate diff`. If the diff wants to drop a table or column you didn't mean to remove, stop: it means a branch is behind on migrations, not that the thing should go.
+- **After master lands a migration, omp merges `master`** (then `npx prisma generate`) before its next run of the app. A branch running against a schema it doesn't know about gives confusing errors.
+- **Both branches share the local test data** (forum posts, AppUsers). Don't delete or rewrite rows you didn't create.
+- **Hand-offs go through `docs/omp-queue.md`.** Master writes omp's tasks there. omp marks a task ready for review when its branch is done. The Claude Code main session reviews `omp/main` before the user merges it into master. Nobody pushes.
+- omp's `.env` points at the local DB only, never at Oracle. Like every `.env`, only the user writes it.

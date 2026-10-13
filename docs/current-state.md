@@ -48,12 +48,7 @@ The plan is in `~/.claude/plans/with-regards-to-auth-concurrent-comet.md`. Phase
 
 - **User:**
   - wants to do some checks next session;
-  - must decide on the **omp worktree** proposal. omp's ChatGPT offer ends in about a month. The proposal (in PROGRESS.md 2026-10-13):
-    - a worktree `../backgammon-omp` on branch `omp/main`, with its own local-only `.env` and an `app_dev_omp` DB, on port 3400;
-    - hand-off through `docs/omp-queue.md`;
-    - Claude reviews before the user merges;
-    - only master edits `agents/roles/` and AGENTS.md;
-    - suggested first item: Phase 4.
+  - **omp worktree decided:** `../backgammon-omp` on `omp/main`, port 3400, **sharing the local DB**. The rules are in AGENTS.md § Two worktrees, one local DB (only master changes `prisma/`, additive only, check migrations for `DROP`). Hand-offs go through `docs/omp-queue.md`. The user creates the worktree and its local-only `.env`. Next: design the Phase 4 schema and land it on master, then queue Phase 4's UI and logic for omp.
 - **Small follow-ups (developer, not yet approved):**
   - `formatEquity` uses a hyphen and no "+" (shared with the review card);
   - `onDelete: Restrict` on `StudyPosition.sourceDecision` (the schema says SET NULL, the DB says RESTRICT, so `migrate diff` keeps proposing it);
