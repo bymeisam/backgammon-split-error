@@ -14,7 +14,7 @@ export default function PositionBuilderPage() {
     <PageShell
       width="wide"
       title="Position builder"
-      subtitle="Set a board position and its match context before connecting it to save or analysis."
+      subtitle="Set up a position and its match context, then post it to the forum."
     >
       <PositionBuilder canPostToForum={canPostToForum} />
     </PageShell>

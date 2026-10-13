@@ -8,8 +8,7 @@ export const style = {
   overline: shared.overline,
   boardTitle: shared.pageSectionTitle,
   boardDescription: "max-w-xl text-sm leading-6 text-ink-muted",
-  boardWrap: "w-full overflow-x-auto",
-  boardViewport: "min-w-[562px]",
+  boardWrap: "w-full",
   boardStatus: "flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-ink-muted",
   counter: "tabular-nums text-ink",
   controls: "flex flex-col gap-4",
@@ -17,7 +16,9 @@ export const style = {
   controlTitle: shared.overline,
   controlHint: "text-xs leading-5 text-ink-faint",
   fieldset: "flex flex-col gap-2",
-  legend: "text-xs font-medium text-ink-faint",
+  // A legend sits outside the fieldset's flex flow, so the gap doesn't reach
+  // it: its own margin separates "Score" from the Bottom/Top labels below.
+  legend: "mb-2 text-xs font-medium text-ink-faint",
   segmented: "grid grid-cols-2 gap-1 rounded-control bg-sunken p-1 ring-1 ring-inset ring-line",
   sideOption: (selected: boolean): string =>
     clsx(
@@ -41,7 +42,8 @@ export const style = {
   actionButton: "flex-1",
   statList: "grid grid-cols-3 gap-2",
   stat: "flex flex-col gap-1 rounded-control border border-line bg-sunken px-2.5 py-2",
-  statLabel: "text-[11px] text-ink-faint",
-  statValue: "font-mono text-sm tabular-nums text-ink",
-  footerNote: "text-xs leading-5 text-ink-faint",
+  statLabel: "text-xs text-ink-muted",
+  // Mono is for numbers (notation, equities, IDs): the off counts use it, a
+  // word like "Center" doesn't.
+  statValue: (numeric: boolean): string => clsx("text-sm text-ink", numeric && "font-mono tabular-nums"),
 } as const;

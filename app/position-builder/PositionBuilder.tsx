@@ -154,20 +154,18 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
         </div>
 
         <div className={style.boardWrap}>
-          <div className={style.boardViewport}>
-            <Board
-              decoded={state.position}
-              roll={state.decisionType === "checker" ? state.roll ?? [] : []}
-              rollSide={state.playerToMove}
-              cube={cube}
-              onPointClick={(point) => edit(point)}
-              onBarClick={(side) => {
-                setEditingSide(side);
-                edit("bar", side);
-              }}
-              onRollDieClick={(index) => updateDie(index as 0 | 1)}
-            />
-          </div>
+          <Board
+            decoded={state.position}
+            roll={state.decisionType === "checker" ? state.roll ?? [] : []}
+            rollSide={state.playerToMove}
+            cube={cube}
+            onPointClick={(point) => edit(point)}
+            onBarClick={(side) => {
+              setEditingSide(side);
+              edit("bar", side);
+            }}
+            onRollDieClick={(index) => updateDie(index as 0 | 1)}
+          />
         </div>
 
         <div className={style.boardStatus}>
@@ -357,18 +355,17 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
           <div className={style.statList}>
             <div className={style.stat}>
               <span className={style.statLabel}>Bottom off</span>
-              <b className={style.statValue}>{state.position.mineOff}</b>
+              <b className={style.statValue(true)}>{state.position.mineOff}</b>
             </div>
             <div className={style.stat}>
               <span className={style.statLabel}>Top off</span>
-              <b className={style.statValue}>{state.position.opponentOff}</b>
+              <b className={style.statValue(true)}>{state.position.opponentOff}</b>
             </div>
             <div className={style.stat}>
               <span className={style.statLabel}>Cube owner</span>
-              <b className={style.statValue}>{cubeOwnerLabel(state.cubeOwner)}</b>
+              <b className={style.statValue(false)}>{cubeOwnerLabel(state.cubeOwner)}</b>
             </div>
           </div>
-          <p className={style.footerNote}>Save and analysis are intentionally not connected yet.</p>
         </Card>
 
         {canPostToForum && (
