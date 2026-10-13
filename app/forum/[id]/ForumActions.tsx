@@ -59,9 +59,20 @@ export default function ForumActions({ postId, title, body, replyId, replyBody, 
     return (
       <form className={style.form} onSubmit={save}>
         {replyId === undefined && (
-          <input className={style.input} value={nextTitle} onChange={(event) => setNextTitle(event.target.value)} />
+          <input
+            className={style.input}
+            aria-label="Title"
+            value={nextTitle}
+            onChange={(event) => setNextTitle(event.target.value)}
+          />
         )}
-        <textarea className={style.input} value={nextBody} onChange={(event) => setNextBody(event.target.value)} />
+        <textarea
+          className={style.input}
+          aria-label="Body"
+          rows={6}
+          value={nextBody}
+          onChange={(event) => setNextBody(event.target.value)}
+        />
         <div className={style.actions}>
           <Button type="submit" variant="primary">
             Save

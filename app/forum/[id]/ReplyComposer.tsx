@@ -38,13 +38,16 @@ export default function ReplyComposer({ postId, canWrite }: { postId: number; ca
         className={style.input}
         rows={4}
         placeholder="Write a reply"
+        aria-label="Reply"
         value={body}
         onChange={(event) => setBody(event.target.value)}
         required
       />
-      <Button type="submit" variant="primary">
-        Reply
-      </Button>
+      <div className={style.formActions}>
+        <Button type="submit" variant="primary">
+          Reply
+        </Button>
+      </div>
       {error && <p className={style.error}>{error}</p>}
     </form>
   );

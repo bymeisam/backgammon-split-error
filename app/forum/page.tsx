@@ -39,7 +39,7 @@ export default async function ForumPage() {
               {post.title}
             </Link>
             <p className={style.meta}>
-              {post.author.displayName} · {post.createdAt.toLocaleDateString()} · {post._count.replies} replies ·{" "}
+              {post.author.displayName} · {post.createdAt.toLocaleDateString()} · {post._count.replies} repl{post._count.replies === 1 ? "y" : "ies"} ·{" "}
               {post._count.positions} position{post._count.positions === 1 ? "" : "s"}
             </p>
           </Card>

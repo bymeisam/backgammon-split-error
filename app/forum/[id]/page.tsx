@@ -66,13 +66,11 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
                 <span className={style.identifier}>GNU Position ID: {studyPosition.positionId}</span>
                 <span className={style.identifier}>GNU Match ID: {studyPosition.gnuMatchId}</span>
               </div>
-              <div className={style.boardViewport}>
-                {studyPosition.kind === "CHECKER" ? (
-                  <CheckerMoveExplorer position={position} dice={dice} cube={cube} />
-                ) : (
-                  <Board decoded={position} cube={cube} />
-                )}
-              </div>
+              {studyPosition.kind === "CHECKER" ? (
+                <CheckerMoveExplorer position={position} dice={dice} cube={cube} />
+              ) : (
+                <Board decoded={position} cube={cube} />
+              )}
             </div>
           );
         })}
