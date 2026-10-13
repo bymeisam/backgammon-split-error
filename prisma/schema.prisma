@@ -439,6 +439,7 @@ model StudyPosition {
   sourceDecision     Decision?           @relation(fields: [sourceDecisionId], references: [id])
   createdAt          DateTime            @default(now())
   attachments        ForumPostPosition[]
+  moveProposals      ForumMoveProposal[]
 
   @@index([sourceDecisionId])
   @@index([positionId])
@@ -472,14 +473,44 @@ model ForumPostPosition {
 }
 
 model ForumReply {
-  id              Int       @id @default(autoincrement())
+  id              Int                 @id @default(autoincrement())
   postId          Int
-  post            ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post            ForumPost           @relation(fields: [postId], references: [id], onDelete: Cascade)
   authorAppUserId Int
-  author          AppUser   @relation("ForumReplyAuthor", fields: [authorAppUserId], references: [id])
-  body            String    @db.Text
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  author          AppUser             @relation("ForumReplyAuthor", fields: [authorAppUserId], references: [id])
+  body            String              @db.Text
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  proposals       ForumMoveProposal[]
 
   @@index([postId, createdAt])
+}
+
+// A reply's proposed move for one of the post's positions: either a checker
+// play (resultPositionId + notation, the GNU Position ID after the play and
+// its server-canonical notation) or a cube action (cubeAction). One proposal
+// per reply per position. resultPositionId is pinned to binary collation in
+// the migration SQL (GNU identifiers are exact, case-sensitive encodings).
+model ForumMoveProposal {
+  id               Int              @id @default(autoincrement())
+  replyId          Int
+  reply            ForumReply       @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  studyPositionId  Int
+  studyPosition    StudyPosition    @relation(fields: [studyPositionId], references: [id])
+  resultPositionId String?          @db.VarChar(191)
+  notation         String?          @db.VarChar(64)
+  cubeAction       ForumCubeAction?
+  createdAt        DateTime         @default(now())
+
+  @@unique([replyId, studyPositionId])
+  @@index([studyPositionId, resultPositionId])
+}
+
+enum ForumCubeAction {
+  NO_DOUBLE
+  DOUBLE_TAKE
+  DOUBLE_PASS
+  TOO_GOOD
+  TAKE
+  PASS
 }

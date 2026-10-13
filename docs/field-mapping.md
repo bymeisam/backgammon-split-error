@@ -25,7 +25,9 @@ to a false match under a case-insensitive collation.
 Columns currently pinned this way: `Match.sourceMatchId`,
 `PlayerIdentity.sourceUserId`, `Decision.userId`,
 `RepeatedPosition.sourcePositionId`, `Decision.sourcePositionId`,
-`StudyPosition.positionId`, and `StudyPosition.gnuMatchId`.
+`StudyPosition.positionId`, `StudyPosition.gnuMatchId`, and
+`ForumMoveProposal.resultPositionId` (nullable; the GNU Position ID after a
+proposed checker play, migration `20261013140000_forum_move_proposal`).
 `Decision.cubeOwnerUserId` was pinned too until it was dropped on
 2026-10-07; its pin went with it.
 
