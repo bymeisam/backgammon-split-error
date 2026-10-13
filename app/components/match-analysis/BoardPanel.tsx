@@ -77,6 +77,7 @@ export default function BoardPanel({
   onSelectTab,
   flipped,
   canEditNotes = false,
+  showOwnerTools = true,
   quiz = false,
   quizArrows = null,
   quizArrowTier = "best",
@@ -99,6 +100,13 @@ export default function BoardPanel({
   // decides whether "Add to review" and the tag editor are offered
   // (DecisionReviewTools).
   canEditNotes?: boolean;
+  // Whether the owner's note card (note, tags, "Add to review") shows at
+  // all. False for a member on the DB-backed pages (/mistakes,
+  // /repeated-positions, the replay), whose decisions carry no note, tag or
+  // review data. Default true: MistakesSection (/matches/[matchId]) gets no
+  // DB ids for a member (GET /api/decision-notes is owner-only and 404s), so
+  // its note card never renders for them anyway.
+  showOwnerTools?: boolean;
   // Review card (app/review): just the position, dice and cube — no
   // Played/Best chips, no note card, nothing that gives the answer away
   // (the back's own Yours / Best tabs are `quizTabs`).
@@ -265,7 +273,7 @@ export default function BoardPanel({
           about the board itself. "Add to review" and tags are in it —
           DB-backed decisions only (nothing renders without a dbDecisionId,
           e.g. on /sources/galaxy). */}
-      {selected && !quiz && (
+      {selected && !quiz && showOwnerTools && (
         <DecisionReviewTools
           key={`review-${selected.dbDecisionId ?? selected.id}`}
           decision={selected}

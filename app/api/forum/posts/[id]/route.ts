@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma, prismaReadOnly } from "@/lib/prisma";
-import { requireOwnerApi } from "@/lib/app-auth";
+import { requireMemberApi } from "@/lib/app-auth";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { ownerIdentity, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
+import { forumIdentity, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
+import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,9 @@ type Context = { params: Promise<{ id: string }> };
 // GET /api/forum/posts/[id]
 //
 // One post with its attached positions (in display order) and its replies
-// (oldest first). Owner-only; a read, so it isn't behind the write gate.
+// (oldest first). Members and the owner; a read, so it isn't behind the write gate.
 export async function GET(_request: NextRequest, context: Context) {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
 
   const id = parseId((await context.params).id);
@@ -38,17 +39,17 @@ export async function GET(_request: NextRequest, context: Context) {
 // Edits a post's title and body. Only its author may, and only with write
 // mode on (isGalaxyEnabled(), the same gate as every other write).
 export async function PATCH(request: NextRequest, context: Context) {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
   if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
-  const user = await ownerIdentity();
+  const user = await forumIdentity();
   if (!id || !user) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const existing = await prismaReadOnly.forumPost.findUnique({ where: { id }, select: { authorAppUserId: true } });
   if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
-  if (existing.authorAppUserId !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!canEditForumItem(user, existing.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   let input: { title?: unknown; body?: unknown };
   try {
@@ -66,16 +67,17 @@ export async function PATCH(request: NextRequest, context: Context) {
 
 // DELETE /api/forum/posts/[id]
 //
-// Deletes a post (its replies and attachments cascade). A manually built
+// Deletes a post (its replies and attachments cascade). Its author may, or
+// the owner on anyone's post (moderation; lib/forumPermissions.ts). A manually built
 // StudyPosition left with no other post goes too; one taken from a match
 // decision is kept.
 export async function DELETE(_request: NextRequest, context: Context) {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
   if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
-  const user = await ownerIdentity();
+  const user = await forumIdentity();
   if (!id || !user) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const post = await prismaReadOnly.forumPost.findUnique({
@@ -86,7 +88,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
     },
   });
   if (!post) return NextResponse.json({ error: "Not found." }, { status: 404 });
-  if (post.authorAppUserId !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!canDeleteForumItem(user, post.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   await prisma.$transaction(async (tx) => {
     await tx.forumPost.delete({ where: { id } });

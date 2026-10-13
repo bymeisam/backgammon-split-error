@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { DECISION_LIST_SELECT, loadDecisionItems } from "@/lib/decisionQueries";
+import { findDecisionListRows, loadDecisionItems } from "@/lib/decisionQueries";
+import { isOwnerViewer } from "@/lib/app-auth";
 import {
   PAGE_SIZE_OPTIONS,
   categoryFromParam,
@@ -123,15 +124,17 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   // "Add all to review" (lib/listParams.ts's mistakesWhere).
   const where = mistakesWhere({ phase, categoryParam, severityParam });
 
+  // The owner's notes, tags and review cards are loaded (and the note,
+  // tag and review tools shown) for the owner only; a member gets the
+  // decisions alone (lib/decisionQueries.ts). Editing also needs write mode.
+  const isOwner = await isOwnerViewer();
+  const ownerWrite = isOwner && isGalaxyEnabled();
   const [total, rows] = await Promise.all([
     prisma.decision.count({ where }),
-    prisma.decision.findMany({
-      where,
-      orderBy: { eventId: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      select: DECISION_LIST_SELECT,
-    }),
+    findDecisionListRows(
+      { where, orderBy: { eventId: "desc" }, skip: (page - 1) * pageSize, take: pageSize },
+      isOwner
+    ),
   ]);
 
   const items = await loadDecisionItems(rows);
@@ -147,8 +150,9 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
             noun: "decision",
           })}
         </p>
-        {/* Write mode only (the bulk route is gated by proxy.ts anyway). */}
-        {isGalaxyEnabled() && total > 0 && (
+        {/* Owner with write mode only (the bulk route is owner-only and
+            gated by proxy.ts anyway). */}
+        {ownerWrite && total > 0 && (
           <BulkAddToReview phase={phase} category={categoryParam} severity={severityParam} />
         )}
       </div>
@@ -156,7 +160,8 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
       <DecisionListWithDetail
         items={items}
         showClassification={!phase}
-        canEditNotes={isGalaxyEnabled()}
+        canEditNotes={ownerWrite}
+        showOwnerTools={isOwner}
       />
 
       <PaginationLinks

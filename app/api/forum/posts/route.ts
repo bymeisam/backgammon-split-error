@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma, prismaReadOnly } from "@/lib/prisma";
-import { requireOwnerApi } from "@/lib/app-auth";
+import { requireMemberApi } from "@/lib/app-auth";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { FORUM_LIMITS, ownerIdentity, rawMatchId, sourceDecision, textField, validIds } from "@/lib/forum";
+import { FORUM_LIMITS, forumIdentity, rawMatchId, sourceDecision, textField, validIds } from "@/lib/forum";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 // GET /api/forum/posts
 //
 // Every post, newest first, with its author, attachments and counts.
-// Owner-only; a read, so it isn't behind the write gate.
+// Members and the owner; a read, so it isn't behind the write gate.
 export async function GET() {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
 
   const posts = await prismaReadOnly.forumPost.findMany({
@@ -103,15 +103,15 @@ async function resolvePosition(input: unknown): Promise<{ position: ResolvedPosi
 //                                 "positions": attachment[] }
 //
 // Creates a post with 1 to FORUM_LIMITS.positions attached positions, as the
-// signed-in owner. Write mode only (isGalaxyEnabled(), the same gate as every
+// signed-in member or owner. Write mode only (isGalaxyEnabled(), the same gate as every
 // other write). The post, its StudyPositions and the attachment rows are
 // created in one transaction.
 export async function POST(request: NextRequest) {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
   if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
-  const user = await ownerIdentity();
+  const user = await forumIdentity();
   if (!user) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   let payload: unknown;

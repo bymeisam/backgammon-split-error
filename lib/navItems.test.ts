@@ -3,7 +3,7 @@ import { activeNavHref, isNavItemActive, navItems } from "./navItems";
 
 describe("navItems", () => {
   it("lists Sources only in write mode", () => {
-    expect(navItems(true).map((i) => i.label)).toEqual([
+    expect(navItems(true, "OWNER").map((i) => i.label)).toEqual([
       "Matches",
       "Analysis",
       "Mistakes",
@@ -14,7 +14,7 @@ describe("navItems", () => {
       "Settings",
       "Status",
     ]);
-    expect(navItems(false).map((i) => i.label)).toEqual([
+    expect(navItems(false, "OWNER").map((i) => i.label)).toEqual([
       "Matches",
       "Analysis",
       "Mistakes",
@@ -27,15 +27,15 @@ describe("navItems", () => {
   });
 
   it("puts Cards under Review, and Settings and Status at the end (no Sources read-only)", () => {
-    const review = navItems(false).find((i) => i.label === "Review");
+    const review = navItems(false, "OWNER").find((i) => i.label === "Review");
     expect(review?.children?.map((c) => c.href)).toEqual(["/review/cards"]);
     expect(review?.showsDueCount).toBe(true);
-    expect(navItems(false).filter((i) => i.end).map((i) => i.href)).toEqual(["/settings", "/status"]);
+    expect(navItems(false, "OWNER").filter((i) => i.end).map((i) => i.href)).toEqual(["/settings", "/status"]);
   });
 
   it("puts Sources first in the end group in write mode", () => {
-    expect(navItems(true).filter((i) => i.end).map((i) => i.label)).toEqual(["Sources", "Settings", "Status"]);
-    expect(navItems(true).filter((i) => !i.end).map((i) => i.label)).toEqual([
+    expect(navItems(true, "OWNER").filter((i) => i.end).map((i) => i.label)).toEqual(["Sources", "Settings", "Status"]);
+    expect(navItems(true, "OWNER").filter((i) => !i.end).map((i) => i.label)).toEqual([
       "Matches",
       "Analysis",
       "Mistakes",
@@ -47,7 +47,7 @@ describe("navItems", () => {
 });
 
 describe("activeNavHref", () => {
-  const items = navItems(true);
+  const items = navItems(true, "OWNER");
 
   it("picks the most specific item", () => {
     expect(activeNavHref("/matches", items)).toBe("/matches");
@@ -75,7 +75,7 @@ describe("activeNavHref", () => {
 });
 
 describe("isNavItemActive", () => {
-  const items = navItems(true);
+  const items = navItems(true, "OWNER");
   const review = items.find((i) => i.href === "/review")!;
   const matches = items.find((i) => i.href === "/matches")!;
 
@@ -90,5 +90,21 @@ describe("isNavItemActive", () => {
 
   it("highlights nothing for a null active href", () => {
     expect(items.some((i) => isNavItemActive(i, null))).toBe(false);
+  });
+});
+
+describe("navItems for a member", () => {
+  it("hides Review, Sources and Status", () => {
+    for (const write of [true, false]) {
+      expect(navItems(write, "MEMBER").map((i) => i.label)).toEqual([
+        "Matches",
+        "Analysis",
+        "Mistakes",
+        "Repeated",
+        "Forum",
+        "Settings",
+      ]);
+    }
+    expect(navItems(true, "MEMBER").some((i) => i.showsDueCount)).toBe(false);
   });
 });

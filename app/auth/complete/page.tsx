@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { provisionAppUser } from "@/lib/app-auth";
+import { isMemberOrOwner } from "@/lib/appRole";
 import { style } from "./complete.styles";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +8,9 @@ export const dynamic = "force-dynamic";
 export default async function AuthCompletePage() {
   const state = await provisionAppUser();
   if (!state) redirect("/sign-in");
-  if (state.isOwner && state.clerkIsOwner) redirect("/");
+  // An invited member or the owner goes straight in; NONE waits for
+  // approval (lib/appRole.ts).
+  if (isMemberOrOwner(state.role)) redirect("/");
   return (
     <main className={style.page}>
       <p className={style.eyebrow}>Private owner access</p>

@@ -17,6 +17,8 @@ This app is a personal training tool. The user is building it to improve their o
 - find their repeated mistakes, and their mistakes at each stage of the game;
 - study those mistakes with an Anki-style spaced-repetition review, with their own notes giving the reasoning.
 
+It is still the user's training tool, now also shared read-only with invited members (matches, mistakes, repeated positions), who also use the forum; review, notes, tags and sources stay the owner's alone (`lib/accessRules.ts`).
+
 New games are synced every day, so there's plenty of data. Judge features and data fixes by whether they help with that. Imperfect or unanalysed data that never shows up in the user's error and blunder lists doesn't need special handling (exclusion flags, filters, clean-up). Don't build machinery for it unless asked.
 
 Start a session by reading `docs/current-state.md` (a short snapshot of where things stand). Don't read `PROGRESS.md` at the start of a session. It's the history log, so read it only when you need it: grep it (and `docs/progress-archive/`) for the history behind something, for example why a decision was made, or what has already been run on Oracle.

@@ -6,11 +6,13 @@ import type { ErrorSeverity, Prisma } from "@/lib/generated/prisma/client";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { toDecisionListItems, type DecisionListItem, type DecisionListRow } from "@/lib/decisionFromRow";
 
-// Columns a DecisionListRow needs — every list query selects exactly this.
-// Colour, roll, cube and labels aren't columns: lib/decisionFromRow.ts
-// derives them from `raw` (lib/analysis/index.ts), picking the reader by the
-// match's source.
-export const DECISION_LIST_SELECT = {
+// Columns a DecisionListRow needs for a member (lib/appRole.ts): the
+// decision itself, with none of the owner's own data (no note, no review
+// card, no tags, no countAsDecision for review eligibility), so none of it
+// is ever sent to a member's browser. Colour, roll, cube and labels aren't
+// columns: lib/decisionFromRow.ts derives them from `raw`
+// (lib/analysis/index.ts), picking the reader by the match's source.
+export const DECISION_LIST_SELECT_MEMBER = {
   id: true,
   gameId: true,
   eventId: true,
@@ -21,6 +23,12 @@ export const DECISION_LIST_SELECT = {
   classification: true,
   sourcePositionId: true,
   raw: true,
+  game: { select: { gameIndex: true, match: { select: { source: true, sourceMatchId: true } } } },
+} satisfies Prisma.DecisionSelect;
+
+// The owner's columns: the member's plus the owner's own data.
+export const DECISION_LIST_SELECT = {
+  ...DECISION_LIST_SELECT_MEMBER,
   // The user's own note, if any (1:1 DecisionNote, null when absent) — a
   // unique-key lookup per returned row, so it only ever touches the page's
   // own rows, never the count query.
@@ -31,8 +39,16 @@ export const DECISION_LIST_SELECT = {
   countAsDecision: true,
   reviewCard: { select: { id: true, due: true, suspended: true } },
   tags: { select: { tag: { select: { id: true, name: true } } }, orderBy: { tag: { name: "asc" } } },
-  game: { select: { gameIndex: true, match: { select: { source: true, sourceMatchId: true } } } },
 } satisfies Prisma.DecisionSelect;
+
+type DecisionListQuery = Pick<Prisma.DecisionFindManyArgs, "where" | "orderBy" | "skip" | "take">;
+
+// One list query, with the owner's or the member's columns.
+export async function findDecisionListRows(query: DecisionListQuery, isOwner: boolean): Promise<DecisionListRow[]> {
+  return isOwner
+    ? prisma.decision.findMany({ ...query, select: DECISION_LIST_SELECT })
+    : prisma.decision.findMany({ ...query, select: DECISION_LIST_SELECT_MEMBER });
+}
 
 // Used to need a second, unfiltered per-game query here to build roll/
 // cube-state lookups from sibling rows (a countAsDecision: true list query
@@ -55,11 +71,14 @@ export async function loadDecisionItems(rows: DecisionListRow[]): Promise<Decisi
 // reports/2026-10-02-step3-sourcepositionid-column-design.md). Now a plain
 // Prisma query: sourcePositionId is a real indexed column, not an unindexed
 // JSON path, so there's no optimizer-steering or raw SQL needed anymore.
-export async function findPositionOccurrences(position: {
-  errorSeverity: ErrorSeverity;
-  sourcePositionId: string;
-}): Promise<DecisionListRow[]> {
-  return prisma.decision.findMany({
+export async function findPositionOccurrences(
+  position: {
+    errorSeverity: ErrorSeverity;
+    sourcePositionId: string;
+  },
+  isOwner: boolean
+): Promise<DecisionListRow[]> {
+  return findDecisionListRows({
     where: {
       kind: "CHECKER",
       countAsDecision: true,
@@ -67,6 +86,5 @@ export async function findPositionOccurrences(position: {
       errorSeverity: position.errorSeverity,
       sourcePositionId: position.sourcePositionId,
     },
-    select: DECISION_LIST_SELECT,
-  });
+  }, isOwner);
 }

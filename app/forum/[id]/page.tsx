@@ -6,6 +6,8 @@ import Board from "@/app/components/match-analysis/Board";
 import CheckerMoveExplorer from "@/app/components/match-analysis/CheckerMoveExplorer";
 import { prismaReadOnly } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { forumViewer } from "@/lib/forum";
+import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
 import { replayHref } from "@/lib/replayHref";
 import { formatShortMatchDate } from "@/lib/formatDate";
@@ -42,7 +44,14 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
   if (!post) notFound();
 
   // Same gate as the forum write routes: off hides Edit, Delete and Reply.
+  // With it on, Edit is the author's only; Delete is the author's, or the
+  // owner's on anyone's post or reply (lib/forumPermissions.ts).
   const canWrite = isGalaxyEnabled();
+  const viewer = canWrite ? await forumViewer() : null;
+  const actionsFor = (authorAppUserId: number) => ({
+    canEdit: canWrite && canEditForumItem(viewer, authorAppUserId),
+    canDelete: canWrite && canDeleteForumItem(viewer, authorAppUserId),
+  });
   const now = new Date();
 
   return (
@@ -56,7 +65,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
             title={post.title}
             body={post.body}
             replyCount={post.replies.length}
-            canWrite={canWrite}
+            {...actionsFor(post.authorAppUserId)}
           />
         </Card>
         {post.positions.map(({ studyPosition }, index) => {
@@ -107,7 +116,12 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
                   {reply.author.displayName} · {formatShortMatchDate(reply.createdAt.toISOString(), now)}
                 </p>
                 <p className={style.body}>{reply.body}</p>
-                <ForumActions postId={post.id} replyId={reply.id} replyBody={reply.body} canWrite={canWrite} />
+                <ForumActions
+                  postId={post.id}
+                  replyId={reply.id}
+                  replyBody={reply.body}
+                  {...actionsFor(reply.authorAppUserId)}
+                />
               </div>
             ))
           )}

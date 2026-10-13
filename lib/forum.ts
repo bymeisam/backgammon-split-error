@@ -1,7 +1,8 @@
 import "server-only";
 import { prismaAuth, prismaReadOnly } from "@/lib/prisma";
 import { getAppAuthState } from "@/lib/app-auth";
-import { isLocalAuthBypass, LOCAL_DEV_OWNER_CLERK_ID } from "@/lib/localAuthBypass";
+import { isLocalAuthBypass, localBypassIdentity } from "@/lib/localAuthBypass";
+import { isMemberOrOwner, type AppRole } from "@/lib/appRole";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
@@ -45,21 +46,36 @@ export function decodePosition(id: string) {
   }
 }
 
-// The signed-in owner's AppUser row, or null when the visitor isn't the
-// approved owner. With the local AUTH_BYPASS on, the reserved local-dev-owner
-// row is created on first use and returned instead.
-export async function ownerIdentity() {
+// The signed-in viewer's AppUser id and role, or null unless they're a
+// member or the owner (lib/appRole.ts). With the local AUTH_BYPASS on, the
+// reserved bypass row (local-dev-owner, or local-dev-member under
+// AUTH_BYPASS_ROLE=member) is created on first use and returned instead.
+export async function forumIdentity(): Promise<{ id: number; role: AppRole } | null> {
   const auth = await getAppAuthState();
-  if (!auth || !auth.isOwner || !auth.clerkIsOwner) return null;
+  if (!auth || !isMemberOrOwner(auth.role)) return null;
 
   if (isLocalAuthBypass()) {
-    return prismaAuth.appUser.upsert({
-      where: { clerkUserId: LOCAL_DEV_OWNER_CLERK_ID },
-      create: { clerkUserId: LOCAL_DEV_OWNER_CLERK_ID, displayName: "Local development owner", isOwner: true },
-      update: { displayName: "Local development owner", isOwner: true },
+    const { clerkUserId, displayName, role } = localBypassIdentity();
+    const row = await prismaAuth.appUser.upsert({
+      where: { clerkUserId },
+      create: { clerkUserId, displayName, role },
+      update: { displayName, role },
+      select: { id: true },
     });
+    return { id: row.id, role };
   }
-  return prismaAuth.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId } });
+  const row = await prismaAuth.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId }, select: { id: true } });
+  return row ? { id: row.id, role: auth.role } : null;
+}
+
+// The viewer's AppUser id and role for the forum pages' Edit/Delete
+// controls (read-only: no bypass upsert). Null when not a member or owner,
+// or when the row doesn't exist yet.
+export async function forumViewer(): Promise<{ id: number; role: AppRole } | null> {
+  const auth = await getAppAuthState();
+  if (!auth || !isMemberOrOwner(auth.role)) return null;
+  const row = await prismaReadOnly.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId }, select: { id: true } });
+  return row ? { id: row.id, role: auth.role } : null;
 }
 
 // Forum writes follow the app-wide write gate (lib/galaxyGate.ts).

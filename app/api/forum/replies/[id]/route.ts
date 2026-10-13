@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma, prismaReadOnly } from "@/lib/prisma";
-import { requireOwnerApi } from "@/lib/app-auth";
+import { requireMemberApi } from "@/lib/app-auth";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { ownerIdentity, parseId, textField } from "@/lib/forum";
+import { forumIdentity, parseId, textField } from "@/lib/forum";
+import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -11,17 +12,17 @@ type Context = { params: Promise<{ id: string }> };
 // Edits a reply's body. Only its author may, and only with write mode on
 // (isGalaxyEnabled(), the same gate as every other write).
 export async function PATCH(request: NextRequest, context: Context) {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
   if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
-  const user = await ownerIdentity();
+  const user = await forumIdentity();
   if (!id || !user) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const reply = await prismaReadOnly.forumReply.findUnique({ where: { id }, select: { authorAppUserId: true } });
   if (!reply) return NextResponse.json({ error: "Not found." }, { status: 404 });
-  if (reply.authorAppUserId !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!canEditForumItem(user, reply.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   let input: { body?: unknown };
   try {
@@ -38,19 +39,20 @@ export async function PATCH(request: NextRequest, context: Context) {
 
 // DELETE /api/forum/replies/[id]
 //
-// Deletes a reply. Same author and write-mode checks as PATCH.
+// Deletes a reply. Its author may, or the owner on anyone's reply
+// (moderation; lib/forumPermissions.ts). Write mode only, as PATCH.
 export async function DELETE(_request: NextRequest, context: Context) {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
   if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
-  const user = await ownerIdentity();
+  const user = await forumIdentity();
   if (!id || !user) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const reply = await prismaReadOnly.forumReply.findUnique({ where: { id }, select: { authorAppUserId: true } });
   if (!reply) return NextResponse.json({ error: "Not found." }, { status: 404 });
-  if (reply.authorAppUserId !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!canDeleteForumItem(user, reply.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   await prisma.forumReply.delete({ where: { id } });
   return new NextResponse(null, { status: 204 });

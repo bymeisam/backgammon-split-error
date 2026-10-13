@@ -2,6 +2,8 @@
 // unit-tested; app/components/ui/AppNav.tsx builds the list on the server
 // and NavLinks.tsx highlights the active one from the pathname.
 
+import type { AppRole } from "@/lib/appRole";
+
 export interface NavItem {
   href: string;
   label: string;
@@ -17,22 +19,29 @@ export interface NavItem {
 // Sources only with write mode on (isGalaxyEnabled()); proxy.ts 404s
 // /sources and everything under it otherwise. It's in the end group, first
 // (Sources · Settings · Status): you visit it to sync, not to study.
-export function navItems(writeEnabled: boolean): NavItem[] {
+// Review, Sources and Status are owner-only (lib/accessRules.ts), so a
+// member (or anyone not the owner) never sees them.
+export function navItems(writeEnabled: boolean, role: AppRole | null): NavItem[] {
+  const isOwner = role === "OWNER";
   return [
     { href: "/matches", label: "Matches" },
     { href: "/matches/analysis", label: "Analysis" },
     { href: "/mistakes", label: "Mistakes" },
     { href: "/repeated-positions", label: "Repeated" },
     { href: "/forum", label: "Forum" },
-    {
-      href: "/review",
-      label: "Review",
-      showsDueCount: true,
-      children: [{ href: "/review/cards", label: "Cards" }],
-    },
-    ...(writeEnabled ? [{ href: "/sources", label: "Sources", end: true }] : []),
+    ...(isOwner
+      ? [
+          {
+            href: "/review",
+            label: "Review",
+            showsDueCount: true,
+            children: [{ href: "/review/cards", label: "Cards" }],
+          },
+        ]
+      : []),
+    ...(isOwner && writeEnabled ? [{ href: "/sources", label: "Sources", end: true }] : []),
     { href: "/settings", label: "Settings", end: true },
-    { href: "/status", label: "Status", end: true },
+    ...(isOwner ? [{ href: "/status", label: "Status", end: true }] : []),
   ];
 }
 

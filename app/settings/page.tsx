@@ -9,6 +9,7 @@ import {
   REVIEW_BATCH_SIZE,
   REVIEWS_PER_DAY,
 } from "@/lib/settings";
+import { isOwnerViewer } from "@/lib/app-auth";
 import ThemeSettings from "./ThemeSettings";
 import { style } from "./settings.styles";
 
@@ -23,29 +24,33 @@ function Row({ label, value }: { label: string; value: string }) {
 
 // /settings: the display theme and mode (a per-browser cookie, so it works
 // on the read-only site too; no DB), and the review settings from
-// lib/settings.ts, shown read-only for now.
+// lib/settings.ts, shown read-only for now. Review is the owner's, so a
+// member sees the theme section only.
 export default async function SettingsPage() {
   const current = themeSettingsFromCookie((await cookies()).get(THEME_COOKIE)?.value);
+  const isOwner = await isOwnerViewer();
 
   return (
-    <PageShell width="medium" title="Settings" subtitle="How the app looks in this browser, and how review works.">
+    <PageShell width="medium" title="Settings" subtitle={isOwner ? "How the app looks in this browser, and how review works." : "How the app looks in this browser."}>
       <ThemeSettings initial={current} />
 
-      <Card as="section" className={style.section} aria-labelledby="settings-review">
-        <div className={style.sectionHead}>
-          <h2 id="settings-review" className={style.sectionTitle}>
-            Review
-          </h2>
-          <p className={style.sectionNote}>Read-only for now. These will be editable here later.</p>
-        </div>
-        <div className={style.rowList}>
-          <Row label="New cards per day" value={NEW_CARDS_PER_DAY.toLocaleString("en")} />
-          <Row label="Reviews per day" value={REVIEWS_PER_DAY.toLocaleString("en")} />
-          <Row label="Cards per batch" value={REVIEW_BATCH_SIZE.toLocaleString("en")} />
-          <Row label="Correct-answer threshold" value={`At most ${CORRECT_LOSS_THRESHOLD} equity lost`} />
-          <Row label="Most cards added at once" value={BULK_ADD_CAP.toLocaleString("en")} />
-        </div>
-      </Card>
+      {isOwner && (
+        <Card as="section" className={style.section} aria-labelledby="settings-review">
+          <div className={style.sectionHead}>
+            <h2 id="settings-review" className={style.sectionTitle}>
+              Review
+            </h2>
+            <p className={style.sectionNote}>Read-only for now. These will be editable here later.</p>
+          </div>
+          <div className={style.rowList}>
+            <Row label="New cards per day" value={NEW_CARDS_PER_DAY.toLocaleString("en")} />
+            <Row label="Reviews per day" value={REVIEWS_PER_DAY.toLocaleString("en")} />
+            <Row label="Cards per batch" value={REVIEW_BATCH_SIZE.toLocaleString("en")} />
+            <Row label="Correct-answer threshold" value={`At most ${CORRECT_LOSS_THRESHOLD} equity lost`} />
+            <Row label="Most cards added at once" value={BULK_ADD_CAP.toLocaleString("en")} />
+          </div>
+        </Card>
+      )}
     </PageShell>
   );
 }

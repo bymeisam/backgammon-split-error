@@ -167,27 +167,31 @@ around the Galaxy link in `app/page.tsx`.
    this to have grown if you've synced since). If `/status` shows a
    connection error instead, step 3 is almost certainly the cause.
 
-## App authentication and owner allowlist
+## App authentication, owner and members
 
 The app uses Clerk's invite-only sign-in flow (`/sign-in`). Do not add a
 public `SignUpButton`; disable public sign-up in the Clerk dashboard and invite
-only the approved owner. Every first signed-in access provisions an `AppUser`
-row with `isOwner=false` and the Clerk display name. The application requires
-both independent flags:
+only approved people. Every first signed-in access provisions an `AppUser`
+row with `role=NONE` (awaiting approval) and the Clerk display name. The role
+is set by hand (`lib/appRole.ts` resolves it):
 
-1. the local `AppUser.isOwner` value is `true`; and
-2. the verified Clerk user's `privateMetadata.isOwner` value is `true`.
+- **Owner**: `AppUser.role` is `OWNER` **and** the verified Clerk user's
+  `privateMetadata.isOwner` is `true`. DB `OWNER` without the Clerk flag
+  counts as a member; the Clerk flag on its own grants nothing.
+- **Member**: `AppUser.role` is `MEMBER`. Read-only matches, analysis,
+  replays, mistakes, repeated positions and settings, plus the forum. No
+  notes, tags, review data, `/review`, `/sources` or `/status`.
+- **NONE**: signed in, awaiting approval.
 
-Set the Clerk private metadata flag manually for the approved user, then set
-the matching local `AppUser.isOwner` value manually after the migration has
-run. Identity matching uses the verified Clerk user ID, never email or client
-metadata. Unauthenticated document requests go to `/sign-in`; signed-in users
-without both owner flags go to `/auth/complete`, which provisions the local
-row if needed and shows the pending-approval state without exposing application
-data. APIs return an unauthorized/protection response for signed-out requests
-and deny non-owners.
+Which pages and APIs each role reaches is one table, `lib/accessRules.ts`
+(anything unlisted is owner-only). Identity matching uses the verified Clerk
+user ID, never email or client metadata. Unauthenticated document requests go
+to `/sign-in`; NONE goes to `/auth/complete`, which provisions the local row if
+needed and shows the pending-approval state without exposing application
+data; a member on an owner page gets a 404. APIs return 401 for signed-out
+requests and 404 for a role that isn't allowed.
 
-The authenticated `/position-builder` route is part of the normal owner document guard. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations remain behind the same `ENABLE_WRITE_MODE` gate as other application writes.
+The authenticated `/position-builder` route is a member page. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations remain behind the same `ENABLE_WRITE_MODE` gate as other application writes.
 
 `ENABLE_WRITE_MODE` remains the deployment-level Galaxy/write gate. Clerk ownership does not turn hosted Galaxy writes on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. The separate `DATABASE_URL_AUTH` credential is only for the `AppUser` allowlist and must not have access to source/study write paths.
 
@@ -196,8 +200,9 @@ The authenticated `/position-builder` route is part of the normal owner document
 Setting `AUTH_BYPASS=true` temporarily bypasses the Clerk document and API
 owner checks through `lib/localAuthBypass.ts` so the local forum and
 position-builder flows can be smoke-tested without a Clerk browser session. The
-bypass uses the reserved `local-dev-owner` `AppUser` identity when a write needs
-an author. It is an explicit opt-in (off unless exactly `true`), refuses to turn
+bypass acts as the reserved `local-dev-owner` `AppUser` (the owner), or with
+`AUTH_BYPASS_ROLE=member` as a separate `local-dev-member` (an invited member),
+for the role checks and when a write needs an author. It is an explicit opt-in (off unless exactly `true`), refuses to turn
 on and logs a warning when `DATABASE_URL`, `DATABASE_URL_AUTH` or
 `DATABASE_URL_READONLY` points anywhere but localhost, and does not disable
 `isGalaxyEnabled()` or its database/write-mode gate. Never set it on a deployed
@@ -206,7 +211,7 @@ bypass after local authenticated smoke and visual review are complete.
 
 ## Auth verification (do this after every deploy)
 
-Open the production URL in a private/incognito window. It must redirect to `/sign-in`. A signed-in user lacking either owner flag must land on `/auth/complete` and receive no application data. Verify the approved owner's Clerk private metadata and local `AppUser` row separately after migrations.
+Open the production URL in a private/incognito window. It must redirect to `/sign-in`. A signed-in user with `AppUser.role` NONE must land on `/auth/complete` and receive no application data; a member must get a 404 on `/review` and `/status`. Verify the owner's Clerk private metadata and `AppUser.role` (OWNER) separately after migrations.
 
 ## Making the Claude PR review actually block merges (manual, GitHub settings)
 

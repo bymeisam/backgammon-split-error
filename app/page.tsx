@@ -2,6 +2,7 @@ import { Suspense, cache, type ReactNode } from "react";
 import Link from "next/link";
 import { ErrorSeverity } from "@/lib/generated/prisma/enums";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isOwnerViewer } from "@/lib/app-auth";
 import { listMatches } from "@/lib/local-client";
 import { countDueCards } from "@/lib/review/dueCount";
 import { dueSplit } from "@/lib/review/queuePlan";
@@ -286,8 +287,10 @@ async function RepeatedBlundersWidget() {
   );
 }
 
-export default function Home() {
-  const galaxyEnabled = isGalaxyEnabled();
+export default async function Home() {
+  // The due-cards widget is the owner's (review is owner-only), and only
+  // with write mode on.
+  const showDue = (await isOwnerViewer()) && isGalaxyEnabled();
 
   return (
     <PageShell
@@ -295,8 +298,8 @@ export default function Home() {
       title="Dashboard"
       subtitle="PR and mistake breakdowns for your matches."
     >
-      <div className={style.widgetGrid(galaxyEnabled)}>
-        {galaxyEnabled && (
+      <div className={style.widgetGrid(showDue)}>
+        {showDue && (
           <Suspense fallback={<WidgetFallback title="Due today" />}>
             <DueCardsWidget />
           </Suspense>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import type { RepeatedPosition } from "@/lib/generated/prisma/client";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isOwnerViewer } from "@/lib/app-auth";
 import { findPositionOccurrences, loadDecisionItems } from "@/lib/decisionQueries";
 import { listRepeatedPositions } from "@/lib/repeatedPositionQueries";
 import {
@@ -197,7 +198,9 @@ async function PositionDetailSection({ position }: { position: RepeatedPosition 
     );
   }
 
-  const items = await loadDecisionItems(await findPositionOccurrences(position));
+  // The owner's notes, tags and review cards: owner only (see /mistakes).
+  const isOwner = await isOwnerViewer();
+  const items = await loadDecisionItems(await findPositionOccurrences(position, isOwner));
 
   return (
     <div className={style.resultGroup}>
@@ -211,7 +214,12 @@ async function PositionDetailSection({ position }: { position: RepeatedPosition 
           .filter(Boolean)
           .join(" · ")}
       </p>
-      <DecisionListWithDetail items={items} showClassification={false} canEditNotes={isGalaxyEnabled()} />
+      <DecisionListWithDetail
+        items={items}
+        showClassification={false}
+        canEditNotes={isOwner && isGalaxyEnabled()}
+        showOwnerTools={isOwner}
+      />
     </div>
   );
 }

@@ -15,11 +15,14 @@ type ForumActionsProps = {
   replyBody?: string;
   // The post's reply count, for its delete confirmation (post actions only).
   replyCount?: number;
-  canWrite: boolean;
+  // Decided by the server page: write mode (isGalaxyEnabled(), the forum API
+  // routes' gate) and lib/forumPermissions.ts. Edit is the author's only;
+  // Delete is the author's, or the owner's on anyone's (moderation).
+  canEdit: boolean;
+  canDelete: boolean;
 };
 
 // Edit and Delete for a post or one of its replies.
-// canWrite: isGalaxyEnabled(), decided by the server page (the forum API routes' gate). Off hides Edit and Delete.
 export default function ForumActions({
   postId,
   title,
@@ -27,7 +30,8 @@ export default function ForumActions({
   replyId,
   replyBody,
   replyCount = 0,
-  canWrite,
+  canEdit,
+  canDelete,
 }: ForumActionsProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -72,7 +76,7 @@ export default function ForumActions({
   // Unique per instance: the post page renders one ForumActions per reply.
   const dialogId = replyId !== undefined ? `delete-reply-${replyId}` : `delete-post-${postId}`;
 
-  if (!canWrite) return null;
+  if (!canEdit && !canDelete) return null;
 
   if (editing) {
     return (
@@ -105,14 +109,16 @@ export default function ForumActions({
 
   return (
     <div className={style.actions}>
-      {(title !== undefined || replyId !== undefined) && (
+      {canEdit && (title !== undefined || replyId !== undefined) && (
         <Button size="small" onClick={() => setEditing(true)}>
           Edit
         </Button>
       )}
-      <Button size="small" variant="quiet" onClick={() => setConfirming(true)}>
-        Delete
-      </Button>
+      {canDelete && (
+        <Button size="small" variant="quiet" onClick={() => setConfirming(true)}>
+          Delete
+        </Button>
+      )}
       {error && !confirming && <p className={style.error}>{error}</p>}
 
       <Modal

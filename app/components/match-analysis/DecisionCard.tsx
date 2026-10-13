@@ -22,6 +22,7 @@ export default function DecisionCard({
   moveTab,
   onMoveTabChange,
   canEditNotes,
+  showOwnerTools,
 }: {
   decision: Decision;
   classification: string;
@@ -32,6 +33,8 @@ export default function DecisionCard({
   moveTab: "my" | "best";
   onMoveTabChange: (tab: "my" | "best") => void;
   canEditNotes: boolean;
+  // The owner's note card below the board (see BoardPanel).
+  showOwnerTools: boolean;
 }) {
   return (
     <div data-testid="decision-card" className={style.card}>
@@ -59,6 +62,7 @@ export default function DecisionCard({
         moveTab={moveTab}
         onSelectTab={onMoveTabChange}
         canEditNotes={canEditNotes}
+        showOwnerTools={showOwnerTools}
       />
     </div>
   );

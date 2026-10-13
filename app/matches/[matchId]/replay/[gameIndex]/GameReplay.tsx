@@ -30,6 +30,7 @@ export default function GameReplay({
   initialIndex,
   myColor,
   canEditNotes,
+  showOwnerTools,
   canPostToForum,
 }: {
   matchId: string;
@@ -43,8 +44,11 @@ export default function GameReplay({
   // fixed-perspective toggle below has nothing reliable to compare a
   // decision's color against and is hidden rather than offered broken.
   myColor: string | null;
-  // isGalaxyEnabled(), computed by the server page — see DecisionNote.
+  // The owner with write mode on, computed by the server page — see
+  // DecisionNote.
   canEditNotes: boolean;
+  // The owner's note card (note, tags, "Add to review"): the owner only.
+  showOwnerTools: boolean;
   // isGalaxyEnabled(), the forum write gate; hides "Post to forum" when off.
   canPostToForum: boolean;
 }) {
@@ -149,6 +153,7 @@ export default function GameReplay({
           onSelectTab={setMoveTab}
           flipped={flipped}
           canEditNotes={canEditNotes}
+          showOwnerTools={showOwnerTools}
           bleed
           belowBoard={
             <div className={style.stepper}>

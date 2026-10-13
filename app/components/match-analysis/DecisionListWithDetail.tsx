@@ -26,11 +26,17 @@ export default function DecisionListWithDetail({
   items,
   showClassification,
   canEditNotes,
+  showOwnerTools,
 }: {
   items: DecisionListItem[];
   showClassification: boolean;
-  // isGalaxyEnabled(), computed by the server page — see DecisionNote.
+  // The owner with write mode on (role OWNER and isGalaxyEnabled()),
+  // computed by the server page — see DecisionNote.
   canEditNotes: boolean;
+  // The owner's note card (note, tags, "Add to review"): the owner only. A
+  // member's items carry no notes, tags or review data at all, and get no
+  // note card.
+  showOwnerTools: boolean;
 }) {
   const { selectedKey: selectedId, moveTab, selectRow, setMoveTab } =
     useListSelection<string | null>(null);
@@ -81,6 +87,7 @@ export default function DecisionListWithDetail({
             moveTab={moveTab}
             onMoveTabChange={setMoveTab}
             canEditNotes={canEditNotes}
+            showOwnerTools={showOwnerTools}
           />
         )}
       </div>

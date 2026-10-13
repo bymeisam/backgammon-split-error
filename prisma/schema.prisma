@@ -403,17 +403,28 @@ model DecisionTag {
 // Clerk-authenticated application user. The externally sourced Clerk ID is
 // pinned to binary collation in the migration SQL (Prisma schema cannot express
 // MySQL collations).
+//
+// role: OWNER (full access, and only together with Clerk's privateMetadata
+// isOwner flag), MEMBER (invited: read-only matches/mistakes plus the
+// forum) or NONE (signed in, awaiting approval). New rows start NONE
+// (lib/app-auth.ts's provisionAppUser); the role is set by hand.
 model AppUser {
-  id          Int      @id @default(autoincrement())
-  clerkUserId String   @unique @db.VarChar(191)
+  id          Int         @id @default(autoincrement())
+  clerkUserId String      @unique @db.VarChar(191)
   displayName String
-  isOwner     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  role        AppUserRole @default(NONE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   studyPositions StudyPosition[] @relation("StudyPositionCreator")
   forumPosts     ForumPost[]     @relation("ForumPostAuthor")
   forumReplies   ForumReply[]    @relation("ForumReplyAuthor")
+}
+
+enum AppUserRole {
+  OWNER
+  MEMBER
+  NONE
 }
 
 model StudyPosition {

@@ -72,8 +72,9 @@ export interface DecisionRow {
   raw: unknown;
   // The joined DecisionNote (1:1, null when the decision has no note) —
   // every query that feeds a board selects it (DECISION_LIST_SELECT in
-  // lib/decisionQueries.ts, the replay page's own select).
-  note: { note: string; updatedAt: Date } | null;
+  // lib/decisionQueries.ts, the replay page's own select). Undefined when
+  // not selected: a member's view never loads the owner's notes.
+  note?: { note: string; updatedAt: Date } | null;
   // Review feature (optional: only the board queries select them —
   // DECISION_LIST_SELECT and the replay's own select). countAsDecision
   // feeds the eligibility rule (lib/review/eligibility.ts); without it the

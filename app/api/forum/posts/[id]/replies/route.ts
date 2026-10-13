@@ -1,22 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma, prismaReadOnly } from "@/lib/prisma";
-import { requireOwnerApi } from "@/lib/app-auth";
+import { requireMemberApi } from "@/lib/app-auth";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { ownerIdentity, parseId, textField } from "@/lib/forum";
+import { forumIdentity, parseId, textField } from "@/lib/forum";
 
 type Context = { params: Promise<{ id: string }> };
 
 // POST /api/forum/posts/[id]/replies   body: { "body": string }
 //
-// Adds a reply to a post, as the signed-in owner. Write mode only
+// Adds a reply to a post, as the signed-in member or owner. Write mode only
 // (isGalaxyEnabled(), the same gate as every other write).
 export async function POST(request: NextRequest, context: Context) {
-  const denied = await requireOwnerApi();
+  const denied = await requireMemberApi();
   if (denied) return denied;
   if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const postId = parseId((await context.params).id);
-  const user = await ownerIdentity();
+  const user = await forumIdentity();
   if (!postId || !user) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const post = await prismaReadOnly.forumPost.findUnique({ where: { id: postId }, select: { id: true } });

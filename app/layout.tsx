@@ -9,8 +9,8 @@ import { ReviewStateProvider } from "./providers/ReviewStateProvider";
 import AppNav from "./components/ui/AppNav";
 import { THEME_COOKIE, themeSettingsFromCookie } from "@/lib/themes";
 import { style } from "./layout.styles";
-import { requireOwnerDocument } from "@/lib/app-auth";
-import { isLocalAuthBypass } from "@/lib/localAuthBypass";
+import { getAppRole, requireMemberDocument, requireOwnerDocument } from "@/lib/app-auth";
+import { accessTierFor } from "@/lib/accessRules";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,18 +71,21 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // makes every page dynamic.
   const { theme, mode } = themeSettingsFromCookie((await cookies()).get(THEME_COOKIE)?.value);
 
-  // Owner wall for pages. proxy.ts has already made sure the visitor is
-  // signed in and passes the request path as x-app-route; here every page
-  // except the sign-in pages and /auth/complete also needs the signed-in
-  // user to be the approved owner (lib/app-auth.ts). Public pages get no
-  // navbar. The local AUTH_BYPASS skips the check (lib/localAuthBypass.ts).
+  // Access wall for pages. proxy.ts has already made sure the visitor is
+  // signed in and passes the request path as x-app-route; here each page
+  // gets its tier from the one access table (lib/accessRules.ts): public
+  // pages (sign-in, /auth/complete) need nothing and get no navbar; member
+  // pages need an invited member or the owner; everything else is owner
+  // only (a member gets a 404). lib/app-auth.ts resolves the role, including
+  // under the local AUTH_BYPASS (lib/localAuthBypass.ts, owner by default,
+  // a member with AUTH_BYPASS_ROLE=member).
   const requestHeaders = await headers();
   const appRoute = requestHeaders.get("x-app-route");
-  const isPublicRoute =
-    appRoute === "/auth/complete" ||
-    appRoute === "/sign-in" ||
-    appRoute?.startsWith("/sign-in/");
-  if (appRoute && !isPublicRoute && !isLocalAuthBypass()) await requireOwnerDocument();
+  const tier = appRoute ? accessTierFor(appRoute) : null;
+  const isPublicRoute = tier === "public";
+  if (tier === "member") await requireMemberDocument();
+  else if (tier === "owner") await requireOwnerDocument();
+  const role = isPublicRoute ? null : await getAppRole();
   return (
     <html
       lang="en"
@@ -100,7 +103,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className={style.body}>
         <ClerkProvider>
           <GameStatsAuthProvider>
-            {!isPublicRoute && <AppNav />}
+            {!isPublicRoute && <AppNav role={role} />}
             <DecisionNotesProvider>
               <ReviewStateProvider>{children}</ReviewStateProvider>
             </DecisionNotesProvider>

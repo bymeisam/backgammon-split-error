@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { decisionFromRowForReplay } from "@/lib/decisionFromRow";
+import { decisionFromRowForReplay, type DecisionRow } from "@/lib/decisionFromRow";
+import type { Prisma } from "@/lib/generated/prisma/client";
+import { isOwnerViewer } from "@/lib/app-auth";
 import { decisionColor } from "@/lib/analysis";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
@@ -97,29 +99,37 @@ export default async function GameReplayPage({
   // countAsDecision:false ones) to reliably find each player's color. Roll,
   // cube, labels and colour all come from each row's own raw
   // (lib/decisionFromRow.ts, through lib/analysis/index.ts).
-  const rows = await prisma.decision.findMany({
-    where: { gameId: game.id },
-    orderBy: { eventId: "asc" },
-    select: {
-      id: true,
-      gameId: true,
-      eventId: true,
-      userId: true,
-      kind: true,
-      countAsDecision: true,
-      rawError: true,
-      errorSeverity: true,
-      sourcePositionId: true,
-      raw: true,
-      // The user's own note on each decision, if any (1:1 DecisionNote).
-      note: { select: { note: true, updatedAt: true } },
-      // Review feature: the decision's card and tags (eligibility also
-      // reads countAsDecision, selected above).
-      reviewCard: { select: { id: true, due: true, suspended: true } },
-      tags: { select: { tag: { select: { id: true, name: true } } }, orderBy: { tag: { name: "asc" } } },
-      game: { select: { gameIndex: true, match: { select: { source: true } } } },
-    },
-  });
+  // The owner's notes, review cards and tags are loaded for the owner only;
+  // a member's replay never receives them (nor review eligibility).
+  const isOwner = await isOwnerViewer();
+  const baseSelect = {
+    id: true,
+    gameId: true,
+    eventId: true,
+    userId: true,
+    kind: true,
+    countAsDecision: true,
+    rawError: true,
+    errorSeverity: true,
+    sourcePositionId: true,
+    raw: true,
+    game: { select: { gameIndex: true, match: { select: { source: true } } } },
+  } satisfies Prisma.DecisionSelect;
+  const query = { where: { gameId: game.id }, orderBy: { eventId: "asc" as const } };
+  const rows: DecisionRow[] = isOwner
+    ? await prisma.decision.findMany({
+        ...query,
+        select: {
+          ...baseSelect,
+          // The user's own note on each decision, if any (1:1 DecisionNote).
+          note: { select: { note: true, updatedAt: true } },
+          // Review feature: the decision's card and tags (eligibility also
+          // reads countAsDecision, selected above).
+          reviewCard: { select: { id: true, due: true, suspended: true } },
+          tags: { select: { tag: { select: { id: true, name: true } } }, orderBy: { tag: { name: "asc" } } },
+        },
+      })
+    : await prisma.decision.findMany({ ...query, select: baseSelect });
 
   // The actor's colour (raw.color; the Decision.color column that copied it
   // was dropped 2026-10-07) is unreliable read directly off a row — confirmed
@@ -162,6 +172,8 @@ export default async function GameReplayPage({
     .filter((row) => row.countAsDecision)
     .map((row) => decisionFromRowForReplay(row))
     .filter((d): d is Decision => d !== null)
+    // A member gets no review data: nothing is offered for review.
+    .map((d) => (isOwner ? d : { ...d, reviewEligible: false }))
     // Overwrite with the resolved color (see colorByUserId above) rather
     // than decisionFromRowForReplay's own row.color passthrough, so every
     // decision's color is reliable regardless of whether that specific row
@@ -209,8 +221,10 @@ export default async function GameReplayPage({
           nextGameIndex={nextGameIndex}
           initialIndex={initialIndex}
           myColor={myColor}
-          canEditNotes={isGalaxyEnabled()}
-          // Same gate as the forum write routes (lib/forum.ts writeAllowed).
+          canEditNotes={isOwner && isGalaxyEnabled()}
+          showOwnerTools={isOwner}
+          // Same gate as the forum write routes (lib/forum.ts writeAllowed);
+          // members post to the forum too.
           canPostToForum={isGalaxyEnabled()}
         />
       )}

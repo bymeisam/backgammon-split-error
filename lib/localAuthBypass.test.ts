@@ -65,3 +65,25 @@ describe("isLocalAuthBypass", () => {
     expect((await load()).isLocalAuthBypass()).toBe(false);
   });
 });
+
+describe("localBypassIdentity", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("is the owner by default", async () => {
+    vi.stubEnv("AUTH_BYPASS_ROLE", undefined);
+    const { localBypassIdentity, LOCAL_DEV_OWNER_CLERK_ID } = await load();
+    expect(localBypassIdentity()).toMatchObject({ clerkUserId: LOCAL_DEV_OWNER_CLERK_ID, role: "OWNER" });
+    vi.stubEnv("AUTH_BYPASS_ROLE", "owner");
+    expect(localBypassIdentity().role).toBe("OWNER");
+  });
+
+  it("is a separate member user with AUTH_BYPASS_ROLE=member", async () => {
+    vi.stubEnv("AUTH_BYPASS_ROLE", "member");
+    const { localBypassIdentity, LOCAL_DEV_MEMBER_CLERK_ID, LOCAL_DEV_OWNER_CLERK_ID } = await load();
+    const identity = localBypassIdentity();
+    expect(identity).toMatchObject({ clerkUserId: LOCAL_DEV_MEMBER_CLERK_ID, role: "MEMBER" });
+    expect(identity.clerkUserId).not.toBe(LOCAL_DEV_OWNER_CLERK_ID);
+  });
+});
