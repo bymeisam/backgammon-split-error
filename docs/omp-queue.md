@@ -19,7 +19,7 @@ _Use this shape:_
 Implemented on `omp/main`: note-bearing right answers ask whether the learner knows the reason before revealing the note; wrong non-receiver answers reveal only the note and allow a retry with the first choice disabled. Final outcomes save once, with whole-session duration; second-try right answers save Hard, and wrong outcomes save Again. Added reason/retry keyboard contexts, constrained ratings, and shortcut help.
 
 Verification: targeted `reviewKeys` tests passed (12 tests); Vitest 759/759, TypeScript, lint and production build passed. The screenshot run produced 114 screenshots under `design/screenshots/2026-10-13-review-second-try/`; the review screenshots timed out because the existing screenshot flow waits for the old verdict element when the note-aware reason/retry steps appear. The visual reviewer was asked to inspect the files actually captured.
-Commit: pending.
+Commit: `2e969ab`.
 
 ### Phase 4, part 2: proposal APIs and real data (2026-10-13)
 Implemented on `omp/main`; reply routes validate text-or-proposal, attachment ownership and kind, legal checker results, cube actions, and per-reply duplicate positions. Create and replacement edits are transactional; body-only edits preserve existing proposals. Replies display persisted chips and per-position count-sorted tallies. Uses generated `ForumCubeAction`, shared exact labels, non-modal cube chips, decoded-position reuse, client submit validation, and retained checker drafts.
