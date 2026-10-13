@@ -972,3 +972,25 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - **Docs:** `.env.example`, `docs/deploy.md` (env table, never-set section, new "The two write gates"), `docs/field-mapping.md` § Credential scoping (three clients), `docs/future-ideas.md`, `app/status/notes.ts`, stale comments (`lib/galaxyGate.ts` now says Galaxy/sync only, with the planned `isSyncEnabled()` rename).
   - **Tests:** `lib/appWriteGate.test.ts` (8 combinations plus 4 empty-URL cases), `lib/prisma.test.ts` (`appDatabaseUrl`), new `proxy.test.ts` (with the Galaxy gate off, `/api/review/cards`, `/api/tags/attach`, `/api/decisions/1/note` pass; `/api/sync/incremental`, `/api/galaxy/x`, `/sources`, `/api/matches/check-existence` 404), `lib/localAuthBypass.test.ts`, `lib/runtimeMode.test.ts`, `hideAnalysis.test.ts` mocks. vitest 773/773, tsc, eslint and build clean. No dev server or DB was run.
   - **Next (needs the owner):** deploy the forum migrations to Oracle, run `scripts/sql/app-db-user.sql` as the HeatWave admin with a real password, set `DATABASE_URL_APP` on Vercel (Production and Preview), and remove any `DATABASE_URL_AUTH`/`DATABASE_URL_FORUM` there. Local `.env` files don't need a change (`DATABASE_URL_APP` is optional locally); any `DATABASE_URL_AUTH`/`DATABASE_URL_FORUM` in them is now ignored.
+- **Verification, Oracle and deploy prep for the app-wide write switch (main session):**
+  - **Investigator checks:** `5ba0fa4` and `4c0045b` match their specs. There are three clients (`prisma`, `prismaReadOnly`, `prismaApp`) and no leftover `prismaAuth`/`prismaForum`/`DATABASE_URL_AUTH`. Every forum, notes, tags and review write goes through `prismaApp` behind `isAppWriteEnabled()`, and notes, tags and review stay owner-only, so a member can never get a study write flag. The admin `prisma` is left only in sync, ingest, recompute and the Galaxy route. The `bg_db_app` grants cover every table written. vitest 773/773 and tsc are clean. The main session fixed the stale wording it found (`c3f6ce4`) and removed `scripts/sql/forum-db-user.sql` (`1685dbe`, with the user's OK).
+  - **Oracle:** the user ran `prisma migrate deploy`. The investigator (read-only) confirmed:
+    - all 24 migrations are applied and match `prisma/migrations/`, none failed;
+    - `AppUser.role` exists and `isOwner` is gone, `ForumPost.hideAnalysis` exists, and every external ID column is `utf8mb4_bin`;
+    - Match 4,375, Game 15,752 and Decision 1,266,751, so nothing was lost;
+    - `AppUser` and the forum tables are empty;
+    - `DecisionNote`, `ReviewCard` and `ReviewLog` are also empty on Oracle.
+
+    The user then created `bg_db_app` from `scripts/sql/app-db-user.sql` in DBeaver as the admin. Its `SHOW GRANTS` matched the script exactly.
+  - **Vercel and Clerk:** the user set `DATABASE_URL_APP` on Vercel. Clerk's production instance accepted the `*.vercel.app` URL as its domain and showed it verified, against Clerk's own guide. This is recorded in `docs/deploy.md` § Clerk domain, with the steps for the planned move to `backgammon.bymeisam.dev` (users don't carry over between Clerk instances).
+  - **omp review:** `02831c2` (the follow-up to the `b657ca6` notes) was reviewed by the investigator and the visual-reviewer. The code fixes are mostly confirmed. Left to do:
+    - the 390px checker chip overflow (must-fix);
+    - six visual should-fixes;
+    - a comment that still contradicts its code;
+    - shortened headers.
+
+    These are queued as a new task (`7f214ce`). omp hasn't merged master's write-switch commits yet; that's item 3 of its earlier task (`50b335d`).
+  - **Ideas parked** in `docs/future-ideas.md`:
+    - per-user permissions on `AppUser` with an admin page (`899c82a`);
+    - Snaps: a position from a photo, starting with the Gemini free tier and a 10-photo test (`01b8035`).
+  - **Next:** the user pushes master, signs in on the live site, and sets their `AppUser.role` to OWNER plus Clerk `privateMetadata.isOwner`. Then check that notes, review and the forum work live. omp merges master, then does the new review notes.
