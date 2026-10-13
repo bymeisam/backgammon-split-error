@@ -19,7 +19,7 @@ export const style = {
   sessionBar: "-mb-1 flex flex-wrap items-center gap-[18px] px-4 md:px-0",
   sessionTitle: "font-serif text-[26px] font-display leading-none tracking-[-0.01em] text-ink",
   progress: "flex min-w-40 flex-1 items-center gap-3 text-[12.5px] tabular-nums text-ink-muted",
-  track: "h-1 flex-1 overflow-hidden rounded-[2px] bg-line",
+  track: "h-1 flex-1 overflow-hidden rounded-sm bg-line",
   trackFill: "block h-full bg-ink transition-[width]",
 
   layout: "grid grid-cols-1 items-start gap-5 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-9",
@@ -105,7 +105,7 @@ export const style = {
   // `wide`: spans the row (after a wrong answer).
   gradeButton: (opts: { primary: boolean; wide: boolean }): string =>
     clsx(
-      "flex flex-col items-center gap-1 rounded-[11px] border px-1.5 py-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+      "flex flex-col items-center gap-1 rounded-control border px-1.5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-45",
       opts.primary
         ? "border-primary bg-primary text-on-primary hover:bg-primary/86"
         : "border-line-strong bg-surface text-ink hover:bg-sunken",
@@ -115,7 +115,8 @@ export const style = {
   // Function, 1 param -> passed directly. The key line under the label.
   gradeKey: (onPrimary: boolean): string =>
     clsx("font-mono text-[10.5px] font-medium", onPrimary ? "text-on-primary/70" : "text-ink-faint"),
-  recordedLabel: "font-sans text-[10.5px] font-medium",
+  recordedLabel: "font-sans text-[11px] font-medium",
+  recordedHint: "inline-flex items-center gap-2",
   recordedKey: shared.kbd,
   linkRow: "flex flex-wrap gap-[18px]",
   retryButton: shared.buttonPrimary,

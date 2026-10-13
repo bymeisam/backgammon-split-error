@@ -4,7 +4,9 @@
 // On the front, 1–9 choose an option; ↓ / ↑ or j / k move focus. A retry
 // front keeps the first wrong choice visible but excludes it from selection.
 // A noted correct choice enters the reason step: Y / Enter means yes; N means no.
-// On the back, ← / h and → / l switch board tabs; Enter is Next after a save.
+// On the back, ← / h and → / l switch board tabs. Enter advances only after
+// a save for wrong answers and Hard-only successes; with unlimited or
+// Hard/Good ratings, Enter rates Good.
 // H / G / E rate Hard / Good / Easy. Ratings are read from `key`, so Shift
 // is required: Shift+H/G/E. A second-try correct answer is Hard-only; a
 // correct answer after "No" is Hard/Good. Wrong answers save Again.

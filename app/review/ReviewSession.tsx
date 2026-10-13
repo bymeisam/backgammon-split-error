@@ -64,7 +64,8 @@ const NO_STATS: Stats = { answered: 0, correct: 0, streak: 0, bestStreak: 0 };
 // Enter/Space to choose focus, and 1–9 to choose directly. The reason step
 // uses Y / Enter for yes and N for no. On the back, ← / h and → / l switch
 // board tabs, Shift+H/G/E rate (subject to the card's rating limit), and
-// Enter advances only after the final save.
+// Enter advances after a save for wrong answers and Hard-only successes;
+// with unlimited or Hard/Good ratings, Enter rates Good.
 //
 // The session bar on top: "Review", the progress ("Card N of M" and a
 // track, N of the session's own total: what was answered plus what's still
@@ -633,8 +634,10 @@ export default function ReviewSession({
                         <span className={style.gradeLabel}>{save.kind === "saved" ? "Next card" : "Hard"}</span>
                         {save.kind === "saved" ? (
                           <span className={style.gradeKey(true)}>
-                            <span className={style.recordedLabel}>Recorded as Hard ·</span>
-                            <kbd className={style.recordedKey}>Enter</kbd>
+                            <span className={style.recordedHint}>
+                              <span className={style.recordedLabel}>Recorded as Hard ·</span>
+                              <kbd className={style.recordedKey}>Enter</kbd>
+                            </span>
                           </span>
                         ) : (
                           <span aria-hidden="true" className={style.gradeKey(true)}>⇧H</span>
