@@ -1,9 +1,13 @@
-// Temporary stopgap — see docs/deploy.md's "Lifting the Galaxy gate" section
-// for the one-place change that lifts this once the app sits behind a real
-// auth wall admitting only the site owner. Everything that decides whether
-// Galaxy-backed routes/links are reachable (proxy.ts, the navbar and home
-// dashboard: app/components/ui/AppNav.tsx, app/page.tsx) reads
-// this single function; nothing else re-derives the same condition.
+// The Galaxy and sync gate, and nothing else: Galaxy's live pages and API
+// (/sources, /api/galaxy/*), sync (/api/sync/*) and the Galaxy match check
+// (/api/matches/check-existence), all through proxy.ts's galaxyPaths, plus the
+// navbar's Sources link (app/components/ui/AppNav.tsx, lib/navItems.ts) and
+// /sources itself. Everything that decides whether those are reachable reads
+// this single function; nothing else re-derives the same condition. In-app
+// writes (the forum, notes, tags, review) have their own gate,
+// lib/appWriteGate.ts's isAppWriteEnabled(). A later rename to
+// isSyncEnabled() is planned, to say what it now covers. See docs/deploy.md's
+// "Lifting the Galaxy gate" section.
 //
 // Fails closed by construction: safe (writes disabled) is the *default*
 // state with zero env vars set. ENABLE_WRITE_MODE must be the exact string

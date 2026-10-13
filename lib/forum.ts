@@ -1,5 +1,5 @@
 import "server-only";
-import { prismaAuth, prismaReadOnly } from "@/lib/prisma";
+import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { getAppAuthState } from "@/lib/app-auth";
 import { isLocalAuthBypass, localBypassIdentity } from "@/lib/localAuthBypass";
 import { isMemberOrOwner, type AppRole } from "@/lib/appRole";
@@ -63,7 +63,7 @@ export async function forumIdentity(): Promise<{ id: number; role: AppRole } | n
 
   if (isLocalAuthBypass()) {
     const { clerkUserId, displayName, role } = localBypassIdentity();
-    const row = await prismaAuth.appUser.upsert({
+    const row = await prismaApp.appUser.upsert({
       where: { clerkUserId },
       create: { clerkUserId, displayName, role },
       update: { displayName, role },
@@ -71,7 +71,7 @@ export async function forumIdentity(): Promise<{ id: number; role: AppRole } | n
     });
     return { id: row.id, role };
   }
-  const row = await prismaAuth.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId }, select: { id: true } });
+  const row = await prismaApp.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId }, select: { id: true } });
   return row ? { id: row.id, role: auth.role } : null;
 }
 

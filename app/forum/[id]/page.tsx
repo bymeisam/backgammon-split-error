@@ -5,7 +5,7 @@ import Card from "@/app/components/ui/Card";
 import Board from "@/app/components/match-analysis/Board";
 import CheckerMoveExplorer from "@/app/components/match-analysis/CheckerMoveExplorer";
 import { prismaReadOnly } from "@/lib/prisma";
-import { isForumWriteEnabled } from "@/lib/forumGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { forumViewer } from "@/lib/forum";
 import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
@@ -59,7 +59,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
   // Same gate as the forum write routes: off hides Edit, Delete and Reply.
   // With it on, Edit is the author's only; Delete is the author's, or the
   // owner's on anyone's post or reply (lib/forumPermissions.ts).
-  const canWrite = isForumWriteEnabled();
+  const canWrite = isAppWriteEnabled();
   const viewer = canWrite ? await forumViewer() : null;
   const actionsFor = (authorAppUserId: number) => ({
     canEdit: canWrite && canEditForumItem(viewer, authorAppUserId),

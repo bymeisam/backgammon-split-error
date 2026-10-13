@@ -1,6 +1,6 @@
 import PageShell from "@/app/components/ui/PageShell";
 import Card from "@/app/components/ui/Card";
-import { isForumWriteEnabled } from "@/lib/forumGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { parseId, rawMatchId, sourceDecision } from "@/lib/forum";
 import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
 import { style } from "../forum.styles";
@@ -12,7 +12,7 @@ import { requireMemberDocument } from "@/lib/app-auth";
 export const dynamic = "force-dynamic";
 
 // /forum/new: the new-post form. Posting needs write mode
-// (isForumWriteEnabled(), the same gate as POST /api/forum/posts), so with it
+// (isAppWriteEnabled(), the same gate as POST /api/forum/posts), so with it
 // off this page only says so instead of showing a form that can't submit.
 // ?decision=<id> (from the replay) also gets a read-only preview of that
 // decision's board, decoded the same way as on the post page.
@@ -22,7 +22,7 @@ export default async function NewForumPostPage({
   searchParams: Promise<{ decision?: string }>;
 }) {
   await requireMemberDocument();
-  const canPost = isForumWriteEnabled();
+  const canPost = isAppWriteEnabled();
   const { decision } = await searchParams;
   const preview = canPost && typeof decision === "string" ? await decisionPreview(decision) : null;
 

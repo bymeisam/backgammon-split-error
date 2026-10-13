@@ -1,5 +1,5 @@
 import PageShell from "@/app/components/ui/PageShell";
-import { isForumWriteEnabled } from "@/lib/forumGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import PositionBuilder from "./PositionBuilder";
 import { requireMemberDocument } from "@/lib/app-auth";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function PositionBuilderPage() {
   await requireMemberDocument();
   // Same gate as the forum write routes: off hides "Post to forum".
-  const canPostToForum = isForumWriteEnabled();
+  const canPostToForum = isAppWriteEnabled();
 
   return (
     <PageShell

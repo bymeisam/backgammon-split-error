@@ -20,7 +20,7 @@ type ForumActionsProps = {
   // "Hide engine analysis" checkbox shows only then), and its value.
   hasGamePosition?: boolean;
   hideAnalysis?: boolean;
-  // Decided by the server page: forum write mode (isForumWriteEnabled(), the forum API
+  // Decided by the server page: forum write mode (isAppWriteEnabled(), the forum API
   // routes' gate) and lib/forumPermissions.ts. Edit is the author's only;
   // Delete is the author's, or the owner's on anyone's (moderation).
   canEdit: boolean;

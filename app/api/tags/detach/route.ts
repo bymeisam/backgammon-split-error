@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prismaApp } from "@/lib/prisma";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { positiveId, readJsonObject } from "@/lib/review/requests";
 import { requireOwnerApi } from "@/lib/app-auth";
 
@@ -11,10 +12,11 @@ export const dynamic = "force-dynamic";
 // autocomplete). Removing a tag the decision doesn't have is a no-op.
 // 400 bad input.
 //
-// Read-write client. Gated by proxy.ts (/api/tags/:path*).
+// App write client (prismaApp). Owner only; 403 unless isAppWriteEnabled().
 export async function POST(req: Request) {
   const denied = await requireOwnerApi();
   if (denied) return denied;
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
   const body = await readJsonObject(req);
   const decisionId = positiveId(body?.decisionId);
   const tagId = positiveId(body?.tagId);
@@ -24,6 +26,6 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const removed = await prisma.decisionTag.deleteMany({ where: { decisionId, tagId } });
+  const removed = await prismaApp.decisionTag.deleteMany({ where: { decisionId, tagId } });
   return NextResponse.json({ removed: removed.count });
 }

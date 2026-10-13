@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prismaForum, prismaReadOnly } from "@/lib/prisma";
+import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { requireMemberApi } from "@/lib/app-auth";
-import { isForumWriteEnabled } from "@/lib/forumGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { forumIdentity, parseId, textField } from "@/lib/forum";
 import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 
@@ -10,11 +10,11 @@ type Context = { params: Promise<{ id: string }> };
 // PATCH /api/forum/replies/[id]   body: { "body": string }
 //
 // Edits a reply's body. Only its author may, and only with write mode on
-// (isForumWriteEnabled(), the same gate as every other write).
+// (isAppWriteEnabled(), the same gate as every other write).
 export async function PATCH(request: NextRequest, context: Context) {
   const denied = await requireMemberApi();
   if (denied) return denied;
-  if (!isForumWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
   const user = await forumIdentity();
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   const body = textField(input.body, 20_000);
   if (!body) return NextResponse.json({ error: "Reply body is required." }, { status: 400 });
 
-  await prismaForum.forumReply.update({ where: { id }, data: { body } });
+  await prismaApp.forumReply.update({ where: { id }, data: { body } });
   return NextResponse.json({ ok: true });
 }
 
@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest, context: Context) {
 export async function DELETE(_request: NextRequest, context: Context) {
   const denied = await requireMemberApi();
   if (denied) return denied;
-  if (!isForumWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
   const user = await forumIdentity();
@@ -54,6 +54,6 @@ export async function DELETE(_request: NextRequest, context: Context) {
   if (!reply) return NextResponse.json({ error: "Not found." }, { status: 404 });
   if (!canDeleteForumItem(user, reply.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
-  await prismaForum.forumReply.delete({ where: { id } });
+  await prismaApp.forumReply.delete({ where: { id } });
   return new NextResponse(null, { status: 204 });
 }

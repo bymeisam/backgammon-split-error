@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { isForumWriteEnabled } from "@/lib/forumGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { decisionFromRowForReplay, type DecisionRow } from "@/lib/decisionFromRow";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
@@ -223,11 +222,11 @@ export default async function GameReplayPage({
           nextGameIndex={nextGameIndex}
           initialIndex={initialIndex}
           myColor={myColor}
-          canEditNotes={isOwner && isGalaxyEnabled()}
+          canEditNotes={isOwner && isAppWriteEnabled()}
           showOwnerTools={isOwner}
-          // Same gate as the forum write routes (lib/forumGate.ts);
+          // Same gate as the forum write routes (lib/appWriteGate.ts);
           // members post to the forum too.
-          canPostToForum={isForumWriteEnabled()}
+          canPostToForum={isAppWriteEnabled()}
         />
       )}
     </PageShell>

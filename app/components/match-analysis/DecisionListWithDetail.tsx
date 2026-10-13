@@ -30,7 +30,7 @@ export default function DecisionListWithDetail({
 }: {
   items: DecisionListItem[];
   showClassification: boolean;
-  // The owner with write mode on (role OWNER and isGalaxyEnabled()),
+  // The owner with app writes on (role OWNER and isAppWriteEnabled()),
   // computed by the server page — see DecisionNote.
   canEditNotes: boolean;
   // The owner's note card (note, tags, "Add to review"): the owner only. A

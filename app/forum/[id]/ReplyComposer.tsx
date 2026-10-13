@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import { style } from "../forum.styles";
 
-// canWrite: isForumWriteEnabled(), decided by the server page (the forum API routes' gate). Off hides the composer.
+// canWrite: isAppWriteEnabled(), decided by the server page (the forum API routes' gate). Off hides the composer.
 export default function ReplyComposer({ postId, canWrite }: { postId: number; canWrite: boolean }) {
   const router = useRouter();
   const [body, setBody] = useState("");

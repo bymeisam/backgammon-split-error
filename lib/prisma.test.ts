@@ -1,25 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { forumDatabaseUrl } from "./prisma";
+import { appDatabaseUrl } from "./prisma";
 
-const FORUM = "mysql://bg_db_forum:pw@203.0.113.7:3306/backgammon?ssl=true";
+const APP = "mysql://bg_db_app:pw@203.0.113.7:3306/backgammon?ssl=true";
 const ADMIN = "mysql://bg_db_rw:pw@203.0.113.7:3306/backgammon?ssl=true";
 
 function env(vars: Record<string, string | undefined>): NodeJS.ProcessEnv {
   return vars as NodeJS.ProcessEnv;
 }
 
-describe("forumDatabaseUrl", () => {
-  it("uses DATABASE_URL_FORUM when set, in any environment", () => {
-    expect(forumDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL_FORUM: FORUM, DATABASE_URL: ADMIN }))).toBe(FORUM);
-    expect(forumDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL_FORUM: FORUM, DATABASE_URL: ADMIN }))).toBe(FORUM);
+describe("appDatabaseUrl", () => {
+  it("uses DATABASE_URL_APP when set, in any environment", () => {
+    expect(appDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL_APP: APP, DATABASE_URL: ADMIN }))).toBe(APP);
+    expect(appDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL_APP: APP, DATABASE_URL: ADMIN }))).toBe(APP);
   });
 
   it("falls back to DATABASE_URL outside production", () => {
-    expect(forumDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL: ADMIN }))).toBe(ADMIN);
-    expect(forumDatabaseUrl(env({ NODE_ENV: "test", DATABASE_URL: ADMIN }))).toBe(ADMIN);
+    expect(appDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL: ADMIN }))).toBe(ADMIN);
+    expect(appDatabaseUrl(env({ NODE_ENV: "test", DATABASE_URL: ADMIN }))).toBe(ADMIN);
+  });
+
+  it("treats an empty DATABASE_URL_APP as unset", () => {
+    expect(appDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL_APP: "", DATABASE_URL: ADMIN }))).toBe(ADMIN);
+    expect(appDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL_APP: "", DATABASE_URL: ADMIN }))).toBeUndefined();
   });
 
   it("never falls back to the admin DATABASE_URL in production", () => {
-    expect(forumDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL: ADMIN }))).toBeUndefined();
+    expect(appDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL: ADMIN }))).toBeUndefined();
+  });
+
+  it("is undefined when nothing is set", () => {
+    expect(appDatabaseUrl(env({ NODE_ENV: "development" }))).toBeUndefined();
   });
 });

@@ -50,8 +50,8 @@ export interface MatchDecisionNoteEntry {
 }
 
 export interface MatchDecisionNotesResponse {
-  // isGalaxyEnabled() on the server, i.e. whether the save route is
-  // reachable at all.
+  // isAppWriteEnabled() on the server, i.e. whether the save route accepts
+  // writes at all.
   canEdit: boolean;
   // Every Decision row the DB has for the match (empty when the match isn't
   // ingested).

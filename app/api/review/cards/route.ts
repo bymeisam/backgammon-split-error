@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prismaApp } from "@/lib/prisma";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { ELIGIBILITY_SELECT, isUniqueViolation } from "@/lib/review/db";
 import { reviewEligibility } from "@/lib/review/eligibility";
 import { newSchedule } from "@/lib/review/fsrs";
@@ -11,22 +12,23 @@ export const dynamic = "force-dynamic";
 // POST /api/review/cards   body: { "decisionId": number }
 //
 // Adds one decision to review: creates its ReviewCard with a fresh FSRS
-// schedule (due now). Read-write client (`prisma`). 400 bad input, 404 no
+// schedule (due now). App write client (`prismaApp`). 400 bad input, 404 no
 // such decision, 409 already in review, 422 not eligible
 // (lib/review/eligibility.ts).
 //
-// Gated by proxy.ts's matcher (/api/review/:path*): 404 unless
-// isGalaxyEnabled(), like every other write route.
+// Owner only, and 403 unless isAppWriteEnabled() (lib/appWriteGate.ts), like
+// every other in-app write route.
 export async function POST(req: Request) {
   const denied = await requireOwnerApi();
   if (denied) return denied;
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
   const body = await readJsonObject(req);
   const decisionId = positiveId(body?.decisionId);
   if (decisionId === null) {
     return NextResponse.json({ error: "Body must be JSON: { \"decisionId\": positive integer }." }, { status: 400 });
   }
 
-  const decision = await prisma.decision.findUnique({
+  const decision = await prismaApp.decision.findUnique({
     where: { id: decisionId },
     select: { ...ELIGIBILITY_SELECT, reviewCard: { select: { id: true } } },
   });
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const card = await prisma.reviewCard.create({
+    const card = await prismaApp.reviewCard.create({
       data: { decisionId, ...newSchedule(new Date()) },
       select: { id: true, due: true, suspended: true },
     });

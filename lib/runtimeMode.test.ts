@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { currentRuntimeModeLabel, databaseClass, isLocalDatabaseUrl, runtimeModeLabel } from "./runtimeMode";
 
 describe("isLocalDatabaseUrl", () => {
@@ -137,14 +137,42 @@ describe("runtimeModeLabel", () => {
 });
 
 describe("currentRuntimeModeLabel", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL_APP", undefined);
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("is Read-only with no DATABASE_URL (the Vercel read-only site), even with the flag set", () => {
+  it("is Read-only with no DATABASE_URL and no DATABASE_URL_APP, even with the flag set", () => {
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("ENABLE_WRITE_MODE", "true");
     expect(currentRuntimeModeLabel()).toBe("Read-only");
+  });
+
+  it("is Read-only in production without DATABASE_URL_APP, even with DATABASE_URL and the flag", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", LOCAL);
+    vi.stubEnv("ENABLE_WRITE_MODE", "true");
+    expect(currentRuntimeModeLabel()).toBe("Read-only");
+  });
+
+  it("writes through DATABASE_URL_APP on the live site (no DATABASE_URL, no flag)", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", undefined);
+    vi.stubEnv("ENABLE_WRITE_MODE", undefined);
+    vi.stubEnv("DATABASE_URL_APP", ORACLE);
+    vi.stubEnv("DATABASE_URL_READONLY", ORACLE);
+    expect(currentRuntimeModeLabel()).toBe("Oracle · write");
+  });
+
+  it("classes the write side by DATABASE_URL_APP, not DATABASE_URL, when it's set", () => {
+    vi.stubEnv("ENABLE_WRITE_MODE", "true");
+    vi.stubEnv("DATABASE_URL", ORACLE);
+    vi.stubEnv("DATABASE_URL_APP", LOCAL);
+    vi.stubEnv("DATABASE_URL_READONLY", LOCAL);
+    expect(currentRuntimeModeLabel()).toBe("Local · write");
   });
 
   it("is Read-only when ENABLE_WRITE_MODE isn't exactly \"true\"", () => {
@@ -153,7 +181,7 @@ describe("currentRuntimeModeLabel", () => {
     expect(currentRuntimeModeLabel()).toBe("Read-only");
   });
 
-  it("follows both env URLs' hosts in write mode", () => {
+  it("follows both env URLs' hosts in local write mode (no DATABASE_URL_APP)", () => {
     vi.stubEnv("ENABLE_WRITE_MODE", "true");
     vi.stubEnv("DATABASE_URL", LOCAL_IP);
     vi.stubEnv("DATABASE_URL_READONLY", LOCAL);

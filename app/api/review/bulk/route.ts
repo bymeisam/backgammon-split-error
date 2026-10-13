@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prismaApp } from "@/lib/prisma";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { mistakesWhere } from "@/lib/listParams";
 import { BULK_ADD_CAP } from "@/lib/settings";
 import { ELIGIBILITY_SELECT } from "@/lib/review/db";
@@ -29,11 +30,12 @@ function optionalString(v: unknown): string | undefined | null {
 // (the confirmation); dryRun: false does the same walk and creates the cards
 // in ONE transaction. At least one filter is required, as on /mistakes.
 //
-// Read-write client (the walk runs inside the transaction too, so the count
-// and the insert agree). Gated by proxy.ts (/api/review/:path*).
+// App write client (prismaApp; the walk runs inside the transaction too, so
+// the count and the insert agree). Owner only; 403 unless isAppWriteEnabled().
 export async function POST(req: Request) {
   const denied = await requireOwnerApi();
   if (denied) return denied;
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
   const body = await readJsonObject(req);
   const phase = optionalString(body?.phase);
   const category = optionalString(body?.category);
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
     severityParam: severity?.toLowerCase(),
   });
 
-  const result = await prisma.$transaction(
+  const result = await prismaApp.$transaction(
     async (tx) => {
       const plan = await planBulkAdd({
         cap: BULK_ADD_CAP,

@@ -1,9 +1,11 @@
 # Deploying to Vercel
 
-This app deploys to Vercel as a **read-only viewer** of data already synced
-into Oracle HeatWave. Nothing on Vercel writes to the database or talks to
-Galaxy — syncing stays a local-only operation (see "Syncing stays local"
-below). This doc covers what env vars to set, why the cert/region settings
+This app deploys to Vercel as a viewer of data already synced into Oracle
+HeatWave. The only writes on Vercel are in-app ones (the forum, decision
+notes, tags, review cards and logs, and AppUser provisioning), all through
+the narrow `bg_db_app` credential. Nothing on Vercel writes Match/Game/
+Decision rows or talks to Galaxy — syncing stays a local-only operation (see
+"Syncing stays local" below). This doc covers what env vars to set, why the cert/region settings
 exist, how to lift the temporary Galaxy gate later, and the manual steps
 only you can do (env vars, Oracle firewall, verifying the deploy).
 
@@ -15,34 +17,29 @@ Production and Preview environments:
 | Variable                | Value |
 | ----------------------- | ----- |
 | `DATABASE_URL_READONLY` | `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
-| `DATABASE_URL_AUTH`     | A separate URL whose database user has SELECT/INSERT/UPDATE only on `AppUser` |
-| `DATABASE_URL_FORUM`    | `mysql://bg_db_forum:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` — forum writes only (grants in `scripts/sql/forum-db-user.sql`) |
+| `DATABASE_URL_APP`      | `mysql://bg_db_app:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` — every in-app write: the forum, decision notes, tags, review, AppUser provisioning (grants in `scripts/sql/app-db-user.sql`) |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's publishable key |
 | `CLERK_SECRET_KEY`      | Clerk's server-only secret key |
 
 **Never set `DATABASE_URL` on Vercel**, and **don't set `ENABLE_WRITE_MODE`
-on Vercel either — leave it unset.** The regular write client remains
-unconfigured, and the Galaxy/write gate remains closed. `DATABASE_URL_AUTH`
-is a narrow exception used only to provision the authentication allowlist;
-it must not be the ingest/migration credential. `DATABASE_URL_FORUM` is the
-other narrow exception: the `bg_db_forum` credential, used only for forum
-writes (posts, replies, attached positions, move proposals).
+on Vercel either — leave it unset.** The admin client (`prisma`, `bg_db_rw`)
+remains unconfigured, and the Galaxy/sync gate remains closed. Both stay
+local only, for sync, Galaxy and migrations. `DATABASE_URL_APP` is the one
+write credential on Vercel: `bg_db_app`, with SELECT on the schema and
+writes only on the forum, study (notes, tags, review) and `AppUser` tables —
+never on Match/Game/Decision, and no DDL. It must not be the
+ingest/migration credential.
 
-`DATABASE_URL` being absent is what keeps the normal application write client
-disabled:
+Three clients, three credentials (`lib/prisma.ts`):
 
-- `lib/prisma.ts`'s regular write client (`prisma`, used by ingest/sync code)
-  is lazy and throws if used without `DATABASE_URL`.
-- `prismaAuth` uses `DATABASE_URL_AUTH` in production and is limited by its
-  database grant to the `AppUser` table.
-- `prismaForum` uses `DATABASE_URL_FORUM` in production (it never falls back
-  to `DATABASE_URL` there) and is limited by its grants to the forum tables,
-  plus SELECT on `AppUser` and `Decision`. Forum writes are gated by
-  `isForumWriteEnabled()` (`lib/forumGate.ts`), which is on when
-  `DATABASE_URL_FORUM` is set, or locally when `isGalaxyEnabled()` is.
-- `isGalaxyEnabled()` (`lib/galaxyGate.ts`) still requires `DATABASE_URL` and
-  `ENABLE_WRITE_MODE=true`, so the Galaxy gate stays closed independently of
-  the authentication wall.
+- `prisma` (the admin client, used by ingest, sync and Galaxy code) is lazy
+  and throws if used without `DATABASE_URL`, which Vercel never has.
+- `prismaReadOnly` uses `DATABASE_URL_READONLY` (`bg_db_ro`) for every read.
+- `prismaApp` uses `DATABASE_URL_APP` in production (it never falls back to
+  `DATABASE_URL` there; locally it does, through `appDatabaseUrl()`) and is
+  limited by the `bg_db_app` grants. AppUser provisioning at sign-in uses it
+  whenever it has a URL; every other in-app write is also gated by
+  `isAppWriteEnabled()` (see "The two write gates" below).
 
 `GALAXY_TOKEN` is never read by the deployed app either (only by the local
 sync scripts) — don't set it on Vercel.
@@ -92,10 +89,25 @@ against `DATABASE_URL` (the read-write Oracle credential) and a fresh
 `GALAXY_TOKEN`, same as always. The deployed app never does this itself: see
 "The Galaxy gate" below for what that means concretely.
 
+## The two write gates
+
+Two separate switches, each failing closed:
+
+- **Galaxy and sync**: `isGalaxyEnabled()` (`lib/galaxyGate.ts`), below. Needs
+  `DATABASE_URL` and `ENABLE_WRITE_MODE=true`, so it's local only. A rename to
+  `isSyncEnabled()` is planned.
+- **App writes**: `isAppWriteEnabled()` (`lib/appWriteGate.ts`), for the
+  forum, decision notes, tags and review (cards, answers, bulk add). On when
+  `DATABASE_URL_APP` is set (Vercel), or, outside production, when
+  `isGalaxyEnabled()` is (local write mode, where `prismaApp` falls back to
+  `DATABASE_URL`). Each write route checks it itself and returns 403 when it's
+  off; the pages hide their write controls the same way. AppUser provisioning
+  doesn't check it, so sign-in works wherever `prismaApp` has a URL.
+
 ## The Galaxy gate (temporary)
 
-Everything that writes to the DB or handles a Galaxy bearer token is gated
-behind `isGalaxyEnabled()` (`lib/galaxyGate.ts`):
+Everything that handles a Galaxy bearer token or syncs Match/Game/Decision
+rows is gated behind `isGalaxyEnabled()` (`lib/galaxyGate.ts`):
 
 ```ts
 export function isGalaxyEnabled(): boolean {
@@ -110,12 +122,12 @@ Either one being absent/wrong (a forgotten `ENABLE_WRITE_MODE`, or a stray
 `DATABASE_URL` in an environment that was never meant to have one) is
 enough to keep Galaxy access off — the flag alone is never sufficient.
 
-Forum writes are the one exception: they use their own gate,
-`isForumWriteEnabled()` (`lib/forumGate.ts`), and their own credential
-(`DATABASE_URL_FORUM`), so the live site can accept forum posts while
-Galaxy, sync, notes and review stay off there.
+In-app writes (the forum, notes, tags, review) are not behind this gate:
+they use `isAppWriteEnabled()` and `DATABASE_URL_APP` (see "The two write
+gates" above), so the live site can accept them while Galaxy and sync stay
+off there.
 
-This is the single source of truth, read in exactly two places:
+This is the single source of truth for Galaxy and sync, read in these places:
 
 - **`proxy.ts`** (project root) — the one choke point. Its `matcher` covers
   `/sources` and `/sources/:path*` (the Sources page and Galaxy's pages
@@ -126,8 +138,9 @@ This is the single source of truth, read in exactly two places:
   closed, every one of those returns a plain 404 before the route's own
   code ever runs. (This Next.js version renamed `middleware.ts` to
   `proxy.ts` — same mechanism.)
-- **`app/page.tsx`** — hides the "Fetch live from Galaxy" home-page link
-  when the gate is closed, so there's no dead link to a 404.
+- **The navbar and `/sources`** — `app/components/ui/AppNav.tsx` (through
+  `lib/navItems.ts`) hides the Sources link when the gate is closed, so
+  there's no dead link to a 404, and `app/sources/page.tsx` 404s itself too.
 
 `/matches`, `/matches/[matchId]`, `/mistakes`, `/repeated-positions`,
 `/matches/analysis`, and their own read-only `/api/matches/*` routes are
@@ -138,9 +151,9 @@ and stay available regardless of the flag.
 
 Once the app sits behind a real auth wall that admits only you, lifting the
 gate is a **pure environment-variable change on Vercel — no code edit
-required**, because both call sites above already read `isGalaxyEnabled()`
-as their only source of truth (forum writes don't depend on this; they're
-already on through `DATABASE_URL_FORUM`):
+required**, because the call sites above already read `isGalaxyEnabled()`
+as their only source of truth (in-app writes don't depend on this; they're
+already on through `DATABASE_URL_APP`):
 
 1. Set `DATABASE_URL` on Vercel again (a real read-write credential).
 2. Set `ENABLE_WRITE_MODE=true` on Vercel too — with the new default-off
@@ -148,18 +161,17 @@ already on through `DATABASE_URL_FORUM`):
    the gate shut.
 
 `isGalaxyEnabled()` starts returning `true` on the next request after that
-env change takes effect, and `proxy.ts`/`app/page.tsx` both pick it up
-automatically. If you also want to remove the gate mechanism from the code
-entirely at that point (optional cleanup, not required to lift it): delete
-`proxy.ts`, `lib/galaxyGate.ts`, and the `isGalaxyEnabled()` conditional
-around the Galaxy link in `app/page.tsx`.
+env change takes effect, and `proxy.ts`, the navbar and `/sources` pick it
+up automatically.
 
 ## Manual steps (only you can do these)
 
 1. **Link the repo** to a new Vercel project (`vercel link`, or via the
    Vercel dashboard's "Import Project").
-2. **Set the env var** above (`DATABASE_URL_READONLY`) for both Production
-   and Preview — leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset on both.
+2. **Set the env vars** above (`DATABASE_URL_READONLY`, `DATABASE_URL_APP`
+   and the Clerk keys) for both Production and Preview — leave
+   `DATABASE_URL` and `ENABLE_WRITE_MODE` unset on both. Create `bg_db_app`
+   first, with the owner's approval (`scripts/sql/app-db-user.sql`).
 3. **Decide the Oracle port-3306 ingress.** Oracle HeatWave's firewall is
    currently scoped to your home IP only. Vercel Hobby functions don't have
    a fixed, allowlist-able outbound IP range (static outbound IPs / Secure
@@ -205,9 +217,9 @@ needed and shows the pending-approval state without exposing application
 data; a member on an owner page gets a 404. APIs return 401 for signed-out
 requests and 404 for a role that isn't allowed.
 
-The authenticated `/position-builder` route is a member page. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations use their own gate, `isForumWriteEnabled()` (`lib/forumGate.ts`), and their own credential, `DATABASE_URL_FORUM` (`prismaForum`), so they work on the hosted deployment; locally, without `DATABASE_URL_FORUM`, they follow `ENABLE_WRITE_MODE` as before.
+The authenticated `/position-builder` route is a member page. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations, like the owner's notes, tags and review, use the app write gate, `isAppWriteEnabled()` (`lib/appWriteGate.ts`), and the app credential, `DATABASE_URL_APP` (`prismaApp`), so they work on the hosted deployment; locally, without `DATABASE_URL_APP`, they follow `ENABLE_WRITE_MODE` as before.
 
-`ENABLE_WRITE_MODE` remains the deployment-level Galaxy/write gate. Clerk ownership does not turn hosted Galaxy writes on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset, so Galaxy, notes and review stay off there. The separate `DATABASE_URL_AUTH` credential is only for the `AppUser` allowlist, and `DATABASE_URL_FORUM` only for forum writes; neither may have access to source or review write paths.
+`ENABLE_WRITE_MODE` remains the Galaxy/sync gate. Clerk ownership does not turn hosted Galaxy or sync on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. `DATABASE_URL_APP` (`bg_db_app`) covers the `AppUser` allowlist and every in-app write, and has no write access to Match, Game or Decision.
 
 ### Temporary local development auth bypass
 
@@ -217,9 +229,9 @@ position-builder flows can be smoke-tested without a Clerk browser session. The
 bypass acts as the reserved `local-dev-owner` `AppUser` (the owner), or with
 `AUTH_BYPASS_ROLE=member` as a separate `local-dev-member` (an invited member),
 for the role checks and when a write needs an author. It is an explicit opt-in (off unless exactly `true`), refuses to turn
-on and logs a warning when `DATABASE_URL`, `DATABASE_URL_AUTH`,
-`DATABASE_URL_READONLY` or `DATABASE_URL_FORUM` points anywhere but
-localhost, and does not disable `isGalaxyEnabled()`, `isForumWriteEnabled()`
+on and logs a warning when `DATABASE_URL`, `DATABASE_URL_READONLY` or
+`DATABASE_URL_APP` points anywhere but
+localhost, and does not disable `isGalaxyEnabled()`, `isAppWriteEnabled()`
 or their database/write-mode gates. Never set it on a deployed
 environment. Remove this
 bypass after local authenticated smoke and visual review are complete.

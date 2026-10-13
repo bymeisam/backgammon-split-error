@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import {
   categoryLabel,
   categoryOptions,
@@ -62,7 +62,7 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
   const state = stringParam(sp, "state");
   const cardId = positiveIntParam(sp, "card");
   const page = positiveIntParam(sp, "page") ?? 1;
-  const canEdit = isGalaxyEnabled();
+  const canEdit = isAppWriteEnabled();
   const now = new Date();
 
   const where: Prisma.ReviewCardWhereInput = cardId
@@ -96,7 +96,7 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
     <PageShell
       breadcrumbs={[{ label: "Review", href: "/review" }, { label: "Cards" }]}
       title="Review cards"
-      subtitle={canEdit ? undefined : "Read-only: reviewing and editing cards happen in the local app (write mode)."}
+      subtitle={canEdit ? undefined : "Writing is turned off on this deployment, so cards are read-only here."}
       actions={
         canEdit ? (
           <Link href="/review" className={style.link}>

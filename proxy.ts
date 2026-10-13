@@ -5,16 +5,19 @@ import { isGalaxyEnabled } from "@/lib/galaxyGate";
 
 // Two jobs, in this order, for every page and API request:
 //
-// 1. The temporary stopgap gate for everything that writes to the DB or
-//    handles a Galaxy bearer token — see docs/deploy.md's "The Galaxy gate
-//    (temporary)" section and its "Lifting the gate" subsection. One choke point (the galaxyPaths list below) rather than
-//    a check repeated in each handler, so there's exactly one place that can
-//    forget to gate a new Galaxy-related route. isGalaxyEnabled()
-//    (lib/galaxyGate.ts) is the single source of truth this reads — the
-//    navbar's link-hiding (app/components/ui/AppNav.tsx) reads the same
-//    function, so the two can never disagree. The forum's write routes
-//    (app/api/forum/*) aren't listed: their reads must stay reachable, so
-//    each write handler checks isGalaxyEnabled() itself.
+// 1. The gate for Galaxy and sync: everything that handles a Galaxy bearer
+//    token or writes Match/Game/Decision rows — see docs/deploy.md's "The
+//    Galaxy gate (temporary)" section and its "Lifting the gate" subsection.
+//    One choke point (the galaxyPaths list below) rather than a check
+//    repeated in each handler, so there's exactly one place that can forget
+//    to gate a new Galaxy-related route. isGalaxyEnabled() (lib/galaxyGate.ts)
+//    is the single source of truth this reads — the navbar's Sources link
+//    (app/components/ui/AppNav.tsx, lib/navItems.ts) reads the same function,
+//    so the two can never disagree. In-app writes (the forum, decision notes,
+//    tags, review: app/api/forum/*, app/api/decisions/*, app/api/tags/*,
+//    app/api/review/*) aren't listed: they run on the live site too, so each
+//    write handler checks isAppWriteEnabled() (lib/appWriteGate.ts) itself,
+//    and their reads stay reachable.
 // 2. The Clerk auth wall: every other route needs a signed-in user, except
 //    the sign-in pages and /auth/complete (and everything, when the local
 //    AUTH_BYPASS is on; lib/localAuthBypass.ts). Owner-only checks happen
@@ -38,14 +41,6 @@ const galaxyPaths = [
   "/api/galaxy/",
   "/api/sync/",
   "/api/matches/check-existence",
-  // Decision-note writes (POST /api/decisions/[id]/note) — the app's first
-  // write path outside sync/ingest, gated the same way.
-  "/api/decisions/",
-  // Spaced-repetition review and tags (app/api/review/*, app/api/tags/*):
-  // card create/answer/suspend/delete, bulk add, tag attach/detach, and the
-  // queue/summary/tag-list reads only the write-mode UI uses.
-  "/api/review",
-  "/api/tags",
 ];
 
 function isGalaxyPath(pathname: string): boolean {

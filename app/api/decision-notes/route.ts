@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prismaReadOnly } from "@/lib/prisma";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import type { MatchDecisionNotesResponse } from "@/lib/decisionNotes";
 import { isReviewEligible } from "@/lib/review/eligibility";
 import { requireOwnerApi } from "@/lib/app-auth";
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "matchId is required." }, { status: 400 });
   }
 
-  const canEdit = isGalaxyEnabled();
+  const canEdit = isAppWriteEnabled();
   const rows = await prismaReadOnly.decision.findMany({
     where: { game: { match: { source: SOURCE, sourceMatchId: matchId } } },
     select: {

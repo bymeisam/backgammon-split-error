@@ -1,0 +1,49 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const gate = vi.hoisted(() => ({ galaxy: false }));
+vi.mock("@/lib/galaxyGate", () => ({ isGalaxyEnabled: () => gate.galaxy }));
+
+import { isAppWriteEnabled } from "./appWriteGate";
+
+const APP_URL = "mysql://bg_db_app:pw@203.0.113.7:3306/backgammon?ssl=true";
+
+describe("isAppWriteEnabled", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    gate.galaxy = false;
+  });
+
+  // [DATABASE_URL_APP set, NODE_ENV, isGalaxyEnabled] -> expected
+  const cases: Array<[boolean, "production" | "development", boolean, boolean]> = [
+    [true, "production", true, true],
+    [true, "production", false, true],
+    [true, "development", true, true],
+    [true, "development", false, true],
+    [false, "production", true, false],
+    [false, "production", false, false],
+    [false, "development", true, true],
+    [false, "development", false, false],
+  ];
+
+  it.each(cases)("app URL set=%s, NODE_ENV=%s, galaxy=%s -> %s", (appSet, nodeEnv, galaxy, expected) => {
+    vi.stubEnv("DATABASE_URL_APP", appSet ? APP_URL : undefined);
+    vi.stubEnv("NODE_ENV", nodeEnv);
+    gate.galaxy = galaxy;
+    expect(isAppWriteEnabled()).toBe(expected);
+  });
+
+  // An empty DATABASE_URL_APP behaves exactly like an unset one.
+  const emptyCases: Array<["production" | "development", boolean, boolean]> = [
+    ["production", true, false],
+    ["production", false, false],
+    ["development", true, true],
+    ["development", false, false],
+  ];
+
+  it.each(emptyCases)("empty app URL, NODE_ENV=%s, galaxy=%s -> %s", (nodeEnv, galaxy, expected) => {
+    vi.stubEnv("DATABASE_URL_APP", "");
+    vi.stubEnv("NODE_ENV", nodeEnv);
+    gate.galaxy = galaxy;
+    expect(isAppWriteEnabled()).toBe(expected);
+  });
+});

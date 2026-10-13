@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prismaApp } from "@/lib/prisma";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { ELIGIBILITY_SELECT } from "@/lib/review/db";
 import { reviewEligibility } from "@/lib/review/eligibility";
 import { scheduleReview, scheduleToJson, RATING_VALUE, type CardSchedule } from "@/lib/review/fsrs";
@@ -21,10 +22,11 @@ export const dynamic = "force-dynamic";
 // 400 bad input or rating, 404 no such card, 409 suspended, 422 the
 // decision can't be graded any more.
 //
-// Read-write client. Gated by proxy.ts (/api/review/:path*).
+// App write client (prismaApp). Owner only; 403 unless isAppWriteEnabled().
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requireOwnerApi();
   if (denied) return denied;
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
   const cardId = positiveId((await params).id);
   if (cardId === null) return NextResponse.json({ error: "Card id must be a positive integer." }, { status: 400 });
   const body = await readJsonObject(req);
@@ -34,7 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const input = parseAnswerInput(body);
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
 
-  const card = await prisma.reviewCard.findUnique({
+  const card = await prismaApp.reviewCard.findUnique({
     where: { id: cardId },
     select: {
       id: true,
@@ -88,8 +90,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   };
   const after = scheduleReview(before, rating.rating, now);
 
-  await prisma.$transaction([
-    prisma.reviewLog.create({
+  await prismaApp.$transaction([
+    prismaApp.reviewLog.create({
       data: {
         cardId,
         rating: RATING_VALUE[rating.rating],
@@ -101,7 +103,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         durationMs: input.durationMs,
       },
     }),
-    prisma.reviewCard.update({ where: { id: cardId }, data: after }),
+    prismaApp.reviewCard.update({ where: { id: cardId }, data: after }),
   ]);
 
   const response: ReviewAnswerResponse = {
