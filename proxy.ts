@@ -6,8 +6,8 @@ import { isGalaxyEnabled } from "@/lib/galaxyGate";
 // Two jobs, in this order, for every page and API request:
 //
 // 1. The temporary stopgap gate for everything that writes to the DB or
-//    handles a Galaxy bearer token — see docs/deploy.md's "Lifting the Galaxy
-//    gate" section. One choke point (the galaxyPaths list below) rather than
+//    handles a Galaxy bearer token — see docs/deploy.md's "The Galaxy gate
+//    (temporary)" section and its "Lifting the gate" subsection. One choke point (the galaxyPaths list below) rather than
 //    a check repeated in each handler, so there's exactly one place that can
 //    forget to gate a new Galaxy-related route. isGalaxyEnabled()
 //    (lib/galaxyGate.ts) is the single source of truth this reads — the
