@@ -22,6 +22,8 @@ Reviewed: Phase 4 part 2 (`322b9a2`) and the review second try (`2e969ab`). The 
 - `forum.styles.ts`: `proposalDraft` is `flex flex-col`, so "Propose this move" stretches to full width; add `items-start`. Remove `proposalNotice` if it's unused now.
 - The comments that got lost or moved: restore the reply POST route's header (what it does, write mode only) and fix the `ReplyComposer` comment "Completed plays remain selected until submitted or explicitly removed." It now sits above the code that clears the drafts after posting.
 
+**3. Merge master (Phase 3 step 1, `5ba0fa4`).** Forum writes now have their own client and gate: `prismaForum` (`lib/prisma.ts`, `DATABASE_URL_FORUM`, falls back to `DATABASE_URL` outside production) and `isForumWriteEnabled()` (`lib/forumGate.ts`), replacing `prisma` and `isGalaxyEnabled()` on every forum write and forum UI flag. Merging master will conflict in `app/api/forum/posts/[id]/replies/route.ts` and `app/api/forum/replies/[id]/route.ts`. Resolve by keeping your proposal hunks, with the gate as `isForumWriteEnabled()` and the transactions (including `tx.forumMoveProposal`) on `prismaForum`. Any other forum write or forum UI flag on `omp/main` should use the same pair. Mock `prismaForum` and `@/lib/forumGate` in the proposal route tests (see `app/api/forum/posts/hideAnalysis.test.ts` on master). No schema change.
+
 Checks: vitest, tsc, lint, build. Add a PROGRESS.md entry, then an entry under "Ready for review".
 
 ## Schema requests (omp → master)
