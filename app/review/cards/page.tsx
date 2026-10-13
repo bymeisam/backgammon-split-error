@@ -19,6 +19,7 @@ import { startOfNextLocalDay } from "@/lib/review/queue";
 import { CARD_STATE, CARD_STATE_LABEL } from "@/lib/review/cardState";
 import { formatRelativeDue } from "@/lib/review/format";
 import { cardListSummary } from "@/lib/review/cardPayload";
+import { replayHref } from "@/lib/replayHref";
 import { FilterSelect } from "@/app/components/ui/FilterSelect";
 import PaginationLinks from "@/app/components/ui/PaginationLinks";
 import PageShell from "@/app/components/ui/PageShell";
@@ -183,7 +184,7 @@ export default async function ReviewCardsPage({ searchParams }: { searchParams: 
                           ))}
                         </div>
                         <Link
-                          href={`/matches/${encodeURIComponent(m.sourceMatchId)}/replay/${c.decision.game.gameIndex}?decision=${c.decision.id}`}
+                          href={replayHref(m.sourceMatchId, c.decision.game.gameIndex, c.decision.id)}
                           className={style.positionLink}
                         >
                           Match {m.sourceMatchId} · game {c.decision.game.gameIndex}

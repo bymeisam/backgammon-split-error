@@ -893,3 +893,11 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - **Don't push master until Phase 3:** the live site needs the Clerk keys, `DATABASE_URL_AUTH`, the migrations on Oracle and the owner flags first.
     - **Post-merge design list:** `reports/2026-10-13-forum-design-review.md` S1, S5, S6 and S9; the re-check's focus-ring and selected-tint items and the Clerk footer; and "Later".
     - **Phase 2:** owner/member roles. The user decides then whether members see the analysis on decision posts.
+- **Forum post-merge design fixes, Phase A (S1, S5, S6, S9, L3 of `reports/2026-10-13-forum-design-review.md`).**
+  - **S1:** an attached position's caption is now "Position n · 5-point match · 1–0 · post-Crawford · 2-1 to play" (or "Money game", "Cube decision"), from the new pure `lib/forumPosition.ts` (`forumPositionCaption`, plus `decodeForumPosition`, the decode-and-cube code shared with the new-post preview). Match-decision positions link "From the game →" to the replay on that decision; built ones say "Built in position builder"; the GNU IDs sit in a `<details>`. The post page selects only `sourceDecision { id, game.gameIndex, game.match.sourceMatchId }`, never `raw`.
+  - New `lib/replayHref.ts`, now used by `lib/review/cardPayload.ts` and `/review/cards` too (`GameSwitcher` links have no `?decision=`, so left alone).
+  - **S5:** forum Delete uses the shared `Modal` ("Delete this post?" / "Delete this reply?", id unique per instance); the trigger is a quiet button.
+  - **S6:** `/forum/new?decision=<id>` shows a read-only board and caption in place of the Decision ID field, with "Change decision" to get the field back. "Add position" is quiet at the end of the list; the form ends Post, Cancel.
+  - **S9:** a whole /forum list card is one link (`listRow`, `listTitleLink`). **L3:** forum dates use `formatShortMatchDate`.
+  - Checks: vitest 614/614 (10 new), tsc, eslint, build and the visual suite (15/15, no baseline changed) clean. Screenshots in `design/screenshots/2026-10-13-forum-postmerge/` (the forum set plus the delete modal at 1280/390 light). Checked locally that post 5's link `/matches/45282503/replay/2?decision=1149340` opens with initialIndex 1, the index of decision 1149340.
+  - **Next:** Phase B of the design list (focus ring, selected tint, Clerk footer, "Later").

@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
+import Modal from "@/app/components/ui/Modal";
 import { style } from "../forum.styles";
 
 type ForumActionsProps = {
@@ -23,6 +24,8 @@ export default function ForumActions({ postId, title, body, replyId, replyBody, 
   const [nextTitle, setNextTitle] = useState(title ?? "");
   const [nextBody, setNextBody] = useState(body ?? replyBody ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const url = replyId ? `/api/forum/replies/${replyId}` : `/api/forum/posts/${postId}`;
 
@@ -50,8 +53,14 @@ export default function ForumActions({ postId, title, body, replyId, replyBody, 
   }
 
   async function remove() {
-    if (window.confirm("Delete this item?")) await send("DELETE");
+    setBusy(true);
+    const ok = await send("DELETE");
+    setBusy(false);
+    if (ok) setConfirming(false);
   }
+
+  // Unique per instance: the post page renders one ForumActions per reply.
+  const dialogId = replyId !== undefined ? `delete-reply-${replyId}` : `delete-post-${postId}`;
 
   if (!canWrite) return null;
 
@@ -91,10 +100,36 @@ export default function ForumActions({ postId, title, body, replyId, replyBody, 
           Edit
         </Button>
       )}
-      <Button size="small" onClick={remove}>
+      <Button size="small" variant="quiet" onClick={() => setConfirming(true)}>
         Delete
       </Button>
-      {error && <p className={style.error}>{error}</p>}
+      {error && !confirming && <p className={style.error}>{error}</p>}
+
+      <Modal
+        open={confirming}
+        dismissible={!busy}
+        onClose={() => setConfirming(false)}
+        labelledBy={dialogId}
+        testId="delete-forum-dialog"
+      >
+        <h2 id={dialogId} className={style.modalHeading}>
+          {replyId !== undefined ? "Delete this reply?" : "Delete this post?"}
+        </h2>
+        <p className={style.modalText}>
+          {replyId !== undefined
+            ? "The reply is removed from the thread."
+            : "Its replies go with it."}
+        </p>
+        {error && <p className={style.error}>{error}</p>}
+        <div className={style.modalButtons}>
+          <Button onClick={() => setConfirming(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={remove} disabled={busy}>
+            {busy ? "Deleting…" : "Delete"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

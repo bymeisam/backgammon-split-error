@@ -2,6 +2,9 @@
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/app/components/ui/Button";
+import Board from "@/app/components/match-analysis/Board";
+import type { DecodedPosition } from "@/lib/gnuPositionId";
+import type { BoardCube } from "@/lib/boardFrame";
 import { style } from "../forum.styles";
 
 type AttachmentSource = "manual" | "match";
@@ -14,11 +17,22 @@ type PositionAttachment = {
   decisionId: string;
 };
 
+// A read-only preview of the ?decision= decision, built by page.tsx.
+export type DecisionPreview = {
+  decisionId: string;
+  position: DecodedPosition;
+  cube: BoardCube;
+  dice: number[];
+  caption: string;
+};
+
 // The new-post form. Rendered by page.tsx only when forum writes are on.
 // Starts with one attachment, prefilled from the URL: ?decision=<id> (from
 // the replay) or ?positionId=…&gnuMatchId=…&kind=… (from the position
 // builder).
-export default function NewPostForm() {
+// `preview` (from ?decision=) shows in place of the first attachment's
+// Decision ID field until "Change decision" is pressed.
+export default function NewPostForm({ preview }: { preview: DecisionPreview | null }) {
   const params = useSearchParams();
   const router = useRouter();
   const decision = params.get("decision");
@@ -36,6 +50,7 @@ export default function NewPostForm() {
         },
   ]);
   const [error, setError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(preview !== null);
   const [saving, setSaving] = useState(false);
 
   function updateAttachment(index: number, patch: Partial<PositionAttachment>) {
@@ -126,7 +141,15 @@ export default function NewPostForm() {
                 <option value="match">Match decision</option>
               </select>
             </label>
-            {attachment.source === "match" ? (
+            {attachment.source === "match" && index === 0 && showPreview && preview ? (
+              <div className={style.preview}>
+                <p className={style.previewCaption}>{preview.caption}</p>
+                <Board decoded={preview.position} cube={preview.cube} roll={preview.dice} rollSide="mine" />
+                <Button type="button" variant="quiet" size="compact" className={style.previewChange} onClick={() => setShowPreview(false)}>
+                  Change decision
+                </Button>
+              </div>
+            ) : attachment.source === "match" ? (
               <label>
                 Decision ID
                 <input
@@ -175,11 +198,11 @@ export default function NewPostForm() {
             )}
           </section>
         ))}
-      </div>
-      <div className={style.actions}>
-        <Button type="button" onClick={addAttachment}>
+        <Button type="button" variant="quiet" className={style.addPosition} onClick={addAttachment}>
           Add position
         </Button>
+      </div>
+      <div className={style.actions}>
         <Button type="submit" variant="primary" disabled={saving}>
           {saving ? "Posting…" : "Post"}
         </Button>

@@ -7,6 +7,7 @@ import { decisionLabels, decisionMatchContext, decisionRoll, getDecisionAnalysis
 import { DECISION_LIST_SELECT } from "@/lib/decisionQueries";
 import { decisionFromRow, type DecisionListRow } from "@/lib/decisionFromRow";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
+import { replayHref } from "@/lib/replayHref";
 import { reviewEligibility } from "@/lib/review/eligibility";
 import { displayOptions, playedCheckerKey } from "@/lib/review/options";
 import { formatMatchContext } from "@/lib/review/format";
@@ -59,7 +60,7 @@ export function buildCardPayload(card: ReviewCardRow, random: () => number = Mat
     cube: analysis.kind === "cube" ? { nd: analysis.nd, dt: analysis.dt, dp: analysis.dp } : null,
     matchContext: formatMatchContext(decisionMatchContext(input)),
     classification: row.classification,
-    replayHref: `/matches/${encodeURIComponent(sourceMatchId)}/replay/${row.game.gameIndex}?decision=${row.id}`,
+    replayHref: replayHref(sourceMatchId, row.game.gameIndex, row.id),
     externalHref: externalMatchUrl(source, sourceMatchId),
   };
 }

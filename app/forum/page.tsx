@@ -4,6 +4,7 @@ import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import { prismaReadOnly } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { formatShortMatchDate } from "@/lib/formatDate";
 import { style } from "./forum.styles";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function ForumPage() {
     },
   });
 
+  const now = new Date();
   const newPostAction = isGalaxyEnabled() ? (
     <Button variant="primary" href="/forum/new">
       New post
@@ -34,12 +36,12 @@ export default async function ForumPage() {
           </Card>
         )}
         {posts.map((post) => (
-          <Card key={post.id} className={style.row}>
-            <Link href={`/forum/${post.id}`} className={style.title}>
+          <Card key={post.id} className={style.listRow}>
+            <Link href={`/forum/${post.id}`} className={style.listTitleLink}>
               {post.title}
             </Link>
             <p className={style.meta}>
-              {post.author.displayName} · {post.createdAt.toLocaleDateString()} · {post._count.replies} repl{post._count.replies === 1 ? "y" : "ies"} ·{" "}
+              {post.author.displayName} · {formatShortMatchDate(post.createdAt.toISOString(), now)} · {post._count.replies} repl{post._count.replies === 1 ? "y" : "ies"} ·{" "}
               {post._count.positions} position{post._count.positions === 1 ? "" : "s"}
             </p>
           </Card>
