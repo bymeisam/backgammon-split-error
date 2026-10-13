@@ -1,16 +1,17 @@
-// /review keyboard contract; tests live in reviewKeys.test.ts and the
-// "?" help is lib/shortcuts.ts. Keep both in sync with this state machine.
+// /review keyboard contract; tests live in reviewKeys.test.ts and the "?"
+// help is lib/shortcuts.ts. Keep both references in sync with this state machine.
 //
-// On the front, 1–9 choose an option and ↓ / ↑ or J / K move focus. A retry
+// On the front, 1–9 choose an option; ↓ / ↑ or j / k move focus. A retry
 // front keeps the first wrong choice visible but excludes it from selection.
-// A noted correct choice enters the reason step: Y / Enter means yes; N no.
-// On the back, H / G / E rate Hard / Good / Easy. A second-try correct answer
-// is Hard-only; a correct answer after "No" is Hard/Good. After a Hard-only
-// save, Enter advances. Wrong answers save Again, then Enter advances.
+// A noted correct choice enters the reason step: Y / Enter means yes; N means no.
+// On the back, ← / h and → / l switch board tabs; Enter is Next after a save.
+// H / G / E rate Hard / Good / Easy. Ratings are read from `key`, so Shift
+// is required: Shift+H/G/E. A second-try correct answer is Hard-only; a
+// correct answer after "No" is Hard/Good. Wrong answers save Again.
 //
-// Plain h / g / e no longer rate (since 2026-10-09). Rating letters are
-// read by their key values ("H", etc.; Shift or Caps Lock), like replay J / K.
-// The caller ignores typing, dialogs and Cmd/Ctrl/Alt via shouldIgnoreKey.
+// The caller ignores typing, dialogs, and Cmd/Ctrl/Alt via shouldIgnoreKey.
+// Rating limits and save state prevent unavailable ratings, duplicate saves,
+// or advancing before the final save.
 
 import type { MoveTab } from "./listSelection";
 

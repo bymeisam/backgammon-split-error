@@ -4,29 +4,6 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Review notes on `omp/main` at `02831c2` (queued 2026-10-13)
-Do this **after** item 3 of the task below (merge master onto `prismaApp` / `isAppWriteEnabled()`). Claude Code reviewed `02831c2` with the investigator (code) and the visual-reviewer (12 screenshots in `design/screenshots/2026-10-13-review-followup/`). Confirmed fixed: the grade buttons (`aria-hidden`, Good once, Easy only without a limit), the Hard-only back (saves once; Enter/Next advances; no key path skips or repeats the save), the reason-step hint, the tally carrying `proposalId`/`notation`, the dead ternaries, `items-start`, `proposalNotice`, and the reason-step progress fix. tsc is clean. What's left:
-
-**1. Visual (from the visual-reviewer).**
-- **Must:** at 390 the checker chip's text wraps inside the fixed-height compact `Button` and overruns its border (`forum-write-post-5--390-dark--full.png`, replies). `ProposalDisplay.tsx:28` / `forum.styles.ts:60` `proposalInteractiveChip`: let the height grow (`h-auto min-h-[34px] text-left whitespace-normal`), or put the position label and the move on separate lines below `sm`. Check the tally rows at 390 too.
-- **Should:**
-  - Cube chip wraps as "…Cube decision" / "· No double" at 390 (`forum-write-post-7--390-light--full.png`). Build it from two spans so the "·" never starts a line.
-  - The checker chip (button look, `rounded-control`) and the cube chip (flat `rounded-chip`) look like two unrelated styles side by side. Give them one shared base (radius, height). The checker one keeps its hover and gains a small affordance that it opens a board (e.g. a trailing arrow or "View"). Don't make the cube chip look clickable.
-  - Tally: the count floats at the far right (`proposalTallyRow` `justify-between`, `forum.styles.ts:65`) with no unit. Put it next to the chip, as "1 vote" / "2 votes".
-  - Proposal draft board at 1280 is ~300px with tiny point numbers (`proposalBoard: "w-full sm:max-w-md"`, `forum.styles.ts:67`). Allow it wider at `md+` (e.g. `md:max-w-xl`).
-  - Review retry front: the hint "Try again. Your first choice is crossed out." is `text-xs text-ink-faint` (`review.styles.ts:40`) and easy to miss. Make it `text-sm text-ink-muted`. `crossedOption` uses `rounded-[11px]` and line 38 uses `rounded-[5px]`; use the tokens (`rounded-control` / `rounded-chip`).
-  - Review Hard-only saved, 390 dark: the sticky "Next card" bar (`review.styles.ts:104`) is a pale neutral button that reads as disabled and half-covers the first option row. Use the primary button, and leave room so it doesn't cover content. "Recorded as Hard" is `font-mono` (`review.styles.ts:118`); mono is for notation/equities/IDs/keys only, so set the message in sans and keep "Enter" as a kbd.
-- **Missing states to capture:** a selected cube option in the draft; a focus ring on a chip and on Yes/No; the tallies at 390.
-
-**2. Code (from the investigator).**
-- `ReplyComposer.tsx:39`: "Completed plays remain selected until submitted or explicitly removed." still sits directly above `setBody(""); setDrafts({});`, which clears them. The earlier claim that it was already right is wrong. Rewrite it to describe the clearing (or move it to where drafts persist).
-- Reply POST route header (`app/api/forum/posts/[id]/replies/route.ts:8-9`): only two lines, jammed under `type Context` with no blank line, and it names `ENABLE_WRITE_MODE`. Restore the full header as it was at `322b9a2^`: what it does, signed-in member or owner, the body shape `{ body?, proposals? }`. Name the gate `isAppWriteEnabled()` (after the merge).
-- `lib/reviewKeys.ts:1-13` and `ReviewSession.tsx:57-61` headers are accurate but shorter than the reference the repo kept. Bring back:
-  - the full key list: board tabs `←`/`h` and `→`/`l`, `Enter` = Next, `j`/`k`, and "rating letters are read by `key`, so Shift is required: Shift+H/G/E";
-  - `ReviewSession`'s queue / batch / requeue / save-flow paragraph from before `2e969ab`, updated.
-- The Easy and Good grade buttons are still single-line `<button …>` openings with long attribute lists; restore the repo's multi-line JSX formatting.
-
-Checks: vitest, tsc, lint, build; then screenshots for every changed state, opened and reviewed, listed under "Ready for review". Add a PROGRESS.md entry.
 
 ### Review notes on `omp/main` at `b657ca6` (queued 2026-10-13)
 Reviewed: Phase 4 part 2 (`322b9a2`) and the review second try (`2e969ab`). The investigator re-ran vitest (759/759), tsc and lint, all clean, and confirmed by reading the code: the proposal transactions, the body-only edit keeping proposals, the duplicate/attachment/kind/legality checks (server-side), the member auth, the tally per position, and the review flow (saves once, Hard after a second try, Again when wrong, whole-card duration, first choice disabled). **No logic defects.** What's left before merge:
@@ -59,8 +36,31 @@ _Use this shape:_
 - **Schema rule met:** 1, 2 or 3 (AGENTS.md § Schema rule)
 
 ## Ready for review (omp → master)
+### Review notes: responsive proposal chips and review-state screenshots (completed 2026-10-14)
+Completed the follow-up on `omp/main`: checker chips wrap within a shared 34px-minimum chip shape with a board-view affordance; cube chips remain non-clickable, with the separator attached to the action. Tally counts now sit beside the chip as “1 vote” / “2 votes”; the proposal draft board grows at desktop. Review retry hints/radii use tokens, the Hard-only saved state uses the primary grade treatment with reserved bottom space, and its status uses sans text plus a kbd-only Enter hint. Corrected the successful reply-clearing comment, retained the full POST header with `{ body?, proposals? }` and `isAppWriteEnabled()`, expanded review keyboard/save-flow comments, and formatted Good/Easy buttons. Updated the reply API test mock to follow merged `prismaApp`/`isAppWriteEnabled()` exports. No schema, migration, Oracle, or `.env*` changes.
+
+Captured the real local app/API at 390 and 1280 in light and dark under `design/screenshots/2026-10-13-review-followup-2/`. The `/api/review/queue` screenshots waited for HTTP 200. Opened and inspected these PNGs:
+- `forum-write-post-5--390-dark--full.png`
+- `forum-write-post-7--390-dark--full.png`
+- `forum-write-post-5-tally-open--390-dark--full.png`
+- `forum-write-post-5-checker-chip-focus--390-dark--viewport.png`
+- `forum-write-post-5-checker-modal--1280-light--viewport.png`
+- `forum-write-post-5-checker-draft-open--1280-light--full.png`
+- `forum-write-post-7-cube-draft-selected--390-dark--full.png`
+- `review-retry-front--390-dark--viewport.png`
+- `review-hard-only-saved--390-dark--viewport.png`
+- `review-hard-good-back--1280-light--viewport.png`
+- `review-card1-reason-yes-focus--390-dark--viewport.png`
+- `review-card1-reason-no-focus--390-dark--viewport.png`
+
+Ready for main-session visual review; the review opens the representative files above.
+
+Checks: `npm test` **791/791**, `npx tsc --noEmit`, `npm run lint`, and `NEXT_DIST_DIR=.next-test npm run build` passed. `npm run test:visual` stopped before tests because `.env.test` is absent; the environment file was left untouched.
+
+Commit: pending.
+
 ### Queued review follow-up: keyboard contracts, proposal tally, and screenshots (2026-10-13)
-Implemented on `omp/main`: restored the review keyboard-contract comments, hid grade hints from assistive technology, limited rating buttons by `ratingLimit`, added the reason key hint, and retained Hard-only saved state until Next card/Enter. Fixed current-card progress during the reason step. Forum tally construction carries proposal IDs/notation, dead checker/cube code and unused tally label are removed, the checker chip has a hover affordance, proposal drafts align to start, and the reply POST route header is restored. `ReplyComposer`’s existing completed-plays comment was already correctly placed.
+Implemented on `omp/main`: restored the review keyboard-contract comments, hid grade hints from assistive technology, limited rating buttons by `ratingLimit`, added the reason key hint, and retained Hard-only saved state until Next card/Enter. Fixed current-card progress during the reason step. Forum tally construction carries proposal IDs/notation, dead checker/cube code and unused tally label are removed, the checker chip has a hover affordance, proposal drafts align to start, and the reply POST route header is restored. The reply-clearing comment was subsequently corrected in the responsive-chip follow-up.
 
 Local test proposals were created through the real app API without modifying existing rows: post 5 / StudyPosition 6 — reply 8 / ForumMoveProposal 1, checker `hmfwATDEc/ABMA`; reply 9 / ForumMoveProposal 2, checker `hmfwATCoc/ABMA`. Post 7 / StudyPosition 8 — reply 10 / ForumMoveProposal 3, cube action `NO_DOUBLE`.
 
@@ -100,3 +100,4 @@ Commit: `322b9a2`.
 - **Phase 4 part 2: proposal APIs and real data**: `322b9a2` (2026-10-13). Reviewed; the follow-ups are in the task above.
 - **Review: note-aware second try and "Do you know the reason?"**: `2e969ab` (2026-10-13). Reviewed; the follow-ups are in the task above.
 - **Phase 4 part 1: helpers and UI, no DB**: `421d419` (2026-10-13).
+- **Review notes on `omp/main` at `02831c2`**: responsive proposal chips, tally labels, retry/Hard-only styling, restored comments and real-app screenshot follow-up. Completed 2026-10-14; see Ready for review above.

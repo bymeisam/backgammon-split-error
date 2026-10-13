@@ -6,8 +6,6 @@ import { forumIdentity, parseId, textField } from "@/lib/forum";
 import { validateReplyProposals } from "@/lib/forumProposalInput";
 
 type Context = { params: Promise<{ id: string }> };
-// POST /api/forum/posts/[id]/replies creates a member reply with optional
-// position proposals; all writes are gated by ENABLE_WRITE_MODE.
 
 // POST /api/forum/posts/[id]/replies   body: { body?, proposals? }
 //

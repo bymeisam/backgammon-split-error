@@ -36,7 +36,7 @@ export default function ReplyComposer({ postId, canWrite, positions }: { postId:
       return;
     }
 
-    // Completed plays remain selected until submitted or explicitly removed.
+    // A successful submission clears the reply body and all proposal drafts.
     setBody("");
     setDrafts({});
     router.refresh();

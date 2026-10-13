@@ -53,6 +53,7 @@ export default function ProposalDraft({
                 <Button
                   key={action}
                   size="compact"
+                  variant={selectedAction === action ? "primary" : "secondary"}
                   aria-pressed={selectedAction === action}
                   onClick={() => onChange({ kind: "CUBE", positionId: position.id, cubeAction: action })}
                 >

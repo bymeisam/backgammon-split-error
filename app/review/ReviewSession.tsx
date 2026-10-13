@@ -50,14 +50,21 @@ interface Stats {
 const NO_STATS: Stats = { answered: 0, correct: 0, streak: 0, bestStreak: 0 };
 
 // One /review session. Cards come from GET /api/review/queue in batches of
-// REVIEW_BATCH_SIZE. Note-aware cards may enter a reason question or a
-// second-try front before their final answer is saved; cards without notes
-// retain the existing immediate Again / Hard-Good-Easy flow.
+// REVIEW_BATCH_SIZE; the next batch is fetched when the local queue runs out.
+// A wrong final answer is saved as Again and requeued after
+// AGAIN_REQUEUE_AFTER_CARDS other cards (or at the end of the batch).
+// Right answers save once, at the final grade: Hard / Good / Easy normally,
+// Hard-only after a correct retry, and Hard/Good after the reason answer "No".
+// Note-aware cards can ask the reason question before showing the back or
+// offer a retry front with the first wrong choice crossed out. The timer runs
+// for the whole card, including its reason/retry steps.
 //
-// Keyboard contract is in lib/reviewKeys.ts and its tests; the "?" help is
-// lib/shortcuts.ts. In brief: the reason step accepts Y / Enter for yes and
-// N for no; retry fronts keep the first wrong choice crossed out; a correct
-// second try is Hard-only, while answering "No" limits the back to Hard/Good.
+// Keyboard contract and limits are in lib/reviewKeys.ts and its tests; the
+// "?" help is lib/shortcuts.ts. Front options use ↓ / ↑ or j / k to move,
+// Enter/Space to choose focus, and 1–9 to choose directly. The reason step
+// uses Y / Enter for yes and N for no. On the back, ← / h and → / l switch
+// board tabs, Shift+H/G/E rate (subject to the card's rating limit), and
+// Enter advances only after the final save.
 //
 // The session bar on top: "Review", the progress ("Card N of M" and a
 // track, N of the session's own total: what was answered plus what's still
@@ -616,23 +623,58 @@ export default function ReviewSession({
                         <span aria-hidden="true" className={style.gradeKey(true)}>Not recorded yet</span>
                       </button>
                     ) : (
-                      <button type="button" disabled={save.kind === "saving"} onClick={() => rate("hard")}
-                        className={style.gradeButton({ primary: true, wide: true })} aria-keyshortcuts={save.kind === "saved" ? "Enter" : "Shift+H"}>
+                      <button
+                        type="button"
+                        disabled={save.kind === "saving"}
+                        onClick={() => rate("hard")}
+                        className={style.gradeButton({ primary: true, wide: true })}
+                        aria-keyshortcuts={save.kind === "saved" ? "Enter" : "Shift+H"}
+                      >
                         <span className={style.gradeLabel}>{save.kind === "saved" ? "Next card" : "Hard"}</span>
-                        <span aria-hidden="true" className={style.gradeKey(true)}>{save.kind === "saved" ? "Recorded as Hard · Enter" : "⇧H"}</span>
+                        {save.kind === "saved" ? (
+                          <span className={style.gradeKey(true)}>
+                            <span className={style.recordedLabel}>Recorded as Hard ·</span>
+                            <kbd className={style.recordedKey}>Enter</kbd>
+                          </span>
+                        ) : (
+                          <span aria-hidden="true" className={style.gradeKey(true)}>⇧H</span>
+                        )}
                       </button>
                     )
                   ) : (
                     <>
-                      <button type="button" disabled={save.kind === "saving"} onClick={() => rate("hard")} className={style.gradeButton({ primary: false, wide: false })} aria-keyshortcuts="Shift+H">
-                        <span className={style.gradeLabel}>Hard</span><span aria-hidden="true" className={style.gradeKey(false)}>⇧H</span>
+                      <button
+                        type="button"
+                        disabled={save.kind === "saving"}
+                        onClick={() => rate("hard")}
+                        className={style.gradeButton({ primary: false, wide: false })}
+                        aria-keyshortcuts="Shift+H"
+                      >
+                        <span className={style.gradeLabel}>Hard</span>
+                        <span aria-hidden="true" className={style.gradeKey(false)}>⇧H</span>
                       </button>
-                      <button type="button" disabled={save.kind === "saving"} onClick={() => rate("good")} className={style.gradeButton({ primary: true, wide: false })} aria-keyshortcuts="Shift+G Enter">
-                        <span className={style.gradeLabel}>Good</span><span aria-hidden="true" className={style.gradeKey(true)}>⇧G · Enter</span>
+                      <button
+                        type="button"
+                        disabled={save.kind === "saving"}
+                        onClick={() => rate("good")}
+                        className={style.gradeButton({ primary: true, wide: false })}
+                        aria-keyshortcuts="Shift+G Enter"
+                      >
+                        <span className={style.gradeLabel}>Good</span>
+                        <span aria-hidden="true" className={style.gradeKey(true)}>⇧G · Enter</span>
                       </button>
-                      {ratingLimit === undefined && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("easy")} className={style.gradeButton({ primary: false, wide: false })} aria-keyshortcuts="Shift+E">
-                        <span className={style.gradeLabel}>Easy</span><span aria-hidden="true" className={style.gradeKey(false)}>⇧E</span>
-                      </button>}
+                      {ratingLimit === undefined && (
+                        <button
+                          type="button"
+                          disabled={save.kind === "saving"}
+                          onClick={() => rate("easy")}
+                          className={style.gradeButton({ primary: false, wide: false })}
+                          aria-keyshortcuts="Shift+E"
+                        >
+                          <span className={style.gradeLabel}>Easy</span>
+                          <span aria-hidden="true" className={style.gradeKey(false)}>⇧E</span>
+                        </button>
+                      )}
                     </>
                   )
                 ) : save.kind === "error" ? (

@@ -272,8 +272,13 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
     if (option.correct && card.decision?.note) {
       await page.getByRole("heading", { name: "Do you know the reason?" }).waitFor();
       await settle(page);
-      await shoot(`review-${step.label}-reason-question`, "viewport");
-      await page.getByRole("button", { name: "No" }).click();
+      const no = page.getByRole("button", { name: "No" });
+      await no.focus();
+      await page.keyboard.press("Shift+Tab");
+      await shoot(`review-${step.label}-reason-yes-focus`, "viewport");
+      await page.keyboard.press("Tab");
+      await shoot(`review-${step.label}-reason-no-focus`, "viewport");
+      await no.click();
     } else if (!option.correct && card.decision?.note && card.options.length !== 2) {
       await page.getByText("Try again. Your first choice is crossed out.").waitFor();
       await settle(page);
@@ -337,6 +342,8 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
       await shoot("review-hard-only-back", "full");
       await page.getByRole("button", { name: "Hard" }).click();
       await page.getByRole("button", { name: "Next card" }).waitFor();
+      await settle(page);
+      await page.evaluate(() => window.scrollBy(0, 100));
       await settle(page);
       await shoot("review-hard-only-saved", "viewport");
     }
@@ -535,7 +542,9 @@ const FORUM_SHOTS: Shot[] = [
         if (id === 5) {
           const checkerChip = page.getByRole("button", { name: /^Position 1/ }).first();
           if (await checkerChip.count()) {
-            console.log(`forum post ${id}: opening checker modal`);
+            console.log(`forum post ${id}: focusing checker chip`);
+            await checkerChip.focus();
+            await forumShoot(ctx, `post-${id}-checker-chip-focus`, "viewport");
             await checkerChip.click();
             await page.getByRole("dialog").waitFor();
             await forumShoot(ctx, `post-${id}-checker-modal`, "viewport");
@@ -548,6 +557,11 @@ const FORUM_SHOTS: Shot[] = [
           await propose.click();
           await page.waitForTimeout(200);
           await forumShoot(ctx, `post-${id}-${id === 5 ? "checker" : "cube"}-draft-open`, "full");
+        }
+        if (id === 7) {
+          const cubeAction = page.getByRole("button", { name: "No double", exact: true }).first();
+          await cubeAction.click();
+          await forumShoot(ctx, `post-${id}-cube-draft-selected`, "full");
         }
         // The interactive move explorer: one checker picked up, then moved.
         const source = page.locator('[aria-label^="Select checker on point"]').first();

@@ -1,3 +1,4 @@
+import type * as Forum from "@/lib/forum";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 import { encodeGnuPositionId } from "@/lib/gnuPositionId";
@@ -14,13 +15,15 @@ const tx = {
   forumMoveProposal: { createMany: db.createMany, deleteMany: db.deleteMany },
 };
 vi.mock("@/lib/prisma", () => ({
-  prisma: { $transaction: (fn: (transaction: typeof tx) => unknown) => fn(tx), forumReply: { delete: db.deleteReply } },
+  prismaApp: { $transaction: (fn: (transaction: typeof tx) => unknown) => fn(tx), forumReply: { delete: db.deleteReply } },
   prismaReadOnly: { forumPost: { findUnique: db.findPost }, forumReply: { findUnique: db.findReply } },
-  prismaAuth: {},
 }));
+vi.mock("@/lib/appWriteGate", () => ({ isAppWriteEnabled: db.enabled }));
 vi.mock("@/lib/app-auth", () => ({ requireMemberApi: db.require, getAppAuthState: async () => null }));
-vi.mock("@/lib/galaxyGate", () => ({ isGalaxyEnabled: db.enabled }));
-vi.mock("@/lib/forum", async (actual) => ({ ...(await actual<typeof import("@/lib/forum")>()), forumIdentity: db.identity }));
+vi.mock("@/lib/forum", async (importOriginal) => {
+  const actual = await importOriginal<typeof Forum>();
+  return { ...actual, forumIdentity: db.identity };
+});
 
 import { POST } from "@/app/api/forum/posts/[id]/replies/route";
 import { DELETE, PATCH } from "@/app/api/forum/replies/[id]/route";

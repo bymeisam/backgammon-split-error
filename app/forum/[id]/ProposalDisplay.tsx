@@ -13,7 +13,12 @@ function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
   const [open, setOpen] = useState(false);
   const headingId = useId();
   if (proposal.kind === "CUBE") {
-    return <span className={style.proposalChip}>{proposal.positionLabel} · {CUBE_ACTION_LABELS[proposal.cubeAction]}</span>;
+    return (
+      <span className={style.proposalChip}>
+        <span className={style.proposalPosition}>{proposal.positionLabel}</span>
+        <span className={style.proposalCubeAction}>· {CUBE_ACTION_LABELS[proposal.cubeAction]}</span>
+      </span>
+    );
   }
   const action = proposal.notation;
   let previewPosition;
@@ -26,7 +31,12 @@ function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
   return (
     <>
       <Button size="compact" className={style.proposalInteractiveChip} onClick={() => setOpen(true)} aria-label={`${proposal.positionLabel}: ${action}`}>
-        {proposal.positionLabel} · <span className={style.proposalChecker}>{proposal.notation}</span>
+        <span className={style.proposalPosition}>{proposal.positionLabel}</span>
+        <span className={style.proposalCheckerMove}>
+          <span className={style.proposalSeparator}>·</span>
+          <span className={style.proposalChecker}>{proposal.notation}</span>
+        </span>
+        <span aria-hidden="true" className={style.proposalView}>↗</span>
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} labelledBy={headingId}>
         <h2 id={headingId} className={style.modalHeading}>{proposal.positionLabel} · {action}</h2>
@@ -58,8 +68,10 @@ export default function PositionProposalTally({ proposals }: { proposals: Propos
       <div className={style.proposalTallyList}>
         {proposals.map((item) => (
           <div className={style.proposalTallyRow} key={item.key}>
-            <ProposalPreview proposal={item.proposal} />
-            <span className={style.proposalCount}>{item.count}</span>
+            <span className={style.proposalTallyChip}>
+              <ProposalPreview proposal={item.proposal} />
+            </span>
+            <span className={style.proposalCount}>{item.count} {item.count === 1 ? "vote" : "votes"}</span>
           </div>
         ))}
       </div>
