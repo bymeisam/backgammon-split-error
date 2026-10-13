@@ -35,6 +35,13 @@ Start after part 1. **First merge `master` into `omp/main`, then run `npx prisma
 - A reply needs text **or** at least one proposal. Editing a reply replaces its proposals. Deleting a reply removes them (FK cascade).
 - Load proposals with the post (`app/forum/[id]/page.tsx`) and wire part 1's UI to real data: the chips in replies and the collapsed "Show proposals (n)" tally per position.
 - Checks: tests for the APIs, tsc, eslint, vitest, build; screenshots with `scripts/design-screenshots.ts` checked by the visual-reviewer. Then add an entry under "Ready for review".
+- **Review notes on part 1 (`421d419`), fold these into part 2:**
+  - Use the generated Prisma enum `ForumCubeAction` instead of the hand-written `CubeAction` union in `lib/forumProposals.ts`, and move the cube labels (duplicated in `ProposalDraft.tsx` and `ProposalDisplay.tsx`) into one place. Use the app's usual cube wording: "No double", "Double/Take", "Double/Pass", "Too good/Pass", "Take", "Pass".
+  - Sort the tally by count (highest first), then first-seen.
+  - A cube proposal's chip shouldn't open a board modal (it would show the same position as the post); just show the action.
+  - Remove the "Draft only" and "will not be saved yet" notices once saving works, and drop `required` from the reply textarea (text or at least one proposal, checked on submit and on the server).
+  - Don't lose a completed but not yet "used" play silently when the proposal controls are closed: either keep it or make "Use this play" the obvious next step.
+  - `page.tsx` decodes each position twice (`proposalPositions` and the render loop); decode once.
 
 ### Phase 4, part 1: helpers and UI, no DB (in progress, started 2026-10-13)
 Given to omp directly. In short: `lib/forumProposals.ts` (`validateCheckerProposal` with doubles expanded to four dice, `cubeActionsFor`, a tally helper); an optional `onChange` callback on `CheckerMoveExplorer`; the UI pieces (propose controls in the reply composer, cube buttons for CUBE positions, a proposal chip that opens the board after the play, a collapsed "Show proposals (n)" panel), built against typed props.
