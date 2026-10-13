@@ -35,6 +35,8 @@ export const style = {
   identifier: "font-mono text-ink-muted",
   // The new-post form's read-only preview of a match decision.
   preview: "flex flex-col gap-2 rounded-card border border-line bg-sunken p-0 pb-2 sm:p-2",
+  // Caps the preview board's width from sm up, so it doesn't fill the form.
+  previewBoard: "w-full sm:max-w-md",
   previewCaption: "px-2 pt-2 text-sm text-ink sm:px-0 sm:pt-0",
   previewChange: "self-start px-2 sm:px-0",
   // Quiet, at the end of the attachment list, not stretched across it.

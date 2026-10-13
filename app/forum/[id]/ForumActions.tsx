@@ -13,12 +13,22 @@ type ForumActionsProps = {
   // Set for a reply's actions (edits the body only).
   replyId?: number;
   replyBody?: string;
+  // The post's reply count, for its delete confirmation (post actions only).
+  replyCount?: number;
   canWrite: boolean;
 };
 
 // Edit and Delete for a post or one of its replies.
 // canWrite: isGalaxyEnabled(), decided by the server page (the forum API routes' gate). Off hides Edit and Delete.
-export default function ForumActions({ postId, title, body, replyId, replyBody, canWrite }: ForumActionsProps) {
+export default function ForumActions({
+  postId,
+  title,
+  body,
+  replyId,
+  replyBody,
+  replyCount = 0,
+  canWrite,
+}: ForumActionsProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [nextTitle, setNextTitle] = useState(title ?? "");
@@ -115,11 +125,15 @@ export default function ForumActions({ postId, title, body, replyId, replyBody, 
         <h2 id={dialogId} className={style.modalHeading}>
           {replyId !== undefined ? "Delete this reply?" : "Delete this post?"}
         </h2>
-        <p className={style.modalText}>
-          {replyId !== undefined
-            ? "The reply is removed from the thread."
-            : "Its replies go with it."}
-        </p>
+        {replyId !== undefined ? (
+          <p className={style.modalText}>This can&apos;t be undone.</p>
+        ) : (
+          replyCount > 0 && (
+            <p className={style.modalText}>
+              {replyCount === 1 ? "Its 1 reply goes with it." : `Its ${replyCount} replies go with it.`}
+            </p>
+          )
+        )}
         {error && <p className={style.error}>{error}</p>}
         <div className={style.modalButtons}>
           <Button onClick={() => setConfirming(false)} disabled={busy}>

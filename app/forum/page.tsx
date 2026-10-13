@@ -41,8 +41,8 @@ export default async function ForumPage() {
               {post.title}
             </Link>
             <p className={style.meta}>
-              {post.author.displayName} · {formatShortMatchDate(post.createdAt.toISOString(), now)} · {post._count.replies} repl{post._count.replies === 1 ? "y" : "ies"} ·{" "}
-              {post._count.positions} position{post._count.positions === 1 ? "" : "s"}
+              {post.author.displayName} · {formatShortMatchDate(post.createdAt.toISOString(), now)} · {post._count.replies}{"\u00a0"}repl{post._count.replies === 1 ? "y" : "ies"} ·{" "}
+              {post._count.positions}{"\u00a0"}position{post._count.positions === 1 ? "" : "s"}
             </p>
           </Card>
         ))}

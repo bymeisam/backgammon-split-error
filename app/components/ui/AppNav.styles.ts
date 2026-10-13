@@ -20,9 +20,8 @@ export const style = {
   // accessible name; an sr-only span is absolutely positioned, so it takes
   // no flex gap). Visible below lg (the Menu layout) and from xl.
   brandText: "lg:max-xl:sr-only",
-  brandMark: "h-[22px] w-[22px] shrink-0",
-  brandMarkBack: "fill-current",
-  brandMarkFront: "fill-surface stroke-current",
+  // Sizes the shared BrandMark (which adds shrink-0 and the checker fills).
+  brandMark: "h-[22px] w-[22px]",
   // Function, 2 params -> passed directly. A 7px dot plus text, coloured by
   // where writes go: amber when they go to Oracle (the real database),
   // whatever the reads use; green for the local one; grey read-only. In the

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { activeNavHref, isNavItemActive, type NavItem } from "@/lib/navItems";
 import type { RuntimeModeLabel } from "@/lib/runtimeMode";
+import BrandMark from "./BrandMark";
 import { style } from "./AppNav.styles";
 
 const MODE_TITLES: Record<RuntimeModeLabel, string> = {
@@ -16,16 +17,6 @@ const MODE_TITLES: Record<RuntimeModeLabel, string> = {
     "Write mode, two databases. Writes: changes (sync, notes, reviews, tags) go to the local database. Reads: pages show data from the Oracle database.",
   "Read-only": "Read-only: nothing here writes to a database.",
 };
-
-// The brand mark: two overlapping checkers.
-function BrandMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={style.brandMark}>
-      <circle cx={9} cy={12} r={7.5} className={style.brandMarkBack} />
-      <circle cx={15.5} cy={12} r={7} strokeWidth={1.5} className={style.brandMarkFront} />
-    </svg>
-  );
-}
 
 function ModeBadge({ label, placement }: { label: RuntimeModeLabel; placement: "bar" | "end" }) {
   return (
@@ -100,7 +91,7 @@ export default function NavLinks({
     <header className={style.bar} data-testid="app-nav" data-app-nav="">
       <div className={style.inner}>
         <Link href="/" onClick={close} className={style.brand}>
-          <BrandMark />
+          <BrandMark className={style.brandMark} />
           <span className={style.brandText}>Game Review</span>
         </Link>
         <span className={style.narrowEnd}>

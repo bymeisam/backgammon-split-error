@@ -192,7 +192,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
                   key={side}
                   type="button"
                   aria-pressed={editingSide === side}
-                  className={style.sideOption(editingSide === side)}
+                  className={style.segmentOption(editingSide === side)}
                   onClick={() => setEditingSide(side)}
                 >
                   {sideLabel(side)}
@@ -209,7 +209,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
                   key={nextAction}
                   type="button"
                   aria-pressed={action === nextAction}
-                  className={style.actionOption(action === nextAction)}
+                  className={style.segmentOption(action === nextAction)}
                   onClick={() => setAction(nextAction)}
                 >
                   {nextAction === "add" ? "Add checker" : "Remove checker"}
@@ -233,7 +233,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
                 key={type}
                 type="button"
                 aria-pressed={state.decisionType === type}
-                className={style.actionOption(state.decisionType === type)}
+                className={style.segmentOption(state.decisionType === type)}
                 onClick={() => updateDecisionType(type)}
               >
                 {type === "checker" ? "Checker decision" : "Cube decision"}

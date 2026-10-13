@@ -20,14 +20,11 @@ export const style = {
   // it: its own margin separates "Score" from the Bottom/Top labels below.
   legend: "mb-2 text-xs font-medium text-ink-faint",
   segmented: "grid grid-cols-2 gap-1 rounded-control bg-sunken p-1 ring-1 ring-inset ring-line",
-  sideOption: (selected: boolean): string =>
+  // Function, 1 param -> passed directly. One option in a segmented control
+  // (side, action, decision type): the picked one lifts onto the surface.
+  segmentOption: (selected: boolean): string =>
     clsx(
-      "rounded-[7px] px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
-      selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
-    ),
-  actionOption: (selected: boolean): string =>
-    clsx(
-      "rounded-[7px] px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+      "rounded-control px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
       selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
     ),
   fieldGrid: "grid grid-cols-2 gap-3",

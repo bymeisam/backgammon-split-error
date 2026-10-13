@@ -1,4 +1,5 @@
 import { SignIn } from "@clerk/nextjs";
+import BrandMark from "@/app/components/ui/BrandMark";
 import { style } from "../signIn.styles";
 
 export default function SignInPage() {
@@ -7,8 +8,7 @@ export default function SignInPage() {
       <div className={style.shell}>
         <div className={style.brand}>
           <div className={style.mark} aria-hidden="true">
-            <span className={style.markBack} />
-            <span className={style.markFront} />
+            <BrandMark className={style.markIcon} />
           </div>
           <p className={style.brandName}>Game Review</p>
           <p className={style.tagline}>A quiet study space for your matches, mistakes, and next move.</p>

@@ -51,7 +51,13 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
         <Card className={style.row}>
           <p className={style.meta}>{post.author.displayName} · {formatShortMatchDate(post.createdAt.toISOString(), now)}</p>
           <p className={style.body}>{post.body}</p>
-          <ForumActions postId={post.id} title={post.title} body={post.body} canWrite={canWrite} />
+          <ForumActions
+            postId={post.id}
+            title={post.title}
+            body={post.body}
+            replyCount={post.replies.length}
+            canWrite={canWrite}
+          />
         </Card>
         {post.positions.map(({ studyPosition }, index) => {
           const decoded = decodeForumPosition(studyPosition.positionId, studyPosition.gnuMatchId, studyPosition.kind);

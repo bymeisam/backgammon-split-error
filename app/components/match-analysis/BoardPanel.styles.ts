@@ -67,18 +67,23 @@ export const style = {
   boardSvg: "block h-auto w-full drop-shadow-board",
   // A clickable point or bar hit area, drawn on top of everything and always
   // transparent: the highlights live in their own layers (below). Its focus
-  // stroke replaces the global outline, so that box is turned off.
-  interactiveTarget: (enabled: boolean): string =>
+  // stroke replaces the global outline, so that box is turned off. Function,
+  // 2 params -> passed directly. A selected point or bar already shows the
+  // ring round its top checker, so it drops the outline stroke rather than
+  // doubling up.
+  interactiveTarget: (enabled: boolean, isSelected: boolean): string =>
     clsx(
-      "stroke-transparent focus-visible:outline-none focus-visible:stroke-focus focus-visible:[stroke-width:2]",
+      "stroke-transparent focus-visible:outline-none",
+      !isSelected && "focus-visible:stroke-focus focus-visible:[stroke-width:2]",
       enabled ? "cursor-pointer touch-none" : "cursor-default"
     ),
   // Highlight layer, between the points and the checkers (Board's
   // interactivePointHighlight / interactiveBarHighlight). A movable checker:
   // a 3u bar along the point's base edge, which a stack never covers.
   interactiveSource: "fill-accent",
-  // The selected point: a tint under its stack.
-  interactiveSelected: "fill-accent/30",
+  // The selected point or bar: a ring round the top checker of its stack,
+  // drawn over the checkers (R + 2) so a tall stack can't hide it.
+  interactiveSelected: "pointer-events-none fill-none stroke-focus [stroke-width:2]",
   // Where the selected checker can land: a dashed ghost checker at the next
   // free slot, drawn over the checkers so it shows over a blot it would hit.
   interactiveDestination: "pointer-events-none fill-none stroke-accent [stroke-dasharray:4_3] [stroke-width:2]",

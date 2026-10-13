@@ -246,34 +246,32 @@ export type BoardHighlight = "source" | "selected" | "destination";
 
 const SOURCE_BAR_H = 3;
 
-// The under-checker half of a highlight: the selected tint over the whole
-// point, and the source bar along its base edge (selected keeps the bar, so
-// it reads as the same checker, picked up). A destination draws nothing here.
+// The under-checker half of a highlight: the source bar along the point's
+// base edge (selected keeps the bar, so it reads as the same checker, picked
+// up). The selected ring is drawn over the checkers (SelectedRing). A
+// destination draws nothing here.
 function PointHighlight({ point, highlight }: { point: number; highlight: BoardHighlight }) {
   if (highlight === "destination") return null;
   const cx = colCenterX(pointColumn(point));
   const barY = pointRow(point) === "bottom" ? Y1 - SOURCE_BAR_H : Y0;
   return (
-    <>
-      {highlight === "selected" && <polygon points={trianglePoints(point)} className={style.interactiveSelected} />}
-      <rect x={cx - TRI_HALF_W} y={barY} width={2 * TRI_HALF_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
-    </>
+    <rect x={cx - TRI_HALF_W} y={barY} width={2 * TRI_HALF_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
   );
 }
 
 function BarHighlight({ side, highlight }: { side: Side; highlight: BoardHighlight }) {
   if (highlight === "destination") return null;
   const x = colX(BAR_COL);
-  const top = side === "mine" ? CENTER_Y : Y0;
   const barY = side === "mine" ? Y1 - SOURCE_BAR_H : Y0;
-  return (
-    <>
-      {highlight === "selected" && (
-        <rect x={x} y={top} width={BAR_W} height={ROW_H} className={style.interactiveSelected} />
-      )}
-      <rect x={x} y={barY} width={BAR_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
-    </>
-  );
+  return <rect x={x} y={barY} width={BAR_W} height={SOURCE_BAR_H} className={style.interactiveSource} />;
+}
+
+// The selected checker: a focus-coloured ring round the top checker of the
+// stack, over the checkers so a tall stack can't hide it. stackSlotY clamps
+// the slot, so on a compressed stack it rings the drawn top checker.
+function SelectedRing({ base, count }: { base: StackBase; count: number }) {
+  if (count <= 0) return null;
+  return <circle cx={base.cx} cy={stackSlotY(base, count - 1)} r={R + 2} className={style.interactiveSelected} />;
 }
 
 // The landing marker: a dashed ghost checker in the next free slot. On a
@@ -463,6 +461,28 @@ export default function Board({
           ) : null
         )}
 
+      {/* the selected checker's ring, over the checkers */}
+      {interactivePointHighlight &&
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) =>
+          interactivePointHighlight(point) === "selected" ? (
+            <SelectedRing
+              key={`selected-point-${point}`}
+              base={stackBase(point)}
+              count={decoded.mine[point - 1] || decoded.opponent[point - 1]}
+            />
+          ) : null
+        )}
+      {interactiveBarHighlight &&
+        interactiveBarSides.map((side) =>
+          interactiveBarHighlight(side) === "selected" ? (
+            <SelectedRing
+              key={`selected-bar-${side}`}
+              base={barStackBase(side)}
+              count={side === "mine" ? decoded.mineBar : decoded.opponentBar}
+            />
+          ) : null
+        )}
+
       {(onPointKeyDown || onPointClick || onPointPointerDown || onPointPointerUp || onPointPointerCancel) &&
         Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
           const enabled = interactivePointEnabled?.(point) ?? true;
@@ -471,7 +491,7 @@ export default function Board({
               key={`target-point-${point}`}
               points={trianglePoints(point)}
               fill="transparent"
-              className={style.interactiveTarget(enabled)}
+              className={style.interactiveTarget(enabled, interactivePointHighlight?.(point) === "selected")}
               role="button"
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}
@@ -496,7 +516,7 @@ export default function Board({
               width={BAR_W}
               height={ROW_H}
               fill="transparent"
-              className={style.interactiveTarget(enabled)}
+              className={style.interactiveTarget(enabled, interactiveBarHighlight?.(side) === "selected")}
               role="button"
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}

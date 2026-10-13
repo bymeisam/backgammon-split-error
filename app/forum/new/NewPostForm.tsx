@@ -144,7 +144,9 @@ export default function NewPostForm({ preview }: { preview: DecisionPreview | nu
             {attachment.source === "match" && index === 0 && showPreview && preview ? (
               <div className={style.preview}>
                 <p className={style.previewCaption}>{preview.caption}</p>
-                <Board decoded={preview.position} cube={preview.cube} roll={preview.dice} rollSide="mine" />
+                <div className={style.previewBoard}>
+                  <Board decoded={preview.position} cube={preview.cube} roll={preview.dice} rollSide="mine" />
+                </div>
                 <Button type="button" variant="quiet" size="compact" className={style.previewChange} onClick={() => setShowPreview(false)}>
                   Change decision
                 </Button>
