@@ -1,4 +1,5 @@
 import { SignIn } from "@clerk/nextjs";
+import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 import BrandMark from "@/app/components/ui/BrandMark";
 import { style } from "../signIn.styles";
 
@@ -15,9 +16,9 @@ export default function SignInPage() {
         </div>
         <SignIn
           routing="path"
-          path="/sign-in"
+          path={SIGN_IN_PATH}
           withSignUp={false}
-          forceRedirectUrl="/auth/complete"
+          forceRedirectUrl={AUTH_COMPLETE_PATH}
           appearance={{ elements: style.clerk }}
         />
         <p className={style.note}>Private access. Use the email address that received your invitation.</p>

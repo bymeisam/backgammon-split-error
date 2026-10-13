@@ -11,6 +11,7 @@ import { THEME_COOKIE, themeSettingsFromCookie } from "@/lib/themes";
 import { style } from "./layout.styles";
 import { getAppRole, requireMemberDocument, requireOwnerDocument } from "@/lib/app-auth";
 import { accessTierFor } from "@/lib/accessRules";
+import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -107,7 +108,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       ])}
     >
       <body className={style.body}>
-        <ClerkProvider>
+        <ClerkProvider
+          signInUrl={SIGN_IN_PATH}
+          signInFallbackRedirectUrl={AUTH_COMPLETE_PATH}
+          signUpFallbackRedirectUrl={AUTH_COMPLETE_PATH}
+        >
           <GameStatsAuthProvider>
             {!isPublicRoute && <AppNav role={role} />}
             <DecisionNotesProvider>

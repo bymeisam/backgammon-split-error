@@ -2,6 +2,7 @@ import { isLocalAuthBypass } from "@/lib/localAuthBypass";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 
 // Two jobs, in this order, for every page and API request:
 //
@@ -51,27 +52,32 @@ function isGalaxyPath(pathname: string): boolean {
 // returns to, which provisions the AppUser row.
 function isPublicPath(pathname: string): boolean {
   return (
-    pathname === "/sign-in" ||
-    pathname.startsWith("/sign-in/") ||
-    pathname === "/auth/complete"
+    pathname === SIGN_IN_PATH ||
+    pathname.startsWith(`${SIGN_IN_PATH}/`) ||
+    pathname === AUTH_COMPLETE_PATH
   );
 }
 
-export default clerkMiddleware(async (auth, req) => {
-  // app/layout.tsx can't see the request path, so pass it on as a header:
-  // the layout uses it to skip the owner check and navbar on public pages.
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-app-route", req.nextUrl.pathname);
+// signInUrl: where auth.protect() sends signed-out visitors (our own page,
+// not Clerk's hosted Account Portal); lib/clerkConfig.ts.
+export default clerkMiddleware(
+  async (auth, req) => {
+    // app/layout.tsx can't see the request path, so pass it on as a header:
+    // the layout uses it to skip the owner check and navbar on public pages.
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-app-route", req.nextUrl.pathname);
 
-  if (isGalaxyPath(req.nextUrl.pathname) && !isGalaxyEnabled()) {
-    return new NextResponse("Not Found", { status: 404 });
-  }
-  if (isPublicPath(req.nextUrl.pathname) || isLocalAuthBypass()) {
+    if (isGalaxyPath(req.nextUrl.pathname) && !isGalaxyEnabled()) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+    if (isPublicPath(req.nextUrl.pathname) || isLocalAuthBypass()) {
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+    await auth.protect();
     return NextResponse.next({ request: { headers: requestHeaders } });
-  }
-  await auth.protect();
-  return NextResponse.next({ request: { headers: requestHeaders } });
-});
+  },
+  { signInUrl: SIGN_IN_PATH }
+);
 
 export const config = {
   matcher: [

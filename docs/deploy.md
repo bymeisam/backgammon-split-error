@@ -12,8 +12,7 @@ only you can do (env vars, Oracle firewall, verifying the deploy).
 ## Required environment variables (production + preview)
 
 Set these on Vercel (Project Settings → Environment Variables), for both the
-Production and Preview environments. `NEXT_PUBLIC_*` values are inlined at
-build time, so redeploy after changing them:
+Production and Preview environments:
 
 | Variable                | Value |
 | ----------------------- | ----- |
@@ -21,9 +20,8 @@ build time, so redeploy after changing them:
 | `DATABASE_URL_APP`      | `mysql://bg_db_app:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` — every in-app write: the forum, decision notes, tags, review, AppUser provisioning (grants in `scripts/sql/app-db-user.sql`) |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's publishable key |
 | `CLERK_SECRET_KEY`      | Clerk's server-only secret key |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` — without it, Clerk sends signed-out visitors to its hosted Account Portal at `accounts.<domain>`, which can't exist on `*.vercel.app` |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/auth/complete` |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/auth/complete` |
+
+The Clerk sign-in and after-auth paths are set in code (`lib/clerkConfig.ts`), so Vercel needs only the two Clerk keys.
 
 **Never set `DATABASE_URL` on Vercel**, and **don't set `ENABLE_WRITE_MODE`
 on Vercel either — leave it unset.** The admin client (`prisma`, `bg_db_rw`)

@@ -2,13 +2,19 @@
 // paths 404 before any handler runs, while the in-app write routes (notes,
 // tags, review), which check isAppWriteEnabled() themselves, pass through.
 // Clerk is mocked to a pass-through wrapper and the local auth bypass is on,
-// so only the gate decides the response.
+// so only the gate decides the response. The mock also records the options
+// proxy.ts passes to clerkMiddleware, so the sign-in redirect target is
+// checked without running real Clerk.
 import { describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
+const clerkOptions = vi.hoisted(() => ({ value: undefined as unknown }));
+
 vi.mock("@clerk/nextjs/server", () => ({
-  clerkMiddleware: (handler: (auth: unknown, req: NextRequest) => Promise<Response>) => (req: NextRequest) =>
-    handler({ protect: async () => {} }, req),
+  clerkMiddleware: (handler: (auth: unknown, req: NextRequest) => Promise<Response>, options?: unknown) => {
+    clerkOptions.value = options;
+    return (req: NextRequest) => handler({ protect: async () => {} }, req);
+  },
 }));
 vi.mock("@/lib/galaxyGate", () => ({ isGalaxyEnabled: () => false }));
 vi.mock("@/lib/localAuthBypass", () => ({ isLocalAuthBypass: () => true }));
@@ -39,4 +45,10 @@ describe("proxy with the Galaxy gate off", () => {
       expect(await status(pathname)).toBe(404);
     }
   );
+});
+
+describe("proxy's Clerk options", () => {
+  it("sends signed-out visitors to our own /sign-in page, not Clerk's Account Portal", () => {
+    expect(clerkOptions.value).toEqual({ signInUrl: "/sign-in" });
+  });
 });

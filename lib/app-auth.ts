@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { isLocalAuthBypass, localBypassIdentity } from "@/lib/localAuthBypass";
 import { isMemberOrOwner, resolveAppRole, type AppRole } from "@/lib/appRole";
+import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 
 export type { AppRole } from "@/lib/appRole";
 
@@ -139,8 +140,8 @@ export async function requireMemberApi(): Promise<NextResponse | null> {
 export async function requireMemberDocument(): Promise<AppAuthState> {
   try {
     const state = await getAppAuthState();
-    if (!state) redirect("/sign-in");
-    if (!isMemberOrOwner(state.role)) redirect("/auth/complete");
+    if (!state) redirect(SIGN_IN_PATH);
+    if (!isMemberOrOwner(state.role)) redirect(AUTH_COMPLETE_PATH);
     return state;
   } catch (error) {
     if (isNextNavigationSignal(error)) throw error;
