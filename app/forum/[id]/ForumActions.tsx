@@ -130,7 +130,7 @@ export default function ForumActions({
         ) : (
           replyCount > 0 && (
             <p className={style.modalText}>
-              {replyCount === 1 ? "Its 1 reply goes with it." : `Its ${replyCount} replies go with it.`}
+              {replyCount === 1 ? "Its reply goes with it." : `Its ${replyCount} replies go with it.`}
             </p>
           )
         )}

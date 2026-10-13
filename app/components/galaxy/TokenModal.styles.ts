@@ -12,7 +12,7 @@ export const style = {
   // tab raised on the track.
   tabButton: (isActive: boolean): string =>
     clsx(
-      "rounded-[7px] px-4 py-1.5 text-sm font-medium transition-colors",
+      "rounded-inset px-4 py-1.5 text-sm font-medium transition-colors",
       isActive ? "bg-surface text-ink shadow-card" : "text-ink-muted hover:text-ink"
     ),
   // Shared by the curl-command label and the authorization label.

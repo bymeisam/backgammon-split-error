@@ -141,6 +141,10 @@ The fonts load in `app/layout.tsx` with `next/font`; the theme file points
 selects), `rounded-card` (14px, cards and list panels). `rounded-full` only
 for pills: the Filter toggle, tag chips, the due badge.
 
+`rounded-inset` (6px) is for the options inside a segmented control. The
+recipe: a `rounded-control` track with `p-[3px]`, and options with
+`rounded-inset`, so the option's corner sits concentric with the track's.
+
 ### Shadows and scrim
 
 - `shadow-card` (cards) and `shadow-raised` (modals, menus, dropdowns) are

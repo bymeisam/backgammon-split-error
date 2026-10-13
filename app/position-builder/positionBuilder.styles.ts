@@ -19,12 +19,12 @@ export const style = {
   // A legend sits outside the fieldset's flex flow, so the gap doesn't reach
   // it: its own margin separates "Score" from the Bottom/Top labels below.
   legend: "mb-2 text-xs font-medium text-ink-faint",
-  segmented: "grid grid-cols-2 gap-1 rounded-control bg-sunken p-1 ring-1 ring-inset ring-line",
+  segmented: "grid grid-cols-2 gap-1 rounded-control bg-sunken p-[3px] ring-1 ring-inset ring-line",
   // Function, 1 param -> passed directly. One option in a segmented control
   // (side, action, decision type): the picked one lifts onto the surface.
   segmentOption: (selected: boolean): string =>
     clsx(
-      "rounded-control px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+      "rounded-inset px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
       selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
     ),
   fieldGrid: "grid grid-cols-2 gap-3",

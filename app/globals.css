@@ -125,6 +125,7 @@
   --text-figure--letter-spacing: -0.02em;
 
   --radius-chip: 0.3125rem; /* 5px: severity and classification chips */
+  --radius-inset: 0.375rem; /* 6px: an option inside a 3px-padded segmented track */
   --radius-control: 0.5625rem; /* 9px: buttons, inputs, selects */
   --radius-card: 0.875rem; /* 14px: cards, list panels */
 }

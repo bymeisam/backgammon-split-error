@@ -64,7 +64,7 @@ export const style = {
   // track; the radio inside is visually hidden.
   modeOption: (selected: boolean): string =>
     clsx(
-      "cursor-pointer rounded-[7px] px-4 py-1.5 text-sm font-medium transition-colors",
+      "cursor-pointer rounded-inset px-4 py-1.5 text-sm font-medium transition-colors",
       "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus",
       selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
     ),
