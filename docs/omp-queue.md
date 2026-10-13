@@ -4,47 +4,25 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Review: note-aware second try and "Do you know the reason?" (queued 2026-10-13, after Phase 4)
-Approved by the user. Independent of Phase 4 and of master: no schema or API change. Touches `app/review/`, `lib/reviewKeys.ts`, `lib/shortcuts.ts` (and their tests) only.
+### Review notes on `omp/main` at `b657ca6` (queued 2026-10-13)
+Reviewed: Phase 4 part 2 (`322b9a2`) and the review second try (`2e969ab`). The investigator re-ran vitest (759/759), tsc and lint, all clean, and confirmed by reading the code: the proposal transactions, the body-only edit keeping proposals, the duplicate/attachment/kind/legality checks (server-side), the member auth, the tally per position, and the review flow (saves once, Hard after a second try, Again when wrong, whole-card duration, first choice disabled). **No logic defects.** What's left before merge:
 
-Today (`app/review/ReviewSession.tsx`): `choose()` grades locally; a wrong answer is saved as Again at once and the back (verdict, best move, options table, Yours/Best boards, note via `<ReviewNote>`) waits for "Next card"; a right answer shows the back with Hard/Good/Easy. The note is already in every card payload (`card.decision.note`, non-null = has a note) but only rendered on the back. Server rule (`lib/review/requests.ts` `ratingFor`): wrong → Again only; right → hard/good/easy. Wrong cards are requeued locally after 3 cards (`AGAIN_REQUEUE_AFTER_CARDS`).
+**1. Visual coverage (blocker).** None of the screenshots show the new features, so neither has been visually reviewed.
+- Forum: the local DB has **0 ForumMoveProposal rows**, so no screenshot shows a chip, a tally or an open draft. Add proposal replies to a test post locally (through the app or the API, as a test AppUser; say which rows you created), then capture: a reply with a checker chip, a reply with a cube chip, a tally with ≥2 rows open, the checker chip's modal, and the reply composer with an open `ProposalDraft` (checker and cube). 390 and 1280, light and dark. The `forum-write-replay-move2` shots don't show the feature, so drop them from this set.
+- Review: capture the reason question, the "Not quite" retry front (first choice crossed out), the Hard-only back, and the Hard/Good back. Fix the `/review` capture that timed out on the queue response.
+- Then have the visual-reviewer open the new screenshots (not just check that the files exist), and list the files it opened in "Ready for review".
 
-New flow, **only for cards with a note** (cards without one keep today's behaviour exactly):
-```
-Right first time → "Do you know the reason?" (note hidden until answered)
-    Yes → back with the note → Hard / Good / Easy
-    No  → back with the note → Hard / Good
-Wrong first time
-    receiver card (take/pass, options.length === 2) → today's back → Next, saved as Again
-    otherwise → "Not quite", show the note only (no best move, no loss) → try again,
-                with the first choice shown crossed out and not selectable
-        right → back → Hard only
-        wrong → back with the best move → Next, saved as Again
-```
-- Save **once**, when the card's outcome is final, with the existing POST `/api/review/cards/[id]/answer` body (`chosen` = the final choice; `rating`). Don't save after the first wrong choice. A second-try success posts the correct `chosen` with `rating: "hard"`, which the server already accepts. The Hard-only and Hard/Good caps are enforced in the UI.
-- `durationMs` covers the whole card, both tries included.
-- Keep the save-failed "Retry saving" path working for every final state.
-- Keyboard: update `reviewKeyAction` contexts in `lib/reviewKeys.ts` for the new steps (reason question Y/N, retry front) and the "?" list in `lib/shortcuts.ts`, with tests (`lib/reviewKeys.test.ts`).
-- Checks: vitest, tsc, eslint, build, and the visual suite. Screenshots of each new state with `scripts/design-screenshots.ts` into `design/screenshots/<date>-review-second-try/`, checked by the visual-reviewer. Local test data has one review card with a note; add a second note or card locally if needed and say so.
-- Add a PROGRESS.md entry, then an entry under "Ready for review".
+**2. Code clean-up.**
+- `app/review/ReviewSession.tsx` and `lib/reviewKeys.ts`: the file-header comments were cut down to a line or two. Restore them, updated for the new flow: the reason step (Y / Enter = yes, N = no), the retry front, and the Hard-only and Hard/Good backs. The repo keeps these headers as the reference for the keys.
+- `ReviewSession.tsx` grade buttons: put back `aria-hidden="true"` on the `gradeKey` spans (screen readers now read "⇧H"). Render Good once (`ratingLimit !== "hard"`) and Easy when `ratingLimit === undefined`, instead of two separate Good buttons. Keep the old multi-line JSX formatting.
+- Hard-only back: `rate()` saves and advances in one step, so the "Next card / Recorded as Hard" state never appears after a successful save. Either drop that branch or stop advancing on save; pick one and keep the keys in step.
+- The reason step shows no key hint. Add one, like the front's hint line ("Y / Enter: yes · N: no").
+- `app/forum/[id]/page.tsx` tally: the notation is found by parsing the proposal id out of `first.key.split(":")[1]`. Carry `notation` (and the proposal id) through the tally input instead. `ProposalTallyViewModel.label` is unused, so remove it.
+- `ProposalDisplay.tsx`: in `ProposalPreview`, the CUBE case has already returned, so the `proposal.kind === "CHECKER" ? … : …` ternaries below it are dead code. The cube chip (a span) and the checker chip (a button that opens a modal) look the same; give the clickable one an affordance (hover state or an icon).
+- `forum.styles.ts`: `proposalDraft` is `flex flex-col`, so "Propose this move" stretches to full width; add `items-start`. Remove `proposalNotice` if it's unused now.
+- The comments that got lost or moved: restore the reply POST route's header (what it does, write mode only) and fix the `ReplyComposer` comment "Completed plays remain selected until submitted or explicitly removed." It now sits above the code that clears the drafts after posting.
 
-### Phase 4, part 2: proposal APIs and real data (queued 2026-10-13)
-Start after part 1. **First merge `master` into `omp/main`, then run `npx prisma generate`**: master's `adf2cdf` added `ForumMoveProposal` and enum `ForumCubeAction` (see prisma/schema.prisma), and they're already applied to the shared local DB.
-- The reply create API (`app/api/forum/posts/[id]/replies/route.ts`) and edit API (`app/api/forum/replies/[id]/route.ts`) accept `proposals: [{studyPositionId, resultPositionId} | {studyPositionId, cubeAction}]`.
-- Validate with part 1's helpers: the position belongs to the post and its kind fits the proposal; checker results must be reachable through `legalSequences`, and the server stores its own notation; cube actions must be allowed by `doubleOffered`. At most one proposal per position per reply (the DB unique key enforces it too).
-- A reply needs text **or** at least one proposal. Editing a reply replaces its proposals. Deleting a reply removes them (FK cascade).
-- Load proposals with the post (`app/forum/[id]/page.tsx`) and wire part 1's UI to real data: the chips in replies and the collapsed "Show proposals (n)" tally per position.
-- Checks: tests for the APIs, tsc, eslint, vitest, build; screenshots with `scripts/design-screenshots.ts` checked by the visual-reviewer. Then add an entry under "Ready for review".
-- **Review notes on part 1 (`421d419`), fold these into part 2:**
-  - Use the generated Prisma enum `ForumCubeAction` instead of the hand-written `CubeAction` union in `lib/forumProposals.ts`, and move the cube labels (duplicated in `ProposalDraft.tsx` and `ProposalDisplay.tsx`) into one place. Use the app's usual cube wording: "No double", "Double/Take", "Double/Pass", "Too good/Pass", "Take", "Pass".
-  - Sort the tally by count (highest first), then first-seen.
-  - A cube proposal's chip shouldn't open a board modal (it would show the same position as the post); just show the action.
-  - Remove the "Draft only" and "will not be saved yet" notices once saving works, and drop `required` from the reply textarea (text or at least one proposal, checked on submit and on the server).
-  - Don't lose a completed but not yet "used" play silently when the proposal controls are closed: either keep it or make "Use this play" the obvious next step.
-  - `page.tsx` decodes each position twice (`proposalPositions` and the render loop); decode once.
-
-### Phase 4, part 1: helpers and UI, no DB (in progress, started 2026-10-13)
-Given to omp directly. In short: `lib/forumProposals.ts` (`validateCheckerProposal` with doubles expanded to four dice, `cubeActionsFor`, a tally helper); an optional `onChange` callback on `CheckerMoveExplorer`; the UI pieces (propose controls in the reply composer, cube buttons for CUBE positions, a proposal chip that opens the board after the play, a collapsed "Show proposals (n)" panel), built against typed props.
+Checks: vitest, tsc, lint, build. Add a PROGRESS.md entry, then an entry under "Ready for review".
 
 ## Schema requests (omp → master)
 
@@ -59,3 +37,7 @@ _Use this shape:_
 _Branch `omp/main` at commit …, what was done, which checks ran._
 
 ## Done
+
+- **Phase 4 part 2: proposal APIs and real data**: `322b9a2` (2026-10-13). Reviewed; the follow-ups are in the task above.
+- **Review: note-aware second try and "Do you know the reason?"**: `2e969ab` (2026-10-13). Reviewed; the follow-ups are in the task above.
+- **Phase 4 part 1: helpers and UI, no DB**: `421d419` (2026-10-13).
