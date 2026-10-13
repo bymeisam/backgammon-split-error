@@ -46,5 +46,6 @@ _Use this shape:_
 Implemented on `omp/main`; reply routes validate text-or-proposal, attachment ownership and kind, legal checker results, cube actions, and per-reply duplicate positions. Create and replacement edits are transactional; body-only edits preserve existing proposals. Replies display persisted chips and per-position count-sorted tallies. Uses generated `ForumCubeAction`, shared exact labels, non-modal cube chips, decoded-position reuse, client submit validation, and retained checker drafts.
 
 Verification: targeted reply/proposal tests passed; full Vitest **756/756**, `npx tsc --noEmit`, `npm run lint`, and `npm run build` passed. `npm run test:visual` could not run because `.env.test` is absent (left untouched). Forty forum screenshots captured under `design/screenshots/2026-10-13-forum-proposals/`; manually inspected the 390px light post page. The reviewer checked file presence only, not image contents.
+Commit: `322b9a2`.
 
 ## Done
