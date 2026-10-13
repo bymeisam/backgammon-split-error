@@ -8,6 +8,7 @@ import { newSchedule } from "@/lib/review/fsrs";
 import { planBulkAdd } from "@/lib/review/bulk";
 import { readJsonObject } from "@/lib/review/requests";
 import type { BulkAddResponse } from "@/lib/review/types";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ function optionalString(v: unknown): string | undefined | null {
 // Read-write client (the walk runs inside the transaction too, so the count
 // and the insert agree). Gated by proxy.ts (/api/review/:path*).
 export async function POST(req: Request) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const body = await readJsonObject(req);
   const phase = optionalString(body?.phase);
   const category = optionalString(body?.category);

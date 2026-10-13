@@ -210,6 +210,8 @@ export default async function GameReplayPage({
           initialIndex={initialIndex}
           myColor={myColor}
           canEditNotes={isGalaxyEnabled()}
+          // Same gate as the forum write routes (lib/forum.ts writeAllowed).
+          canPostToForum={isGalaxyEnabled()}
         />
       )}
     </PageShell>

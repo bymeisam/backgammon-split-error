@@ -9,6 +9,7 @@ import { useMoveTableKeys } from "@/app/hooks/useMoveTableKeys";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
 import DecisionList, { SeverityLegend } from "@/app/components/match-analysis/DecisionList";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
+import Button from "@/app/components/ui/Button";
 import { doubleOfferLabel } from "@/lib/cubeState";
 import { style } from "./gameReplay.styles";
 
@@ -29,6 +30,7 @@ export default function GameReplay({
   initialIndex,
   myColor,
   canEditNotes,
+  canPostToForum,
 }: {
   matchId: string;
   decisions: Decision[];
@@ -43,6 +45,8 @@ export default function GameReplay({
   myColor: string | null;
   // isGalaxyEnabled(), computed by the server page — see DecisionNote.
   canEditNotes: boolean;
+  // isGalaxyEnabled(), the forum write gate; hides "Post to forum" when off.
+  canPostToForum: boolean;
 }) {
   const router = useRouter();
   // Positional (index) selection, not id-based like the mistakes lists —
@@ -186,16 +190,24 @@ export default function GameReplay({
               >
                 Next <kbd className={style.kbd}>↓</kbd>
               </button>
-              {myColor !== null && (
-                <label className={style.perspectiveToggle} title="Keep my checkers on the same side">
-                  <input
-                    type="checkbox"
-                    checked={fixedPerspective}
-                    onChange={(e) => setFixedPerspective(e.target.checked)}
-                  />
-                  Fixed perspective
-                </label>
-              )}
+              <span className={style.stepperEnd}>
+                {myColor !== null && (
+                  <label className={style.perspectiveToggle} title="Keep my checkers on the same side">
+                    <input
+                      type="checkbox"
+                      checked={fixedPerspective}
+                      onChange={(e) => setFixedPerspective(e.target.checked)}
+                    />
+                    Fixed perspective
+                  </label>
+                )}
+                {/* Links the decision on screen (selectedIndex), not the one the page opened on. */}
+                {canPostToForum && selected?.dbDecisionId && (
+                  <Button variant="secondary" size="small" href={`/forum/new?decision=${selected.dbDecisionId}`}>
+                    Post to forum
+                  </Button>
+                )}
+              </span>
             </div>
           }
         />

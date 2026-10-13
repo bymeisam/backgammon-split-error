@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireOwnerApi } from "@/lib/app-auth";
 import { createGalaxyClient } from "@/lib/galaxy-client";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +8,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string; gameIndex: string }> }
 ) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const { matchId: matchIdParam, gameIndex: gameIndexParam } = await params;
   const matchId = Number(matchIdParam);
   const gameIndex = Number(gameIndexParam);

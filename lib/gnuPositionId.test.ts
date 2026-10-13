@@ -5,7 +5,7 @@
 // fetched and used earlier this session, for the /mistakes dice-roll work)
 // — see the "real match data" describe block below.
 import { describe, expect, it } from "vitest";
-import { decodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
+import { decodeGnuPositionId, encodeGnuPositionId, flipPerspective } from "@/lib/gnuPositionId";
 
 describe("decodeGnuPositionId", () => {
   // The standard backgammon starting position — a fixed, universally known
@@ -145,5 +145,39 @@ describe("flipPerspective", () => {
       expect(mineTotal).toBe(15);
       expect(opponentTotal).toBe(15);
     }
+  });
+});
+
+describe("encodeGnuPositionId", () => {
+  // The position builder and the forum store positions as GNU Position IDs,
+  // so encoding must be the exact inverse of decoding.
+  it("round-trips known IDs and empty positions", () => {
+    for (const id of ["4HPwATDgc/ABMA", "4PPCATDgc/ABMA", "sNsmARTYzuABMA"]) {
+      expect(encodeGnuPositionId(decodeGnuPositionId(id))).toBe(id);
+    }
+
+    // Everything borne off: no checkers on any point or the bar.
+    const empty = {
+      mine: new Array(24).fill(0),
+      opponent: new Array(24).fill(0),
+      mineBar: 0,
+      opponentBar: 0,
+      mineOff: 15,
+      opponentOff: 15,
+    };
+    expect(decodeGnuPositionId(encodeGnuPositionId(empty))).toEqual(empty);
+  });
+
+  it("rejects invalid totals", () => {
+    // Only 14 checkers on the bottom side: not a real position.
+    const missingChecker = {
+      mine: new Array(24).fill(0),
+      opponent: new Array(24).fill(0),
+      mineBar: 0,
+      opponentBar: 0,
+      mineOff: 14,
+      opponentOff: 15,
+    };
+    expect(() => encodeGnuPositionId(missingChecker)).toThrow();
   });
 });

@@ -88,6 +88,47 @@ export function decodeGnuPositionId(id: string): DecodedPosition {
   return { mine, opponent, mineBar, opponentBar, mineOff, opponentOff };
 }
 
+/** Encode the decoder's mover-relative perspective into a GNU Position ID. */
+export function encodeGnuPositionId(position: DecodedPosition): string {
+  const sides = [
+    [...position.opponent.slice().reverse(), position.opponentBar],
+    [...position.mine, position.mineBar],
+  ];
+  const bits: number[] = [];
+  for (const slots of sides) {
+    for (const count of slots) {
+      if (!Number.isInteger(count) || count < 0 || count > 15) {
+        throw new Error("GNU position checker counts must be integers from 0 through 15.");
+      }
+      for (let i = 0; i < count; i++) bits.push(1);
+      bits.push(0);
+    }
+  }
+  if (position.mineOff < 0 || position.opponentOff < 0 ||
+      checkerCount(position.mine, position.mineBar, position.mineOff) !== 15 ||
+      checkerCount(position.opponent, position.opponentBar, position.opponentOff) !== 15) {
+    throw new Error("GNU position sides must contain exactly 15 checkers.");
+  }
+  while (bits.length < 80) bits.push(0);
+  if (bits.length > 80) throw new Error("GNU position encoding exceeds 80 bits.");
+  const bytes = new Uint8Array(10);
+  for (let i = 0; i < 80; i++) bytes[i >> 3] |= bits[i] << (i & 7);
+  let output = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i];
+    const b = bytes[i + 1] ?? 0;
+    const c = bytes[i + 2] ?? 0;
+    const n = (a << 16) | (b << 8) | c;
+    output += BASE64_CHARS[(n >> 18) & 63] + BASE64_CHARS[(n >> 12) & 63] +
+      BASE64_CHARS[(n >> 6) & 63] + BASE64_CHARS[n & 63];
+  }
+  return output.slice(0, 14);
+}
+
+function checkerCount(points: number[], bar: number, off: number): number {
+  return points.reduce((total, count) => total + count, bar + off);
+}
+
 // For a fixed-perspective board view (app/matches/[matchId]/replay): when
 // the decision on screen belongs to the opponent (relative to some fixed
 // "my" color), decodeGnuPositionId's own output already has mine/opponent

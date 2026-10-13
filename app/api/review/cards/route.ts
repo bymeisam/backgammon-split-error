@@ -4,6 +4,7 @@ import { ELIGIBILITY_SELECT, isUniqueViolation } from "@/lib/review/db";
 import { reviewEligibility } from "@/lib/review/eligibility";
 import { newSchedule } from "@/lib/review/fsrs";
 import { positiveId, readJsonObject } from "@/lib/review/requests";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 // Gated by proxy.ts's matcher (/api/review/:path*): 404 unless
 // isGalaxyEnabled(), like every other write route.
 export async function POST(req: Request) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const body = await readJsonObject(req);
   const decisionId = positiveId(body?.decisionId);
   if (decisionId === null) {

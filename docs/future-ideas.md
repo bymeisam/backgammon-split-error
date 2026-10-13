@@ -74,15 +74,84 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Why deferred:** it needs an interactive board that takes move input, which is a big piece of UI work. The first version uses a multiple-choice list (decided 2026-10-06).
 - **Notes:** the same interactive board would also serve [position search](#position-search-from-a-manual-board).
 
+### Interactive forum checker explorer (phase 1, 2026-10-12)
+Forum checker attachments with valid GNU Position and Match IDs now include a
+client-only legal-move explorer. It supports direct clicks on a legal checker
+source (choosing the largest currently usable die), pointer drag-and-drop from
+a checker or bar source to a legal destination, bar entry, blocked points,
+hits, doubles, dice ordering, maximum dice use, bearing off and oversized
+bear-off, with ephemeral undo/reset state. Accessible destination buttons and
+keyboard point targets remain available as fallbacks. Cube attachments remain
+static. The pure checker engine is intentionally independent of React and
+ForumPost so the same explorer can later be reused by review cards; engine
+evaluation, best-move comparison, cube interaction, match scoring and spaced
+repetition remain future phases.
+
 ### Position search from a manual board
 - **Idea:** set up a position on screen, encode it to a GNU Position ID, and search your decisions for that exact position.
 - **Notes:** other sources may use a different position-ID format, such as XG's, so this needs a common representation. Closely related to [notes on a position](#notes-on-a-position-not-just-a-decision).
 - **Source:** user's idea list, 2026-10-06.
 
 ### Forum
-- **Idea:** discuss or chat about specific positions.
-- **Notes:** needs auth and multiple users first (see [Vercel deploy](#vercel-deploy-behind-auth)).
-- **Source:** user's idea list, 2026-10-06.
+- **Idea:** a position-centered discussion space for questions, explanations, and future review. The core loop is:
+  1. See a position.
+  2. Post a question or analysis.
+  3. Discuss it.
+  4. Resolve the discussion.
+  5. Review the position later.
+- **Current foundation:** forum posts attach immutable `StudyPosition` rows. A position can originate from the position builder or from a Galaxy match decision. Posts now support up to four ordered position attachments, including mixed manual and match-decision sources. The local owner-only forum vertical slice is implemented; public multi-user access remains future work.
+- **Source:** user's product context and forum planning, 2026-10-12.
+
+#### Recommended additions
+
+##### Position discussion quality
+- **Position provenance links:** link an attachment back to its originating match, game, replay decision, or builder context.
+- **Structured position metadata:** show checker/cube type, dice, cube value and owner, score, match length, GNU Position ID, GNU Match ID, and source decision.
+- **Multiple position attachments:** support before/after/candidate positions in one post. **Status:** implemented with up to four ordered manual or match-decision attachments.
+- **Multiple candidate moves:** compare the played move, best move, and alternative ideas in one discussion.
+
+##### Discovery and organization
+- **Controlled tags:** begin with tags such as `checker-play`, `cube-decision`, `opening`, `bearoff`, `match-play`, and `question`.
+- **Search and filters:** search title/body and filter by tag, position kind, source, and match ID.
+- **Duplicate detection:** warn when the same GNU Position ID + GNU Match ID is already being discussed.
+
+##### Discussion lifecycle
+- **Post status:** support `Open`, `Resolved`, and `For review`.
+- **Best answer:** mark one reply as the accepted explanation.
+- **Edit history:** preserve changes to post bodies and attachments once discussions become valuable historical study records.
+- **Add to review:** convert a forum position into a self-rated review card without duplicating the board representation.
+
+##### Later community features
+- **Notifications and following:** notify a user when a followed discussion receives a reply. Defer until there are multiple users.
+- **Moderation and reporting:** add ownership, visibility, report, and moderation controls before opening the forum publicly.
+
+#### Architectural direction
+- Keep these concepts separate:
+  - **Forum post:** user-authored discussion and explanation.
+  - **Study position:** immutable board and match context.
+  - **Review card:** scheduling state and learning workflow.
+  - **Reply:** discussion response, optionally marked as the best answer.
+- A post should reference a study position. A review card should reference the study position or post attachment, not duplicate the board representation.
+- Preserve exact position and match identifiers so a forum discussion remains reproducible.
+
+#### Suggested sequence
+1. Position provenance and metadata.
+2. Multiple position attachments.
+3. Tags and search.
+4. Self-rated “Add to review”.
+5. Resolved/best-answer workflow.
+6. Public-user authorization and moderation.
+7. Notifications and other social features.
+
+#### Defer for now
+- Likes and upvotes.
+- Reputation systems.
+- Followers and social graphs beyond the later notification idea.
+- Categories and subforums.
+- Rich-text editing.
+- Real-time updates.
+- Generic social-post abstractions.
+- Public moderation infrastructure before public access is actually approved.
 
 ## Decision notes
 
@@ -95,8 +164,8 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 - **Why deferred:** for now, notes appear wherever a decision is shown, plus a dot on list rows. Build this once there are enough notes to make browsing them worthwhile.
 
 ### Notes visible only to the match owner
-- **Idea:** once the app has auth, show a note (pages and `/api/decision-notes`) only to the owner of the match it belongs to. Today, notes on Oracle are readable by anyone on the public read-only site.
-- **Why deferred:** there's no auth yet. The user accepted public notes for now (2026-10-06).
+- **Idea:** once the app has auth, show a note (pages and `/api/decision-notes`) only to the owner of the match it belongs to. The current Clerk wall protects the single approved app owner; per-match ownership is still not modeled.
+- **Why deferred:** source data remains shared and the current deployment admits one owner. Per-user study ownership will require a separate data-model decision.
 
 ## Progress tracking
 
@@ -107,8 +176,9 @@ The user accepted the Galaxy-style cube display for now but wants to look at it 
 ## Deployment and auth
 
 ### Vercel deploy behind auth
-- **Idea:** deploy to Vercel as a read-only viewer first, with the Galaxy pages and routes hidden until the app sits behind an auth wall that admits only you.
-- **Notes:** the first part already exists. The app is deployable as a read-only viewer (`app/status/notes.ts`, `docs/deploy.md`), and `/galaxy/*` plus the write routes return 404 unless `ENABLE_WRITE_MODE` is set (`proxy.ts`, `lib/galaxyGate.ts`). The open part is the auth wall. That same auth is what [owner-only notes](#notes-visible-only-to-the-match-owner) and the [forum](#forum) need.
+- **Idea:** deploy to Vercel as a read-only viewer behind an auth wall that admits only you.
+- **Status:** implemented with Clerk's invite-only sign-in, a local `AppUser` allowlist, and independent owner flags in Clerk private metadata and the local database. The app remains read-only unless `ENABLE_WRITE_MODE` and the regular write credential are deliberately enabled.
+- **Follow-up:** configure the Vercel Clerk keys, create the `DATABASE_URL_AUTH` AppUser-only grant, apply the AppUser migration, and set both owner flags for the approved account.
 - **Source:** user's idea list, 2026-10-06.
 
 ## Settings

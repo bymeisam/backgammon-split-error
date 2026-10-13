@@ -17,6 +17,7 @@
     "agents:sync": "tsx scripts/sync-agents.ts"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.9.14",
     "@prisma/adapter-mariadb": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "clsx": "^2.1.1",

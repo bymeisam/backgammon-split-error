@@ -1,14 +1,18 @@
 "use client";
 
+import type { KeyboardEvent } from "react";
 import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { ParsedSubMove } from "@/lib/backgammonNotation";
 import type { BoardCube } from "@/lib/boardFrame";
 import {
+  BAR_W,
+  CENTER_Y,
   BAR_COL,
   BOARD_H,
   BOARD_W,
   CUBE_BADGE_R,
   DIE_SIZE,
+  ROW_H,
   MAX_STACK,
   NUMBER_BOTTOM_Y,
   NUMBER_TOP_Y,
@@ -18,9 +22,11 @@ import {
   OFF_TRACK_X,
   R,
   RING_R,
+  TRI_HALF_W,
   Y0,
   Y1,
   barStackBase,
+  colCenterX,
   colX,
   cubeBadgeCenter,
   diePips,
@@ -31,6 +37,7 @@ import {
   offeredCubeCenter,
   offTrayBounds,
   offTrayRect,
+  pointColumn,
   pointRow,
   stackBase,
   stackSlotY,
@@ -43,8 +50,9 @@ import { style, type ArrowTier } from "./BoardPanel.styles";
 
 // Drawn in the order of the Clubroom mockup's board() (design/mockups/
 // replay.html): frame, bone, trays, points, numbers, off-tray contents,
-// checkers, bar checkers, cube, arrows, dice. Every position comes from
-// lib/boardGeometry.ts.
+// checkers, bar checkers, cube, arrows, dice. Interactive boards add their
+// highlights under the checkers, landing markers over them, and transparent
+// hit areas on top. Every position comes from lib/boardGeometry.ts.
 
 function OffTray({ side, count }: { side: Side; count: number }) {
   const { fill, contrast, rim } = CHECKER_PALETTE[side];
@@ -139,13 +147,24 @@ function Cube({ cube }: { cube: BoardCube | null }) {
   );
 }
 
-// One die, drawn in the mover's checker colour with the other side's pips.
-// Board-only: the lists' small dice are Dice.tsx.
-function BoardDie({ value, index, side }: { value: number; index: number; side: Side }) {
+// One die, drawn in the mover's checker colour. In builder mode it is also
+// the value editor, so the die itself is an accessible button.
+function BoardDie({
+  value,
+  index,
+  side,
+  onClick,
+}: {
+  value: number;
+  index: number;
+  side: Side;
+  onClick?: () => void;
+}) {
   const { x, y } = diePosition(index);
   const s = DIE_SIZE;
-  return (
-    <g>
+  const die = (
+    <>
+      {onClick && <rect x={x - 3} y={y - 3} width={s + 6} height={s + 6} rx={5} className={style.dieFocusRing} />}
       <rect
         x={x}
         y={y}
@@ -158,9 +177,28 @@ function BoardDie({ value, index, side }: { value: number; index: number; side: 
       {diePips(value).map(([px, py], i) => (
         <circle key={i} cx={x + px * s} cy={y + py * s} r={s * 0.09} fill={CHECKER_PALETTE[side].contrast} />
       ))}
+    </>
+  );
+
+  if (!onClick) return <g>{die}</g>;
+  return (
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`Die ${index + 1}, showing ${value}. Click to change`}
+      className={style.interactiveDie}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onClick();
+      }}
+    >
+      {die}
     </g>
   );
 }
+
 
 // One sub-move's arrow: a shaft over a bone halo, a filled head 4u short of
 // the target, and a dot on the origin (the mockup's arrow). The hit ring
@@ -202,37 +240,129 @@ interface Point {
   y: number;
 }
 
+// How an interactive caller (the move explorer) marks a point or the bar:
+// a movable checker, the selected one, or where it can land.
+export type BoardHighlight = "source" | "selected" | "destination";
+
+const SOURCE_BAR_H = 3;
+
+// The under-checker half of a highlight: the selected tint over the whole
+// point, and the source bar along its base edge (selected keeps the bar, so
+// it reads as the same checker, picked up). A destination draws nothing here.
+function PointHighlight({ point, highlight }: { point: number; highlight: BoardHighlight }) {
+  if (highlight === "destination") return null;
+  const cx = colCenterX(pointColumn(point));
+  const barY = pointRow(point) === "bottom" ? Y1 - SOURCE_BAR_H : Y0;
+  return (
+    <>
+      {highlight === "selected" && <polygon points={trianglePoints(point)} className={style.interactiveSelected} />}
+      <rect x={cx - TRI_HALF_W} y={barY} width={2 * TRI_HALF_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
+    </>
+  );
+}
+
+function BarHighlight({ side, highlight }: { side: Side; highlight: BoardHighlight }) {
+  if (highlight === "destination") return null;
+  const x = colX(BAR_COL);
+  const top = side === "mine" ? CENTER_Y : Y0;
+  const barY = side === "mine" ? Y1 - SOURCE_BAR_H : Y0;
+  return (
+    <>
+      {highlight === "selected" && (
+        <rect x={x} y={top} width={BAR_W} height={ROW_H} className={style.interactiveSelected} />
+      )}
+      <rect x={x} y={barY} width={BAR_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
+    </>
+  );
+}
+
+// The landing marker: a dashed ghost checker in the next free slot. On a
+// blot it would hit, that's slot 0, over the blot.
+function LandingMarker({ point, decoded }: { point: number; decoded: DecodedPosition }) {
+  const base = stackBase(point);
+  const cy = stackSlotY(base, decoded.mine[point - 1]);
+  return <circle cx={base.cx} cy={cy} r={R - 1} className={style.interactiveDestination} />;
+}
+
 export default function Board({
   decoded,
   subMoves = [],
   arrowTier = "blunder",
   roll = [],
+  rollSide,
   flipped = false,
   cube = null,
+  onPointKeyDown,
+  onBarKeyDown,
+  onPointClick,
+  onBarClick,
+  onPointPointerDown,
+  onPointPointerUp,
+  onPointPointerCancel,
+  onBarPointerDown,
+  onBarPointerUp,
+  onBarPointerCancel,
+  onRollDieClick,
+  interactivePointLabel,
+  interactivePointHighlight,
+  interactivePointEnabled,
+  interactiveBarSides = ["opponent", "mine"],
+  interactiveBarLabel,
+  interactiveBarHighlight,
+  interactiveBarEnabled,
 }: {
   decoded: DecodedPosition;
   subMoves?: ParsedSubMove[];
-  // The arrows' colour: the severity of the move drawn (theme tokens,
-  // BoardPanel.styles.ts's arrow).
   arrowTier?: ArrowTier;
   roll?: number[];
-  // Checker positions and arrow anchoring both come from `decoded`/
-  // `subMoves` as given — BoardPanel.tsx applies flipPerspective/
-  // mirrorSubMoves to them *before* they arrive here when a
-  // fixed-perspective view is active. This prop's direct effects here are
-  // the printed point-number label (the fixed physical loop index below,
-  // not derived from `decoded`, so a data-only transform upstream can't
-  // correct it), the dice color (a flipped board is showing the
-  // opponent's turn), and telling moveAnchor which side's data is the
-  // mover's. Default false — only the replay's BoardPanel ever sets it.
+  rollSide?: Side;
   flipped?: boolean;
-  // Already relativized and flipped (if applicable) by BoardPanel.tsx — see
-  // lib/boardFrame.ts's boardCubeFor. Default null renders no cube at all
-  // (e.g. no selected decision yet), not a centered one.
   cube?: BoardCube | null;
+  onPointKeyDown?: (point: number) => void;
+  onBarKeyDown?: (side: Side) => void;
+  onPointClick?: (point: number) => void;
+  onBarClick?: (side: Side) => void;
+  onPointPointerDown?: (point: number) => void;
+  onPointPointerUp?: (point: number) => void;
+  onPointPointerCancel?: (point: number) => void;
+  onBarPointerDown?: (side: Side) => void;
+  onBarPointerUp?: (side: Side) => void;
+  onBarPointerCancel?: (side: Side) => void;
+  onRollDieClick?: (index: number) => void;
+  interactivePointLabel?: (point: number) => string;
+  interactivePointHighlight?: (point: number) => BoardHighlight | undefined;
+  interactivePointEnabled?: (point: number) => boolean;
+  interactiveBarSides?: Side[];
+  interactiveBarLabel?: (side: Side) => string;
+  interactiveBarHighlight?: (side: Side) => BoardHighlight | undefined;
+  interactiveBarEnabled?: (side: Side) => boolean;
 }) {
+  const interactive = Boolean(
+    onPointKeyDown ||
+      onBarKeyDown ||
+      onPointClick ||
+      onBarClick ||
+      onPointPointerDown ||
+      onPointPointerUp ||
+      onPointPointerCancel ||
+      onBarPointerDown ||
+      onBarPointerUp ||
+      onBarPointerCancel ||
+      onRollDieClick
+  );
+  const drawnRollSide = rollSide ?? (flipped ? "opponent" : "mine");
+  const activate = (event: KeyboardEvent<SVGElement>, callback: () => void) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    callback();
+  };
   return (
-    <svg viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} className={style.boardSvg} role="img" aria-label="Backgammon board">
+    <svg
+      viewBox={`0 0 ${BOARD_W} ${BOARD_H}`}
+      className={style.boardSvg}
+      role={interactive ? "group" : "img"}
+      aria-label="Backgammon board"
+    >
       {/* The walnut frame: the outer band, the cube gutter, the bar and the
           tray column are all frame; the two playing halves are bone. */}
       <rect x={0} y={0} width={BOARD_W} height={BOARD_H} rx={14} className={style.boardFrame} />
@@ -270,6 +400,18 @@ export default function Board({
           {flipped ? 25 - point : point}
         </text>
       ))}
+
+      {/* explorer highlights, under the checkers so they never wash them out */}
+      {interactivePointHighlight &&
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
+          const highlight = interactivePointHighlight(point);
+          return highlight && <PointHighlight key={`highlight-point-${point}`} point={point} highlight={highlight} />;
+        })}
+      {interactiveBarHighlight &&
+        interactiveBarSides.map((side) => {
+          const highlight = interactiveBarHighlight(side);
+          return highlight && <BarHighlight key={`highlight-bar-${side}`} side={side} highlight={highlight} />;
+        })}
 
       {/* off tray halves */}
       <OffTray side="opponent" count={decoded.opponentOff} />
@@ -313,10 +455,70 @@ export default function Board({
         ))}
       </g>
 
-      {/* dice, in roll order, in the mover's colour (a flipped board is
-          showing the opponent's turn) */}
+      {/* landing markers, over the checkers (a hit lands on a blot) */}
+      {interactivePointHighlight &&
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) =>
+          interactivePointHighlight(point) === "destination" ? (
+            <LandingMarker key={`landing-${point}`} point={point} decoded={decoded} />
+          ) : null
+        )}
+
+      {(onPointKeyDown || onPointClick || onPointPointerDown || onPointPointerUp || onPointPointerCancel) &&
+        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
+          const enabled = interactivePointEnabled?.(point) ?? true;
+          return (
+            <polygon
+              key={`target-point-${point}`}
+              points={trianglePoints(point)}
+              fill="transparent"
+              className={style.interactiveTarget(enabled)}
+              role="button"
+              tabIndex={enabled ? 0 : -1}
+              aria-disabled={enabled ? undefined : true}
+              aria-label={interactivePointLabel?.(point) ?? `Edit point ${point}`}
+              onPointerDown={enabled ? () => onPointPointerDown?.(point) : undefined}
+              onPointerUp={enabled ? () => onPointPointerUp?.(point) : undefined}
+              onPointerCancel={enabled ? () => onPointPointerCancel?.(point) : undefined}
+              onClick={enabled ? () => onPointClick?.(point) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => (onPointKeyDown ?? onPointClick)?.(point)) : undefined}
+            />
+          );
+        })}
+
+      {(onBarKeyDown || onBarClick || onBarPointerDown || onBarPointerUp || onBarPointerCancel) &&
+        interactiveBarSides.map((side) => {
+          const enabled = interactiveBarEnabled?.(side) ?? true;
+          return (
+            <rect
+              key={`target-bar-${side}`}
+              x={colX(BAR_COL)}
+              y={side === "mine" ? CENTER_Y : Y0}
+              width={BAR_W}
+              height={ROW_H}
+              fill="transparent"
+              className={style.interactiveTarget(enabled)}
+              role="button"
+              tabIndex={enabled ? 0 : -1}
+              aria-disabled={enabled ? undefined : true}
+              aria-label={interactiveBarLabel?.(side) ?? `Edit ${side === "mine" ? "bottom" : "top"} bar`}
+              onPointerDown={enabled ? () => onBarPointerDown?.(side) : undefined}
+              onPointerUp={enabled ? () => onBarPointerUp?.(side) : undefined}
+              onPointerCancel={enabled ? () => onBarPointerCancel?.(side) : undefined}
+              onClick={enabled ? () => onBarClick?.(side) : undefined}
+              onKeyDown={enabled ? (event) => activate(event, () => (onBarKeyDown ?? onBarClick)?.(side)) : undefined}
+            />
+          );
+        })}
+
+      {/* Checker rolls are always centered on the board. */}
       {roll.slice(0, 2).map((value, i) => (
-        <BoardDie key={i} value={value} index={i} side={flipped ? "opponent" : "mine"} />
+        <BoardDie
+          key={i}
+          value={value}
+          index={i}
+          side={drawnRollSide}
+          onClick={onRollDieClick ? () => onRollDieClick(i) : undefined}
+        />
       ))}
     </svg>
   );

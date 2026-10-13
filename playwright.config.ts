@@ -107,9 +107,15 @@ export default defineConfig({
     // when write mode is on. The other half of isGalaxyEnabled(),
     // DATABASE_URL, comes from .env.test (bg_test). Writes from this server
     // can only reach bg_test, and the suite itself never saves a note.
+    //
+    // AUTH_BYPASS skips the Clerk owner wall for this server (it used to be
+    // implied by `next dev`'s NODE_ENV=development; it's now an explicit
+    // opt-in). lib/localAuthBypass.ts still refuses it unless every database
+    // URL is localhost, which bg_test is.
     env: {
       ...testDbEnv,
       ENABLE_WRITE_MODE: "true",
+      AUTH_BYPASS: "true",
       NEXT_DIST_DIR: ".next-test",
       DISABLE_DEV_INDICATOR: "1",
     },

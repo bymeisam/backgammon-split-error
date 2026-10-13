@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeNote, parseDecisionId } from "@/lib/decisionNotes";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ export const dynamic = "force-dynamic";
 // handler ever runs unless isGalaxyEnabled() — same single choke point as
 // every other write route, so it's never reachable with write mode off.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const { id: idParam } = await params;
   const decisionId = parseDecisionId(idParam);
   if (decisionId === null) {

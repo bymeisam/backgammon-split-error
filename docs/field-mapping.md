@@ -24,9 +24,10 @@ to a false match under a case-insensitive collation.
 
 Columns currently pinned this way: `Match.sourceMatchId`,
 `PlayerIdentity.sourceUserId`, `Decision.userId`,
-`RepeatedPosition.sourcePositionId`, `Decision.sourcePositionId`.
-(`Decision.cubeOwnerUserId` was pinned too until it was dropped on
-2026-10-07; its pin went with it.)
+`RepeatedPosition.sourcePositionId`, `Decision.sourcePositionId`,
+`StudyPosition.positionId`, and `StudyPosition.gnuMatchId`.
+`Decision.cubeOwnerUserId` was pinned too until it was dropped on
+2026-10-07; its pin went with it.
 
 `Decision.eventId` is also an externally-sourced identifier (Galaxy's own
 event ID), but it does not need a collation pin — collation only governs
@@ -48,9 +49,10 @@ the same warning.
 
 ## Credential scoping
 
-Two separate MySQL connection strings, each pointed at a user scoped to the
-minimum privilege its callers actually need — introduced when the Oracle
-HeatWave instance was set up with two real MySQL users:
+Separate MySQL connection strings, each pointed at a user scoped to the
+minimum privilege its callers actually need. The first two were introduced
+when the Oracle HeatWave instance was set up with two real MySQL users (the
+third, the `AppUser`-only auth credential, is described below):
 
 - **`bg_db_rw`** — `SELECT`/`INSERT`/`UPDATE`/`DELETE`/`CREATE`/`ALTER`/
   `INDEX`/`REFERENCES` on the `backgammon` database. Used for ingest and
@@ -59,9 +61,16 @@ HeatWave instance was set up with two real MySQL users:
   read-only access.
 
 `lib/prisma.ts` exports one Prisma client per credential — `prisma` (reads
-`DATABASE_URL`) and `prismaReadOnly` (reads `DATABASE_URL_READONLY`) — via a
-shared client-construction helper, rather than each caller building its own
-adapter. The local Docker MySQL has the same two users
+`DATABASE_URL`), `prismaReadOnly` (reads `DATABASE_URL_READONLY`) and
+`prismaAuth` (reads `DATABASE_URL_AUTH`) — via a shared client-construction
+helper, rather than each caller building its own adapter.
+
+`prismaAuth` is the third client. It only provisions and looks up `AppUser`
+rows, for `lib/app-auth.ts` and `lib/forum.ts`. In production it needs
+`DATABASE_URL_AUTH`, a credential with `SELECT`/`INSERT`/`UPDATE` on
+`AppUser` only (never the ingest/migration credential). Outside production,
+when `DATABASE_URL_AUTH` is unset, it falls back to `DATABASE_URL`, so the
+existing local setup keeps working without a third user. The local Docker MySQL has the same two users
 (`bg_db_rw`/`bg_db_ro`, same grant shapes, on `app_dev` and `bg_test`), and
 the local `.env` uses them, so the split can be tested locally.
 `.env.example` still defaults both vars to the docker-compose `app` user
@@ -75,8 +84,9 @@ a code change.
 |---|---|
 | `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts`, the review and tag writes (`app/api/review/cards`, `app/api/review/cards/[id]`, `app/api/review/cards/[id]/answer`, `app/api/review/bulk`, `app/api/tags/attach`, `app/api/tags/detach`) |
 | `prismaReadOnly` (read-only) | `app/api/review/queue` (through `lib/review/queuePlan.ts`'s `loadQueuePlan`, which also gives the dashboard's due widget its "N new · N review" split, `dueSplit`, the /review header's own counts for an unfiltered session; since 2026-10-08 the dashboard's big number and the navbar's due badge are that split's sum, so they show what a session will serve; write mode only), `app/api/review/summary`, `app/api/tags` (GET), `app/review/page.tsx`, `app/review/cards/page.tsx`, `lib/review/dueCount.ts` (the due count before today's limits: since 2026-10-08 only the dashboard's "N more held back by today's limits" line, the count minus the split's sum; write mode only), `lib/dashboardQueries.ts` (the last finished `SyncRun`, for the Galaxy card's LAST SYNC and LAST SYNC ADDED on `/sources` through `lib/sources.ts`'s `galaxyStatus`, write mode only — the navbar's sync line until 2026-10-09; since 2026-10-09 also `sourceLibrary`, one `Match` aggregate for the same card's IN LIBRARY and LATEST MATCH: the count of the source's `ingestStatus` DONE matches and their latest `playedAt`, run in parallel with the sync-run lookup; the dashboard's weekly mistake count), `app/sources/page.tsx` (through `lib/sources.ts`; write mode only, gated by `proxy.ts`), `lib/repeatedPositionQueries.ts` (`listRepeatedPositions`: the /repeated-positions list and, since 2026-10-08, the dashboard's "Most repeated blunders" panel, top 4 by `occurrenceCount` with `errorSeverity` BLUNDER), `app/page.tsx` (the dashboard, through those and `listMatches`), `app/matches/[matchId]/page.tsx` (since 2026-10-08: one `Match` row by `(source, sourceMatchId)`, its `playedAt`, `userScore` and `opponentScore`, for the header's sub line "Match 47816592 · 5 Oct 2026 · 2–5"; the games still load client-side), `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/sources/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
+| `prismaAuth` (`AppUser` only) | `lib/app-auth.ts` (provisions and looks up the signed-in user's `AppUser` row), `lib/forum.ts` (`ownerIdentity`: looks up the owner's `AppUser` row, or upserts the reserved local-dev-owner row under the local `AUTH_BYPASS`) |
 
-**`prisma migrate deploy` itself is a separate concern from these two app
+**`prisma migrate deploy` itself is a separate concern from these three app
 runtime clients.** It's configured in `prisma7.config.ts`, which reads
 `DATABASE_URL` — the same var the read-write app client uses — and stays
 there deliberately: schema changes need `CREATE`/`ALTER`/`INDEX`/

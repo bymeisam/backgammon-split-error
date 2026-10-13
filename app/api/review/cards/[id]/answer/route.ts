@@ -6,6 +6,7 @@ import { scheduleReview, scheduleToJson, RATING_VALUE, type CardSchedule } from 
 import { gradeAnswer } from "@/lib/review/options";
 import { parseAnswerInput, positiveId, ratingFor, readJsonObject } from "@/lib/review/requests";
 import type { ReviewAnswerResponse } from "@/lib/review/types";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ export const dynamic = "force-dynamic";
 //
 // Read-write client. Gated by proxy.ts (/api/review/:path*).
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const cardId = positiveId((await params).id);
   if (cardId === null) return NextResponse.json({ error: "Card id must be a positive integer." }, { status: 400 });
   const body = await readJsonObject(req);

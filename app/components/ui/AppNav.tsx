@@ -1,3 +1,4 @@
+import { UserButton } from "@clerk/nextjs";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
@@ -51,6 +52,7 @@ export default async function AppNav() {
         ) : null
       }
       help={<ShortcutsHelp writeEnabled={galaxyEnabled} />}
+      account={<UserButton />}
     />
   );
 }

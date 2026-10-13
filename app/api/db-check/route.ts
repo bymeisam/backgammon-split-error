@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 // Throwaway smoke test for the local MySQL + Prisma infra setup — not a
 // feature. Visit /api/db-check with the Docker MySQL container running to
 // confirm Prisma can actually reach it. Disabled outside development since it
 // only exists to verify this setup step.
 export async function GET() {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

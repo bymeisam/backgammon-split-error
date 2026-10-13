@@ -1,5 +1,7 @@
+import "./globals.css";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { ClerkProvider } from "@clerk/nextjs";
+import { cookies, headers } from "next/headers";
 import { Geist, Geist_Mono, Inter, JetBrains_Mono, Newsreader, Playfair_Display } from "next/font/google";
 import { GameStatsAuthProvider } from "./providers/GameStatsAuthProvider";
 import { DecisionNotesProvider } from "./providers/DecisionNotesProvider";
@@ -7,7 +9,8 @@ import { ReviewStateProvider } from "./providers/ReviewStateProvider";
 import AppNav from "./components/ui/AppNav";
 import { THEME_COOKIE, themeSettingsFromCookie } from "@/lib/themes";
 import { style } from "./layout.styles";
-import "./globals.css";
+import { requireOwnerDocument } from "@/lib/app-auth";
+import { isLocalAuthBypass } from "@/lib/localAuthBypass";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,15 +61,28 @@ export const metadata: Metadata = {
 };
 
 // The navbar sits inside GameStatsAuthProvider: its sync button reads the
-// same in-memory Galaxy token the /sources/galaxy pages set.
+// same in-memory Galaxy token the /sources/galaxy pages set. ClerkProvider
+// wraps everything so client components can read the signed-in user.
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // The theme and mode on <html> (lib/themes.ts), from the user's bgtheme
   // cookie (set on /settings), so the first HTML already carries them and
   // nothing flashes. No cookie, or anything unknown in it: Clubroom,
-  // following the OS's light/dark. Reading cookies() makes every page
-  // dynamic; they already are (AppNav calls connection()).
+  // following the OS's light/dark. Reading cookies() (and headers() below)
+  // makes every page dynamic.
   const { theme, mode } = themeSettingsFromCookie((await cookies()).get(THEME_COOKIE)?.value);
 
+  // Owner wall for pages. proxy.ts has already made sure the visitor is
+  // signed in and passes the request path as x-app-route; here every page
+  // except the sign-in pages and /auth/complete also needs the signed-in
+  // user to be the approved owner (lib/app-auth.ts). Public pages get no
+  // navbar. The local AUTH_BYPASS skips the check (lib/localAuthBypass.ts).
+  const requestHeaders = await headers();
+  const appRoute = requestHeaders.get("x-app-route");
+  const isPublicRoute =
+    appRoute === "/auth/complete" ||
+    appRoute === "/sign-in" ||
+    appRoute?.startsWith("/sign-in/");
+  if (appRoute && !isPublicRoute && !isLocalAuthBypass()) await requireOwnerDocument();
   return (
     <html
       lang="en"
@@ -82,12 +98,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       ])}
     >
       <body className={style.body}>
-        <GameStatsAuthProvider>
-          <AppNav />
-          <DecisionNotesProvider>
-            <ReviewStateProvider>{children}</ReviewStateProvider>
-          </DecisionNotesProvider>
-        </GameStatsAuthProvider>
+        <ClerkProvider>
+          <GameStatsAuthProvider>
+            {!isPublicRoute && <AppNav />}
+            <DecisionNotesProvider>
+              <ReviewStateProvider>{children}</ReviewStateProvider>
+            </DecisionNotesProvider>
+          </GameStatsAuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

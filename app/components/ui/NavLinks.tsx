@@ -49,11 +49,13 @@ export default function NavLinks({
   modeLabel,
   dueBadge,
   help,
+  account,
 }: {
   items: NavItem[];
   modeLabel: RuntimeModeLabel;
   dueBadge: ReactNode;
   help: ReactNode;
+  account: ReactNode;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -132,6 +134,7 @@ export default function NavLinks({
                   </Link>
                 ))}
               {help}
+              {account}
             </div>
           </div>
         </nav>

@@ -4,6 +4,7 @@ import { NEW_CARDS_PER_DAY, REVIEWS_PER_DAY } from "@/lib/settings";
 import { reviewDecisionWhere, reviewFiltersFrom } from "@/lib/review/filters";
 import { dailyProgress, planQueue, startOfLocalDay, startOfNextLocalDay } from "@/lib/review/queue";
 import type { ReviewSummaryResponse } from "@/lib/review/types";
+import { requireOwnerApi } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ export const dynamic = "force-dynamic";
 // local midnight when cards are already due but held back by today's
 // limits. Read-only client; gated by proxy.ts (/api/review/:path*).
 export async function GET(req: NextRequest) {
+  const denied = await requireOwnerApi();
+  if (denied) return denied;
   const sp = req.nextUrl.searchParams;
   const decision = reviewDecisionWhere(reviewFiltersFrom((k) => sp.get(k) ?? undefined));
   const now = new Date();

@@ -9,33 +9,32 @@ only you can do (env vars, Oracle firewall, verifying the deploy).
 
 ## Required environment variables (production + preview)
 
-Set **only** this one on Vercel (Project Settings → Environment Variables),
-for both the Production and Preview environments:
+Set these on Vercel (Project Settings → Environment Variables), for both the
+Production and Preview environments:
 
-| Variable                | Value                                            |
-| ------------------------ | ------------------------------------------------ |
-| `DATABASE_URL_READONLY`  | `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
+| Variable                | Value |
+| ----------------------- | ----- |
+| `DATABASE_URL_READONLY` | `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
+| `DATABASE_URL_AUTH`     | A separate URL whose database user has SELECT/INSERT/UPDATE only on `AppUser` |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's publishable key |
+| `CLERK_SECRET_KEY`      | Clerk's server-only secret key |
 
 **Never set `DATABASE_URL` on Vercel**, and **don't set `ENABLE_WRITE_MODE`
-on Vercel either — leave it unset.** The convention this app uses: unset is
-the safe default everywhere, and only an environment that's actually meant
-to write (local dev) sets `ENABLE_WRITE_MODE=true` explicitly. Vercel never
-should, so it simply doesn't appear there at all — no `ENABLE_WRITE_MODE=false`
-needed, since absence already means disabled.
+on Vercel either — leave it unset.** The regular write client remains
+unconfigured, and the Galaxy/write gate remains closed. `DATABASE_URL_AUTH`
+is the narrow exception used only to provision the authentication allowlist;
+it must not be the ingest/migration credential.
 
-`DATABASE_URL` being absent is what makes this a read-only deployment in the
-first place:
+`DATABASE_URL` being absent is what keeps the normal application write client
+disabled:
 
-- `lib/prisma.ts`'s write client (`prisma`, used by ingest/sync code) is
-  lazy — importing the module never throws, but the moment anything tries to
-  actually *use* that client without `DATABASE_URL` set, it throws loudly.
-  Since nothing on Vercel is supposed to call it, this should never fire in
-  normal operation; if it ever does, that's a real bug to investigate, not
-  something to paper over with a dummy `DATABASE_URL`.
-- `isGalaxyEnabled()` (`lib/galaxyGate.ts`) requires `DATABASE_URL` to be
-  present as its *first* condition — so leaving it unset is also what keeps
-  the Galaxy gate closed (see "Lifting the Galaxy gate" below), independent
-  of whatever `ENABLE_WRITE_MODE` is or isn't set to.
+- `lib/prisma.ts`'s regular write client (`prisma`, used by ingest/sync code)
+  is lazy and throws if used without `DATABASE_URL`.
+- `prismaAuth` uses `DATABASE_URL_AUTH` in production and is limited by its
+  database grant to the `AppUser` table.
+- `isGalaxyEnabled()` (`lib/galaxyGate.ts`) still requires `DATABASE_URL` and
+  `ENABLE_WRITE_MODE=true`, so the Galaxy gate stays closed independently of
+  the authentication wall.
 
 `GALAXY_TOKEN` is never read by the deployed app either (only by the local
 sync scripts) — don't set it on Vercel.
@@ -168,26 +167,46 @@ around the Galaxy link in `app/page.tsx`.
    this to have grown if you've synced since). If `/status` shows a
    connection error instead, step 3 is almost certainly the cause.
 
+## App authentication and owner allowlist
+
+The app uses Clerk's invite-only sign-in flow (`/sign-in`). Do not add a
+public `SignUpButton`; disable public sign-up in the Clerk dashboard and invite
+only the approved owner. Every first signed-in access provisions an `AppUser`
+row with `isOwner=false` and the Clerk display name. The application requires
+both independent flags:
+
+1. the local `AppUser.isOwner` value is `true`; and
+2. the verified Clerk user's `privateMetadata.isOwner` value is `true`.
+
+Set the Clerk private metadata flag manually for the approved user, then set
+the matching local `AppUser.isOwner` value manually after the migration has
+run. Identity matching uses the verified Clerk user ID, never email or client
+metadata. Unauthenticated document requests go to `/sign-in`; signed-in users
+without both owner flags go to `/auth/complete`, which provisions the local
+row if needed and shows the pending-approval state without exposing application
+data. APIs return an unauthorized/protection response for signed-out requests
+and deny non-owners.
+
+The authenticated `/position-builder` route is part of the normal owner document guard. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations remain behind the same `ENABLE_WRITE_MODE` gate as other application writes.
+
+`ENABLE_WRITE_MODE` remains the deployment-level Galaxy/write gate. Clerk ownership does not turn hosted Galaxy writes on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. The separate `DATABASE_URL_AUTH` credential is only for the `AppUser` allowlist and must not have access to source/study write paths.
+
+### Temporary local development auth bypass
+
+Setting `AUTH_BYPASS=true` temporarily bypasses the Clerk document and API
+owner checks through `lib/localAuthBypass.ts` so the local forum and
+position-builder flows can be smoke-tested without a Clerk browser session. The
+bypass uses the reserved `local-dev-owner` `AppUser` identity when a write needs
+an author. It is an explicit opt-in (off unless exactly `true`), refuses to turn
+on and logs a warning when `DATABASE_URL`, `DATABASE_URL_AUTH` or
+`DATABASE_URL_READONLY` points anywhere but localhost, and does not disable
+`isGalaxyEnabled()` or its database/write-mode gate. Never set it on a deployed
+environment. Remove this
+bypass after local authenticated smoke and visual review are complete.
+
 ## Auth verification (do this after every deploy)
 
-**Vercel does not put a login screen in front of your app by default.**
-After deploying, open the production URL in a private/incognito window —
-one with no Vercel account session at all. If the site loads, it is
-genuinely public: anyone with the URL can read your synced match data (not
-write — the Galaxy gate above prevents that regardless), and you should not
-rely on "nobody has the link" as your actual security boundary.
-
-If that's not acceptable, you need one of:
-
-- **Vercel Deployment/Production Protection** (Project Settings → Deployment
-  Protection) — gates the whole app behind a Vercel login, at the platform
-  level, no app code involved.
-- **An app-level gate** — e.g. a `proxy.ts` check (the same mechanism this
-  doc's Galaxy gate uses) requiring a shared secret or session cookie before
-  serving anything.
-
-Neither is set up as part of this task (Vercel-settings changes were
-explicitly out of scope) — this is flagged for you to decide and configure.
+Open the production URL in a private/incognito window. It must redirect to `/sign-in`. A signed-in user lacking either owner flag must land on `/auth/complete` and receive no application data. Verify the approved owner's Clerk private metadata and local `AppUser` row separately after migrations.
 
 ## Making the Claude PR review actually block merges (manual, GitHub settings)
 
