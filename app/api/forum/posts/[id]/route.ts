@@ -2,16 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma, prismaReadOnly } from "@/lib/prisma";
 import { requireOwnerApi } from "@/lib/app-auth";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { ownerIdentity, textField, FORUM_LIMITS } from "@/lib/forum";
+import { ownerIdentity, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
 
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
-
-function parseId(value: string): number | null {
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
 
 // GET /api/forum/posts/[id]
 //

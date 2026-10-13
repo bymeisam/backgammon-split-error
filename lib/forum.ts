@@ -11,6 +11,14 @@ import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 // Maximum lengths for posted text, and the most positions one post can attach.
 export const FORUM_LIMITS = { title: 191, body: 20_000, positions: 4 } as const;
 
+// A route's [id] segment as a positive integer, or null for anything else
+// (non-numeric, fractional, zero or negative). Shared by the forum's [id]
+// API routes.
+export function parseId(value: string): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 // A trimmed, non-empty string no longer than `max`, or null.
 export function textField(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;
