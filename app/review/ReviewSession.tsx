@@ -50,19 +50,9 @@ interface Stats {
 const NO_STATS: Stats = { answered: 0, correct: 0, streak: 0, bestStreak: 0 };
 
 // One /review session. Cards come from GET /api/review/queue in batches of
-// REVIEW_BATCH_SIZE; the next batch is fetched when the local queue runs
-// out. Front: the board in quiz mode (decision-maker at the bottom, dice
-// high first, the cube), the match context, the question and the options.
-// Choosing an option reveals the back (graded with the card's own options —
-// the server grades again when the answer is saved). A wrong answer is saved
-// as Again straight away and the card comes back after
-// AGAIN_REQUEUE_AFTER_CARDS other cards (or at the end of the batch); a
-// right one is saved when the user rates it Hard / Good / Easy. Keys
-// (lib/reviewKeys.ts): on the front ↓ / ↑ (j / k) move the focus through
-// the options, Enter or Space chooses the focused one, and 1–5 choose
-// directly; on the back ← / → (h / l) switch the board between your answer
-// and the best move (checker cards), Shift+H / Shift+G / Shift+E rate, and
-// Enter is Good (right) or Next (wrong, once saved).
+// REVIEW_BATCH_SIZE. Note-aware cards may enter a reason question or a
+// second-try front before their final answer is saved; cards without notes
+// retain the existing immediate Again / Hard-Good-Easy flow.
 //
 // The session bar on top: "Review", the progress ("Card N of M" and a
 // track, N of the session's own total: what was answered plus what's still
@@ -84,6 +74,9 @@ export default function ReviewSession({
   const [exhausted, setExhausted] = useState(false);
   const [beyond, setBeyond] = useState({ new: 0, review: 0 });
   const [answer, setAnswer] = useState<Answer | null>(null);
+  const [phase, setPhase] = useState<"front" | "reason" | "retry" | "back">("front");
+  const [firstWrong, setFirstWrong] = useState<string | null>(null);
+  const [ratingLimit, setRatingLimit] = useState<"hard" | "hard-good" | undefined>();
   const [save, setSave] = useState<Save>({ kind: "idle" });
   const [stats, setStats] = useState<Stats>(NO_STATS);
   const [nextDue, setNextDue] = useState<string | null | undefined>(undefined);
@@ -168,11 +161,27 @@ export default function ReviewSession({
   );
 
   function choose(key: string) {
-    if (!current || answer) return;
+    if (!current || (phase !== "front" && phase !== "retry")) return;
+    if (phase === "retry" && key === firstWrong) return;
     const option = current.card.options.find((o) => o.key === key);
     if (!option) return;
     const a = { chosen: key, correct: option.correct, loss: option.loss };
+    if (phase === "front" && current.card.decision.note !== null && a.correct) {
+      setAnswer(a);
+      setPhase("reason");
+      return;
+    }
+    if (phase === "front" && current.card.decision.note !== null && !a.correct && current.card.options.length !== 2) {
+      setFirstWrong(key);
+      setPhase("retry");
+      setAnswer(null);
+      setBackTab("best");
+      return;
+    }
+    const secondTry = phase === "retry";
     setAnswer(a);
+    setPhase("back");
+    setRatingLimit(secondTry ? (a.correct ? "hard" : undefined) : undefined);
     setBackTab("best");
     setStats((s) => {
       const streak = a.correct ? s.streak + 1 : 0;
@@ -183,8 +192,18 @@ export default function ReviewSession({
         bestStreak: Math.max(s.bestStreak, streak),
       };
     });
-    // Wrong: recorded as Again straight away.
     if (!a.correct) submit(current, a, null);
+  }
+  function answerReason(knows: boolean) {
+    if (!current || phase !== "reason" || !answer) return;
+    setStats((s) => ({
+      answered: s.answered + 1,
+      correct: s.correct + 1,
+      streak: s.streak + 1,
+      bestStreak: Math.max(s.bestStreak, s.streak + 1),
+    }));
+    setRatingLimit(knows ? undefined : "hard-good");
+    setPhase("back");
   }
 
   function advance() {
@@ -199,6 +218,9 @@ export default function ReviewSession({
         ];
     setQueue(nextQueue);
     setAnswer(null);
+    setPhase("front");
+    setFirstWrong(null);
+    setRatingLimit(undefined);
     setSave({ kind: "idle" });
     setShownAt(Date.now());
     if (nextQueue.length === 0 && !exhausted) load();
@@ -206,18 +228,22 @@ export default function ReviewSession({
 
   async function rate(rating: Rating) {
     if (!current || !answer?.correct || save.kind === "saving") return;
-    if (await submit(current, answer, rating)) advance();
+    if (ratingLimit === "hard" && save.kind === "saved") {
+      advance();
+      return;
+    }
+    if (await submit(current, answer, ratingLimit === "hard" ? "hard" : rating)) advance();
   }
 
   async function retryWrong() {
-    if (current && answer && !answer.correct) await submit(current, answer, null);
+    if (current && answer && !answer.correct && save.kind !== "saving") await submit(current, answer, null);
   }
 
   // Moves the focus to the next/previous option button (stopping at the
   // ends; from outside the options, to the first). The focus ring is the
   // highlight, and Enter or Space on it is the button's own click.
   function moveOptionFocus(direction: 1 | -1): boolean {
-    const buttons = [...(optionsRef.current?.querySelectorAll<HTMLButtonElement>("button[data-option-key]") ?? [])];
+    const buttons = [...(optionsRef.current?.querySelectorAll<HTMLButtonElement>("button[data-option-key]:not(:disabled)") ?? [])];
     const current = buttons.findIndex((b) => b === document.activeElement);
     const target = stepIndex(current, buttons.length, direction);
     if (target === null) return false;
@@ -235,16 +261,21 @@ export default function ReviewSession({
       const action = reviewKeyAction(
         e.key,
         e.shiftKey,
-        answer
-          ? {
-              side: "back",
-              correct: answer.correct,
-              saveKind: save.kind,
-              // No tabs when your answer is the best: one "Yours [Best]" chip
-              // (BoardPanel), so ←/→ and h/l do nothing.
-              hasTabs: current.card.question === "checker" && answer.chosen !== current.card.bestKey,
-            }
-          : { side: "front", optionCount: current.card.options.length }
+        phase === "reason"
+          ? { side: "reason" }
+          : phase === "front" || phase === "retry"
+            ? {
+                side: "front",
+                optionCount: current.card.options.length,
+                excludedIndex: phase === "retry" ? current.card.options.findIndex((o) => o.key === firstWrong) : undefined,
+              }
+            : {
+                side: "back",
+                correct: answer?.correct ?? false,
+                saveKind: save.kind,
+                hasTabs: Boolean(answer && current.card.question === "checker" && answer.chosen !== current.card.bestKey),
+                ratingLimit,
+              }
       );
       if (!action) return;
       let handled = true;
@@ -260,6 +291,9 @@ export default function ReviewSession({
           break;
         case "rate":
           rate(action.rating);
+          break;
+        case "reason":
+          answerReason(action.knows);
           break;
         case "next":
           advance();
@@ -435,32 +469,42 @@ export default function ReviewSession({
         </div>
 
         <div className={style.sideColumn}>
-          {!answer ? (
+          {phase !== "back" || !answer ? (
             <>
-              <div>
-                {context}
-                <h2 data-testid="review-question" data-card-id={card.cardId} className={style.question}>
-                  {question.lead} <em className={style.questionAsk}>{question.ask}</em>
-                </h2>
-              </div>
-              <div ref={optionsRef} data-testid="review-options" className={style.optionList}>
-                {options.map((o, i) => (
-                  <button
-                    key={o.key}
-                    type="button"
-                    data-option-key={o.key}
-                    onClick={() => choose(o.key)}
-                    aria-keyshortcuts={i < 9 ? String(i + 1) : undefined}
-                    className={style.optionButton}
-                  >
-                    <kbd className={style.optionKeyHint}>{i + 1}</kbd>
-                    <span className={style.optionMove}>{o.label}</span>
-                  </button>
-                ))}
-              </div>
-              <p className={style.hint}>
-                Press 1–{options.length} to answer, or move with ↓ / ↑ (J / K) and press Enter.
-              </p>
+              {phase === "reason" ? (
+                <>
+                  <h2 className={style.question}>Do you know the reason?</h2>
+                  <div className={style.reasonActions}>
+                    <button type="button" onClick={() => answerReason(true)} className={style.gradeButton({ primary: true, wide: false })}>Yes</button>
+                    <button type="button" onClick={() => answerReason(false)} className={style.gradeButton({ primary: false, wide: false })}>No</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {phase === "front" && context}
+                  {phase === "retry" && (
+                    <>
+                      <p className={style.verdictRow} role="status"><span className={style.verdictWord(false)}>Not quite.</span></p>
+                      <ReviewNote key={`note-${card.decisionId}`} card={card} emptyText={noteEmptyText} />
+                    </>
+                  )}
+                  {phase === "front" && <h2 data-testid="review-question" data-card-id={card.cardId} className={style.question}>
+                    {question.lead} <em className={style.questionAsk}>{question.ask}</em>
+                  </h2>}
+                  <div ref={optionsRef} data-testid="review-options" className={style.optionList}>
+                    {options.map((o, i) => (
+                      <button key={o.key} type="button" data-option-key={o.key}
+                        disabled={phase === "retry" && o.key === firstWrong}
+                        onClick={() => choose(o.key)} aria-keyshortcuts={i < 9 ? String(i + 1) : undefined}
+                        className={phase === "retry" && o.key === firstWrong ? style.crossedOption : style.optionButton}>
+                        <kbd className={style.optionKeyHint}>{i + 1}</kbd>
+                        <span className={style.optionMove}>{o.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className={style.hint}>{phase === "retry" ? "Try again. Your first choice is crossed out." : `Press 1–${options.length} to answer, or move with ↓ / ↑ (J / K) and press Enter.`}</p>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -558,44 +602,35 @@ export default function ReviewSession({
                 className={style.grade}
               >
                 {answer.correct ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={save.kind === "saving"}
-                      onClick={() => rate("hard")}
-                      className={style.gradeButton({ primary: false, wide: false })}
-                      aria-keyshortcuts="Shift+H"
-                    >
-                      <span className={style.gradeLabel}>Hard</span>
-                      <span className={style.gradeKey(false)} aria-hidden="true">
-                        ⇧H
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={save.kind === "saving"}
-                      onClick={() => rate("good")}
-                      className={style.gradeButton({ primary: true, wide: false })}
-                      aria-keyshortcuts="Shift+G Enter"
-                    >
-                      <span className={style.gradeLabel}>Good</span>
-                      <span className={style.gradeKey(true)} aria-hidden="true">
-                        ⇧G · Enter
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={save.kind === "saving"}
-                      onClick={() => rate("easy")}
-                      className={style.gradeButton({ primary: false, wide: false })}
-                      aria-keyshortcuts="Shift+E"
-                    >
-                      <span className={style.gradeLabel}>Easy</span>
-                      <span className={style.gradeKey(false)} aria-hidden="true">
-                        ⇧E
-                      </span>
-                    </button>
-                  </>
+                  ratingLimit === "hard" ? (
+                    save.kind === "error" ? (
+                      <button type="button" onClick={() => rate("hard")} className={style.gradeButton({ primary: true, wide: true })}>
+                        <span className={style.gradeLabel}>Retry saving</span>
+                        <span className={style.gradeKey(true)}>Not recorded yet</span>
+                      </button>
+                    ) : (
+                      <button type="button" disabled={save.kind === "saving"} onClick={() => rate("hard")}
+                        className={style.gradeButton({ primary: true, wide: true })} aria-keyshortcuts={save.kind === "saved" ? "Enter" : "Shift+H"}>
+                        <span className={style.gradeLabel}>{save.kind === "saved" ? "Next card" : "Hard"}</span>
+                        <span className={style.gradeKey(true)}>{save.kind === "saved" ? "Recorded as Hard · Enter" : "⇧H"}</span>
+                      </button>
+                    )
+                  ) : (
+                    <>
+                      <button type="button" disabled={save.kind === "saving"} onClick={() => rate("hard")} className={style.gradeButton({ primary: false, wide: false })} aria-keyshortcuts="Shift+H">
+                        <span className={style.gradeLabel}>Hard</span><span className={style.gradeKey(false)}>⇧H</span>
+                      </button>
+                      {ratingLimit !== "hard-good" && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("good")} className={style.gradeButton({ primary: true, wide: false })} aria-keyshortcuts="Shift+G Enter">
+                        <span className={style.gradeLabel}>Good</span><span className={style.gradeKey(true)}>⇧G · Enter</span>
+                      </button>}
+                      {ratingLimit !== "hard-good" && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("easy")} className={style.gradeButton({ primary: false, wide: false })} aria-keyshortcuts="Shift+E">
+                        <span className={style.gradeLabel}>Easy</span><span className={style.gradeKey(false)}>⇧E</span>
+                      </button>}
+                      {ratingLimit === "hard-good" && <button type="button" disabled={save.kind === "saving"} onClick={() => rate("good")} className={style.gradeButton({ primary: true, wide: false })} aria-keyshortcuts="Shift+G Enter">
+                        <span className={style.gradeLabel}>Good</span><span className={style.gradeKey(true)}>⇧G · Enter</span>
+                      </button>}
+                    </>
+                  )
                 ) : save.kind === "error" ? (
                   <button
                     type="button"

@@ -38,6 +38,29 @@ describe("reviewKeyAction: the front", () => {
     expect(reviewKeyAction("ArrowLeft", false, front)).toBeNull();
   });
 });
+describe("reviewKeyAction: note-aware states", () => {
+  const reason: ReviewKeyContext = { side: "reason" };
+  const retryFront: ReviewKeyContext = { side: "front", optionCount: 4, excludedIndex: 1 };
+  it("answers the reason question with Yes/No keys", () => {
+    expect(reviewKeyAction("y", false, reason)).toEqual({ type: "reason", knows: true });
+    expect(reviewKeyAction("Enter", false, reason)).toEqual({ type: "reason", knows: true });
+    expect(reviewKeyAction("n", false, reason)).toEqual({ type: "reason", knows: false });
+    expect(reviewKeyAction("1", false, reason)).toBeNull();
+  });
+  it("does not select the crossed-out first choice on retry", () => {
+    expect(reviewKeyAction("1", false, retryFront)).toEqual({ type: "choose", index: 0 });
+    expect(reviewKeyAction("2", false, retryFront)).toBeNull();
+    expect(reviewKeyAction("3", false, retryFront)).toEqual({ type: "choose", index: 2 });
+  });
+  it("enforces Hard-only and Hard/Good rating limits", () => {
+    const hard: ReviewKeyContext = { side: "back", correct: true, saveKind: "idle", hasTabs: false, ratingLimit: "hard" };
+    const hardGood: ReviewKeyContext = { ...hard, ratingLimit: "hard-good" };
+    expect(reviewKeyAction("H", true, hard)).toEqual({ type: "rate", rating: "hard" });
+    expect(reviewKeyAction("G", true, hard)).toBeNull();
+    expect(reviewKeyAction("E", true, hardGood)).toBeNull();
+    expect(reviewKeyAction("Enter", false, hardGood)).toEqual({ type: "rate", rating: "good" });
+  });
+});
 
 describe("reviewKeyAction: the back", () => {
   it("rates with Shift+H / Shift+G / Shift+E and Enter after a right answer", () => {

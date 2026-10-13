@@ -8,14 +8,13 @@
 //     through every move, crossing into the previous/next game at either
 //     end, and Shift+↓ / J and Shift+↑ / K jump between mistakes. Ignored
 //     while typing, with Cmd/Ctrl/Alt held, or while a dialog is open;
-//   - the review session: app/review/ReviewSession.tsx, mapping in
 //     lib/reviewKeys.ts (before answering: ↓ / j and ↑ / k move the focus
-//     through the options, Enter or Space chooses the focused one, an
-//     option's number chooses it — 1 up to the option count, at most 5
-//     options on any card; after answering a move, ← / h and → / l switch
-//     the board between your answer and the best move; Shift+H / Shift+G /
-//     Shift+E / Enter after a right answer; Enter after a wrong one, once
-//     it's saved). Same ignore rules as the move tables;
+//     through options, Enter/Space chooses the focused option, numbers
+//     select; note-aware cards ask Y/Enter or N whether the learner knows
+//     the reason, then offer the note-aware retry and constrained ratings;
+//     after answering a move, ← / h and → / l switch the board; Shift+H /
+//     Shift+G / Shift+E rate when available; Enter advances after a saved
+//     wrong answer or a saved Hard-only second-try success. Same ignore rules;
 //   - the tag box: app/components/review/TagEditor.tsx (↑ / ↓ / Enter /
 //     Esc), on the DB-backed boards in write mode;
 //   - the move lists: app/components/match-analysis/DecisionList.tsx (each
@@ -95,16 +94,18 @@ const REPLAY_GROUP: ShortcutGroup = {
 const REVIEW_GROUP: ShortcutGroup = {
   title: "Review session",
   shortcuts: [
-    { keys: ["↓", "J"], alternatives: true, description: "Next option (before answering)" },
-    { keys: ["↑", "K"], alternatives: true, description: "Previous option (before answering)" },
+    { keys: ["↓", "J"], alternatives: true, description: "Next option (front or retry)" },
+    { keys: ["↑", "K"], alternatives: true, description: "Previous option (front or retry)" },
     { keys: ["Enter", "Space"], alternatives: true, description: "Choose the highlighted option" },
-    { keys: ["1", "…", "5"], description: "Choose that option by its number (before answering)" },
+    { keys: ["1", "…", "5"], description: "Choose that option by its number" },
+    { keys: ["Y", "Enter"], alternatives: true, description: "Yes, I know the reason" },
+    { keys: ["N"], description: "No, show the reason" },
     { keys: ["←", "H"], alternatives: true, description: "Show your answer on the board (after answering a move)" },
     { keys: ["→", "L"], alternatives: true, description: "Show the best move on the board (after answering a move)" },
     { keys: ["Shift+H"], description: "Rate Hard (after a right answer)" },
-    { keys: ["Shift+G", "Enter"], alternatives: true, description: "Rate Good (after a right answer)" },
-    { keys: ["Shift+E"], description: "Rate Easy (after a right answer)" },
-    { keys: ["Enter"], description: "Next card (after a wrong answer, once it's saved)" },
+    { keys: ["Shift+G", "Enter"], alternatives: true, description: "Rate Good (when available)" },
+    { keys: ["Shift+E"], description: "Rate Easy (when available)" },
+    { keys: ["Enter"], description: "Next card after a saved wrong answer" },
   ],
 };
 

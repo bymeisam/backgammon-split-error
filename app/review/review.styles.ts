@@ -38,6 +38,12 @@ export const style = {
   optionKeyHint: clsx(shared.kbd, "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[5px] p-0"),
   optionMove: "font-mono text-base font-medium",
   hint: "text-xs text-ink-faint",
+  crossedOption: clsx(
+    "flex w-full items-center gap-3.5 rounded-[11px] border border-line bg-sunken px-4 py-[13px] text-left text-ink-muted line-through opacity-55 shadow-card",
+    "cursor-not-allowed"
+  ),
+  reasonActions: "grid grid-cols-2 gap-2",
+
 
   // The back.
   verdictRow: "mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-3.5",
