@@ -207,7 +207,11 @@ The app uses Clerk's invite-only sign-in flow (`/sign-in`). Do not add a
 public `SignUpButton`; disable public sign-up in the Clerk dashboard and invite
 only approved people. Every first signed-in access provisions an `AppUser`
 row with `role=NONE` (awaiting approval) and the Clerk display name. The role
-is set by hand (`lib/appRole.ts` resolves it):
+is set by hand (`lib/appRole.ts` resolves it). The database allows **at most one
+`OWNER` row** (the generated `AppUser.ownerSlot` column with a unique index,
+migration `20261014100000_app_user_single_owner`): setting a second row to
+`OWNER` fails with `Duplicate entry '1' for key 'AppUser.AppUser_ownerSlot_key'`,
+so demote the old owner row (to `NONE` or `MEMBER`) first.
 
 - **Owner**: `AppUser.role` is `OWNER` **and** the verified Clerk user's
   `privateMetadata.isOwner` is `true`. DB `OWNER` without the Clerk flag
@@ -236,7 +240,7 @@ The authenticated `/position-builder` route is a member page. It keeps edits in 
   1. Add the domain to the Vercel project (Settings → Domains) and set its DNS.
   2. In Clerk, create the production instance (clone the development one), enter `backgammon.bymeisam.dev` as the application domain, and add the DNS records Clerk lists (CNAMEs such as `clerk.` and `accounts.` under the domain). Wait until Clerk shows them verified and the SSL certificates issued.
   3. In Vercel, set the production keys (`pk_live_` / `sk_live_`) on **Production**; keep the development keys on **Preview** if previews still need sign-in.
-  4. Users don't carry over between Clerk instances: re-invite members in the production instance, and set the owner's `privateMetadata.isOwner = true` there again. Their `AppUser` rows are keyed by Clerk user id (`clerkUserId`), so the new instance's ids create new rows (role `NONE`): set the owner's new row to `OWNER` and members' to `MEMBER`, and delete or leave the old rows.
+  4. Users don't carry over between Clerk instances: re-invite members in the production instance, and set the owner's `privateMetadata.isOwner = true` there again. Their `AppUser` rows are keyed by Clerk user id (`clerkUserId`), so the new instance's ids create new rows (role `NONE`): first demote the owner's old row (`UPDATE AppUser SET role = 'NONE' WHERE clerkUserId = '<old id>';`, since only one row may be `OWNER`), then set the owner's new row to `OWNER` and members' to `MEMBER`, and delete or leave the old rows.
   5. Check the redirect/allowed-origin settings in Clerk name the new domain, then run "Auth verification" below.
 - **Known snags:** SSL issuance in Clerk can stall on CAA DNS records (Clerk support fixed it by hand for others); the Vercel Marketplace Clerk integration has been reported to fall back to development keys ("Production domain required"). Contact Clerk support for either.
 
@@ -247,7 +251,10 @@ owner checks through `lib/localAuthBypass.ts` so the local forum and
 position-builder flows can be smoke-tested without a Clerk browser session. The
 bypass acts as the reserved `local-dev-owner` `AppUser` (the owner), or with
 `AUTH_BYPASS_ROLE=member` as a separate `local-dev-member` (an invited member),
-for the role checks and when a write needs an author. It is an explicit opt-in (off unless exactly `true`), refuses to turn
+for the role checks and when a write needs an author. The owner role is held in
+memory only: the `local-dev-owner` row is created with `role=NONE` (the single
+`OWNER` row belongs to the real Clerk owner) and the bypass never updates a
+row's role. It is an explicit opt-in (off unless exactly `true`), refuses to turn
 on and logs a warning when `DATABASE_URL`, `DATABASE_URL_READONLY` or
 `DATABASE_URL_APP` points anywhere but
 localhost, and does not disable `isGalaxyEnabled()`, `isAppWriteEnabled()`

@@ -62,11 +62,12 @@ export async function forumIdentity(): Promise<{ id: number; role: AppRole } | n
   if (!auth || !isMemberOrOwner(auth.role)) return null;
 
   if (isLocalAuthBypass()) {
-    const { clerkUserId, displayName, role } = localBypassIdentity();
+    const { clerkUserId, displayName, role, storedRole } = localBypassIdentity();
+    // Stored role on create only; the returned role is the in-memory one.
     const row = await prismaApp.appUser.upsert({
       where: { clerkUserId },
-      create: { clerkUserId, displayName, role },
-      update: { displayName, role },
+      create: { clerkUserId, displayName, role: storedRole },
+      update: { displayName },
       select: { id: true },
     });
     return { id: row.id, role };

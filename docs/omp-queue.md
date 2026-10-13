@@ -4,6 +4,8 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
+- **2026-10-14, master added migration `20261014100000_app_user_single_owner`** (additive: generated `AppUser.ownerSlot` plus a unique index, at most one OWNER row; already applied to the shared local `app_dev`). Merge master and run `npx prisma generate` before your next app run. The local `AUTH_BYPASS` owner row (`local-dev-owner`) is now stored as `NONE`; the bypass still acts as owner in memory.
+
 ### Review notes on `omp/main` at `ebc8857` (queued 2026-10-14)
 **Merge master first:** master merged `omp/main` at `ebc8857` (merge `18789e8`). The docs conflicts were resolved on master's side, so take master's `docs/omp-queue.md` and `docs/current-state.md`. In your copy, clear the "to check" entries that master lists under "Checked and done (master)", including the old "Queued review follow-up: keyboard contracts…" entry, which names no commit.
 

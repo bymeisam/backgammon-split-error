@@ -407,12 +407,23 @@ model DecisionTag {
 // role: OWNER (full access, and only together with Clerk's privateMetadata
 // isOwner flag), MEMBER (invited: read-only matches/mistakes plus the
 // forum) or NONE (signed in, awaiting approval). New rows start NONE
-// (lib/app-auth.ts's provisionAppUser); the role is set by hand.
+// (lib/app-auth.ts's provisionAppUser); the role is set by hand. At most one
+// row may be OWNER: a second OWNER insert or update fails with a duplicate key
+// on AppUser_ownerSlot_key, so demote the old owner row first.
+//
+// ownerSlot is DB-generated, never written by the app: in MySQL it is
+// `GENERATED ALWAYS AS (IF(role = 'OWNER', 1, NULL)) STORED` (migration
+// 20261014100000_app_user_single_owner), and its unique index allows many
+// NULLs, so it only constrains OWNER rows. Prisma's DSL can't express a
+// generated column; it is declared here as a plain optional field so that
+// `prisma migrate diff` sees no drift. Don't set it in create/update calls
+// (MySQL rejects writes to a generated column).
 model AppUser {
   id          Int         @id @default(autoincrement())
   clerkUserId String      @unique @db.VarChar(191)
   displayName String
   role        AppUserRole @default(NONE)
+  ownerSlot   Int?        @unique @db.TinyInt
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
