@@ -19,25 +19,30 @@ export const style = {
   sessionBar: "-mb-1 flex flex-wrap items-center gap-[18px] px-4 md:px-0",
   sessionTitle: "font-serif text-[26px] font-display leading-none tracking-[-0.01em] text-ink",
   progress: "flex min-w-40 flex-1 items-center gap-3 text-[12.5px] tabular-nums text-ink-muted",
-  track: "h-1 flex-1 overflow-hidden rounded-[2px] bg-line",
+  track: "h-1 flex-1 overflow-hidden rounded-sm bg-line",
   trackFill: "block h-full bg-ink transition-[width]",
 
   layout: "grid grid-cols-1 items-start gap-5 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-9",
   boardColumn: "min-w-0",
-  // No overflow on this or any ancestor: the grade row is sticky below md.
-  sideColumn: "flex min-w-0 flex-col gap-[18px] px-4 md:px-0",
+  sideColumn: "flex min-w-0 flex-col gap-[18px] px-4 pb-32 md:px-0 md:pb-0",
   contextLine: "flex flex-wrap gap-2 text-[12.5px] text-ink-faint",
   contextStrong: "font-medium text-ink-muted",
   question: "mt-1.5 font-serif text-[26px] font-display leading-[1.15] tracking-[-0.012em] text-ink md:text-[30px]",
   questionAsk: "font-normal italic text-ink-muted",
   optionList: "flex flex-col gap-2",
   optionButton: clsx(
-    "flex w-full items-center gap-3.5 rounded-[11px] border border-line bg-surface px-4 py-[13px] text-left text-ink shadow-card",
+    "flex w-full items-center gap-3.5 rounded-control border border-line bg-surface px-4 py-[13px] text-left text-ink shadow-card",
     "transition hover:-translate-y-px hover:border-ink-faint"
   ),
-  optionKeyHint: clsx(shared.kbd, "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[5px] p-0"),
+  optionKeyHint: clsx(shared.kbd, "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-chip p-0"),
   optionMove: "font-mono text-base font-medium",
-  hint: "text-xs text-ink-faint",
+  hint: "text-sm text-ink-muted",
+  crossedOption: clsx(
+    "flex w-full items-center gap-3.5 rounded-control border border-line bg-sunken px-4 py-[13px] text-left text-ink-muted line-through opacity-55 shadow-card",
+    "cursor-not-allowed"
+  ),
+  reasonActions: "grid grid-cols-2 gap-2",
+
 
   // The back.
   verdictRow: "mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-3.5",
@@ -100,7 +105,7 @@ export const style = {
   // `wide`: spans the row (after a wrong answer).
   gradeButton: (opts: { primary: boolean; wide: boolean }): string =>
     clsx(
-      "flex flex-col items-center gap-1 rounded-[11px] border px-1.5 py-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+      "flex flex-col items-center gap-1 rounded-control border px-1.5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-45",
       opts.primary
         ? "border-primary bg-primary text-on-primary hover:bg-primary/86"
         : "border-line-strong bg-surface text-ink hover:bg-sunken",
@@ -110,6 +115,9 @@ export const style = {
   // Function, 1 param -> passed directly. The key line under the label.
   gradeKey: (onPrimary: boolean): string =>
     clsx("font-mono text-[10.5px] font-medium", onPrimary ? "text-on-primary/70" : "text-ink-faint"),
+  recordedLabel: "font-sans text-[11px] font-medium",
+  recordedHint: "inline-flex items-center gap-2",
+  recordedKey: shared.kbd,
   linkRow: "flex flex-wrap gap-[18px]",
   retryButton: shared.buttonPrimary,
   mutedText: clsx(shared.mutedText, "px-4 md:px-0"),

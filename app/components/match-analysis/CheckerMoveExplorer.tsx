@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { encodeGnuPositionId } from "@/lib/gnuPositionId";
 import type { BoardCube } from "@/lib/boardFrame";
 import {
   checkerMoveStatus,
@@ -36,17 +37,27 @@ export default function CheckerMoveExplorer({
   position,
   dice,
   cube = null,
+  onChange,
 }: {
   position: DecodedPosition;
   dice: number[];
   cube?: BoardCube | null;
+  onChange?: (value: { position: DecodedPosition; resultPositionId: string | null; status: "ready" | "complete" | "no-legal-move" }) => void;
 }) {
   const [state, setState] = useState(() => createCheckerExplorer(position, dice));
   const [selected, setSelected] = useState<SelectedLocation>(null);
   const suppressClick = useRef(false);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
   const available = useMemo(() => legalHops(state.position, state.remainingDice), [state.position, state.remainingDice]);
   const selectedHops = selected === null ? [] : available.filter((hop) => sameLocation(hop.from, selected));
   const status = checkerMoveStatus(state);
+  const resultPositionId = status === "complete" ? encodeGnuPositionId(state.position) : null;
+  useEffect(() => {
+    onChangeRef.current?.({ position: state.position, resultPositionId, status });
+  }, [state.position, resultPositionId, status]);
   const chooseHop = (hop: CheckerHop) => {
     setState((current) => playCheckerHop(current, hop));
     setSelected(null);

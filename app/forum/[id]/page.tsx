@@ -16,6 +16,10 @@ import ForumActions from "./ForumActions";
 import ReplyComposer from "./ReplyComposer";
 import DecisionAnalysisPanel from "./DecisionAnalysisPanel";
 import { forumPostAnalyses } from "@/lib/forumAnalysis";
+import { tallyProposals, type ProposalTallyInput } from "@/lib/forumProposals";
+import type { ProposalTallyViewModel, ReplyProposalViewModel } from "./proposalTypes";
+import PositionProposalTally from "./ProposalDisplay";
+import { ReplyProposalChip } from "./ProposalDisplay";
 import { requireMemberDocument } from "@/lib/app-auth";
 
 // /forum/[id]: one post, its attached positions (checker positions get the
@@ -51,7 +55,13 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
           },
         },
       },
-      replies: { orderBy: { createdAt: "asc" }, include: { author: { select: { displayName: true } } } },
+      replies: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          author: { select: { displayName: true } },
+          proposals: { include: { studyPosition: { select: { id: true, positionId: true, gnuMatchId: true, kind: true } } } },
+        },
+      },
     },
   });
   if (!post) notFound();
@@ -76,6 +86,24 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
     )
   );
   const hasGamePosition = post.positions.some(({ studyPosition }) => studyPosition.sourceDecision !== null);
+  const decodedByPositionId = new Map(post.positions.map(({ studyPosition }) => [
+    studyPosition.id,
+    decodeForumPosition(studyPosition.positionId, studyPosition.gnuMatchId, studyPosition.kind),
+  ]));
+  const proposalPositions = post.positions.flatMap(({ studyPosition }, index) => {
+    const decoded = decodedByPositionId.get(studyPosition.id);
+    if (!decoded) return [];
+    return [{
+      id: studyPosition.id,
+      label: `Position ${index + 1} · ${forumPositionCaption(decoded.match, studyPosition.kind)}`,
+      kind: studyPosition.kind,
+      position: decoded.position,
+      positionId: studyPosition.positionId,
+      dice: decoded.dice,
+      match: decoded.match,
+      cube: decoded.cube,
+    }];
+  });
 
   return (
     <PageShell width="medium" title={post.title} breadcrumbs={[{ label: "Forum", href: "/forum" }, { label: post.title }]}>
@@ -94,12 +122,34 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
           />
         </Card>
         {post.positions.map(({ studyPosition }, index) => {
-          const decoded = decodeForumPosition(studyPosition.positionId, studyPosition.gnuMatchId, studyPosition.kind);
+          const decoded = decodedByPositionId.get(studyPosition.id);
           if (!decoded) return null;
           const { position, match, cube, dice } = decoded;
           const source = studyPosition.sourceDecision;
           const analysis = analyses[index];
-
+          const positionLabel = `Position ${index + 1} · ${forumPositionCaption(match, studyPosition.kind)}`;
+          const positionProposals: ProposalTallyInput[] = post.replies.flatMap((reply) => reply.proposals
+            .filter((proposal) => proposal.studyPositionId === studyPosition.id)
+            .map((proposal) => proposal.cubeAction
+              ? { key: `${reply.id}:${proposal.id}`, proposalId: proposal.id, kind: "CUBE" as const, cubeAction: proposal.cubeAction }
+              : { key: `${reply.id}:${proposal.id}`, proposalId: proposal.id, notation: proposal.notation!, kind: "CHECKER" as const, resultPositionId: proposal.resultPositionId! }));
+          const grouped = tallyProposals(positionProposals);
+          const proposals: ProposalTallyViewModel[] = grouped.map((item) => {
+            let proposal: ReplyProposalViewModel;
+            let proposalId: number;
+            if (item.kind === "CUBE") {
+              const first = positionProposals.find((candidate): candidate is Extract<ProposalTallyInput, { kind: "CUBE" }> =>
+                candidate.kind === "CUBE" && candidate.cubeAction === item.cubeAction)!;
+              proposal = { kind: "CUBE", key: first.key, positionLabel, cubeAction: item.cubeAction, position, cube };
+              proposalId = first.proposalId;
+            } else {
+              const first = positionProposals.find((candidate): candidate is Extract<ProposalTallyInput, { kind: "CHECKER" }> =>
+                candidate.kind === "CHECKER" && candidate.resultPositionId === item.resultPositionId)!;
+              proposal = { kind: "CHECKER", key: first.key, positionLabel, notation: first.notation, position, dice, cube, resultPositionId: item.resultPositionId };
+              proposalId = first.proposalId;
+            }
+            return { key: proposal.key, proposalId, count: item.count, proposal };
+          });
           return (
             <div className={style.position} key={studyPosition.id}>
               <div className={style.attachmentMeta}>
@@ -129,6 +179,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
                 <Board decoded={position} cube={cube} />
               )}
               {analysis && <DecisionAnalysisPanel analysis={analysis} />}
+              <PositionProposalTally proposals={proposals} />
             </div>
           );
         })}
@@ -137,22 +188,32 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
           {post.replies.length === 0 ? (
             <p className={style.meta}>No replies yet.</p>
           ) : (
-            post.replies.map((reply) => (
-              <div className={style.reply} key={reply.id}>
-                <p className={style.meta}>
-                  {reply.author.displayName} · {formatShortMatchDate(reply.createdAt.toISOString(), now)}
-                </p>
-                <p className={style.body}>{reply.body}</p>
-                <ForumActions
-                  postId={post.id}
-                  replyId={reply.id}
-                  replyBody={reply.body}
-                  {...actionsFor(reply.authorAppUserId)}
-                />
-              </div>
-            ))
+            post.replies.map((reply) => {
+              const proposals = reply.proposals.flatMap<ReplyProposalViewModel>((proposal) => {
+                const option = proposalPositions.find((candidate) => candidate.id === proposal.studyPositionId);
+                if (!option) return [];
+                return proposal.cubeAction
+                  ? [{ kind: "CUBE" as const, key: `${reply.id}:${proposal.id}`, positionLabel: option.label, cubeAction: proposal.cubeAction, position: option.position, cube: option.cube }]
+                  : [{ kind: "CHECKER" as const, key: `${reply.id}:${proposal.id}`, positionLabel: option.label, notation: proposal.notation!, position: option.position, dice: option.dice, cube: option.cube, resultPositionId: proposal.resultPositionId! }];
+              });
+              return (
+                <div className={style.reply} key={reply.id}>
+                  <p className={style.meta}>
+                    {reply.author.displayName} · {formatShortMatchDate(reply.createdAt.toISOString(), now)}
+                  </p>
+                  <p className={style.body}>{reply.body}</p>
+                  {proposals.map((proposal) => <ReplyProposalChip key={proposal.key} proposal={proposal} />)}
+                  <ForumActions
+                    postId={post.id}
+                    replyId={reply.id}
+                    replyBody={reply.body}
+                    {...actionsFor(reply.authorAppUserId)}
+                  />
+                </div>
+              );
+            })
           )}
-          <ReplyComposer postId={post.id} canWrite={canWrite} />
+          <ReplyComposer postId={post.id} canWrite={canWrite} positions={proposalPositions} />
         </Card>
       </div>
     </PageShell>

@@ -6,6 +6,8 @@ import { style as shared } from "@/lib/styles/shared.styles";
 // checked on the Best wash).
 const bestTag = "whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-[0.07em] text-ink-muted";
 
+const proposalChipBase = "inline-flex min-h-[34px] max-w-full items-center gap-1 rounded-control border border-line px-2.5 py-1 text-sm leading-5 text-ink";
+
 export const style = {
   list: "flex flex-col gap-3",
   stack: "flex flex-col gap-6",
@@ -51,6 +53,28 @@ export const style = {
   modalHeading: shared.modalHeading,
   modalText: shared.modalText,
   modalButtons: shared.modalButtons,
+  proposalDraft: "flex flex-col items-start gap-3 border-t border-line pt-3",
+  proposalField: "flex w-full max-w-xl flex-col gap-1.5",
+  proposalLabel: "text-sm font-medium text-ink",
+  proposalOptions: "flex flex-wrap gap-2",
+  proposalChipList: "flex flex-wrap gap-2",
+  proposalChip: clsx(proposalChipBase, "flex-wrap whitespace-normal"),
+  proposalInteractiveChip: clsx(proposalChipBase, "h-auto flex-wrap whitespace-normal text-left hover:bg-sunken"),
+  proposalPosition: "flex min-w-0 flex-wrap",
+  proposalPositionSegment: "whitespace-nowrap",
+  proposalCubeAction: "shrink-0 whitespace-nowrap",
+  proposalCheckerMove: "inline-flex shrink-0 items-center gap-1 whitespace-nowrap",
+  proposalSeparator: "shrink-0",
+  proposalView: "shrink-0 text-xs text-ink-muted",
+  proposalChecker: "font-mono",
+  proposalTally: "mt-3 border-t border-line px-2 pt-3 sm:px-0",
+  proposalTallySummary: "cursor-pointer text-sm text-ink-muted",
+  proposalTallyList: "mt-3 flex flex-col gap-2",
+  proposalTallyRow: "flex min-w-0 items-center gap-2",
+  proposalTallyChip: "min-w-0",
+  proposalCount: "shrink-0 tabular-nums text-sm text-ink-muted",
+  proposalBoard: "w-full sm:max-w-md md:max-w-xl",
+  proposalModalText: "text-sm text-ink-muted",
   reply: "flex flex-col gap-1 border-t border-line pt-4",
   // HideAnalysisCheckbox (new-post form, post edit): the checkbox row with
   // its one-line hint underneath. py-1 brings the row near 32px on phones.
@@ -104,4 +128,5 @@ export const style = {
   analysisBest: "text-sm text-ink",
   analysisBestLabel: "font-medium",
   analysisBestDetail: "text-ink-muted",
+  proposalDismiss: shared.modalButtons,
 } as const;
