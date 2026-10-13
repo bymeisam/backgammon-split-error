@@ -869,3 +869,9 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - **Forum UI:** a reply edit shows one textarea. New post, Edit, Delete and Reply are hidden when `isGalaxyEnabled()` is off.
   - Checks: `npx vitest run` 52 files / 602 tests, eslint clean, tsc clean, `npm run build` passes, `npm run test:visual` 15/15.
   - **Next:** Phase 1b, the code-style cleanup (unpack one-liners, restore removed comments and the dropped gnuPositionId test). To use the bypass locally, set `AUTH_BYPASS=true` in `.env`.
+- **omp-forum Phase 1b (branch `omp-forum`, local only, approved by the user):**
+  - **Formatting (no behaviour change):** one-liners unpacked in `app/api/forum/**`, `app/forum/**`, `lib/forum.ts`, `app/position-builder/PositionBuilder.tsx` and `CheckerMoveExplorer.tsx`, with route/helper comments in the house style. Packed inline handlers became named functions.
+  - **Restored:** `lib/gnuPositionId.test.ts` back to master's form (comments, the "15 checkers after flipping" test), with the encode tests added unsquashed. Explanatory comments in `lib/prisma.ts`, `proxy.ts` and `app/layout.tsx`, rewritten for prismaAuth and the Clerk wall. `app/status/notes.ts` gets back the MySQL 8.4, read-only deploy and navbar badge notes.
+  - **Write gaps closed:** `/position-builder` passes `canPostToForum = isGalaxyEnabled()` and hides "Post to forum" when off. `/forum/new` is a server page that shows "Posting is turned off on this deployment" when off; the form moved to `app/forum/new/NewPostForm.tsx`. Both pages are force-dynamic.
+  - Checks: `npx vitest run` 52 files / 604 tests, eslint clean, tsc clean, `npm run build` passes, `npm run test:visual` 15/15 with no baseline changes.
+  - **Next:** check the gated pages in a browser with writes on and off (the visual suite doesn't cover /forum or /position-builder).
