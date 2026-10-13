@@ -36,7 +36,9 @@ function numberValue(value: string): number {
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
 }
 
-export default function PositionBuilder() {
+// canPostToForum: isGalaxyEnabled(), decided by the server page (the forum
+// write routes' gate). Off hides "Post to forum"; the builder still works.
+export default function PositionBuilder({ canPostToForum }: { canPostToForum: boolean }) {
   const router = useRouter();
   const [state, setState] = useState<PositionBuilderState>(initialPositionBuilderState);
   const [editingSide, setEditingSide] = useState<Side>("mine");
@@ -369,9 +371,11 @@ export default function PositionBuilder() {
           <p className={style.footerNote}>Save and analysis are intentionally not connected yet.</p>
         </Card>
 
-        <Button variant="primary" onClick={postToForum} disabled={errors.length > 0}>
-          Post to forum
-        </Button>
+        {canPostToForum && (
+          <Button variant="primary" onClick={postToForum} disabled={errors.length > 0}>
+            Post to forum
+          </Button>
+        )}
       </div>
     </div>
   );
