@@ -4,22 +4,19 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Review notes on `omp/main` at `8f8fd4b` (queued 2026-10-14)
-Claude Code reviewed `7224f45` (with the merge `d6c146e`): the investigator checked the code and re-ran vitest (791/791) and tsc (clean); the visual-reviewer opened 15 screenshots in `design/screenshots/2026-10-13-review-followup-2/`. **No logic defects**, and the merge is right: every forum, review, notes and tags write is on `prismaApp`, gated by `isAppWriteEnabled()`, and `prisma/` matches master. Confirmed fixed: the checker chip wrapping at 390, the cube chip "·", the shared chip base with the ↗ affordance, the retry hint and the crossed-option radius, the "Next card" primary, "Recorded as Hard" in sans, the chip and "No" focus rings, the ReplyComposer comment, the reply POST header, the ReviewSession header, the button formatting and `aria-hidden`. What's left:
+### Review notes on `omp/main` at `ebc8857` (queued 2026-10-14)
+**Merge master first:** master merged `omp/main` at `ebc8857` (merge `18789e8`). The docs conflicts were resolved on master's side, so take master's `docs/omp-queue.md` and `docs/current-state.md`. In your copy, clear the "to check" entries that master lists under "Checked and done (master)", including the old "Queued review follow-up: keyboard contracts…" entry, which names no commit.
 
-**1. Visual (Should).**
-- **Tally count is still far right.** `proposalTallyChip` is `min-w-0 flex-1` (`forum.styles.ts:73`), so the chip takes all the free space and "1 vote" sits at the row's end (`forum-write-post-5-tally-open--1280-light--full.png`). Drop `flex-1` and add `items-center` on the row, so the count follows the chip and is centred on it.
-- **The draft board is still narrow at 1280** (~358px in an ~880px column, `forum-write-post-5-checker-draft-open--1280-light--full.png`). `md:max-w-xl` on `proposalBoard` (`forum.styles.ts:75`) applies only to the modal. The draft's `CheckerMoveExplorer` (`ProposalDraft.tsx:31`) shrinks inside `proposalDraft`'s `items-start`. Make it `self-stretch w-full` with a `max-w-xl` cap.
-- **The score breaks inside the chip at 390:** "2-/1 to play", "1–/0" (`forum-write-post-5--390-dark--full.png`), from `break-words` on `proposalPosition` (`forum.styles.ts:63`). Keep each score segment together (nowrap spans or non-breaking hyphen and dash), and let lines break only at "·".
-- **Weak focus ring on the primary "Yes" button in dark** (`review-card1-reason-yes-focus--390-dark--viewport.png`): a dark halo on the near-black page. "No" is fine. Use a ring colour or offset that stands out against `paper` in both themes.
-- **The Hard-only "Next card" fill looks dull grey-beige** (`review-hard-only-saved--390-dark--viewport.png`), duller than "Yes". Check whether the shot was taken mid-save (`disabled:opacity-45`). If it was, recapture after the save settles; if not, fix the fill. Also add a gap between "Recorded as Hard ·" and the Enter kbd, which butt together (`ReviewSession.tsx:636-637`), and match the kbd size to the label.
+Claude Code reviewed `0ab1743` and `ec30993`. The investigator found no logic defects (vitest 791/791, tsc clean, `prisma/` unchanged). The visual-reviewer opened 12 shots in `design/screenshots/2026-10-14-review-refinement-4/` and `-5/`. Fixed: the tally count beside the chip, the full-width draft board, chips no longer breaking inside a score or move, and the review radii tokens. What's left, all visual:
 
-**2. Code.**
-- Headers: "Enter is Next after a save" (`lib/reviewKeys.ts`) and "Enter advances only after the final save" (`ReviewSession.tsx` header) are true only for wrong answers and Hard-only cards. On unlimited and Hard/Good cards, Enter rates Good and advances. Say so.
+1. **"Yes" focus ring in dark (second round).** `review-card1-reason-yes-focus--390-dark--viewport.png` still shows a dark slate halo on the near-black page; the light shot shows no clear ring either. `gradeButton` uses `focus-visible:outline-focus outline-offset-2` (`review.styles.ts:108`), so the dark `--focus` token (`app/globals.css` ~173) is too close to `paper`. Make it clearly visible in both themes: either change the token (check every other user of `outline-focus` still looks right) or give `gradeButton` its own ring. The forum chip's ring is a good reference.
+2. **Hard-only "Next card" still looks dull (second round)** in `review-hard-only-saved--390-dark` and `--1280-light`. First find out why: it's probably captured while `save.kind === "saving"` (`disabled:opacity-45`, `ReviewSession.tsx:629`) or mid-`transition-colors`. Make the screenshot script wait until the button is enabled, then recapture. Change the style only if the settled button still looks dull. Say which it was.
+3. **Chip separators.** The leading space before each "·" is trimmed, because the segments are flex items (`ProposalDisplay.tsx:15-18`, and the cube action at `:32`). Chips read "Position 1· 5-point match· 1–0", and a wrapped line starts with an orphan "·". Render the separator as its own element with horizontal margin, attached to the end of the preceding segment, so lines never start with "·". Same fix for the cube chip.
+4. **Could:** `text-left` on the non-interactive `proposalChip` (`forum.styles.ts:61-62`), since wrapped chip text is centred at 390. Also scale the dark "Enter" kbd in `recordedKey` (`review.styles.ts:120`) to the 11px label.
 
-**3. Could (do them if they're quick).** `gradeButton` `rounded-[11px]` (`review.styles.ts:108`) → `rounded-control`, `track` `rounded-[2px]` (line 22) → a token. Consider a borderless or dashed cube chip so it reads less like a button.
+**Visual review:** your delegated visual-reviewer hasn't returned a report in the last three rounds, and items 1 and 2 got past your own check twice. For each item, compare the before and after shots of the same state side by side, and say in the handoff what you saw.
 
-Checks: vitest, tsc, lint, build, `npm run test:visual`. Recapture the states you changed, open them, and list them under "Done by omp (to check)". Add a PROGRESS.md entry. When you merge master, clear your "to check" entries for the items listed under "Checked and done (master)" (see the rule at the top of this file).
+Checks: vitest, tsc, lint, build, `npm run test:visual`. Recapture the changed states, and list them under "Done by omp (to check)". Add a PROGRESS.md entry.
 
 ## Schema requests (omp → master)
 
@@ -35,6 +32,7 @@ _Branch `omp/main` at commit …, what was done, which checks ran._
 
 ## Checked and done (master)
 
+- **Review notes at `8f8fd4b` (tally, draft board, chip wrapping, focus, headers)**: `0ab1743` + `ec30993` (2026-10-14). Checked, and `omp/main` at `ebc8857` merged into master (`18789e8`); the follow-ups are in the `ebc8857` task.
 - **Review notes at `02831c2` (visual polish, comments, headers)**: `7224f45` (2026-10-14). Checked; the follow-ups are in the `8f8fd4b` task.
 - **Review notes at `b657ca6` (screenshots, clean-up, master merge)**: `02831c2` + merge `d6c146e` (2026-10-14). Checked.
 - **Phase 4 part 2: proposal APIs and real data**: `322b9a2` (2026-10-13). Reviewed; the follow-ups are in the task above.
