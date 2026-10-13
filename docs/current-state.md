@@ -5,7 +5,7 @@ Start each new session here. `PROGRESS.md` is the history log: grep it only when
 _Last updated: 2026-10-14._
 
 ## Code
-- Branch `omp/main`. It is clean at `304228f` after the final review refinement (`ec30993`) and handoff verification (`304228f`); the app-write merge remains `d6c146e`.
+- Branch `omp/main` is clean after the final review refinement (`ec30993`) and handoff/current-state updates; the app-write merge remains `d6c146e`.
 - **The queued review refinement is complete and ready for main review.** It preserves master's app-wide `prismaApp` / `isAppWriteEnabled()` merge.
 - **Local verification:** vitest 791/791, tsc, eslint, build and visual suite 15/15 are clean. The real local app returned HTTP 200 for `/api/review/queue`; no environment files were changed.
 - **Screenshots:** final real-app captures are in `design/screenshots/2026-10-14-review-refinement-4/` and `-5/` at 390/1280 light/dark. Main-session image review found no visible Must/Should defects; the delegated visual-reviewer did not return a report. Representatives are listed in `docs/omp-queue.md`.
@@ -16,7 +16,7 @@ _Last updated: 2026-10-14._
 ## Open threads
 
 - **Claude Code, next batch: Phase 3** (plan in `~/.claude/plans/with-regards-to-auth-concurrent-comet.md`): the app-scoped Oracle user, `prismaApp`, `isAppWriteEnabled()`, then the Oracle migrations and Vercel env vars, followed by the user's push.
-- **User:** tell Claude Code when omp marks `304228f` ready for review; main must review the branch before merging. The checks the user wanted to do remain.
+- **User:** tell Claude Code that omp is ready for review; main must review the branch before merging. The checks the user wanted to do remain.
 - **Small follow-ups (developer, not yet approved):**
   - `formatEquity` uses a hyphen and no "+" (shared with the review card);
   - the `StudyPosition.sourceDecision` onDelete drift (schema SET NULL, DB RESTRICT);
