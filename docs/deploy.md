@@ -221,6 +221,17 @@ The authenticated `/position-builder` route is a member page. It keeps edits in 
 
 `ENABLE_WRITE_MODE` remains the Galaxy/sync gate. Clerk ownership does not turn hosted Galaxy or sync on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. `DATABASE_URL_APP` (`bg_db_app`) covers the `AppUser` allowlist and every in-app write, and has no write access to Match, Game or Decision.
 
+### Clerk domain (read this if sign-in breaks after a domain change)
+
+- **Clerk's production instance needs a domain you own.** It doesn't accept a `*.vercel.app` address ([Clerk's Vercel guide](https://clerk.com/docs/guides/development/deployment/vercel)). Until the app has its own domain, the live site runs on Clerk's **development** instance (`pk_test_` / `sk_test_` keys), which does work on `*.vercel.app`.
+- **Planned domain:** `backgammon.bymeisam.dev` (decided 2026-10-13). When the app moves there:
+  1. Add the domain to the Vercel project (Settings → Domains) and set its DNS.
+  2. In Clerk, create the production instance (clone the development one), enter `backgammon.bymeisam.dev` as the application domain, and add the DNS records Clerk lists (CNAMEs such as `clerk.` and `accounts.` under the domain). Wait until Clerk shows them verified and the SSL certificates issued.
+  3. In Vercel, set the production keys (`pk_live_` / `sk_live_`) on **Production**; keep the development keys on **Preview** if previews still need sign-in.
+  4. Users don't carry over between Clerk instances: re-invite members in the production instance, and set the owner's `privateMetadata.isOwner = true` there again. Their `AppUser` rows are keyed by Clerk user id (`clerkUserId`), so the new instance's ids create new rows (role `NONE`): set the owner's new row to `OWNER` and members' to `MEMBER`, and delete or leave the old rows.
+  5. Check the redirect/allowed-origin settings in Clerk name the new domain, then run "Auth verification" below.
+- **Known snags:** SSL issuance in Clerk can stall on CAA DNS records (Clerk support fixed it by hand for others); the Vercel Marketplace Clerk integration has been reported to fall back to development keys ("Production domain required"). Contact Clerk support for either.
+
 ### Temporary local development auth bypass
 
 Setting `AUTH_BYPASS=true` temporarily bypasses the Clerk document and API
