@@ -936,3 +936,18 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
 - **omp Phase 4 part 1 reviewed (`omp/main` at `421d419`, not merged).** Pure helpers in `lib/forumProposals.ts` with tests, an optional `onChange` on `CheckerMoveExplorer`, proposal drafts in the reply form, chips and tally (no saving yet). The user kept omp's design: "Propose this move" opens a second board inside the reply form, instead of proposing from the post's board. Review notes (Prisma enum and one set of cube labels, tally sorted by count, no board modal for cube chips, drop the draft notices and `required`, don't lose an unused play, decode once) were added to part 2 in the queue (`9f4f887`). Part 1 must not be merged before part 2.
 - **Review second try (approved by the user, queued for omp after Phase 4, `063f99a`).** For cards with a note: a right first answer asks "Do you know the reason?" (note hidden until answered; Yes → Hard/Good/Easy, No → Hard/Good, the note shown either way); a wrong first answer shows only the note and allows a second try (not on take/pass cards), a hinted success is Hard only, wrong twice is Again. Save once when the outcome is final; no schema or API change (`ratingFor` already accepts a correct `chosen` with Hard). Cards without a note keep today's flow. The investigator found that a wrong answer already waits for "Next card" today (it's saved as Again before the back is shown), so the user withdrew the "jumpiness" point.
 - **What's next:** Phase 3 here (forum DB user, `prismaForum`, `isForumWriteEnabled()`, the Oracle migrations including `20261013140000_forum_move_proposal` with the user's approval, Vercel env vars, push). omp: part 1 screenshots and visual review, part 2, then the review second try; Claude Code reviews `omp/main` before the user merges it. Small: `docs/field-mapping.md` still says "these five columns" (the list has eight).
+- **omp restart, then review of `omp/main` at `b657ca6` (main session).**
+  - omp seemed stuck. The cause: `omp/main` hadn't merged master, so its Prisma client lacked `ForumMoveProposal`. omp then merged master (`5d666ee`) and finished Phase 4 part 2 (`322b9a2`) and the review second try (`2e969ab`).
+  - **Investigator:** vitest 759/759, tsc and lint clean on `omp/main`. Confirmed from the code: proposals are saved in a transaction; a body-only edit keeps them; the server checks legality, attachment, kind and duplicates; members can write; the tally is per position, sorted by count. The review flow saves once, Hard after a second try, Again when wrong, with a whole-card duration and the first choice disabled. No logic defects. The local DB has 0 `ForumMoveProposal` rows.
+  - **Visual-reviewer:** no screenshot shows the proposal UI (chips, tally, draft) or the review reason and retry states, so neither feature is visually reviewed yet.
+  - The review notes are queued for omp in `docs/omp-queue.md` (`2345b5c`). They cover:
+    - seeding test proposals and capturing every new state, then a real visual review;
+    - restoring the `ReviewSession.tsx` and `reviewKeys.ts` header comments;
+    - `aria-hidden` on the grade key hints, and a single Good button;
+    - the unreachable "Recorded as Hard" state;
+    - a key hint on the reason step;
+    - carrying notation through the tally instead of parsing the key;
+    - dead ternaries in `ProposalPreview` and an affordance on clickable chips;
+    - `items-start` on `proposalDraft`;
+    - the lost and misplaced route and composer comments.
+  - **Next:** omp does the review follow-up; Claude Code re-reviews; then the user merges `omp/main` (expect a small conflict in `docs/omp-queue.md`).

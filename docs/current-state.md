@@ -7,10 +7,10 @@ _Last updated: 2026-10-13._
 ## Code
 
 - Branch `master`. It is clean after the wrap-up commit. The last work commits are:
+  - `2345b5c`: omp queue, the review notes on Phase 4 part 2 and the review second try;
   - `adf2cdf`: the Phase 4 schema (`ForumMoveProposal`, enum `ForumCubeAction`), local only;
-  - `063f99a`, `9f4f887`: omp queue tasks and review notes;
   - `9e3f527`, `82dde64`: the shared-DB and omp rules.
-- **It's ahead of `origin/master` and not pushed** (about 75 commits). vitest 741/741, tsc, eslint and build are clean.
+- **It's ahead of `origin/master` and not pushed** (about 77 commits). vitest 741/741, tsc, eslint and build are clean on master.
 - **Don't push master until Phase 3 is done.** Pushing puts the Clerk wall and the role model on the live site. That needs:
   - the Clerk keys and `DATABASE_URL_AUTH` in Vercel;
   - the forum, role, `hideAnalysis` and move-proposal migrations on Oracle;
@@ -25,16 +25,16 @@ _Last updated: 2026-10-13._
 
 - **omp** works in `../backgammon-omp` on `omp/main` (dev server on port 3400), **sharing the local DB** with master (port 3000). Rules: AGENTS.md § Two worktrees, one local DB. Only master changes `prisma/`; work is split by area (omp: forum features and the review screen; Claude Code: Phase 3/infra, data, schema, reviews of `omp/main`).
 - **Queue:** `docs/omp-queue.md` on master; omp reads it with `git show master:docs/omp-queue.md`. The user relays "next task" to omp and "omp is ready" to Claude Code.
-- **omp's queue now:**
-  1. Phase 4 part 1 (helpers and proposal UI, `421d419`): reviewed by Claude Code. Its screenshots and visual review are still owed. **Don't merge before part 2.**
-  2. Phase 4 part 2: APIs, saving, text-optional replies, the real tally, plus the part 1 review notes. Starts with merging master and `npx prisma generate`.
-  3. Review second try and "Do you know the reason?" (no schema or API change).
+- **`omp/main` (at `b657ca6`, not merged)** has merged master and holds Phase 4 parts 1 and 2 plus the review second try.
+  - Reviewed by Claude Code, with the investigator and the visual-reviewer: no logic defects; vitest 759/759, tsc and lint are clean.
+  - **Not mergeable yet:** no screenshot shows the proposal UI or the review reason and retry states, and there's a list of code clean-ups.
+- **omp's queue now:** one task, "Review notes on `omp/main` at `b657ca6`" in `docs/omp-queue.md`. It covers seeding test proposals locally, capturing and visually reviewing every new state, and the clean-ups. After that, Claude Code re-reviews and the user merges. Expect a small conflict in `docs/omp-queue.md` when merging.
 - The user kept omp's proposal design: a second board inside the reply form.
 
 ## Open threads
 
 - **Claude Code, next batch: Phase 3** (plan in `~/.claude/plans/with-regards-to-auth-concurrent-comet.md`): a forum-scoped Oracle user, `prismaForum`, `isForumWriteEnabled()`, then the Oracle steps below, then the Vercel env vars, then the user pushes.
-- **User:** relay to omp; tell Claude Code when omp marks Phase 4 ready for review; the checks the user wanted to do.
+- **User:** tell omp to pick up the review-notes task; tell Claude Code when omp marks it ready for re-review; the checks the user wanted to do.
 - **Small follow-ups (developer, not yet approved):**
   - `formatEquity` uses a hyphen and no "+" (shared with the review card);
   - the `StudyPosition.sourceDecision` onDelete drift (schema SET NULL, DB RESTRICT);
