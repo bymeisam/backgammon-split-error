@@ -22,7 +22,13 @@ describe("generated agent files", () => {
   const files = expectedFiles();
 
   it("covers every role for both tools", () => {
-    expect(files.length).toBeGreaterThan(0);
+    const roles = fs
+      .readdirSync(path.join(ROOT, "agents", "roles"), { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name);
+    expect(roles.length).toBeGreaterThan(0);
+    const expected = roles.flatMap((r) => [`.claude/agents/${r}.md`, `.omp/agents/${r}.md`]).sort();
+    expect(files.map((f) => f.relPath).sort()).toEqual(expected);
   });
 
   it("has no agent files without a role source", () => {

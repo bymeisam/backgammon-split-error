@@ -11,7 +11,8 @@ These notes apply to omp only. The shared rules are in AGENTS.md. CLAUDE.md's "C
 The repo's roles are omp agents of the same name in `.omp/agents/`:
 - `investigator`: read-only investigation and factual findings. Pass the question and the relevant paths.
 - `developer`: implements a self-contained, explicitly approved spec. Pass the complete spec, the affected files, the invariants and the verification commands. Don't ask it to widen scope.
-- `designer`: UI/UX review. Writes only under `design/` and `reports/`.
+- `designer`: design direction, the design system, new pages and new kinds of component, and mockups. Writes only under `design/` and `reports/`.
 - `architect`: read-only architecture advice, on demand.
+- `visual-reviewer`: read-only screenshot QA after a visible UI change. Pass the screenshot folder and the changed files. It returns its report and writes no files.
 
 The main session is the orchestrator: it owns planning, user approval, agent choice, complete handoffs, integration and final verification. Delegated agents don't spawn further agents.

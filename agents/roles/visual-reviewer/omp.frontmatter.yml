@@ -1,0 +1,6 @@
+name: visual-reviewer
+description: Read-only visual QA reviewer. Checks the screenshots the main session names (from scripts/design-screenshots.ts) against the styling code and the design system, and reports concrete visual, responsive, accessibility and backgammon-board defects with severity and file:line. Use after any visible UI change. Never changes code, files, data or git state.
+model: "@visual_reviewer"
+tools: read, grep, glob
+autoloadSkills:
+  - styling-conventions
