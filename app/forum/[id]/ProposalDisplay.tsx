@@ -9,13 +9,15 @@ import { CUBE_ACTION_LABELS } from "@/lib/forumProposals";
 import type { ProposalTallyViewModel, ReplyProposalViewModel } from "./proposalTypes";
 import { style } from "../forum.styles";
 
-function WrappedPositionLabel({ label }: { label: string }) {
+function WrappedPositionLabel({ label, appendSeparator = false }: { label: string; appendSeparator?: boolean }) {
   return (
     <span className={style.proposalPosition}>
-      {label.split(" · ").map((segment, index) => (
+      {label.split(" · ").map((segment, index, segments) => (
         <span className={style.proposalPositionSegment} key={`${index}-${segment}`}>
-          {index > 0 && " · "}
           {segment}
+          {(index < segments.length - 1 || (appendSeparator && index === segments.length - 1)) && (
+            <span className={style.proposalSeparator}>·</span>
+          )}
         </span>
       ))}
     </span>
@@ -28,8 +30,8 @@ function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
   if (proposal.kind === "CUBE") {
     return (
       <span className={style.proposalChip}>
-        <WrappedPositionLabel label={proposal.positionLabel} />
-        <span className={style.proposalCubeAction}>· {CUBE_ACTION_LABELS[proposal.cubeAction]}</span>
+        <WrappedPositionLabel label={proposal.positionLabel} appendSeparator />
+        <span className={style.proposalCubeAction}>{CUBE_ACTION_LABELS[proposal.cubeAction]}</span>
       </span>
     );
   }
@@ -44,9 +46,8 @@ function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
   return (
     <>
       <Button size="compact" className={style.proposalInteractiveChip} onClick={() => setOpen(true)} aria-label={`${proposal.positionLabel}: ${action}`}>
-        <WrappedPositionLabel label={proposal.positionLabel} />
+        <WrappedPositionLabel label={proposal.positionLabel} appendSeparator />
         <span className={style.proposalCheckerMove}>
-          <span className={style.proposalSeparator}>·</span>
           <span className={style.proposalChecker}>{proposal.notation}</span>
         </span>
         <span aria-hidden="true" className={style.proposalView}>↗</span>
