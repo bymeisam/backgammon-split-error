@@ -18,11 +18,17 @@ export default function ReplyComposer({ postId, canWrite, positions }: { postId:
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!body.trim() && Object.keys(drafts).length === 0) {
+      setError("Reply text or a proposal is required.");
+      return;
+    }
 
     const response = await fetch(`/api/forum/posts/${postId}/replies`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, proposals: Object.values(drafts).map((draft) => draft.kind === "CHECKER"
+        ? { studyPositionId: draft.positionId, resultPositionId: draft.resultPositionId }
+        : { studyPositionId: draft.positionId, cubeAction: draft.cubeAction }) }),
     });
     if (!response.ok) {
       const result = await response.json().catch(() => null);
@@ -30,7 +36,7 @@ export default function ReplyComposer({ postId, canWrite, positions }: { postId:
       return;
     }
 
-    // Proposal submission is intentionally not wired until the proposal API batch.
+    // Completed plays remain selected until submitted or explicitly removed.
     setBody("");
     setDrafts({});
     router.refresh();
@@ -45,7 +51,6 @@ export default function ReplyComposer({ postId, canWrite, positions }: { postId:
         aria-label="Reply"
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        required
       />
       {positions.map((position) => (
         <ProposalDraft
@@ -62,7 +67,6 @@ export default function ReplyComposer({ postId, canWrite, positions }: { postId:
           })}
         />
       ))}
-      <p className={style.proposalNotice}>Proposal drafts are local only and will not be saved with this reply yet.</p>
       <div className={style.formActions}>
         <Button type="submit" variant="primary">
           Reply

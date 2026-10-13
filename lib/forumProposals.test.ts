@@ -52,11 +52,11 @@ describe("cubeActionsFor", () => {
 });
 
 describe("tallyProposals", () => {
-  it("groups duplicate proposal keys by result/action in first-seen order", () => {
+  it("groups proposals and sorts by count descending with ties in first-seen order", () => {
     expect(tallyProposals([
       { key: "a", kind: "CHECKER", resultPositionId: "result-1" },
-      { key: "a", kind: "CHECKER", resultPositionId: "result-1" },
       { key: "b", kind: "CUBE", cubeAction: "TAKE" },
+      { key: "a", kind: "CHECKER", resultPositionId: "result-1" },
       { key: "b", kind: "CUBE", cubeAction: "TAKE" },
       { key: "c", kind: "CHECKER", resultPositionId: "result-2" },
     ])).toEqual([

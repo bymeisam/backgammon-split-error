@@ -1,8 +1,17 @@
+import type { ForumCubeAction } from "@/lib/generated/prisma/client";
 import { legalSequences } from "@/lib/checkerMoves";
 import type { DecodedMatchId } from "@/lib/gnuMatchId";
 import { encodeGnuPositionId, type DecodedPosition } from "@/lib/gnuPositionId";
 
-export type CubeAction = "TAKE" | "PASS" | "NO_DOUBLE" | "DOUBLE_TAKE" | "DOUBLE_PASS" | "TOO_GOOD";
+export type CubeAction = ForumCubeAction;
+export const CUBE_ACTION_LABELS: Record<CubeAction, string> = {
+  NO_DOUBLE: "No double",
+  DOUBLE_TAKE: "Double/Take",
+  DOUBLE_PASS: "Double/Pass",
+  TOO_GOOD: "Too good/Pass",
+  TAKE: "Take",
+  PASS: "Pass",
+};
 
 export interface CheckerProposal {
   notation: string;
@@ -27,9 +36,8 @@ export function validateCheckerProposal(
 }
 
 export function cubeActionsFor(match: Pick<DecodedMatchId, "doubleOffered">): CubeAction[] {
-  return match.doubleOffered
-    ? ["TAKE", "PASS"]
-    : ["NO_DOUBLE", "DOUBLE_TAKE", "DOUBLE_PASS", "TOO_GOOD"];
+  const offered = match.doubleOffered ? ["TAKE", "PASS"] : ["NO_DOUBLE", "DOUBLE_TAKE", "DOUBLE_PASS", "TOO_GOOD"];
+  return offered as CubeAction[];
 }
 
 export type ProposalTallyItem =
@@ -55,5 +63,5 @@ export function tallyProposals(proposals: readonly ProposalTallyInput[]): Propos
       tallies.set(groupingKey, { kind: "CUBE", cubeAction: proposal.cubeAction, count: 1 });
     }
   }
-  return [...tallies.values()];
+  return [...tallies.values()].sort((a, b) => b.count - a.count);
 }

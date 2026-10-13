@@ -3,18 +3,9 @@
 import { useState } from "react";
 import Button from "@/app/components/ui/Button";
 import CheckerMoveExplorer from "@/app/components/match-analysis/CheckerMoveExplorer";
-import { cubeActionsFor, validateCheckerProposal, type CubeAction } from "@/lib/forumProposals";
+import { CUBE_ACTION_LABELS, cubeActionsFor, validateCheckerProposal } from "@/lib/forumProposals";
 import type { ProposalDraftValue, ProposalPositionOption } from "./proposalTypes";
 import { style } from "../forum.styles";
-
-const CUBE_ACTION_LABELS: Record<CubeAction, string> = {
-  TAKE: "Take",
-  PASS: "Pass",
-  NO_DOUBLE: "No double",
-  DOUBLE_TAKE: "Double · opponent take",
-  DOUBLE_PASS: "Double · opponent pass",
-  TOO_GOOD: "Too good to double",
-};
 
 export default function ProposalDraft({
   position,
@@ -70,7 +61,6 @@ export default function ProposalDraft({
               ))}
             </div>
           )}
-          <p className={style.proposalNotice}>Draft only — proposals are not submitted yet.</p>
           <div className={style.proposalOptions}>
             {value && <Button size="compact" onClick={() => onChange(null)}>Remove proposal</Button>}
             <Button size="compact" onClick={() => setOpen(false)}>Close proposal controls</Button>

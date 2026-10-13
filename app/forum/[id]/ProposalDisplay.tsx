@@ -5,31 +5,23 @@ import Board from "@/app/components/match-analysis/Board";
 import Button from "@/app/components/ui/Button";
 import Modal from "@/app/components/ui/Modal";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
+import { CUBE_ACTION_LABELS } from "@/lib/forumProposals";
 import type { ProposalTallyViewModel, ReplyProposalViewModel } from "./proposalTypes";
 import { style } from "../forum.styles";
-
-const CUBE_ACTION_LABELS: Record<Extract<ReplyProposalViewModel, { kind: "CUBE" }>["cubeAction"], string> = {
-  TAKE: "Take",
-  PASS: "Pass",
-  NO_DOUBLE: "No double",
-  DOUBLE_TAKE: "Double · opponent take",
-  DOUBLE_PASS: "Double · opponent pass",
-  TOO_GOOD: "Too good to double",
-};
 
 function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
   const [open, setOpen] = useState(false);
   const headingId = useId();
-  const action = proposal.kind === "CHECKER" ? proposal.notation : CUBE_ACTION_LABELS[proposal.cubeAction];
-  const previewPosition = proposal.kind === "CHECKER"
-    ? (() => {
-        try {
-          return decodeGnuPositionId(proposal.resultPositionId);
-        } catch {
-          return null;
-        }
-      })()
-    : proposal.position;
+  if (proposal.kind === "CUBE") {
+    return <span className={style.proposalChip}>{proposal.positionLabel} · {CUBE_ACTION_LABELS[proposal.cubeAction]}</span>;
+  }
+  const action = proposal.notation;
+  let previewPosition;
+  try {
+    previewPosition = decodeGnuPositionId(proposal.resultPositionId);
+  } catch {
+    previewPosition = null;
+  }
 
   return (
     <>
