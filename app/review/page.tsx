@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import {
   categoryLabel,
   categoryOptions,
@@ -20,19 +20,19 @@ import { style } from "./review.styles";
 import { requireOwnerDocument } from "@/lib/app-auth";
 
 // /review: a spaced-repetition session over the review cards. Writes (each
-// answer) need write mode, so with it off (the live read-only site) this
-// only says where reviewing happens; /review/cards stays browsable. Filter
+// answer) need app writes (isAppWriteEnabled()), so with them off this
+// only says writing is off; /review/cards stays browsable. Filter
 // options read with prismaReadOnly; the session itself runs client-side
-// against /api/review/* (gated by proxy.ts).
+// against /api/review/* (the write routes check isAppWriteEnabled()).
 export const dynamic = "force-dynamic";
 
 export default async function ReviewPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   await requireOwnerDocument();
-  if (!isGalaxyEnabled()) {
+  if (!isAppWriteEnabled()) {
     return (
       <PageShell title="Review">
         <p data-testid="review-read-only" className={style.readOnlyBox}>
-          Reviewing is available in the local app (write mode).{" "}
+          Writing is turned off on this deployment.{" "}
           <Link href="/review/cards" className={style.link}>
             Browse the cards
           </Link>

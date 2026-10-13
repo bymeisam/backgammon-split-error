@@ -1,9 +1,8 @@
 import "server-only";
-import { prismaAuth, prismaReadOnly } from "@/lib/prisma";
+import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { getAppAuthState } from "@/lib/app-auth";
 import { isLocalAuthBypass, localBypassIdentity } from "@/lib/localAuthBypass";
 import { isMemberOrOwner, type AppRole } from "@/lib/appRole";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 
@@ -64,7 +63,7 @@ export async function forumIdentity(): Promise<{ id: number; role: AppRole } | n
 
   if (isLocalAuthBypass()) {
     const { clerkUserId, displayName, role } = localBypassIdentity();
-    const row = await prismaAuth.appUser.upsert({
+    const row = await prismaApp.appUser.upsert({
       where: { clerkUserId },
       create: { clerkUserId, displayName, role },
       update: { displayName, role },
@@ -72,7 +71,7 @@ export async function forumIdentity(): Promise<{ id: number; role: AppRole } | n
     });
     return { id: row.id, role };
   }
-  const row = await prismaAuth.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId }, select: { id: true } });
+  const row = await prismaApp.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId }, select: { id: true } });
   return row ? { id: row.id, role: auth.role } : null;
 }
 
@@ -84,11 +83,6 @@ export async function forumViewer(): Promise<{ id: number; role: AppRole } | nul
   if (!auth || !isMemberOrOwner(auth.role)) return null;
   const row = await prismaReadOnly.appUser.findUnique({ where: { clerkUserId: auth.clerkUserId }, select: { id: true } });
   return row ? { id: row.id, role: auth.role } : null;
-}
-
-// Forum writes follow the app-wide write gate (lib/galaxyGate.ts).
-export async function writeAllowed() {
-  return isGalaxyEnabled();
 }
 
 // The fields of a Decision a forum attachment is built from.

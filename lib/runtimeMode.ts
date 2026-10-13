@@ -1,20 +1,22 @@
 // The navbar's database/mode badge. Worked out on the server only. The label
 // is the one thing that leaves the server: never pass DATABASE_URL,
-// DATABASE_URL_READONLY, a host or any part of either URL to a client
-// component.
+// DATABASE_URL_APP, DATABASE_URL_READONLY, a host or any part of any URL to
+// a client component.
 //
-// - Write mode is lib/galaxyGate.ts's isGalaxyEnabled() (needs DATABASE_URL
-//   and ENABLE_WRITE_MODE=true), so the live read-only site (Vercel, no
-//   DATABASE_URL) always reads "Read-only".
-// - In write mode each URL is classed "Local" or "Oracle": DATABASE_URL
-//   (writes, the `prisma` client) and DATABASE_URL_READONLY (reads, the
-//   `prismaReadOnly` client every page reads through). The same class for
+// - Write mode is lib/appWriteGate.ts's isAppWriteEnabled() (DATABASE_URL_APP
+//   set, or locally DATABASE_URL with ENABLE_WRITE_MODE=true), so a deploy
+//   with no DATABASE_URL_APP always reads "Read-only".
+// - In write mode each URL is classed "Local" or "Oracle": the app write URL
+//   (lib/appDatabaseUrl.ts's appDatabaseUrl(): DATABASE_URL_APP, or locally
+//   DATABASE_URL; the `prismaApp` client) and DATABASE_URL_READONLY (reads,
+//   the `prismaReadOnly` client every page reads through). The same class for
 //   both reads "Local · write" / "Oracle · write"; different classes read
 //   "Writes: Oracle · Reads: Local" / "Writes: Local · Reads: Oracle".
 // - "Local" means the URL's host is localhost, 127.0.0.1 or ::1. Any other
 //   host, and a URL that's missing or doesn't parse, reads "Oracle": when in
 //   doubt, say the real database.
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
+import { appDatabaseUrl } from "@/lib/appDatabaseUrl";
 
 export type DatabaseClass = "Local" | "Oracle";
 
@@ -60,8 +62,8 @@ export function runtimeModeLabel(opts: {
 // The running server's label, from its own env.
 export function currentRuntimeModeLabel(): RuntimeModeLabel {
   return runtimeModeLabel({
-    writeEnabled: isGalaxyEnabled(),
-    databaseUrl: process.env.DATABASE_URL,
+    writeEnabled: isAppWriteEnabled(),
+    databaseUrl: appDatabaseUrl(),
     readOnlyDatabaseUrl: process.env.DATABASE_URL_READONLY,
   });
 }

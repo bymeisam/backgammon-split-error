@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prisma, prismaReadOnly } from "@/lib/prisma";
+import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { requireMemberApi } from "@/lib/app-auth";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { FORUM_LIMITS, forumIdentity, optionalBoolean, rawMatchId, sourceDecision, textField, validIds } from "@/lib/forum";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
@@ -104,14 +104,14 @@ async function resolvePosition(input: unknown): Promise<{ position: ResolvedPosi
 //                                 "hideAnalysis"?: boolean }
 //
 // Creates a post with 1 to FORUM_LIMITS.positions attached positions, as the
-// signed-in member or owner. Write mode only (isGalaxyEnabled(), the same gate as every
+// signed-in member or owner. Write mode only (isAppWriteEnabled(), the same gate as every
 // other write). The post, its StudyPositions and the attachment rows are
 // created in one transaction. hideAnalysis (default false) permanently hides
 // the engine analysis of the post's game-sourced positions.
 export async function POST(request: NextRequest) {
   const denied = await requireMemberApi();
   if (denied) return denied;
-  if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const user = await forumIdentity();
   if (!user) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     positions.push(resolved.position);
   }
 
-  const post = await prisma.$transaction(async (tx) => {
+  const post = await prismaApp.$transaction(async (tx) => {
     const createdPost = await tx.forumPost.create({
       data: { authorAppUserId: user.id, title, body, hideAnalysis: hideAnalysis === true },
     });

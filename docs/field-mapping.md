@@ -52,29 +52,43 @@ the same warning.
 ## Credential scoping
 
 Separate MySQL connection strings, each pointed at a user scoped to the
-minimum privilege its callers actually need. The first two were introduced
-when the Oracle HeatWave instance was set up with two real MySQL users (the
-third, the `AppUser`-only auth credential, is described below):
+minimum privilege its callers actually need. Three users (since 2026-10-13;
+`bg_db_app` replaced the earlier `AppUser`-only auth credential and the
+forum-only `bg_db_forum` plan):
 
 - **`bg_db_rw`** — `SELECT`/`INSERT`/`UPDATE`/`DELETE`/`CREATE`/`ALTER`/
-  `INDEX`/`REFERENCES` on the `backgammon` database. Used for ingest and
-  schema migrations.
+  `INDEX`/`REFERENCES` on the `backgammon` database. Used for ingest, sync,
+  Galaxy and schema migrations. Local only: never set on Vercel.
 - **`bg_db_ro`** — `SELECT` only on the `backgammon` database. Used for
   read-only access.
+- **`bg_db_app`** — every in-app write (`scripts/sql/app-db-user.sql`):
+  `SELECT` on `backgammon.*` (the study routes read `Decision`, `Game`,
+  `Match` etc. through joins); `INSERT`/`UPDATE`/`DELETE` on `ForumPost`,
+  `ForumReply`, `ForumPostPosition`, `StudyPosition`, `ForumMoveProposal`,
+  `DecisionNote`, `Tag`, `DecisionTag`, `ReviewCard` and `ReviewLog`; and
+  `INSERT`/`UPDATE` on `AppUser`. No writes on `Match`/`Game`/`Decision` and no
+  DDL, on purpose.
 
 `lib/prisma.ts` exports one Prisma client per credential — `prisma` (reads
 `DATABASE_URL`), `prismaReadOnly` (reads `DATABASE_URL_READONLY`) and
-`prismaAuth` (reads `DATABASE_URL_AUTH`) — via a shared client-construction
+`prismaApp` (reads `DATABASE_URL_APP`) — via a shared client-construction
 helper, rather than each caller building its own adapter.
 
-`prismaAuth` is the third client. It only provisions and looks up `AppUser`
-rows, for `lib/app-auth.ts` and `lib/forum.ts`. In production it needs
-`DATABASE_URL_AUTH`, a credential with `SELECT`/`INSERT`/`UPDATE` on
-`AppUser` only (never the ingest/migration credential). Outside production,
-when `DATABASE_URL_AUTH` is unset, it falls back to `DATABASE_URL`, so the
-existing local setup keeps working without a third user. The local Docker MySQL has the same two users
-(`bg_db_rw`/`bg_db_ro`, same grant shapes, on `app_dev` and `bg_test`), and
-the local `.env` uses them, so the split can be tested locally.
+`prismaApp` does every in-app write: the forum (posts, replies, edits,
+deletes, attached positions, move proposals), decision notes, tags, review
+cards and logs, and `AppUser` provisioning (`lib/app-auth.ts`, and
+`lib/forum.ts`'s `forumIdentity`). In production it needs `DATABASE_URL_APP`
+and never falls back to `DATABASE_URL`; outside production, when
+`DATABASE_URL_APP` is unset (or empty), it falls back to `DATABASE_URL`
+(`appDatabaseUrl()`, `lib/appDatabaseUrl.ts`). Every write except `AppUser`
+provisioning is gated by `isAppWriteEnabled()` (`lib/appWriteGate.ts`), not
+`isGalaxyEnabled()` (which is for Galaxy and sync only), so the live site,
+which has no `DATABASE_URL`, can accept them. Provisioning doesn't check the
+gate, so sign-in works wherever the client has a URL.
+
+The local Docker MySQL has only `bg_db_rw`/`bg_db_ro` (same grant shapes, on
+`app_dev` and `bg_test`), and the local `.env` uses them, so the split can be
+tested locally; `prismaApp` falls back to `DATABASE_URL` there.
 `.env.example` still defaults both vars to the docker-compose `app` user
 for a fresh checkout. The split exists in the code regardless of
 environment, so production (`bg_db_rw`/`bg_db_ro`) is a config change, not
@@ -84,9 +98,9 @@ a code change.
 
 | Client | Used by |
 |---|---|
-| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `scripts/notes-import.ts`, the review and tag writes (`app/api/review/cards`, `app/api/review/cards/[id]`, `app/api/review/cards/[id]/answer`, `app/api/review/bulk`, `app/api/tags/attach`, `app/api/tags/detach`) |
+| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `scripts/notes-import.ts` |
 | `prismaReadOnly` (read-only) | `app/api/review/queue` (through `lib/review/queuePlan.ts`'s `loadQueuePlan`, which also gives the dashboard's due widget its "N new · N review" split, `dueSplit`, the /review header's own counts for an unfiltered session; since 2026-10-08 the dashboard's big number and the navbar's due badge are that split's sum, so they show what a session will serve; write mode only), `app/api/review/summary`, `app/api/tags` (GET), `app/review/page.tsx`, `app/review/cards/page.tsx`, `lib/review/dueCount.ts` (the due count before today's limits: since 2026-10-08 only the dashboard's "N more held back by today's limits" line, the count minus the split's sum; write mode only), `lib/dashboardQueries.ts` (the last finished `SyncRun`, for the Galaxy card's LAST SYNC and LAST SYNC ADDED on `/sources` through `lib/sources.ts`'s `galaxyStatus`, write mode only — the navbar's sync line until 2026-10-09; since 2026-10-09 also `sourceLibrary`, one `Match` aggregate for the same card's IN LIBRARY and LATEST MATCH: the count of the source's `ingestStatus` DONE matches and their latest `playedAt`, run in parallel with the sync-run lookup; the dashboard's weekly mistake count), `app/sources/page.tsx` (through `lib/sources.ts`; write mode only, gated by `proxy.ts`), `lib/repeatedPositionQueries.ts` (`listRepeatedPositions`: the /repeated-positions list and, since 2026-10-08, the dashboard's "Most repeated blunders" panel, top 4 by `occurrenceCount` with `errorSeverity` BLUNDER), `app/page.tsx` (the dashboard, through those and `listMatches`), `app/matches/[matchId]/page.tsx` (since 2026-10-08: one `Match` row by `(source, sourceMatchId)`, its `playedAt`, `userScore` and `opponentScore`, for the header's sub line "Match 47816592 · 5 Oct 2026 · 2–5"; the games still load client-side), `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/sources/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
-| `prismaAuth` (`AppUser` only) | `lib/app-auth.ts` (provisions and looks up the signed-in user's `AppUser` row), `lib/forum.ts` (`ownerIdentity`: looks up the owner's `AppUser` row, or upserts the reserved local-dev-owner row under the local `AUTH_BYPASS`) |
+| `prismaApp` (in-app writes) | Forum: `app/api/forum/posts/route.ts` (POST), `app/api/forum/posts/[id]/route.ts` (PATCH, DELETE), `app/api/forum/posts/[id]/replies/route.ts` (POST), `app/api/forum/replies/[id]/route.ts` (PATCH, DELETE). Study: `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `app/api/tags/attach`, `app/api/tags/detach`, `app/api/review/cards` (POST), `app/api/review/cards/[id]` (PATCH, DELETE), `app/api/review/cards/[id]/answer`, `app/api/review/bulk`. All of these check `isAppWriteEnabled()`. AppUser (no gate check): `lib/app-auth.ts` (`provisionAppUser`, including the local `AUTH_BYPASS` upsert), `lib/forum.ts` (`forumIdentity`: looks up the viewer's `AppUser` row, or upserts the reserved bypass row under the local `AUTH_BYPASS`) |
 
 **`prisma migrate deploy` itself is a separate concern from these three app
 runtime clients.** It's configured in `prisma7.config.ts`, which reads

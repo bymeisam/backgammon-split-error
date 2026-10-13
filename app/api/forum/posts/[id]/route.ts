@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prisma, prismaReadOnly } from "@/lib/prisma";
+import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { requireMemberApi } from "@/lib/app-auth";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { forumIdentity, optionalBoolean, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
 import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 
@@ -39,11 +39,11 @@ export async function GET(_request: NextRequest, context: Context) {
 //
 // Edits a post's title and body, and its hideAnalysis flag when given (left
 // as it is when absent). Only its author may, and only with write
-// mode on (isGalaxyEnabled(), the same gate as every other write).
+// mode on (isAppWriteEnabled(), the same gate as every other write).
 export async function PATCH(request: NextRequest, context: Context) {
   const denied = await requireMemberApi();
   if (denied) return denied;
-  if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
   const user = await forumIdentity();
@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   const hideAnalysis = optionalBoolean(input.hideAnalysis);
   if (hideAnalysis === "invalid") return NextResponse.json({ error: "hideAnalysis must be a boolean." }, { status: 400 });
 
-  await prisma.forumPost.update({
+  await prismaApp.forumPost.update({
     where: { id },
     data: { title, body, ...(hideAnalysis === "absent" ? {} : { hideAnalysis }) },
   });
@@ -81,7 +81,7 @@ export async function PATCH(request: NextRequest, context: Context) {
 export async function DELETE(_request: NextRequest, context: Context) {
   const denied = await requireMemberApi();
   if (denied) return denied;
-  if (!isGalaxyEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
 
   const id = parseId((await context.params).id);
   const user = await forumIdentity();
@@ -97,7 +97,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
   if (!post) return NextResponse.json({ error: "Not found." }, { status: 404 });
   if (!canDeleteForumItem(user, post.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
-  await prisma.$transaction(async (tx) => {
+  await prismaApp.$transaction(async (tx) => {
     await tx.forumPost.delete({ where: { id } });
     for (const attachment of post.positions) {
       if (attachment.studyPosition.origin === "MANUAL") {

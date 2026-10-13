@@ -1,7 +1,7 @@
 import { Suspense, cache, type ReactNode } from "react";
 import Link from "next/link";
 import { ErrorSeverity } from "@/lib/generated/prisma/enums";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import { listMatches } from "@/lib/local-client";
 import { countDueCards } from "@/lib/review/dueCount";
@@ -291,7 +291,7 @@ export default async function Home() {
   await requireMemberDocument();
   // The due-cards widget is the owner's (review is owner-only), and only
   // with write mode on.
-  const showDue = (await isOwnerViewer()) && isGalaxyEnabled();
+  const showDue = (await isOwnerViewer()) && isAppWriteEnabled();
 
   return (
     <PageShell

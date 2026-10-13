@@ -32,15 +32,15 @@ let warnedOracle = false;
  * It refuses to turn on when any database URL points at Oracle (by
  * lib/runtimeMode.ts's rule: anything but localhost, including a missing or
  * unparseable DATABASE_URL), because the bypass upserts a local-dev-owner
- * (or local-dev-member) AppUser and posts as it. DATABASE_URL_AUTH and DATABASE_URL_READONLY are
- * checked too when set.
+ * (or local-dev-member) AppUser and posts as it. DATABASE_URL_READONLY and
+ * DATABASE_URL_APP are checked too when set.
  */
 export function isLocalAuthBypass(): boolean {
   if (process.env.AUTH_BYPASS !== "true") return false;
 
   const urls = [
     process.env.DATABASE_URL,
-    ...[process.env.DATABASE_URL_AUTH, process.env.DATABASE_URL_READONLY].filter(
+    ...[process.env.DATABASE_URL_READONLY, process.env.DATABASE_URL_APP].filter(
       (url): url is string => url !== undefined && url !== ""
     ),
   ];

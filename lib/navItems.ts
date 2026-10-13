@@ -12,16 +12,16 @@ export interface NavItem {
   // Pinned to the right end of the bar (Sources, Settings, Status): the
   // admin pages, apart from the study pages.
   end?: boolean;
-  // The review due-count badge goes on this item (write mode only).
+  // The review due-count badge goes on this item (app writes on only).
   showsDueCount?: boolean;
 }
 
-// Sources only with write mode on (isGalaxyEnabled()); proxy.ts 404s
+// Sources only with the Galaxy/sync gate on (isGalaxyEnabled()); proxy.ts 404s
 // /sources and everything under it otherwise. It's in the end group, first
 // (Sources · Settings · Status): you visit it to sync, not to study.
 // Review, Sources and Status are owner-only (lib/accessRules.ts), so a
 // member (or anyone not the owner) never sees them.
-export function navItems(writeEnabled: boolean, role: AppRole | null): NavItem[] {
+export function navItems(galaxyEnabled: boolean, role: AppRole | null): NavItem[] {
   const isOwner = role === "OWNER";
   return [
     { href: "/matches", label: "Matches" },
@@ -39,7 +39,7 @@ export function navItems(writeEnabled: boolean, role: AppRole | null): NavItem[]
           },
         ]
       : []),
-    ...(isOwner && writeEnabled ? [{ href: "/sources", label: "Sources", end: true }] : []),
+    ...(isOwner && galaxyEnabled ? [{ href: "/sources", label: "Sources", end: true }] : []),
     { href: "/settings", label: "Settings", end: true },
     ...(isOwner ? [{ href: "/status", label: "Status", end: true }] : []),
   ];

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import type { RepeatedPosition } from "@/lib/generated/prisma/client";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import { findPositionOccurrences, loadDecisionItems } from "@/lib/decisionQueries";
 import { listRepeatedPositions } from "@/lib/repeatedPositionQueries";
@@ -217,7 +217,7 @@ async function PositionDetailSection({ position }: { position: RepeatedPosition 
       <DecisionListWithDetail
         items={items}
         showClassification={false}
-        canEditNotes={isOwner && isGalaxyEnabled()}
+        canEditNotes={isOwner && isAppWriteEnabled()}
         showOwnerTools={isOwner}
       />
     </div>

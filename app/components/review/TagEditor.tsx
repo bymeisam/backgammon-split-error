@@ -7,7 +7,7 @@ import { useEffectiveTags, useReviewState } from "@/app/providers/ReviewStatePro
 import { style } from "./TagEditor.styles";
 
 // The user's tags on one decision (DecisionTag), in the note card's foot.
-// Editable (canEdit, i.e. write mode on): chips with ×, then a dashed
+// Editable (canEdit, i.e. isAppWriteEnabled() on): chips with ×, then a dashed
 // "+ tag" chip that opens an input with autocomplete from existing tags —
 // Enter adds the typed tag (creating it if new), ↑/↓ pick a suggestion, Esc
 // (or leaving it empty) closes it. Read-only: the chips alone, or nothing

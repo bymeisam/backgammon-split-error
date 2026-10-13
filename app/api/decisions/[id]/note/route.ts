@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prismaApp } from "@/lib/prisma";
 import { normalizeNote, parseDecisionId } from "@/lib/decisionNotes";
 import { requireOwnerApi } from "@/lib/app-auth";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 
 export const dynamic = "force-dynamic";
 
@@ -9,15 +10,15 @@ export const dynamic = "force-dynamic";
 //
 // The one write path for decision notes: create, update and clear, keyed by
 // the real Decision.id. An empty or whitespace-only note deletes the row.
-// Read-write client (`prisma`, DATABASE_URL) — writes go to whichever DB
-// DATABASE_URL points at.
+// App write client (`prismaApp`, DATABASE_URL_APP or locally DATABASE_URL).
 //
-// Gated by proxy.ts's matcher (/api/decisions/:path*): it 404s before this
-// handler ever runs unless isGalaxyEnabled() — same single choke point as
-// every other write route, so it's never reachable with write mode off.
+// Owner only, and only with app writes on (isAppWriteEnabled(),
+// lib/appWriteGate.ts, the same gate as the forum and review writes): 403
+// when off.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requireOwnerApi();
   if (denied) return denied;
+  if (!isAppWriteEnabled()) return NextResponse.json({ error: "Writes are disabled." }, { status: 403 });
   const { id: idParam } = await params;
   const decisionId = parseDecisionId(idParam);
   if (decisionId === null) {
@@ -35,17 +36,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: normalized.error }, { status: 400 });
   }
 
-  const decision = await prisma.decision.findUnique({ where: { id: decisionId }, select: { id: true } });
+  const decision = await prismaApp.decision.findUnique({ where: { id: decisionId }, select: { id: true } });
   if (!decision) {
     return NextResponse.json({ error: `Decision ${decisionId} doesn't exist.` }, { status: 404 });
   }
 
   if (normalized.note === null) {
-    await prisma.decisionNote.deleteMany({ where: { decisionId } });
+    await prismaApp.decisionNote.deleteMany({ where: { decisionId } });
     return NextResponse.json({ note: null, updatedAt: null });
   }
 
-  const saved = await prisma.decisionNote.upsert({
+  const saved = await prismaApp.decisionNote.upsert({
     where: { decisionId },
     create: { decisionId, note: normalized.note },
     update: { note: normalized.note },

@@ -95,7 +95,7 @@ export default function BoardPanel({
   // true, `decoded`/`subMoves` are mirrored here — flipPerspective/
   // mirrorSubMoves, once, in one place — before Board sees them.
   flipped?: boolean;
-  // Whether the selected decision's note is editable here (isGalaxyEnabled()
+  // Whether the selected decision's note is editable here (isAppWriteEnabled()
   // on the server — see DecisionNote). Default false: read-only. Also
   // decides whether "Add to review" and the tag editor are offered
   // (DecisionReviewTools).

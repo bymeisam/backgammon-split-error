@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { findDecisionListRows, loadDecisionItems } from "@/lib/decisionQueries";
 import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import {
@@ -128,7 +128,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
   // tag and review tools shown) for the owner only; a member gets the
   // decisions alone (lib/decisionQueries.ts). Editing also needs write mode.
   const isOwner = await isOwnerViewer();
-  const ownerWrite = isOwner && isGalaxyEnabled();
+  const ownerWrite = isOwner && isAppWriteEnabled();
   const [total, rows] = await Promise.all([
     prisma.decision.count({ where }),
     findDecisionListRows(

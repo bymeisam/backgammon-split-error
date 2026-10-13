@@ -21,8 +21,9 @@ type SaveState =
 //     note"/"Write note" button that swaps in the textarea.
 //   - otherwise: the note read-only; nothing at all when there's no note and
 //     no tags (`hasTags`).
-// canEditNotes comes from isGalaxyEnabled() on the server; the save route is
-// gated by proxy.ts regardless, so this only decides what UI to offer.
+// canEditNotes comes from the owner check and isAppWriteEnabled() on the server;
+// the save route checks both itself regardless, so this only decides what UI
+// to offer.
 // Callers key this by dbDecisionId, so the draft resets per decision.
 export default function DecisionNote({
   note,

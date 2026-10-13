@@ -6,7 +6,7 @@ import { style } from "../forum.styles";
 import ProposalDraft from "./ProposalDraft";
 import type { ProposalDraftValue, ProposalPositionOption } from "./proposalTypes";
 
-// canWrite: isGalaxyEnabled(), decided by the server page (the forum API routes' gate). Off hides the composer.
+// canWrite: isAppWriteEnabled(), decided by the server page (the forum API routes' gate). Off hides the composer.
 export default function ReplyComposer({ postId, canWrite, positions }: { postId: number; canWrite: boolean; positions: ProposalPositionOption[] }) {
   const router = useRouter();
   const [body, setBody] = useState("");

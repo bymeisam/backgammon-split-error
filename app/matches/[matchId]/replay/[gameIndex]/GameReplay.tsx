@@ -49,7 +49,7 @@ export default function GameReplay({
   canEditNotes: boolean;
   // The owner's note card (note, tags, "Add to review"): the owner only.
   showOwnerTools: boolean;
-  // isGalaxyEnabled(), the forum write gate; hides "Post to forum" when off.
+  // isAppWriteEnabled() (lib/appWriteGate.ts), the app write gate; hides "Post to forum" when off.
   canPostToForum: boolean;
 }) {
   const router = useRouter();

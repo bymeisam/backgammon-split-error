@@ -3,7 +3,7 @@ import { cache } from "react";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { notFound, redirect } from "next/navigation";
-import { prismaAuth, prismaReadOnly } from "@/lib/prisma";
+import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { isLocalAuthBypass, localBypassIdentity } from "@/lib/localAuthBypass";
 import { isMemberOrOwner, resolveAppRole, type AppRole } from "@/lib/appRole";
 
@@ -79,11 +79,13 @@ export async function isOwnerViewer(): Promise<boolean> {
  * Provisions the local identity (new rows start as NONE, awaiting approval)
  * and resolves the role. Under the local AUTH_BYPASS, upserts the bypass
  * user with its role (owner, or member with AUTH_BYPASS_ROLE=member).
+ * Writes through prismaApp but deliberately does not check
+ * isAppWriteEnabled(): sign-in works wherever the client has a URL.
  */
 export async function provisionAppUser(): Promise<AppAuthState | null> {
   if (isLocalAuthBypass()) {
     const { clerkUserId, displayName, role } = localBypassIdentity();
-    await prismaAuth.appUser.upsert({
+    await prismaApp.appUser.upsert({
       where: { clerkUserId },
       create: { clerkUserId, displayName, role },
       update: { displayName, role },
@@ -93,7 +95,7 @@ export async function provisionAppUser(): Promise<AppAuthState | null> {
   const signedIn = await signedInUser();
   if (!signedIn) return null;
   const displayName = displayNameFor(signedIn.user);
-  const appUser = await prismaAuth.appUser.upsert({
+  const appUser = await prismaApp.appUser.upsert({
     where: { clerkUserId: signedIn.userId },
     create: { clerkUserId: signedIn.userId, displayName, role: "NONE" },
     update: { displayName },
