@@ -21,7 +21,7 @@ vi.mock("@/lib/prisma", () => {
     forumPostPosition: { create: db.linkCreate },
   };
   return {
-    prisma: {
+    prismaForum: {
       forumPost: { update: db.update },
       $transaction: (fn: (t: typeof tx) => unknown) => fn(tx),
     },
@@ -31,7 +31,7 @@ vi.mock("@/lib/prisma", () => {
 });
 
 vi.mock("@/lib/app-auth", () => ({ requireMemberApi: async () => null, getAppAuthState: async () => null }));
-vi.mock("@/lib/galaxyGate", () => ({ isGalaxyEnabled: () => true }));
+vi.mock("@/lib/forumGate", () => ({ isForumWriteEnabled: () => true }));
 
 const identity = vi.hoisted(() => ({ current: { id: 7, role: "MEMBER" } as { id: number; role: string } | null }));
 vi.mock("@/lib/forum", async (importActual) => ({

@@ -15,6 +15,7 @@ describe("isLocalAuthBypass", () => {
     vi.stubEnv("DATABASE_URL", LOCAL);
     vi.stubEnv("DATABASE_URL_AUTH", undefined);
     vi.stubEnv("DATABASE_URL_READONLY", undefined);
+    vi.stubEnv("DATABASE_URL_FORUM", undefined);
   });
 
   afterEach(() => {
@@ -63,6 +64,15 @@ describe("isLocalAuthBypass", () => {
     vi.stubEnv("DATABASE_URL_AUTH", undefined);
     vi.stubEnv("DATABASE_URL_READONLY", ORACLE);
     expect((await load()).isLocalAuthBypass()).toBe(false);
+  });
+
+  it("refuses when the forum URL points at Oracle, and allows a local one", async () => {
+    vi.stubEnv("AUTH_BYPASS", "true");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubEnv("DATABASE_URL_FORUM", "mysql://bg_db_forum:pw@203.0.113.7:3306/backgammon?ssl=true");
+    expect((await load()).isLocalAuthBypass()).toBe(false);
+    vi.stubEnv("DATABASE_URL_FORUM", LOCAL);
+    expect((await load()).isLocalAuthBypass()).toBe(true);
   });
 });
 

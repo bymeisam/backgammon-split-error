@@ -16,14 +16,17 @@ Production and Preview environments:
 | ----------------------- | ----- |
 | `DATABASE_URL_READONLY` | `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
 | `DATABASE_URL_AUTH`     | A separate URL whose database user has SELECT/INSERT/UPDATE only on `AppUser` |
+| `DATABASE_URL_FORUM`    | `mysql://bg_db_forum:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` — forum writes only (grants in `scripts/sql/forum-db-user.sql`) |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's publishable key |
 | `CLERK_SECRET_KEY`      | Clerk's server-only secret key |
 
 **Never set `DATABASE_URL` on Vercel**, and **don't set `ENABLE_WRITE_MODE`
 on Vercel either — leave it unset.** The regular write client remains
 unconfigured, and the Galaxy/write gate remains closed. `DATABASE_URL_AUTH`
-is the narrow exception used only to provision the authentication allowlist;
-it must not be the ingest/migration credential.
+is a narrow exception used only to provision the authentication allowlist;
+it must not be the ingest/migration credential. `DATABASE_URL_FORUM` is the
+other narrow exception: the `bg_db_forum` credential, used only for forum
+writes (posts, replies, attached positions, move proposals).
 
 `DATABASE_URL` being absent is what keeps the normal application write client
 disabled:
@@ -32,6 +35,11 @@ disabled:
   is lazy and throws if used without `DATABASE_URL`.
 - `prismaAuth` uses `DATABASE_URL_AUTH` in production and is limited by its
   database grant to the `AppUser` table.
+- `prismaForum` uses `DATABASE_URL_FORUM` in production (it never falls back
+  to `DATABASE_URL` there) and is limited by its grants to the forum tables,
+  plus SELECT on `AppUser` and `Decision`. Forum writes are gated by
+  `isForumWriteEnabled()` (`lib/forumGate.ts`), which is on when
+  `DATABASE_URL_FORUM` is set, or locally when `isGalaxyEnabled()` is.
 - `isGalaxyEnabled()` (`lib/galaxyGate.ts`) still requires `DATABASE_URL` and
   `ENABLE_WRITE_MODE=true`, so the Galaxy gate stays closed independently of
   the authentication wall.
@@ -102,6 +110,11 @@ Either one being absent/wrong (a forgotten `ENABLE_WRITE_MODE`, or a stray
 `DATABASE_URL` in an environment that was never meant to have one) is
 enough to keep Galaxy access off — the flag alone is never sufficient.
 
+Forum writes are the one exception: they use their own gate,
+`isForumWriteEnabled()` (`lib/forumGate.ts`), and their own credential
+(`DATABASE_URL_FORUM`), so the live site can accept forum posts while
+Galaxy, sync, notes and review stay off there.
+
 This is the single source of truth, read in exactly two places:
 
 - **`proxy.ts`** (project root) — the one choke point. Its `matcher` covers
@@ -126,7 +139,8 @@ and stay available regardless of the flag.
 Once the app sits behind a real auth wall that admits only you, lifting the
 gate is a **pure environment-variable change on Vercel — no code edit
 required**, because both call sites above already read `isGalaxyEnabled()`
-as their only source of truth:
+as their only source of truth (forum writes don't depend on this; they're
+already on through `DATABASE_URL_FORUM`):
 
 1. Set `DATABASE_URL` on Vercel again (a real read-write credential).
 2. Set `ENABLE_WRITE_MODE=true` on Vercel too — with the new default-off
@@ -191,9 +205,9 @@ needed and shows the pending-approval state without exposing application
 data; a member on an owner page gets a 404. APIs return 401 for signed-out
 requests and 404 for a role that isn't allowed.
 
-The authenticated `/position-builder` route is a member page. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations remain behind the same `ENABLE_WRITE_MODE` gate as other application writes.
+The authenticated `/position-builder` route is a member page. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations use their own gate, `isForumWriteEnabled()` (`lib/forumGate.ts`), and their own credential, `DATABASE_URL_FORUM` (`prismaForum`), so they work on the hosted deployment; locally, without `DATABASE_URL_FORUM`, they follow `ENABLE_WRITE_MODE` as before.
 
-`ENABLE_WRITE_MODE` remains the deployment-level Galaxy/write gate. Clerk ownership does not turn hosted Galaxy writes on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. The separate `DATABASE_URL_AUTH` credential is only for the `AppUser` allowlist and must not have access to source/study write paths.
+`ENABLE_WRITE_MODE` remains the deployment-level Galaxy/write gate. Clerk ownership does not turn hosted Galaxy writes on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset, so Galaxy, notes and review stay off there. The separate `DATABASE_URL_AUTH` credential is only for the `AppUser` allowlist, and `DATABASE_URL_FORUM` only for forum writes; neither may have access to source or review write paths.
 
 ### Temporary local development auth bypass
 
@@ -203,9 +217,10 @@ position-builder flows can be smoke-tested without a Clerk browser session. The
 bypass acts as the reserved `local-dev-owner` `AppUser` (the owner), or with
 `AUTH_BYPASS_ROLE=member` as a separate `local-dev-member` (an invited member),
 for the role checks and when a write needs an author. It is an explicit opt-in (off unless exactly `true`), refuses to turn
-on and logs a warning when `DATABASE_URL`, `DATABASE_URL_AUTH` or
-`DATABASE_URL_READONLY` points anywhere but localhost, and does not disable
-`isGalaxyEnabled()` or its database/write-mode gate. Never set it on a deployed
+on and logs a warning when `DATABASE_URL`, `DATABASE_URL_AUTH`,
+`DATABASE_URL_READONLY` or `DATABASE_URL_FORUM` points anywhere but
+localhost, and does not disable `isGalaxyEnabled()`, `isForumWriteEnabled()`
+or their database/write-mode gates. Never set it on a deployed
 environment. Remove this
 bypass after local authenticated smoke and visual review are complete.
 

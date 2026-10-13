@@ -951,3 +951,13 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - `items-start` on `proposalDraft`;
     - the lost and misplaced route and composer comments.
   - **Next:** omp does the review follow-up; Claude Code re-reviews; then the user merges `omp/main` (expect a small conflict in `docs/omp-queue.md`).
+- **Forum writes get their own credential and gate (master, local only, approved spec):**
+  - **Client:** `prismaForum` in `lib/prisma.ts`, from `forumDatabaseUrl()`: `DATABASE_URL_FORUM`, or `DATABASE_URL` outside production (never in production). Same lazy client, cert check and dev singleton as the others.
+  - **Gate:** `isForumWriteEnabled()` in new `lib/forumGate.ts`: on when `DATABASE_URL_FORUM` is set, or outside production when `isGalaxyEnabled()` is. So Vercel (no `DATABASE_URL`, no `ENABLE_WRITE_MODE`) can accept forum posts once `DATABASE_URL_FORUM` is set there, while Galaxy, sync, notes and review stay off.
+  - **Switched:** the four forum write routes (`app/api/forum/posts`, `posts/[id]`, `posts/[id]/replies`, `replies/[id]`) now write through `prismaForum` behind the new gate; `canWrite`/`canPostToForum` on `/forum`, `/forum/new`, `/forum/[id]`, `/position-builder` and the replay page use it too (the replay's `canEditNotes` stays on `isGalaxyEnabled()`). The unused `writeAllowed()` in `lib/forum.ts` was deleted.
+  - **Bypass:** `lib/localAuthBypass.ts` also refuses a non-localhost `DATABASE_URL_FORUM`.
+  - **Oracle grant SQL (written, not run):** `scripts/sql/forum-db-user.sql` creates `bg_db_forum` with SELECT/INSERT/UPDATE/DELETE on the five forum tables and SELECT on `AppUser` and `Decision`. Run it only after the forum migrations are on Oracle, and only with the owner's approval.
+  - **Docs:** `.env.example`, `docs/deploy.md`, `docs/field-mapping.md` § Credential scoping, `app/status/notes.ts`.
+  - **Tests:** `lib/forumGate.test.ts` (all 8 combinations plus an empty URL), `lib/prisma.test.ts` (`forumDatabaseUrl`), a forum-URL case in `lib/localAuthBypass.test.ts`; `hideAnalysis.test.ts` now mocks `prismaForum` and `forumGate`. 61 files / 754 tests, lint, tsc and build pass.
+  - **Not done:** the manual Vercel-like dev-server check. With `DATABASE_URL=` empty, `isLocalAuthBypass()` refuses (it requires a localhost `DATABASE_URL`), so a member can't sign in without Clerk; the shell also has no local URL to pass in.
+  - **Next (needs the owner):** deploy the forum migrations to Oracle, run `scripts/sql/forum-db-user.sql` with a real password, then set `DATABASE_URL_FORUM` on Vercel (Production and Preview).

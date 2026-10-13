@@ -36,7 +36,7 @@ function numberValue(value: string): number {
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
 }
 
-// canPostToForum: isGalaxyEnabled(), decided by the server page (the forum
+// canPostToForum: isForumWriteEnabled(), decided by the server page (the forum
 // write routes' gate). Off hides "Post to forum"; the builder still works.
 export default function PositionBuilder({ canPostToForum }: { canPostToForum: boolean }) {
   const router = useRouter();

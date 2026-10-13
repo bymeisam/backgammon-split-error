@@ -53,7 +53,8 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
   // holds its own pool), and Oracle HeatWave's Always Free tier caps total
   // concurrent connections low. mariadb's own default (10 per pool, see
   // node_modules/mariadb/lib/config/pool-options.js) was never overridden
-  // here, so each of this file's three pools (prisma, prismaReadOnly, prismaAuth) — times
+  // here, so each of this file's four pools (prisma, prismaReadOnly,
+  // prismaAuth, prismaForum) — times
   // however many concurrent serverless instances Vercel spins up — could
   // multiply into the dozens/hundreds. A small fixed cap keeps any single
   // instance's footprint tiny; the mariadb driver queues excess concurrent
@@ -92,8 +93,8 @@ export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
 // log a clear, actionable hint before rethrowing the original error
 // unchanged. Purely additive — no caller's existing catch/retry behavior
 // changes, this only adds a console line pointing at the real cause.
-// Applied to all three clients below (`prisma`, `prismaReadOnly`,
-// `prismaAuth`), so it covers everything that goes through a shared client
+// Applied to all four clients below (`prisma`, `prismaReadOnly`,
+// `prismaAuth`, `prismaForum`), so it covers everything that goes through a shared client
 // (ingest, sync, sign-in provisioning, every page/route that reads/writes via
 // them) — not just the few call sites that happen to check for this
 // explicitly (app/status/page.tsx, lib/sync.ts).
@@ -114,7 +115,7 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
   }) as unknown as PrismaClient;
 }
 
-// Three separate clients, each scoped to the minimum privilege its callers
+// Four separate clients, each scoped to the minimum privilege its callers
 // actually need — see docs/field-mapping.md's "Credential scoping" section
 // for the full call-site list and rationale.
 //
@@ -122,7 +123,7 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 //                      production) — ingest (lib/ingest.ts), sync
 //                      (lib/sync.ts, scripts/backfill.ts,
 //                      scripts/incremental-sync.ts, /api/sync/incremental),
-//                      app writes (notes, review, tags, forum), and
+//                      app writes (notes, review, tags), and
 //                      `prisma migrate deploy` itself all read this same
 //                      var. Migrations need CREATE/ALTER/INDEX/REFERENCES
 //                      beyond plain app read-write, so this intentionally
@@ -137,16 +138,24 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 //                      and looks up AppUser rows (lib/app-auth.ts,
 //                      lib/forum.ts); local development falls back to
 //                      DATABASE_URL so the existing local setup keeps working.
+//   prismaForum     -> DATABASE_URL_FORUM in production (bg_db_forum). Forum
+//                      writes only (app/api/forum/*): posts, replies, attached
+//                      positions and move proposals. Local development falls
+//                      back to DATABASE_URL, like prismaAuth. Gated by
+//                      lib/forumGate.ts's isForumWriteEnabled().
 //
 // The production auth credential should have SELECT/INSERT/UPDATE permission
-// on AppUser only. It must not be the ingest/migration credential.
+// on AppUser only. It must not be the ingest/migration credential. The forum
+// credential's grants are in scripts/sql/forum-db-user.sql (forum tables plus
+// SELECT on AppUser and Decision).
 //
-// A single helper (createLazyClient below) builds all three, so they don't
+// A single helper (createLazyClient below) builds all four, so they don't
 // duplicate the adapter/client construction boilerplate.
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
   prismaReadOnly?: PrismaClient;
   prismaAuth?: PrismaClient;
+  prismaForum?: PrismaClient;
 };
 
 // Lazy on purpose: this module is imported by anything that touches a client,
@@ -203,10 +212,25 @@ const authDatabaseEnvName =
 export const prismaAuth =
   globalForPrisma.prismaAuth ?? createLazyClient(authDatabaseUrl, authDatabaseEnvName);
 
+/**
+ * The URL prismaForum connects with: DATABASE_URL_FORUM, or outside production
+ * DATABASE_URL (so local write mode keeps working without a separate user).
+ * Production never falls back to the admin credential.
+ */
+export function forumDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.DATABASE_URL_FORUM ?? (env.NODE_ENV === "production" ? undefined : env.DATABASE_URL);
+}
+const forumDatabaseEnvName =
+  process.env.NODE_ENV === "production" ? "DATABASE_URL_FORUM" : "DATABASE_URL_FORUM or DATABASE_URL";
+
+export const prismaForum =
+  globalForPrisma.prismaForum ?? createLazyClient(forumDatabaseUrl(), forumDatabaseEnvName);
+
 // Standard Next.js dev singleton: without this, hot reload creates new
 // PrismaClients (and connection pools) on every edit.
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
   globalForPrisma.prismaReadOnly = prismaReadOnly;
   globalForPrisma.prismaAuth = prismaAuth;
+  globalForPrisma.prismaForum = prismaForum;
 }
