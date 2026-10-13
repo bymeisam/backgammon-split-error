@@ -9,13 +9,26 @@ import { CUBE_ACTION_LABELS } from "@/lib/forumProposals";
 import type { ProposalTallyViewModel, ReplyProposalViewModel } from "./proposalTypes";
 import { style } from "../forum.styles";
 
+function WrappedPositionLabel({ label }: { label: string }) {
+  return (
+    <span className={style.proposalPosition}>
+      {label.split(" · ").map((segment, index) => (
+        <span className={style.proposalPositionSegment} key={`${index}-${segment}`}>
+          {index > 0 && " · "}
+          {segment}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
   const [open, setOpen] = useState(false);
   const headingId = useId();
   if (proposal.kind === "CUBE") {
     return (
       <span className={style.proposalChip}>
-        <span className={style.proposalPosition}>{proposal.positionLabel}</span>
+        <WrappedPositionLabel label={proposal.positionLabel} />
         <span className={style.proposalCubeAction}>· {CUBE_ACTION_LABELS[proposal.cubeAction]}</span>
       </span>
     );
@@ -31,7 +44,7 @@ function ProposalPreview({ proposal }: { proposal: ReplyProposalViewModel }) {
   return (
     <>
       <Button size="compact" className={style.proposalInteractiveChip} onClick={() => setOpen(true)} aria-label={`${proposal.positionLabel}: ${action}`}>
-        <span className={style.proposalPosition}>{proposal.positionLabel}</span>
+        <WrappedPositionLabel label={proposal.positionLabel} />
         <span className={style.proposalCheckerMove}>
           <span className={style.proposalSeparator}>·</span>
           <span className={style.proposalChecker}>{proposal.notation}</span>
