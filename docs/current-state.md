@@ -6,46 +6,76 @@ _Last updated: 2026-10-13._
 
 ## Code
 
-- Branch `master`, clean. The last code commit is `c4efd77` (page guards on every page), on top of `dc690c6` (owner/member roles), followed by the wrap-up commit. **It's ahead of `origin/master` and not pushed** (about 63 commits). vitest 718/718, tsc, eslint, build and the visual suite are clean.
-- **Don't push master until Phase 3 is done.** Pushing puts the Clerk wall and the role model on the live site. That needs the Clerk keys and `DATABASE_URL_AUTH` in Vercel, the forum and role migrations on Oracle, and the owner set up on Oracle (`AppUser.role = OWNER` plus Clerk `privateMetadata.isOwner`). Without them the site breaks or locks the user out.
-- **Roles (Phase 2, done):**
-  - Owner needs DB role `OWNER` **and** the Clerk flag. Member needs DB role `MEMBER` only. `NONE` waits on `/auth/complete`.
-  - `lib/accessRules.ts` maps every page and API to its tier, and unlisted routes are owner. Every page and every API route calls its own guard, and tests enforce that.
+- Branch `master`. It is clean after the wrap-up commit. The last work commits are:
+  - `df9d7b8`: the visual-reviewer restored;
+  - `f98cc46`: the analysis panel polish;
+  - `94cdb68`: Phase 2b.
+- **It's ahead of `origin/master` and not pushed** (about 68 commits). vitest 741/741, tsc, eslint, build and the visual suite are clean.
+- **Don't push master until Phase 3 is done.** Pushing puts the Clerk wall and the role model on the live site. That needs:
+  - the Clerk keys and `DATABASE_URL_AUTH` in Vercel;
+  - the forum, role and `hideAnalysis` migrations on Oracle;
+  - the owner set up on Oracle (`AppUser.role = OWNER` plus Clerk `privateMetadata.isOwner`).
+
+  Without them the site breaks or locks the user out.
+- **Roles:**
+  - Owner needs DB role `OWNER` **and** the Clerk flag. Member needs `MEMBER`. `NONE` waits on `/auth/complete`.
+  - `lib/accessRules.ts` maps every page and API to its tier, and unlisted routes are owner.
   - Members never receive notes, tags or review data.
+- **Forum analysis (Phase 2b, done):**
+  - Decision posts show a collapsed "Show analysis" panel (`app/forum/[id]/DecisionAnalysisPanel.tsx`), built server-side by `lib/forumAnalysis.ts`, which strips everything about the played move.
+  - `ForumPost.hideAnalysis` is set by the "Hide engine analysis" checkbox (new-post and edit forms).
+  - Accepted: the played move is often the worst row once the analysis is revealed.
+- **Agents:**
+  - There are five shared roles in `agents/roles/` (investigator, developer, designer, architect, visual-reviewer), generated for Claude Code and omp by `npm run agents:sync`. The main session is the orchestrator (omp's `orch`).
+  - After a visible UI change, the visual-reviewer checks the screenshots. The designer is for new pages or kinds of component, or a design direction.
+  - Not yet confirmed: that omp loads `visual-reviewer` at runtime.
 - **Local sign-in:**
-  - `AUTH_BYPASS=true` skips sign-in, but only when every DB URL is localhost.
-  - `AUTH_BYPASS_ROLE=member` shows the member view.
-  - The developer's second server: `AUTH_BYPASS=true [AUTH_BYPASS_ROLE=member] ENABLE_WRITE_MODE=true NEXT_DIST_DIR=.next-test npx next dev -p 3300`.
-  - Dev and build runs add `.next-*` lines to `tsconfig.json`. Revert them, and don't commit them.
-- The old branches (`omp-forum`, `omp-position-builder`, `ollama-dev`, `shared-agents`) are merged and can be deleted when the user wants.
+  - `AUTH_BYPASS=true` works only with localhost DB URLs. `AUTH_BYPASS_ROLE=member` gives the member view.
+  - The second server: `AUTH_BYPASS=true [AUTH_BYPASS_ROLE=member] ENABLE_WRITE_MODE=true NEXT_DIST_DIR=.next-test npx next dev -p 3300`.
+  - Revert any `.next-*` lines it adds to `tsconfig.json`.
+- **Local migrations:** `prisma migrate dev` fails (no shadow-DB rights). Hand-write the migration from `prisma migrate diff` and apply it with `migrate deploy`.
 
 ## Plan
 
-The plan is in `~/.claude/plans/with-regards-to-auth-concurrent-comet.md`. Phases 0, 1 and 2 are done. Each later phase needs the user's approval before the developer starts it.
-- **Phase 2b (next):** analysis on decision posts. The design was agreed with the user; see the plan's § Phase 2b. In short:
-  - The poster's move is never shown.
-  - The new-post form gets a "Permanently hide analysis" tick box.
-  - Otherwise the post shows a "Show analysis" button, hidden by default.
-  - First step: the investigator checks how a decision attachment is stored (`StudyPosition.sourceDecisionId`) and what `getDecisionAnalysis` returns for checker and cube decisions. Then a spec goes to the user for approval. It needs a designer pass, because it adds a new visible component.
-- **Phase 3:** forum writes on the live site (a forum-scoped Oracle user, `prismaForum`, `isForumWriteEnabled()`), then the Vercel env vars, then the push.
+The plan is in `~/.claude/plans/with-regards-to-auth-concurrent-comet.md`. Phases 0, 1, 2 and 2b are done.
+- **Phase 3:**
+  - forum writes on the live site (a forum-scoped Oracle user, `prismaForum`, `isForumWriteEnabled()`);
+  - then the Vercel env vars;
+  - then the push.
 - **Phase 4:** move proposals in replies.
 
 ## Open threads
 
-- **Polish batch not seen in a browser:** the `--radius-inset` segmented controls, the shadow-free new-post preview board and the single-reply wording. Optional: a quick look by the designer.
-- **Deferred design items (designer):** L2 (the board beside the discussion on post pages, which needs an answer for posts with several positions). Not yet in any screenshot: the delete modal, a selected stack taller than 5, a selected bar checker.
-- **Designer:** look at the 2026-10-09 screenshots (`design/screenshots/2026-10-09-sources-fixes/`).
+- **User:**
+  - wants to do some checks next session;
+  - must decide on the **omp worktree** proposal. omp's ChatGPT offer ends in about a month. The proposal (in PROGRESS.md 2026-10-13):
+    - a worktree `../backgammon-omp` on branch `omp/main`, with its own local-only `.env` and an `app_dev_omp` DB, on port 3400;
+    - hand-off through `docs/omp-queue.md`;
+    - Claude reviews before the user merges;
+    - only master edits `agents/roles/` and AGENTS.md;
+    - suggested first item: Phase 4.
+- **Small follow-ups (developer, not yet approved):**
+  - `formatEquity` uses a hyphen and no "+" (shared with the review card);
+  - `onDelete: Restrict` on `StudyPosition.sourceDecision` (the schema says SET NULL, the DB says RESTRICT, so `migrate diff` keeps proposing it);
+  - PATCH `/api/forum/posts/[id]` throws on a `null` body;
+  - `bg_test` isn't migrated;
+  - the designer body still names `design/screenshots/<YYYY-MM-DD>/`.
+- **Designer, deferred:**
+  - L2 (the board beside the discussion on post pages);
+  - unscreenshotted states (the delete modal, a selected stack taller than 5, a selected bar checker);
+  - the 2026-10-09 screenshots.
 - **Needs the user's `.env`:** a 1024px navbar screenshot in the "Writes: Oracle · Reads: Local" state.
-- **Ongoing:** move hand-composed buttons, tables and cards onto `app/components/ui/` whenever those files are touched.
-- **Deferred:** the review double-answer guard. Ideas backlog: `docs/future-ideas.md`.
-- **Accepted, not fixed:** paths containing a dot skip `proxy.ts`, so the layout's second-layer check can be fooled there. The page guards still apply.
-- **Local test data:** forum posts 1–3 (smoke tests), 5 (decision 1149340) and 6 (built position), and a `local-dev-member` AppUser, are on the local DB only.
+- **Ongoing:** move hand-composed buttons, tables and cards onto `app/components/ui/` when touched.
+- **Deferred:** the review double-answer guard. Ideas: `docs/future-ideas.md`.
+- **Accepted, not fixed:** paths containing a dot skip `proxy.ts`. The page guards still apply.
+- **Local test data:** forum posts 1–3, 5 (decision 1149340), 6 (built) and 7 (cube decision 1268278), and a `local-dev-member` AppUser, are on the local DB only.
+- The old branches (`omp-forum`, `omp-position-builder`, `ollama-dev`, `shared-agents`) are merged and can be deleted when the user wants.
 
 ## Environment and Oracle
 
 - Never assume where `.env` points, and never change it. Only the user does that.
 - Oracle changes always need the user's explicit approval, every time.
-- **Pending Oracle steps (none written up as commands yet; all part of Phase 3):**
-  - the forum migrations and the role migration `20261013100000_app_user_role` (the owner row becomes OWNER from `isOwner`);
+- **Pending Oracle steps (all part of Phase 3, none run):**
+  - the forum migrations, `20261013100000_app_user_role` (the owner row becomes OWNER) and `20261013120000_forum_post_hide_analysis`, via `npx prisma migrate status` then `npx prisma migrate deploy`;
   - a forum DB user;
   - set invited members' `AppUser.role = 'MEMBER'` by hand.
