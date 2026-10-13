@@ -888,3 +888,8 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - **Screenshots:** 104 in `design/screenshots/2026-10-13-forum-fixes/`, taken the same way as Phase 1c.
   - **Checks:** `npx vitest run` 52 files / 604 tests passed; eslint, tsc and `npm run build` clean; `npm run test:visual` 15/15 passed with no baseline changes.
   - **Next:** after the merge, S1, S5, S6, S9 and the review's "Later" items.
+- **omp-forum merged into master locally (`b97064c`, `--no-ff`). Not pushed.** The investigator checked each phase (1a–1d), and the designer's re-check found nothing that blocks the merge. The two reports were committed (`2113eeb`). On master: vitest 604/604, and tsc, eslint and `agents:sync` are clean. The user renamed the Clerk application to "Game Review".
+  - **Next:**
+    - **Don't push master until Phase 3:** the live site needs the Clerk keys, `DATABASE_URL_AUTH`, the migrations on Oracle and the owner flags first.
+    - **Post-merge design list:** `reports/2026-10-13-forum-design-review.md` S1, S5, S6 and S9; the re-check's focus-ring and selected-tint items and the Clerk footer; and "Later".
+    - **Phase 2:** owner/member roles. The user decides then whether members see the analysis on decision posts.
