@@ -994,3 +994,9 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
     - per-user permissions on `AppUser` with an admin page (`899c82a`);
     - Snaps: a position from a photo, starting with the Gemini free tier and a 10-photo test (`01b8035`).
   - **Next:** the user pushes master, signs in on the live site, and sets their `AppUser.role` to OWNER plus Clerk `privateMetadata.isOwner`. Then check that notes, review and the forum work live. omp merges master, then does the new review notes.
+
+## 2026-10-14
+
+- **omp queue: two-step done.** `docs/omp-queue.md` sections renamed: omp adds finished work under "Done by omp (to check)" (that entry is how master knows to review), and only master moves an item to "Checked and done (master)" after review. omp clears its "to check" entries when it next merges master, and on a queue-file conflict it keeps master's version. AGENTS.md § Two worktrees updated to match.
+- **Reviewed `omp/main` at `8f8fd4b`** (`7224f45` follow-up plus merge of master `d6c146e`). The investigator found no logic defects: every forum, review, notes and tags write is on `prismaApp` behind `isAppWriteEnabled()`, `prisma/` matches master, and vitest (791/791) and tsc are clean. The visual-reviewer opened 15 screenshots: most earlier findings are fixed. Five visual Shoulds are left (tally count still far right, narrow draft board at 1280, score wrapping inside chips at 390, weak "Yes" focus ring in dark, dull Hard-only "Next card"), plus two imprecise Enter descriptions in the key headers. Both earlier review tasks are moved to "Checked and done", and a new task for `8f8fd4b` is queued.
+  - **Next:** omp works on the `8f8fd4b` task. The user decides whether to merge `omp/main` into master now (no logic defects) or after the visual follow-ups.
