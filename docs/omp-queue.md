@@ -18,7 +18,7 @@ _Use this shape:_
 ### Review: note-aware second try and "Do you know the reason?" (2026-10-13)
 Implemented on `omp/main`: note-bearing right answers ask whether the learner knows the reason before revealing the note; wrong non-receiver answers reveal only the note and allow a retry with the first choice disabled. Final outcomes save once, with whole-session duration; second-try right answers save Hard, and wrong outcomes save Again. Added reason/retry keyboard contexts, constrained ratings, and shortcut help.
 
-Verification: targeted `reviewKeys` tests passed (12 tests); Vitest 759/759, TypeScript, lint and production build passed. The screenshot run produced 114 screenshots under `design/screenshots/2026-10-13-review-second-try/`; the review screenshots timed out because the existing screenshot flow waits for the old verdict element when the note-aware reason/retry steps appear. The visual reviewer was asked to inspect the files actually captured.
+Verification: targeted `reviewKeys` tests passed (12 tests); Vitest 759/759, TypeScript, lint and production build passed. Updated the screenshot helper for note-aware states. The latest screenshot run wrote 110 files under `design/screenshots/2026-10-13-review-second-try/` but failed its four `/review` shots while waiting for the queue response; the captured review-front image was manually inspected. Visual reviewer was asked to inspect but could not complete the handoff (it reported `notes.txt` missing).
 Commit: `2e969ab`.
 
 ### Phase 4, part 2: proposal APIs and real data (2026-10-13)

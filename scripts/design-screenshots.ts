@@ -109,7 +109,7 @@ interface QueueOption {
   correct: boolean;
 }
 interface QueueResponse {
-  cards: { cardId: number; bestKey: string; options: QueueOption[] }[];
+  cards: { cardId: number; bestKey: string; options: QueueOption[]; decision?: { note: string | null } }[];
 }
 
 function arg(name: string): string | undefined {
@@ -248,29 +248,62 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
       (step.want === "good" && card.options.find((o) => o.correct && o.key !== card.bestKey)) ||
       card.options.find((o) => o.correct === (step.want !== "wrong")) ||
       card.options[0];
-    const kind = option.key === card.bestKey ? "best" : option.correct ? "good" : "wrong";
-    console.log(`review: ${step.label} answered ${kind} (${option.key})`);
     await page.locator(`[data-option-key="${option.key.replace(/"/g, '\\"')}"]`).click();
+    let finalOption = option;
+    if (option.correct && card.decision?.note) {
+      await page.getByRole("heading", { name: "Do you know the reason?" }).waitFor();
+      await settle(page);
+      await shoot(`review-${step.label}-reason-question`, "viewport");
+      await page.getByRole("button", { name: "Yes" }).click();
+    } else if (!option.correct && card.decision?.note && card.options.length !== 2) {
+      await page.getByText("Try again. Your first choice is crossed out.").waitFor();
+      await settle(page);
+      await shoot(`review-${step.label}-retry-front`, "viewport");
+      const retryOption = card.options.find((o) => o.correct && o.key !== option.key);
+      if (retryOption) {
+        finalOption = retryOption;
+        await page.locator(`[data-option-key="${retryOption.key.replace(/"/g, '\\"')}"]`).click();
+      }
+    }
     await page.getByTestId("review-verdict").waitFor();
-    if (!option.correct) await page.getByText("Recorded as Again ·").waitFor();
+    if (!finalOption.correct) await page.getByText("Recorded as Again ·").waitFor();
     await settle(page);
-    const verdict = option.correct ? "correct" : "incorrect";
+    const verdict = finalOption.correct ? "correct" : "incorrect";
     await shoot(`review-${step.label}-back-${verdict}`, "viewport");
     await shoot(`review-${step.label}-back-${verdict}`, "full");
     // Checker backs have Yours / Best tabs under the board (Best is the
     // default, shot above); h switches to Yours. Cube backs have none, and
-    // neither does a back whose answer is the best (one "Yours [Best]"
-    // chip).
+    // neither does a back whose answer is the best (one "Yours [Best]" chip).
     const tabs = page.getByRole("tablist", { name: "Move shown on the board" });
     if (await tabs.isVisible()) {
       await page.keyboard.press("h");
       await page.waitForTimeout(200);
       await shoot(`review-${step.label}-back-${verdict}-yours`, "viewport");
     }
-    // On to the next card: rate Good (right) or Next (wrong); both stubbed.
-    if (option.correct) await page.getByRole("button", { name: "Good" }).click();
-    else await page.getByRole("button", { name: "Next" }).click();
+    if (finalOption.correct) {
+      const rateButton = card.decision?.note && !option.correct ? "Hard" : "Good";
+      await page.getByRole("button", { name: rateButton }).click();
+    } else await page.getByRole("button", { name: "Next" }).click();
     await page.waitForTimeout(300);
+  }
+  const noted = queue.cards.find((card) => card.decision?.note && card.options.length > 2);
+  if (noted) {
+    const refreshed = page.waitForResponse((r) => r.url().includes("/api/review/queue"));
+    await page.goto(`${BASE_URL}/review`, { waitUntil: "networkidle" });
+    await refreshed;
+    await page.locator(`[data-testid="review-question"][data-card-id="${noted.cardId}"]`).waitFor();
+    const wrong = noted.options.find((option) => !option.correct);
+    const retryRight = noted.options.find((option) => option.correct && option.key !== wrong?.key);
+    if (wrong && retryRight) {
+      await page.locator(`[data-option-key="${wrong.key.replace(/"/g, '\\"')}"]`).click();
+      await page.getByText("Try again. Your first choice is crossed out.").waitFor();
+      await settle(page);
+      await shoot("review-retry-front", "viewport");
+      await page.locator(`[data-option-key="${retryRight.key.replace(/"/g, '\\"')}"]`).click();
+      await page.getByTestId("review-verdict").waitFor();
+      await settle(page);
+      await shoot("review-second-try-right-back", "viewport");
+    }
   }
   await settle(page);
   if (await page.getByTestId("review-summary").isVisible()) await shoot("review-summary", "full");
