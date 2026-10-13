@@ -57,7 +57,7 @@ Ready for main-session visual review; the review opens the representative files 
 
 Checks: `npm test` **791/791**, `npx tsc --noEmit`, `npm run lint`, and `NEXT_DIST_DIR=.next-test npm run build` passed. `npm run test:visual` stopped before tests because `.env.test` is absent; the environment file was left untouched.
 
-Commit: pending.
+Commit: `7224f45`.
 
 ### Queued review follow-up: keyboard contracts, proposal tally, and screenshots (2026-10-13)
 Implemented on `omp/main`: restored the review keyboard-contract comments, hid grade hints from assistive technology, limited rating buttons by `ratingLimit`, added the reason key hint, and retained Hard-only saved state until Next card/Enter. Fixed current-card progress during the reason step. Forum tally construction carries proposal IDs/notation, dead checker/cube code and unused tally label are removed, the checker chip has a hover affordance, proposal drafts align to start, and the reply POST route header is restored. The reply-clearing comment was subsequently corrected in the responsive-chip follow-up.
@@ -100,4 +100,4 @@ Commit: `322b9a2`.
 - **Phase 4 part 2: proposal APIs and real data**: `322b9a2` (2026-10-13). Reviewed; the follow-ups are in the task above.
 - **Review: note-aware second try and "Do you know the reason?"**: `2e969ab` (2026-10-13). Reviewed; the follow-ups are in the task above.
 - **Phase 4 part 1: helpers and UI, no DB**: `421d419` (2026-10-13).
-- **Review notes on `omp/main` at `02831c2`**: responsive proposal chips, tally labels, retry/Hard-only styling, restored comments and real-app screenshot follow-up. Completed 2026-10-14; see Ready for review above.
+- **Review notes on `omp/main` at `02831c2`**: responsive proposal chips, tally labels, retry/Hard-only styling, restored comments and real-app screenshot follow-up. Completed 2026-10-14; commit `7224f45`.
