@@ -16,6 +16,9 @@ import ForumActions from "./ForumActions";
 import ReplyComposer from "./ReplyComposer";
 import DecisionAnalysisPanel from "./DecisionAnalysisPanel";
 import { forumPostAnalyses } from "@/lib/forumAnalysis";
+import PositionProposalTally from "./ProposalDisplay";
+import type { ProposalTallyViewModel, ReplyProposalViewModel } from "./proposalTypes";
+import { ReplyProposalChip } from "./ProposalDisplay";
 import { requireMemberDocument } from "@/lib/app-auth";
 
 // /forum/[id]: one post, its attached positions (checker positions get the
@@ -76,6 +79,20 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
     )
   );
   const hasGamePosition = post.positions.some(({ studyPosition }) => studyPosition.sourceDecision !== null);
+  const proposalPositions = post.positions.flatMap(({ studyPosition }, index) => {
+    const decoded = decodeForumPosition(studyPosition.positionId, studyPosition.gnuMatchId, studyPosition.kind);
+    if (!decoded) return [];
+    return [{
+      id: studyPosition.id,
+      label: `Position ${index + 1} · ${forumPositionCaption(decoded.match, studyPosition.kind)}`,
+      kind: studyPosition.kind,
+      position: decoded.position,
+      positionId: studyPosition.positionId,
+      dice: decoded.dice,
+      match: decoded.match,
+      cube: decoded.cube,
+    }];
+  });
 
   return (
     <PageShell width="medium" title={post.title} breadcrumbs={[{ label: "Forum", href: "/forum" }, { label: post.title }]}>
@@ -99,6 +116,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
           const { position, match, cube, dice } = decoded;
           const source = studyPosition.sourceDecision;
           const analysis = analyses[index];
+          const proposals: ProposalTallyViewModel[] = [];
 
           return (
             <div className={style.position} key={studyPosition.id}>
@@ -129,6 +147,7 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
                 <Board decoded={position} cube={cube} />
               )}
               {analysis && <DecisionAnalysisPanel analysis={analysis} />}
+              <PositionProposalTally proposals={proposals} />
             </div>
           );
         })}
@@ -137,22 +156,26 @@ export default async function ForumPostPage({ params }: { params: Promise<{ id: 
           {post.replies.length === 0 ? (
             <p className={style.meta}>No replies yet.</p>
           ) : (
-            post.replies.map((reply) => (
-              <div className={style.reply} key={reply.id}>
-                <p className={style.meta}>
-                  {reply.author.displayName} · {formatShortMatchDate(reply.createdAt.toISOString(), now)}
-                </p>
-                <p className={style.body}>{reply.body}</p>
-                <ForumActions
-                  postId={post.id}
-                  replyId={reply.id}
-                  replyBody={reply.body}
-                  {...actionsFor(reply.authorAppUserId)}
-                />
-              </div>
-            ))
+            post.replies.map((reply) => {
+              const proposals: ReplyProposalViewModel[] = [];
+              return (
+                <div className={style.reply} key={reply.id}>
+                  <p className={style.meta}>
+                    {reply.author.displayName} · {formatShortMatchDate(reply.createdAt.toISOString(), now)}
+                  </p>
+                  <p className={style.body}>{reply.body}</p>
+                  {proposals.map((proposal) => <ReplyProposalChip key={proposal.key} proposal={proposal} />)}
+                  <ForumActions
+                    postId={post.id}
+                    replyId={reply.id}
+                    replyBody={reply.body}
+                    {...actionsFor(reply.authorAppUserId)}
+                  />
+                </div>
+              );
+            })
           )}
-          <ReplyComposer postId={post.id} canWrite={canWrite} />
+          <ReplyComposer postId={post.id} canWrite={canWrite} positions={proposalPositions} />
         </Card>
       </div>
     </PageShell>

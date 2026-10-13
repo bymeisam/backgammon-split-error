@@ -4,7 +4,7 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-_None yet. The first one is Phase 4 (move proposals in replies), once its schema has landed on master._
+_No tasks currently._
 
 ## Schema requests (omp → master)
 
@@ -17,5 +17,6 @@ _Use this shape:_
 ## Ready for review (omp → master)
 
 _Branch `omp/main` at commit …, what was done, which checks ran._
+- Phase 4 part 1 — forum proposal drafts, typed proposal chips/tallies, pure validation and tests; no DB/API persistence. Checks: pending.
 
 ## Done

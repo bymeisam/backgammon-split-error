@@ -3,12 +3,15 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import { style } from "../forum.styles";
+import ProposalDraft from "./ProposalDraft";
+import type { ProposalDraftValue, ProposalPositionOption } from "./proposalTypes";
 
 // canWrite: isGalaxyEnabled(), decided by the server page (the forum API routes' gate). Off hides the composer.
-export default function ReplyComposer({ postId, canWrite }: { postId: number; canWrite: boolean }) {
+export default function ReplyComposer({ postId, canWrite, positions }: { postId: number; canWrite: boolean; positions: ProposalPositionOption[] }) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<number, ProposalDraftValue>>({});
 
   if (!canWrite) return null;
 
@@ -27,8 +30,9 @@ export default function ReplyComposer({ postId, canWrite }: { postId: number; ca
       return;
     }
 
-    // Posted: clear the box and re-render the server page with the new reply.
+    // Proposal submission is intentionally not wired until the proposal API batch.
     setBody("");
+    setDrafts({});
     router.refresh();
   }
 
@@ -43,6 +47,22 @@ export default function ReplyComposer({ postId, canWrite }: { postId: number; ca
         onChange={(event) => setBody(event.target.value)}
         required
       />
+      {positions.map((position) => (
+        <ProposalDraft
+          key={position.id}
+          position={position}
+          value={drafts[position.id] ?? null}
+          onChange={(proposal) => setDrafts((current) => {
+            if (proposal === null) {
+              const next = { ...current };
+              delete next[position.id];
+              return next;
+            }
+            return { ...current, [position.id]: proposal };
+          })}
+        />
+      ))}
+      <p className={style.proposalNotice}>Proposal drafts are local only and will not be saved with this reply yet.</p>
       <div className={style.formActions}>
         <Button type="submit" variant="primary">
           Reply

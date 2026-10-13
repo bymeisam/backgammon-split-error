@@ -51,6 +51,21 @@ export const style = {
   modalHeading: shared.modalHeading,
   modalText: shared.modalText,
   modalButtons: shared.modalButtons,
+  proposalDraft: "flex flex-col gap-3 border-t border-line pt-3",
+  proposalField: "flex flex-col gap-1.5",
+  proposalLabel: "text-sm font-medium text-ink",
+  proposalOptions: "flex flex-wrap gap-2",
+  proposalNotice: "text-xs text-ink-muted",
+  proposalChipList: "flex flex-wrap gap-2",
+  proposalChip: "inline-flex max-w-full items-center gap-1 rounded-chip border border-line px-2.5 py-1 text-sm text-ink",
+  proposalChecker: "font-mono",
+  proposalTally: "mt-3 border-t border-line px-2 pt-3 sm:px-0",
+  proposalTallySummary: "cursor-pointer text-sm text-ink-muted",
+  proposalTallyList: "mt-3 flex flex-col gap-2",
+  proposalTallyRow: "flex flex-wrap items-center justify-between gap-2",
+  proposalCount: "tabular-nums text-sm text-ink-muted",
+  proposalBoard: "w-full sm:max-w-md",
+  proposalModalText: "text-sm text-ink-muted",
   reply: "flex flex-col gap-1 border-t border-line pt-4",
   // HideAnalysisCheckbox (new-post form, post edit): the checkbox row with
   // its one-line hint underneath. py-1 brings the row near 32px on phones.
@@ -104,4 +119,5 @@ export const style = {
   analysisBest: "text-sm text-ink",
   analysisBestLabel: "font-medium",
   analysisBestDetail: "text-ink-muted",
+  proposalDismiss: shared.modalButtons,
 } as const;
