@@ -49,6 +49,34 @@
 //                             a stub inside the browser, so no ReviewLog rows
 //                             are written.
 //
+//   --set=forum               only the forum shots (since 2026-10-13): /forum,
+//                             /forum/<id> for each --forum-posts id (and the
+//                             interactive move explorer after one click and
+//                             after one hop), /forum/new empty and prefilled
+//                             from ?decision=<--forum-decision>,
+//                             /position-builder, and the replay's "Post to
+//                             forum" button. At 1280 and 390, light and dark;
+//                             no navbar shots, no review cards. File names
+//                             carry the server's mode (forum-write-… /
+//                             forum-readonly-…), so run it once against a
+//                             write-mode server and once against a
+//                             read-only one. The forum's pages need a
+//                             signed-in owner: start the server with the
+//                             local AUTH_BYPASS=true on its command line
+//                             (never in .env), against the local DB. Under
+//                             `next start` (production) prismaAuth needs
+//                             DATABASE_URL_AUTH on the command line too
+//                             (lib/prisma.ts), pointed at the local DB:
+//
+//   DATABASE_URL_AUTH=<local mysql URL> AUTH_BYPASS=true ENABLE_WRITE_MODE=true npx next start -p 3300
+//   npx tsx scripts/design-screenshots.ts --set=forum --forum-posts=4,5 --forum-decision=1149340 --date=2026-10-13-forum
+//
+//   --forum-posts=a,b         ForumPost ids for the /forum/<id> shots
+//   --forum-decision=<id>     a Decision id for the prefilled /forum/new shot
+//   --set=auth                only /sign-in and /auth/complete, at 1280 and
+//                             390, light and dark. Point it at a server
+//                             WITHOUT AUTH_BYPASS so the real screens show.
+//
 // The review session's shots take the cards in queue order (new cards in the
 // order they were added): card 1 answered with the best option, card 2
 // answered wrong, card 3 (if any) answered right but not best (a Good
@@ -107,6 +135,23 @@ const REVIEW_DECISIONS = (arg("review-decisions") ?? "")
   .map((s) => s.trim())
   .filter(Boolean)
   .map(Number);
+
+const SET = arg("set");
+if (SET !== undefined && SET !== "forum" && SET !== "auth") {
+  console.error(`Unknown --set=${SET}; known: forum, auth`);
+  process.exit(1);
+}
+const FORUM_POSTS = (arg("forum-posts") ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map(Number);
+const FORUM_DECISION = arg("forum-decision");
+
+// The forum and auth sets' widths: the designer's desktop (1280) and mobile.
+const SET_VARIANTS: Variant[] = ([1280, 390] as const).flatMap((width) =>
+  (["light", "dark"] as const).map((theme) => ({ width, theme }))
+);
 
 const VARIANTS: Variant[] = [
   { width: 1440, theme: "light" },
@@ -367,6 +412,93 @@ const SHOTS: Shot[] = [
   },
 ];
 
+// The forum set (--set=forum). Every name starts with forum-<mode>- (the
+// server's write mode, from the navbar's badge) so the write-on and
+// write-off runs land side by side in one folder.
+async function forumShoot(ctx: ShotContext, name: string, mode: "full" | "viewport"): Promise<void> {
+  await ctx.shoot(`forum-${await navMode(ctx.page)}-${name}`, mode);
+}
+
+const FORUM_SHOTS: Shot[] = [
+  {
+    name: "forum-list",
+    run: async (ctx) => {
+      await open(ctx.page, "/forum");
+      await forumShoot(ctx, "list", "full");
+    },
+  },
+  ...FORUM_POSTS.map(
+    (id): Shot => ({
+      name: `forum-post-${id}`,
+      run: async (ctx) => {
+        const { page } = ctx;
+        await open(page, `/forum/${id}`);
+        await forumShoot(ctx, `post-${id}`, "full");
+        // The interactive move explorer: one checker picked up, then moved.
+        const source = page.locator('[aria-label^="Select checker on point"]').first();
+        if ((await source.count()) === 0) return;
+        await source.scrollIntoViewIfNeeded();
+        // Keyboard, not a click: a mouse click on a source point already
+        // plays a hop (pointer down picks up, pointer up drops), so it never
+        // shows the picked-up state.
+        await source.focus();
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(200);
+        await forumShoot(ctx, `post-${id}-explorer-selected`, "viewport");
+        const target = page.getByRole("button", { name: /^(Move from |Bear off from )/ }).first();
+        if ((await target.count()) === 0) return;
+        await target.click();
+        await page.waitForTimeout(200);
+        await forumShoot(ctx, `post-${id}-explorer-moved`, "viewport");
+      },
+    })
+  ),
+  {
+    name: "forum-new",
+    run: async (ctx) => {
+      await open(ctx.page, "/forum/new");
+      await forumShoot(ctx, "new-empty", "full");
+      if (FORUM_DECISION) {
+        await open(ctx.page, `/forum/new?decision=${FORUM_DECISION}`);
+        await forumShoot(ctx, `new-decision-${FORUM_DECISION}`, "full");
+      }
+    },
+  },
+  {
+    name: "position-builder",
+    run: async (ctx) => {
+      await open(ctx.page, "/position-builder");
+      await forumShoot(ctx, "position-builder", "full");
+    },
+  },
+  {
+    name: "replay-post-to-forum",
+    run: async (ctx) => {
+      await openReplay(ctx.page, REPLAY_CHECKER_ERROR);
+      await forumShoot(ctx, "replay-move2", "viewport");
+      await forumShoot(ctx, "replay-move2", "full");
+    },
+  },
+];
+
+// The auth set (--set=auth): the real Clerk screens, so no bypass.
+const AUTH_SHOTS: Shot[] = [
+  {
+    name: "sign-in",
+    run: async ({ page, shoot }) => {
+      await open(page, "/sign-in");
+      await shoot("auth-sign-in", "full");
+    },
+  },
+  {
+    name: "auth-complete",
+    run: async ({ page, shoot }) => {
+      await open(page, "/auth/complete");
+      await shoot("auth-complete", "full");
+    },
+  },
+];
+
 // One measurement of the bar, at one width/theme/mode.
 interface NavMetric {
   width: number;
@@ -529,17 +661,19 @@ async function main(): Promise<void> {
   };
   let metrics: NavMetric[] = [];
   try {
-    if (!NAV_ONLY) await addReviewCards(created);
+    if (!NAV_ONLY && !SET) await addReviewCards(created);
     browser = await chromium.launch({ args: ["--disable-gpu"] });
-    metrics = await navShots(browser, addTheme, written, failures);
-    for (const variant of NAV_ONLY ? [] : VARIANTS) {
+    if (!SET) metrics = await navShots(browser, addTheme, written, failures);
+    const variants = SET ? SET_VARIANTS : NAV_ONLY ? [] : VARIANTS;
+    const shots = SET === "forum" ? FORUM_SHOTS : SET === "auth" ? AUTH_SHOTS : SHOTS;
+    for (const variant of variants) {
       const context = await browser.newContext({
-        viewport: { width: variant.width, height: variant.width === 1440 ? 900 : 844 },
+        viewport: { width: variant.width, height: variant.width === 390 ? 844 : 900 },
         deviceScaleFactor: variant.width === 390 ? 2 : 1,
         colorScheme: variant.theme,
       });
       await addTheme(context);
-      for (const shot of SHOTS) {
+      for (const shot of shots) {
         if (shot.only && shot.only !== variant.width) continue;
         const page = await context.newPage();
         const shoot = async (name: string, mode: "full" | "viewport") => {
