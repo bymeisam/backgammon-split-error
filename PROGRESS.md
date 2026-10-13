@@ -914,3 +914,6 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - **Preview board shadow:** `previewBoard` in `app/forum/forum.styles.ts` adds `[&>svg]:drop-shadow-none`; the shared `boardSvg` class is unchanged. In the built CSS the override is `.…>svg{--tw-drop-shadow: ;filter:…}`, specificity (0,1,1) against `.drop-shadow-board`'s (0,1,0), both in the utilities layer, so it wins.
   - **Delete modal:** one reply now reads "Its reply goes with it." (no test asserted the old text).
   - Checks: eslint, tsc, vitest 614/614, build, visual suite 15/15 (no baseline changed; the suite covers no segmented control or forum preview).
+  - **Checked** by the main session against the commit diff (`6f10d7b`). No `rounded-[7px]` is left in `app/`. No investigator pass: there was no data to check. Not looked at in a browser.
+- **CLAUDE.md (main session):** Claude now also suggests `/wrap-up` then `/clear` when the user starts a new, unrelated batch in a session that already finished one, or when one batch runs long. It's a one-line suggestion and never blocks the work.
+- **Next:** Phase 2 (owner/member roles). It needs the user's decision on L1 first: should members see the analysis on decision posts?
