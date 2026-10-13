@@ -13,6 +13,7 @@ import reactPkg from "react/package.json";
 import typescriptPkg from "typescript/package.json";
 import prismaPkg from "prisma/package.json";
 import prismaClientPkg from "@prisma/client/package.json";
+import { requireOwnerDocument } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,7 @@ function Row({ label, value, numeric = false }: { label: string; value: ReactNod
 }
 
 export default async function StatusPage() {
+  await requireOwnerDocument();
   const db = await getDbStatus();
 
   return (

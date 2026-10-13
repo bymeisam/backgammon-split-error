@@ -5,6 +5,7 @@ import { parseId, rawMatchId, sourceDecision } from "@/lib/forum";
 import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
 import { style } from "../forum.styles";
 import NewPostForm, { type DecisionPreview } from "./NewPostForm";
+import { requireMemberDocument } from "@/lib/app-auth";
 
 // Read per request: the write gate depends on the running server's env, not
 // the build's.
@@ -20,6 +21,7 @@ export default async function NewForumPostPage({
 }: {
   searchParams: Promise<{ decision?: string }>;
 }) {
+  await requireMemberDocument();
   const canPost = isGalaxyEnabled();
   const { decision } = await searchParams;
   const preview = canPost && typeof decision === "string" ? await decisionPreview(decision) : null;

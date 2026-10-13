@@ -2,7 +2,7 @@ import { Suspense, cache, type ReactNode } from "react";
 import Link from "next/link";
 import { ErrorSeverity } from "@/lib/generated/prisma/enums";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { isOwnerViewer } from "@/lib/app-auth";
+import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import { listMatches } from "@/lib/local-client";
 import { countDueCards } from "@/lib/review/dueCount";
 import { dueSplit } from "@/lib/review/queuePlan";
@@ -288,6 +288,7 @@ async function RepeatedBlundersWidget() {
 }
 
 export default async function Home() {
+  await requireMemberDocument();
   // The due-cards widget is the owner's (review is owner-only), and only
   // with write mode on.
   const showDue = (await isOwnerViewer()) && isGalaxyEnabled();

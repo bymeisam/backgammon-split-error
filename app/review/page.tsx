@@ -17,6 +17,7 @@ import PageShell from "@/app/components/ui/PageShell";
 import FilterBar from "@/app/components/ui/FilterBar";
 import ReviewSession from "./ReviewSession";
 import { style } from "./review.styles";
+import { requireOwnerDocument } from "@/lib/app-auth";
 
 // /review: a spaced-repetition session over the review cards. Writes (each
 // answer) need write mode, so with it off (the live read-only site) this
@@ -26,6 +27,7 @@ import { style } from "./review.styles";
 export const dynamic = "force-dynamic";
 
 export default async function ReviewPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  await requireOwnerDocument();
   if (!isGalaxyEnabled()) {
     return (
       <PageShell title="Review">

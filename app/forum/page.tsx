@@ -6,12 +6,14 @@ import { prismaReadOnly } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { formatShortMatchDate } from "@/lib/formatDate";
 import { style } from "./forum.styles";
+import { requireMemberDocument } from "@/lib/app-auth";
 
 export const dynamic = "force-dynamic";
 
 // /forum: every post, newest first. "New post" shows only with write mode on
 // (isGalaxyEnabled(), the forum write routes' gate).
 export default async function ForumPage() {
+  await requireMemberDocument();
   const posts = await prismaReadOnly.forumPost.findMany({
     orderBy: { createdAt: "desc" },
     include: {

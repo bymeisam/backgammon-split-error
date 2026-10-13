@@ -1,6 +1,7 @@
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { GALAXY_SOURCE } from "@/lib/externalMatchUrl";
 import MatchAnalysis, { type MatchSummary } from "./MatchAnalysis";
+import { requireMemberDocument } from "@/lib/app-auth";
 
 // Read per request (the match row can change on a re-sync).
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 // under the Galaxy source (lib/local-client.ts), as the client part assumes.
 // A failed lookup only drops the date and score: the page still works.
 export default async function MatchAnalysisPage({ params }: { params: Promise<{ matchId: string }> }) {
+  await requireMemberDocument();
   const { matchId } = await params;
 
   let summary: MatchSummary | null = null;

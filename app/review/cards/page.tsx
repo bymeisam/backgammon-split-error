@@ -26,6 +26,7 @@ import PageShell from "@/app/components/ui/PageShell";
 import FilterBar from "@/app/components/ui/FilterBar";
 import CardActions from "./CardActions";
 import { style } from "./reviewCards.styles";
+import { requireOwnerDocument } from "@/lib/app-auth";
 
 // /review/cards: every review card, paginated, filterable by tag, phase,
 // type and state. Browsable read-only on the live site; suspend /
@@ -55,6 +56,7 @@ function stateWhere(state: string | undefined, now: Date): Prisma.ReviewCardWher
 }
 
 export default async function ReviewCardsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  await requireOwnerDocument();
   const sp = await searchParams;
   const filters = reviewFiltersFrom((k) => stringParam(sp, k));
   const state = stringParam(sp, "state");

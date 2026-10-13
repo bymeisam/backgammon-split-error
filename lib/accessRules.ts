@@ -10,11 +10,14 @@
 // Anything not listed is owner (fail closed), so a new page or API stays
 // owner-only until it's added here on purpose.
 //
-// Readers: app/layout.tsx (pages: requireMemberDocument or
-// requireOwnerDocument, from the x-app-route header proxy.ts sets) and each
-// API route, which calls the helper for its tier (lib/app-auth.ts).
-// lib/accessRules.test.ts globs every app/api/**/route.ts and fails when a
-// route's helper and this table disagree.
+// Readers: every page (app/**/page.tsx calls requireMemberDocument or
+// requireOwnerDocument at the top of its server component; a client page
+// gets a server wrapper), app/layout.tsx as a second layer (from the
+// x-app-route header proxy.ts sets; layouts don't re-render on client-side
+// navigation, so the layout alone isn't enough) and each API route, which
+// calls the helper for its tier (lib/app-auth.ts). lib/accessRules.test.ts
+// globs every app/**/page.tsx and app/api/**/route.ts and fails when a
+// page's or route's helper and this table disagree.
 //
 // Patterns are path segments: `*` matches exactly one segment, a trailing
 // `**` matches zero or more. The first matching rule wins.

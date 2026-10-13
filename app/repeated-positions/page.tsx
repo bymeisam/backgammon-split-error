@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import type { RepeatedPosition } from "@/lib/generated/prisma/client";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
-import { isOwnerViewer } from "@/lib/app-auth";
+import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import { findPositionOccurrences, loadDecisionItems } from "@/lib/decisionQueries";
 import { listRepeatedPositions } from "@/lib/repeatedPositionQueries";
 import {
@@ -229,6 +229,7 @@ export default async function RepeatedPositionsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  await requireMemberDocument();
   const sp = await searchParams;
   // ?phase= / ?classification= alias, page and pageSize: see parseListParams.
   const { phase, severityParam, page, pageSize } = parseListParams(sp, {

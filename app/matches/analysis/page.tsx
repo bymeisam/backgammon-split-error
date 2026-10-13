@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 
 import { categoryLabel } from "@/lib/listParams";
 import { formatDateTime } from "@/lib/formatDate";
 import { style } from "./matchesAnalysis.styles";
+import { requireMemberDocument } from "@/lib/app-auth";
 
 // Server component, queried fresh on every request (no caching) — same
 // "reflect current DB state" requirement /status follows. Reads only
@@ -134,6 +135,7 @@ function BreakdownTable({
 }
 
 export default async function MatchesAnalysisPage() {
+  await requireMemberDocument();
   const stats = await prisma.mistakeStat.findMany();
 
   const byClassification = aggregateBy(stats, (s) => s.classification);

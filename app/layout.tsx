@@ -79,9 +79,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // only (a member gets a 404). lib/app-auth.ts resolves the role, including
   // under the local AUTH_BYPASS (lib/localAuthBypass.ts, owner by default,
   // a member with AUTH_BYPASS_ROLE=member).
+  //
+  // This is the second layer, not the only one: layouts don't re-render on
+  // client-side navigation, so every page also calls the guard for its tier
+  // itself (lib/accessRules.test.ts checks that). Fail closed: no header
+  // (proxy.ts didn't run) means owner. The public pages always get the
+  // header, since proxy.ts's matcher covers /sign-in/** and /auth/complete.
   const requestHeaders = await headers();
   const appRoute = requestHeaders.get("x-app-route");
-  const tier = appRoute ? accessTierFor(appRoute) : null;
+  const tier = appRoute ? accessTierFor(appRoute) : "owner";
   const isPublicRoute = tier === "public";
   if (tier === "member") await requireMemberDocument();
   else if (tier === "owner") await requireOwnerDocument();

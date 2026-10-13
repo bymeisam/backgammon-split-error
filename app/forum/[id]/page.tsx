@@ -14,10 +14,12 @@ import { formatShortMatchDate } from "@/lib/formatDate";
 import { style } from "../forum.styles";
 import ForumActions from "./ForumActions";
 import ReplyComposer from "./ReplyComposer";
+import { requireMemberDocument } from "@/lib/app-auth";
 
 // /forum/[id]: one post, its attached positions (checker positions get the
 // move explorer, cube positions a plain board) and its replies.
 export default async function ForumPostPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireMemberDocument();
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
 

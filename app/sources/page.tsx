@@ -8,6 +8,7 @@ import Card from "@/app/components/ui/Card";
 import PageShell from "@/app/components/ui/PageShell";
 import GalaxySourceActions from "./GalaxySourceActions";
 import { style } from "./sources.styles";
+import { requireOwnerDocument } from "@/lib/app-auth";
 
 // Each source's own client-side actions (token, sync), by source id. The
 // card's links are passed in, so they share the actions' row.
@@ -63,6 +64,7 @@ function SourceCard({ source, status }: { source: Source; status: SourceStatus }
 // it can never render on the read-only site. Rendered per request (the
 // gate reads the server's env, and the status is live).
 export default async function SourcesPage() {
+  await requireOwnerDocument();
   await connection();
   if (!isGalaxyEnabled()) notFound();
 

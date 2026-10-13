@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { findDecisionListRows, loadDecisionItems } from "@/lib/decisionQueries";
-import { isOwnerViewer } from "@/lib/app-auth";
+import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import {
   PAGE_SIZE_OPTIONS,
   categoryFromParam,
@@ -188,6 +188,7 @@ export default async function MistakesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  await requireMemberDocument();
   const sp = await searchParams;
   const { phase, severityParam, page, pageSize } = parseListParams(sp, {
     defaultPageSize: DEFAULT_PAGE_SIZE,

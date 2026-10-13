@@ -9,7 +9,7 @@ import {
   REVIEW_BATCH_SIZE,
   REVIEWS_PER_DAY,
 } from "@/lib/settings";
-import { isOwnerViewer } from "@/lib/app-auth";
+import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import ThemeSettings from "./ThemeSettings";
 import { style } from "./settings.styles";
 
@@ -27,6 +27,7 @@ function Row({ label, value }: { label: string; value: string }) {
 // lib/settings.ts, shown read-only for now. Review is the owner's, so a
 // member sees the theme section only.
 export default async function SettingsPage() {
+  await requireMemberDocument();
   const current = themeSettingsFromCookie((await cookies()).get(THEME_COOKIE)?.value);
   const isOwner = await isOwnerViewer();
 

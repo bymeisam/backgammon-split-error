@@ -3,7 +3,7 @@ import { prismaReadOnly as prisma } from "@/lib/prisma";
 import { isGalaxyEnabled } from "@/lib/galaxyGate";
 import { decisionFromRowForReplay, type DecisionRow } from "@/lib/decisionFromRow";
 import type { Prisma } from "@/lib/generated/prisma/client";
-import { isOwnerViewer } from "@/lib/app-auth";
+import { isOwnerViewer, requireMemberDocument } from "@/lib/app-auth";
 import { decisionColor } from "@/lib/analysis";
 import type { Decision } from "@/lib/mistakes";
 import { resolveMyIdentity } from "@/lib/playerIdentity";
@@ -27,6 +27,7 @@ export default async function GameReplayPage({
   params: Promise<{ matchId: string; gameIndex: string }>;
   searchParams: Promise<{ position?: string; decision?: string }>;
 }) {
+  await requireMemberDocument();
   const { matchId, gameIndex: gameIndexParam } = await params;
   const { position, decision: decisionParam } = await searchParams;
   const gameIndex = Number(gameIndexParam);
