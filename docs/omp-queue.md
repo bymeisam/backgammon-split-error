@@ -53,11 +53,11 @@ Captured the real local app/API at 390 and 1280 in light and dark under `design/
 - `review-card1-reason-yes-focus--390-dark--viewport.png`
 - `review-card1-reason-no-focus--390-dark--viewport.png`
 
-Ready for main-session visual review; the review opens the representative files above.
+Ready for main-session visual review; the review opens the representative files above. The main session also ran the previously unavailable suite after `.env.test` was added: `npm run test:visual` passed **15/15**.
 
-Checks: `npm test` **791/791**, `npx tsc --noEmit`, `npm run lint`, and `NEXT_DIST_DIR=.next-test npm run build` passed. `npm run test:visual` stopped before tests because `.env.test` is absent; the environment file was left untouched.
+Checks: `npm test` **791/791**, `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` passed.
 
-Commit: `7224f45`.
+Commits: `7224f45` implementation, `a57dfd4` queue/progress handoff.
 
 ### Queued review follow-up: keyboard contracts, proposal tally, and screenshots (2026-10-13)
 Implemented on `omp/main`: restored the review keyboard-contract comments, hid grade hints from assistive technology, limited rating buttons by `ratingLimit`, added the reason key hint, and retained Hard-only saved state until Next card/Enter. Fixed current-card progress during the reason step. Forum tally construction carries proposal IDs/notation, dead checker/cube code and unused tally label are removed, the checker chip has a hover affordance, proposal drafts align to start, and the reply POST route header is restored. The reply-clearing comment was subsequently corrected in the responsive-chip follow-up.
