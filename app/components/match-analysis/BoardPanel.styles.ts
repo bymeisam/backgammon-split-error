@@ -66,10 +66,14 @@ export const style = {
   // --- Board.tsx ---
   boardSvg: "block h-auto w-full drop-shadow-board",
   interactiveSource: "fill-accent/20 stroke-accent/65 [stroke-width:1.5]",
-  interactiveTarget:
-    "stroke-transparent focus-visible:stroke-focus focus-visible:[stroke-width:2]",
-  interactiveTargetEnabled: "cursor-pointer touch-none",
-  interactiveTargetDisabled: "cursor-default",
+  // A clickable point or bar hit area. `extra` is the caller's own per-target
+  // class (Board's interactivePointClassName / interactiveBarClassName).
+  interactiveTarget: (enabled: boolean, extra?: string): string =>
+    clsx(
+      "stroke-transparent focus-visible:stroke-focus focus-visible:[stroke-width:2]",
+      enabled ? "cursor-pointer touch-none" : "cursor-default",
+      extra
+    ),
   interactiveDestination: "fill-primary/20 stroke-primary/70 [stroke-width:2]",
   interactiveSelected: "fill-accent/35 stroke-accent [stroke-width:2]",
   interactiveDie: "group cursor-pointer focus:outline-none",

@@ -403,7 +403,7 @@ export default function Board({
               key={`target-point-${point}`}
               points={trianglePoints(point)}
               fill="transparent"
-              className={`${style.interactiveTarget} ${enabled ? style.interactiveTargetEnabled : style.interactiveTargetDisabled} ${interactivePointClassName?.(point) ?? ""}`}
+              className={style.interactiveTarget(enabled, interactivePointClassName?.(point))}
               role="button"
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}
@@ -428,7 +428,7 @@ export default function Board({
               width={BAR_W}
               height={ROW_H}
               fill="transparent"
-              className={`${style.interactiveTarget} ${enabled ? style.interactiveTargetEnabled : style.interactiveTargetDisabled} ${interactiveBarClassName?.(side) ?? ""}`}
+              className={style.interactiveTarget(enabled, interactiveBarClassName?.(side))}
               role="button"
               tabIndex={enabled ? 0 : -1}
               aria-disabled={enabled ? undefined : true}
