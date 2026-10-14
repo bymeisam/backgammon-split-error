@@ -206,7 +206,6 @@ export default function GameReplay({
                     Fixed perspective
                   </label>
                 )}
-                {/* Links the decision on screen (selectedIndex), not the one the page opened on. */}
               </span>
             </div>
           }

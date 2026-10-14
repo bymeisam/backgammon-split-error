@@ -502,6 +502,10 @@ const SHOTS: Shot[] = [
 async function forumShoot(ctx: ShotContext, name: string, mode: "full" | "viewport"): Promise<void> {
   await ctx.shoot(`forum-${await navMode(ctx.page)}-${name}`, mode);
 }
+async function forumActionShot(ctx: ShotContext, name: string, mode: "full" | "viewport" = "full"): Promise<void> {
+  await ctx.page.getByRole("button", { name: "Post to forum" }).first().scrollIntoViewIfNeeded();
+  await forumShoot(ctx, name, mode);
+}
 
 const FORUM_SHOTS: Shot[] = [
   {
@@ -586,8 +590,57 @@ const FORUM_SHOTS: Shot[] = [
         await page.waitForTimeout(200);
         await forumShoot(ctx, `post-${id}-explorer-moved`, "viewport");
       },
-    })
+    }),
   ),
+  {
+    name: "forum-text-post-flows",
+    run: async (ctx) => {
+      const { page } = ctx;
+      await openReplay(page, REPLAY_CHECKER_ERROR);
+      await forumActionShot(ctx, "replay-post-button", "viewport");
+      await page.getByRole("button", { name: "Post to forum" }).click();
+      await page.waitForURL("**/forum/new");
+      await forumShoot(ctx, "new-match-board", "full");
+      await page.getByRole("button", { name: "Remove board" }).click();
+      await forumShoot(ctx, "new-match-board-removed", "full");
+      await page.reload();
+      await forumShoot(ctx, "new-empty-after-reload", "full");
+
+      await open(page, `/matches/${MATCH}`);
+      await forumActionShot(ctx, "match-analysis-post-button");
+      await open(page, "/mistakes?category=checker&severity=blunder");
+      await forumActionShot(ctx, "mistakes-post-button");
+      await open(page, "/repeated-positions?severity=blunder");
+      const firstPosition = page.locator('a[href*="positionId="]').first();
+      await firstPosition.click();
+      await page.waitForURL(/positionId=/);
+      await forumActionShot(ctx, "repeated-position-post-button");
+
+      await open(page, "/position-builder");
+      await forumActionShot(ctx, "builder-post-button");
+      await page.getByRole("button", { name: "Post to forum" }).click();
+      await page.waitForURL("**/forum/new");
+      await forumShoot(ctx, "new-builder-board", "full");
+      const created = await page.evaluate(async () => {
+        const response = await fetch("/api/forum/posts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ title: "Text-only forum post", body: "A post with no attached board.", positions: [] }),
+        });
+        return response.ok ? await response.json() as { id: number } : null;
+      });
+      if (created) {
+        await open(page, "/forum");
+        await open(page, `/forum/${created.id}`);
+        await forumShoot(ctx, "text-only-post", "full");
+        await open(page, "/forum");
+        await forumShoot(ctx, "list-with-text-only-post", "full");
+        await page.evaluate(async (id) => {
+          await fetch(`/api/forum/posts/${id}`, { method: "DELETE" });
+        }, created.id);
+      }
+    },
+  },
   {
     name: "forum-new",
     run: async (ctx) => {

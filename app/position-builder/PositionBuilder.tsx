@@ -21,7 +21,7 @@ import {
   type PositionBuilderState,
 } from "@/lib/positionBuilder";
 import Board from "@/app/components/match-analysis/Board";
-import PostToForumButton from "@/app/components/match-analysis/PostToForumButton";
+import PostToForumButton from "@/app/components/ui/PostToForumButton";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import { style } from "./positionBuilder.styles";
@@ -380,7 +380,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
         </Card>
 
         {canPostToForum && (
-          <PostToForumButton onPost={postToForum} disabled={errors.length > 0} />
+          <PostToForumButton onPost={postToForum} disabled={errors.length > 0} variant="primary" />
         )}
       </div>
     </div>

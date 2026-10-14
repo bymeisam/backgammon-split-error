@@ -12,7 +12,7 @@ import {
   type DoubleOffer,
 } from "@/lib/cubeState";
 import { cubeBestDisplay, cubePlayedLabel, deriveCubeActionFromReview } from "@/lib/cubeAction";
-import { decodeGnuMatchId, diceRollFor } from "@/lib/gnuMatchId";
+import { decodeGnuMatchId, diceRollFor, type DecodedMatchId } from "@/lib/gnuMatchId";
 import type { DecisionReviewStatus, DecisionTagRef } from "@/lib/review/types";
 
 export interface FetchedGame {
@@ -79,6 +79,7 @@ export interface Decision {
   // dice (lib/cubeState.ts's cubeListValue). Null/absent for checker and
   // resignation rows, or when the Match ID doesn't decode.
   cubeSquareValue?: number | null;
+  matchState?: DecodedMatchId | null;
   sourcePositionId: string | null;
   myMoveNotation: string | null;
   bestMoveNotation: string | null;
@@ -263,6 +264,7 @@ export function extractDecisions(games: FetchedGame[]): Decision[] {
         // which on the DB path (/matches, events rebuilt from stored rows)
         // depended on row order and could pick up the wrong roll.
         roll: diceRollFor(review.result.analysed_event, matchId),
+        matchState: matchId,
         sourcePositionId: review.source_position?.formatted_value ?? null,
         myMoveNotation: mine,
         bestMoveNotation: best,

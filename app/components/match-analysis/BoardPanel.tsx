@@ -9,7 +9,8 @@ import { playedMoveTier, SEVERITY_TIER_LABELS, type SeverityTier } from "@/lib/b
 import { formatLoss } from "@/lib/review/format";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
 import DecisionReviewTools from "./DecisionReviewTools";
-import PostToForumButton from "./PostToForumButton";
+import PostToForumButton from "@/app/components/ui/PostToForumButton";
+import { forumPositionCaption } from "@/lib/forumPosition";
 import Board from "./Board";
 import { style, type ArrowTier } from "./BoardPanel.styles";
 
@@ -272,7 +273,7 @@ export default function BoardPanel({
           </div>
         )}
         {canPostToForum && showPostAction && !quiz && selected?.dbDecisionId && decoded && (
-          <PostToForumButton decisionId={selected.dbDecisionId} position={decoded} cube={cube} dice={selected.roll} />
+          <PostToForumButton decisionId={selected.dbDecisionId} position={decoded} cube={cube} dice={selected.roll} caption={selected.matchState ? forumPositionCaption(selected.matchState, selected.kind === "cube" ? "CUBE" : "CHECKER") : "Match position"} />
         )}
       </div>
 

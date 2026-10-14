@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearForumHandoff, FORUM_HANDOFF_KEY, readForumHandoff, resolveForumHandoff, storeForumHandoff, type ForumHandoff } from "./handoff";
+import { clearForumHandoff, consumeForumHandoff, FORUM_HANDOFF_KEY, readForumHandoff, resolveForumHandoff, storeForumHandoff, type ForumHandoff } from "./handoff";
 
 const preview = {
   position: { mine: Array(24).fill(0), opponent: Array(24).fill(0), mineBar: 0, opponentBar: 0, mineOff: 0, opponentOff: 0 },
@@ -21,7 +21,7 @@ describe("forum board handoff state", () => {
     expect(result.kind).toBe("attached");
     if (result.kind === "attached") {
       expect("match" in result.handoff && result.handoff.match).toEqual({ decisionId: 123 });
-      expect(result.handoff.preview.caption).toBe("Match position");
+      expect(result.handoff.preview.caption).toBe(preview.caption);
     }
   });
 
@@ -43,10 +43,28 @@ describe("forum board handoff state", () => {
     }
   });
 
-  it("replaces match captions with a non-identifying label", () => {
-    const result = resolveForumHandoff({ ...matchHandoff, preview: { ...preview, caption: "Decision ID: 123" } });
+  it("keeps the score-and-kind caption written by the source button", () => {
+    const result = resolveForumHandoff({ ...matchHandoff, preview: { ...preview, caption: "5-point match · 1–3 · 6-4 to play" } });
+    expect(result.kind).toBe("attached");
+    if (result.kind === "attached") expect(result.handoff.preview.caption).toBe("5-point match · 1–3 · 6-4 to play");
+  });
+
+  it("does not expose identifiers from an untrusted match caption", () => {
+    const result = resolveForumHandoff({ ...matchHandoff, preview: { ...preview, caption: "GNU ID ABC123" } });
     expect(result.kind).toBe("attached");
     if (result.kind === "attached") expect(result.handoff.preview.caption).toBe("Match position");
+  });
+
+  it("consumes a stored handoff exactly once", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", { sessionStorage: {
+      setItem: (key: string, value: string) => values.set(key, value),
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => values.delete(key),
+    } });
+    storeForumHandoff(matchHandoff);
+    expect(consumeForumHandoff()).toEqual(matchHandoff);
+    expect(consumeForumHandoff()).toBeNull();
   });
 
   it("stores and clears one handoff under the shared session key", () => {

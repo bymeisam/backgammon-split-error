@@ -25,6 +25,11 @@ export function readForumHandoff(): unknown {
   }
 }
 
+export function consumeForumHandoff(): unknown {
+  const value = readForumHandoff();
+  clearForumHandoff();
+  return value;
+}
 export function clearForumHandoff(): void {
   try {
     window.sessionStorage.removeItem(FORUM_HANDOFF_KEY);
@@ -59,6 +64,8 @@ export function isForumHandoff(value: unknown): value is ForumHandoff {
   }
   return false;
 }
+const SAFE_MATCH_CAPTION = /^(?:Money game|[1-9]\d*-point match(?: · \d+–\d+(?: · (?:Crawford|post-Crawford))?)?) · (?:Cube decision|Checker play|[1-6]-[1-6] to play)$/;
+
 export function resolveForumHandoff(value: unknown):
   | { kind: "absent" }
   | { kind: "invalid" }
@@ -66,10 +73,8 @@ export function resolveForumHandoff(value: unknown):
   if (value === null) return { kind: "absent" };
   if (!isForumHandoff(value)) return { kind: "invalid" };
   if ("match" in value) {
-    return {
-      kind: "attached",
-      handoff: { ...value, preview: { ...value.preview, caption: "Match position" } },
-    };
+    const caption = SAFE_MATCH_CAPTION.test(value.preview.caption) ? value.preview.caption : "Match position";
+    return { kind: "attached", handoff: { ...value, preview: { ...value.preview, caption } } };
   }
   const decoded = decodeForumPosition(value.manual.positionId, value.manual.gnuMatchId, value.manual.kind);
   if (!decoded) return { kind: "invalid" };

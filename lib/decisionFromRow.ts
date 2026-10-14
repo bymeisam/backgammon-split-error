@@ -30,6 +30,7 @@ import {
   decisionColor,
   decisionCubeState,
   decisionLabels,
+  decisionMatchState,
   decisionRoll,
 } from "@/lib/analysis";
 import { externalMatchUrl } from "@/lib/externalMatchUrl";
@@ -134,6 +135,7 @@ function buildDecision(row: DecisionRow, absError: number): Decision | null {
     bestLabel: labels.best,
     bestDetail: labels.bestDetail,
     roll: decisionRoll(input),
+    matchState: decisionMatchState(input),
     sourcePositionId: row.sourcePositionId,
     myMoveNotation: labels.myMoveNotation,
     bestMoveNotation: labels.bestMoveNotation,

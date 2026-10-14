@@ -1,11 +1,11 @@
 "use client";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import Board from "@/app/components/match-analysis/Board";
 import HideAnalysisCheckbox from "../HideAnalysisCheckbox";
 import { style } from "../forum.styles";
-import { clearForumHandoff, readForumHandoff, resolveForumHandoff, type ForumHandoff } from "./handoff";
+import { clearForumHandoff, consumeForumHandoff, resolveForumHandoff, type ForumHandoff } from "./handoff";
 
 type Preview = ForumHandoff["preview"];
 type Attachment = { payload: { match: { decisionId: number } } | { manual: { positionId: string; gnuMatchId: string; kind: "CHECKER" | "CUBE" } }; preview: Preview; game: boolean };
@@ -19,10 +19,12 @@ export default function NewPostForm() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [hideAnalysis, setHideAnalysis] = useState(false);
-
+  const handoffRead = useRef(false);
   useEffect(() => {
+    if (handoffRead.current) return;
+    handoffRead.current = true;
     void Promise.resolve().then(() => {
-      const result = resolveForumHandoff(readForumHandoff());
+      const result = resolveForumHandoff(consumeForumHandoff());
       if (result.kind === "absent") return;
       if (result.kind === "invalid") {
         setMessage("The board couldn't be attached. You can still post without one.");

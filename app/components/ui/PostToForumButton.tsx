@@ -12,6 +12,8 @@ export default function PostToForumButton({
   position,
   cube,
   dice,
+  caption = "Match position",
+  variant = "secondary",
   onPost,
   disabled = false,
 }: {
@@ -19,6 +21,8 @@ export default function PostToForumButton({
   position?: DecodedPosition;
   cube?: BoardCube | null;
   dice?: number[];
+  caption?: string;
+  variant?: "primary" | "secondary";
   onPost?: () => void;
   disabled?: boolean;
 }) {
@@ -32,7 +36,7 @@ export default function PostToForumButton({
     if (decisionId === undefined || !position || !dice) return;
     const stored = storeForumHandoff({
       match: { decisionId },
-      preview: { position, cube: cube ?? null, dice, caption: "Match position" },
+      preview: { position, cube: cube ?? null, dice, caption },
     });
     if (stored) {
       router.push("/forum/new");
@@ -42,7 +46,7 @@ export default function PostToForumButton({
   }
   return (
     <>
-      <Button variant="secondary" onClick={post} disabled={disabled}>Post to forum</Button>
+      <Button variant={variant} onClick={post} disabled={disabled}>Post to forum</Button>
       {message && <p className={style.message} role="status">{message}</p>}
     </>
   );
