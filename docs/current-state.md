@@ -6,7 +6,7 @@ _Last updated: 2026-10-14._
 
 ## Code
 
-- Branch `master`, clean, **not pushed**: about 10 commits ahead of `origin/master`. They include the omp merges `18789e8` and `86060fb`, the Clerk paths in code (`7607f87`), the session-start queue hook (`e3eb39e`) and the single-owner rule (`02b7cb7`). On the merged tree: vitest 792/792, tsc, eslint and build are clean.
+- Branch `master`, clean. `origin/master` is at `204f8ab` (pushed: the omp merges, Clerk paths in code, queue hook, single-owner rule). One local commit not pushed: `3711702` (omp queue docs only). On the merged tree: vitest 792/792, tsc, eslint and build are clean.
 - **Write model:** three clients, `prismaReadOnly` (`bg_db_ro`), `prismaApp` (`bg_db_app`, every in-app write) and `prisma` (`bg_db_rw`, local only, for sync, ingest and migrations). `isAppWriteEnabled()` gates app writes, and `isGalaxyEnabled()` is for Galaxy and sync only (`docs/deploy.md` § The two write gates).
 - **Roles:** owner needs DB `role = 'OWNER'` **and** Clerk `privateMetadata.isOwner = true`. Member needs `MEMBER`. `NONE` waits on `/auth/complete`. **At most one OWNER row**, enforced by the generated `AppUser.ownerSlot` plus a unique index; demote the old row first if the owner's Clerk id changes. The local `AUTH_BYPASS` owner row (`local-dev-owner`) is stored as `NONE` and acts as owner in memory.
 - **Clerk paths** are set in code (`lib/clerkConfig.ts`). Vercel needs only the two Clerk keys.
@@ -23,7 +23,7 @@ _Last updated: 2026-10-14._
 ## Open threads
 
 - **User:**
-  - push master, then confirm that signed-out `/` lands on `/sign-in` on the vercel.app host and that the owner sees everything;
+  - push `3711702` when convenient (docs only); confirm that signed-out `/` lands on `/sign-in` on the vercel.app host and that the owner sees everything;
   - run "Auth verification" (`docs/deploy.md`) and check that notes, review and the forum write live;
   - invite members in the Clerk dev instance, then set their `AppUser.role = 'MEMBER'` on Oracle (an Oracle write, so ask for the SQL);
   - decide whether your existing notes and review cards live in the local DB. Oracle has none, so they'd need copying.
