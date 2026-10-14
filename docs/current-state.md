@@ -6,7 +6,7 @@ _Last updated: 2026-10-14._
 
 ## Code
 
-- Branch `master`, clean. Pushed through `3711702`. Not pushed: `567ebe5`, `8a1049f`, `69b15e1`, `14c9052` and the wrap-up commit (MEMBER default, sign-in centring, small fixes, omp queue). vitest 804/804, tsc, lint and build are clean. The visual suite has not run since (`bg_test` isn't migrated).
+- Branch `omp/main`, clean through `6fc4b08` (forum text-only posts and board handoff). Master-side commits remain unmerged after the feature merge. Vitest 813/813, tsc, lint and build are clean. The visual suite and authenticated screenshots were not run because the omp policy requires localhost confirmation for every `.env*`/shell database URL.
 - **Write model:** `prismaReadOnly` (`bg_db_ro`), `prismaApp` (`bg_db_app`, every in-app write), `prisma` (`bg_db_rw`, local only: sync, ingest, migrations). `isAppWriteEnabled()` gates app writes; `isGalaxyEnabled()` is Galaxy and sync only (`docs/deploy.md` § The two write gates).
 - **Roles:** sign-up is invite-only in Clerk, so the invitation is the approval: new `AppUser` rows are created as **`MEMBER`** (`NEW_APP_USER_ROLE`, `lib/appRole.ts`); the schema default stays `NONE`. `NONE` means access removed by hand and lands on `/auth/complete` ("Access not active"). Owner needs DB `OWNER` **and** Clerk `privateMetadata.isOwner`; at most one OWNER row (`AppUser.ownerSlot` + unique index). Before public sign-up is ever opened, build the admin/approvals page first (`docs/future-ideas.md` § Per-user permissions).
 - **Local:** `.env` was pointed at the **local DB** by the user during this batch. Never assume and never change it. `prisma migrate diff` against local is now empty (the `StudyPosition.sourceDecision` drift is fixed in the schema). Check every hand-written migration for `DROP`.
@@ -26,7 +26,7 @@ _Last updated: 2026-10-14._
   - check Clerk sign-up is restricted to invitations (the MEMBER default relies on it);
   - push; run "Auth verification" (`docs/deploy.md`) and check notes, review and the forum write live;
   - invite members in the Clerk dev instance (no SQL needed now, once pushed).
-- Forum text-only/board-handoff implementation is complete on `omp/main`; the queue records changes and checks. Visual suite and authenticated screenshots were not run because omp's database/Playwright policy requires localhost confirmation for every `.env*`/shell database URL, which was not provided. Main-session review and visual review remain.
+- Forum text-only/board-handoff implementation is complete on `omp/main` (`04389bf`, docs `6fc4b08`); the queue records changes and checks. Visual suite and authenticated screenshots were not run because omp's database/Playwright policy requires localhost confirmation for every `.env*`/shell database URL, which was not provided. Main-session review and visual review remain.
 - **Later, not approved:** rename `isGalaxyEnabled()` → `isSyncEnabled()`; the custom-domain move.
 - **Ideas parked** (`docs/future-ideas.md`): forum topics and pinning (§ Forum); per-user permissions and an admin page; Snaps.
 - **Designer, deferred:** L2 (board beside the discussion on post pages); unscreenshotted states (delete modal, selected stack > 5, selected bar checker).
