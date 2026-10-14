@@ -1,5 +1,6 @@
 // lib/sync.ts's run control: stopping detail-ingest cleanly on a Galaxy
-// rate limit, and how far each sync type walks the match list. Prisma is an
+// rate limit, how far each sync type walks the match list, the pacing
+// (page and match pauses, per-match lines, the limit) and runSync's dry run. Prisma is an
 // in-memory fake of just the calls runSync makes; the Galaxy client and
 // ingestMatch are mocked, so there's no DB or network.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,6 +25,7 @@ const h = vi.hoisted(() => {
   return {
     state,
     listMatches: vi.fn<(page: number) => Promise<AnalysesListResponse>>(),
+    getGameReviews: vi.fn(),
     ingestMatch: vi.fn<(matchId: number) => Promise<IngestSummary>>(),
     recomputeMistakeStats: vi.fn(async () => {}),
     recomputeRepeatedPositions: vi.fn(async () => {}),
@@ -78,7 +80,7 @@ h.prisma.syncRun.update = h.syncRunUpdate;
 
 vi.mock("@/lib/prisma", () => ({ prisma: h.prisma }));
 vi.mock("@/lib/galaxy-client", () => ({
-  createGalaxyClient: () => ({ listMatches: h.listMatches, getGameReviews: vi.fn() }),
+  createGalaxyClient: () => ({ listMatches: h.listMatches, getGameReviews: h.getGameReviews }),
 }));
 vi.mock("@/lib/ingest", () => ({ ingestMatch: h.ingestMatch }));
 vi.mock("@/lib/errorLog", () => ({ appendSyncErrorLog: vi.fn(async () => {}) }));
@@ -355,5 +357,197 @@ describe("runDbOnlySync: retry from the DB, no match-list walk", () => {
     expect(h.prisma.syncRun.create).not.toHaveBeenCalled();
     expect(h.ingestMatch).not.toHaveBeenCalled();
     expect(h.listMatches).not.toHaveBeenCalled();
+  });
+});
+
+describe("runSync: pacing, log lines and the limit", () => {
+  const PAGES = [
+    [1004, 1005, 1006],
+    [1001, 1002, 1003],
+    [998, 999, 1000],
+  ];
+
+  function recorder() {
+    const events: string[] = [];
+    h.listMatches.mockImplementation(async (page: number) => {
+      events.push(`list ${page}`);
+      return {
+        userId: "u1",
+        userName: "me",
+        totalPages: PAGES.length,
+        analyses: PAGES[page - 1].map(analysis),
+      } as unknown as AnalysesListResponse;
+    });
+    const sleep = vi.fn(async (ms: number) => void events.push(`sleep ${ms}`));
+    const log = (line: string) => void events.push(line);
+    return { events, sleep, log };
+  }
+
+  beforeEach(() => {
+    h.ingestMatch.mockImplementation(async (matchId: number) => ({ ...okSummary(matchId), gamesIngested: 3, decisionsIngested: 90 }));
+  });
+
+  it("pauses between list pages only, never before page 1 or after the last", async () => {
+    const { events, sleep, log } = recorder();
+
+    await runSync({ token: "t", type: "BACKFILL", pauseBetweenPagesMs: 1500, sleep, log });
+
+    const walk = events.filter((e) => /^list \d+$/.test(e) || e === "sleep 1500");
+    expect(walk).toEqual(["list 1", "sleep 1500", "list 2", "sleep 1500", "list 3"]);
+  });
+
+  it("BACKFILL: pauses between matches and logs one line per page and per match", async () => {
+    const { events, sleep, log } = recorder();
+
+    await runSync({ token: "t", type: "BACKFILL", pauseBetweenMatchesMs: 5000, pauseBetweenPagesMs: 1500, sleep, log });
+
+    const ingest = events.slice(events.indexOf("list page 3/3: 3 matches, 3 new") + 1);
+    expect(ingest).toHaveLength(9 * 1 + 8 * 2);
+    // Created in walk order (1004.. first), ingested by id desc.
+    expect(ingest[0]).toMatch(/^\[1\/9\] match 1000: DONE, 3 games, 90 decisions, \d+\.\ds$/);
+    expect(ingest.slice(1, 3)).toEqual(["waiting 5s...", "sleep 5000"]);
+    expect(ingest.at(-1)).toMatch(/^\[9\/9\] match 1004: DONE/);
+    expect(events.filter((e) => e === "sleep 5000")).toHaveLength(8);
+    expect(events).toContain("list page 1/3: 3 matches, 3 new");
+  });
+
+  it("INCREMENTAL: same pacing and lines, after its early stop", async () => {
+    for (const id of [1001, 1002, 1003]) seed(id, "DONE");
+    const { events, sleep, log } = recorder();
+
+    await runSync({ token: "t", type: "INCREMENTAL", pauseBetweenMatchesMs: 5000, pauseBetweenPagesMs: 1500, sleep, log });
+
+    expect(h.listMatches.mock.calls.map((c) => c[0])).toEqual([1, 2]);
+    expect(events.slice(0, 5)).toEqual([
+      "list 1",
+      "list page 1/3: 3 matches, 3 new",
+      "sleep 1500",
+      "list 2",
+      "list page 2/3: 3 matches, 0 new",
+    ]);
+    const ingest = events.slice(5);
+    expect(ingest).toHaveLength(3 + 2 * 2);
+    expect(ingest[0]).toMatch(/^\[1\/3\] match 1006: DONE, 3 games, 90 decisions/);
+    expect(ingest.slice(1, 3)).toEqual(["waiting 5s...", "sleep 5000"]);
+    expect(ingest[6]).toMatch(/^\[3\/3\] match 1004: DONE/);
+  });
+
+  it("honours maxMatchesToProcess, and [i/N] counts against the limit", async () => {
+    const { events, sleep, log } = recorder();
+
+    const result = await runSync({ token: "t", type: "BACKFILL", maxMatchesToProcess: 2, pauseBetweenMatchesMs: 5000, sleep, log });
+
+    expect(h.ingestMatch.mock.calls.map((c) => c[0])).toEqual([1000, 999]);
+    expect(result.matchesProcessed).toBe(2);
+    expect(result.stillPending).toBe(7);
+    expect(events.filter((e) => /^\[\d\/2\] match/.test(e))).toHaveLength(2);
+  });
+
+  it("defaults (the route's call): no pause and no lines", async () => {
+    const { events } = recorder();
+    const sleepSpy = vi.spyOn(globalThis, "setTimeout");
+
+    await runSync({ token: "t", type: "INCREMENTAL", maxMatchesToProcess: 20 });
+
+    expect(events.every((e) => e.startsWith("list "))).toBe(true);
+    expect(events).toEqual(["list 1", "list 2", "list 3"]);
+    expect(sleepSpy).not.toHaveBeenCalled();
+    expect(h.ingestMatch).toHaveBeenCalledTimes(9);
+    sleepSpy.mockRestore();
+  });
+});
+
+describe("runSync: dry run", () => {
+  const PAGES = [
+    [2004, 2005, 2006],
+    [2001, 2002, 2003],
+    [1998, 1999, 2000],
+  ];
+
+  function expectNoWrites() {
+    expect(h.prisma.syncRun.create).not.toHaveBeenCalled();
+    expect(h.syncRunUpdate).not.toHaveBeenCalled();
+    expect(h.prisma.match.upsert).not.toHaveBeenCalled();
+    expect(h.prisma.match.update).not.toHaveBeenCalled();
+    expect(h.prisma.playerIdentity.upsert).not.toHaveBeenCalled();
+    expect(h.ingestMatch).not.toHaveBeenCalled();
+    expect(h.getGameReviews).not.toHaveBeenCalled();
+    expect(h.recomputeMistakeStats).not.toHaveBeenCalled();
+    expect(h.recomputeRepeatedPositions).not.toHaveBeenCalled();
+  }
+
+  beforeEach(() => {
+    servePages(PAGES);
+    // Page 1: 2004 new, 2005 DONE, 2006 FAILED. Page 2: all known (2002
+    // PENDING). Page 3: 1999 new, 1998 and 2000 known.
+    seed(1998, "DONE");
+    seed(2000, "INGESTING");
+    seed(2001, "DONE");
+    seed(2002, "PENDING");
+    seed(2003, "DONE");
+    seed(2005, "DONE");
+    seed(2006, "FAILED");
+  });
+
+  it("INCREMENTAL: stops early, writes nothing, fetches no games, reports new and pending", async () => {
+    const before = JSON.stringify(h.state.matches);
+
+    const result = await runSync({ token: "t", type: "INCREMENTAL", dryRun: true });
+
+    expect(h.listMatches.mock.calls.map((c) => c[0])).toEqual([1, 2]);
+    expectNoWrites();
+    expect(JSON.stringify(h.state.matches)).toBe(before);
+    expect(result).toMatchObject({
+      dryRun: true,
+      type: "INCREMENTAL",
+      pagesWalked: 2,
+      totalPages: 3,
+      matchesSeen: 6,
+      newMatchIds: ["2004"],
+      wouldIngestTotal: 4,
+      wouldIngest: ["2004", "2006", "2002", "2000"],
+      rateLimitNote: null,
+    });
+    expect(result.pendingExisting.map((m) => [m.sourceMatchId, m.ingestStatus])).toEqual([
+      ["2006", "FAILED"],
+      ["2002", "PENDING"],
+      ["2000", "INGESTING"],
+    ]);
+  });
+
+  it("BACKFILL: walks every page, orders new matches as a real run would, honours the limit", async () => {
+    const sleep = vi.fn(async (ms: number) => void ms);
+
+    const result = await runSync({
+      token: "t",
+      type: "BACKFILL",
+      dryRun: true,
+      maxMatchesToProcess: 3,
+      pauseBetweenPagesMs: 1500,
+      sleep,
+      log: () => {},
+    });
+
+    expect(h.listMatches.mock.calls.map((c) => c[0])).toEqual([1, 2, 3]);
+    expect(sleep.mock.calls.map((c) => c[0])).toEqual([1500, 1500]);
+    expectNoWrites();
+    expect(result.matchesSeen).toBe(9);
+    // Created in walk order (2004 then 1999), ingested by id desc.
+    expect(result.newMatchIds).toEqual(["1999", "2004"]);
+    expect(result.wouldIngestTotal).toBe(5);
+    expect(result.wouldIngest).toEqual(["1999", "2004", "2006"]);
+  });
+
+  it("a rate limit during the walk is reported, not thrown, and still writes nothing", async () => {
+    h.listMatches.mockImplementation(async (page: number) => {
+      if (page === 2) throw new GalaxyRateLimitError("Galaxy API returned 429 for page 2.");
+      return { userId: "u1", userName: "me", totalPages: 3, analyses: PAGES[page - 1].map(analysis) } as unknown as AnalysesListResponse;
+    });
+
+    const result = await runSync({ token: "t", type: "BACKFILL", dryRun: true });
+
+    expectNoWrites();
+    expect(result.pagesWalked).toBe(1);
+    expect(result.rateLimitNote).toContain("at page 2");
   });
 });

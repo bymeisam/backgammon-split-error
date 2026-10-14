@@ -14,6 +14,11 @@
 // untouched for the next run, the SyncRun is finished with a note, and the
 // stat recomputes still run.
 //
+// Pacing and dry run (since 2026-10-14): runSync takes pauses between list
+// pages and between matches, a per-line logger and a dryRun mode (list walk
+// and DB reads only). Their defaults (no pause, no log) are what the route
+// uses; the CLI scripts pass 1.5 s between pages and 5 s between matches.
+//
 // DB-only retry (since 2026-10-14, runDbOnlySync below): step 2 alone, with
 // the same SyncRun bookkeeping and recomputes, for matches taken from our DB
 // instead of from the analyses/list walk (scripts/retry-failed-matches.ts).
@@ -27,8 +32,11 @@ import { recomputeMistakeStats } from "@/lib/recompute-mistake-stats";
 import { recomputeRepeatedPositions } from "@/lib/recompute-repeated-positions";
 import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
 import { GalaxyRateLimitError } from "@/lib/galaxyRateLimit";
+import type { AnalysesListResponse } from "@/lib/analysesTypes";
 
 const SOURCE = "galaxy";
+
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // Re-attempted alongside PENDING/FAILED: a match stuck here means a
 // previous run crashed mid-ingest without reaching FAILED.
@@ -60,6 +68,37 @@ export interface SyncRunOptions {
   token: string;
   type: SyncType;
   maxMatchesToProcess?: number;
+  // Sleep between detail-ingested matches (not before the first).
+  pauseBetweenMatchesMs?: number;
+  // Sleep between analyses/list pages (not before page 1).
+  pauseBetweenPagesMs?: number;
+  // Injectable for tests.
+  sleep?: (ms: number) => Promise<void>;
+  // One line per list page and per match, plus "waiting Ns..." before each
+  // match pause. Unset = no lines (the route's behaviour).
+  log?: (line: string) => void;
+  // Walk the list (Galaxy list requests only) and read the DB, but write
+  // nothing and fetch no games. See runSync.
+  dryRun?: boolean;
+}
+
+// What a run would do, without doing it (runSync with dryRun: true).
+export interface SyncDryRunResult {
+  dryRun: true;
+  type: SyncType;
+  pagesWalked: number;
+  totalPages: number;
+  matchesSeen: number;
+  // In the list but not in the DB: a real run would create them (PENDING).
+  newMatchIds: string[];
+  // Already in the DB and not DONE; a real run would retry them.
+  pendingExisting: { sourceMatchId: string; ingestStatus: string; ingestError: string | null }[];
+  // newMatchIds.length + pendingExisting.length, before the limit.
+  wouldIngestTotal: number;
+  // After the limit, in the order a real run would take them (id desc: the
+  // new matches first, last-created first, then the existing ones).
+  wouldIngest: string[];
+  rateLimitNote: string | null;
 }
 
 export interface SyncRunError {
@@ -114,65 +153,25 @@ async function firstDbCall<T>(fn: () => Promise<T>, where: string): Promise<T> {
   }
 }
 
-export async function runSync({
-  token,
-  type,
-  maxMatchesToProcess,
-}: SyncRunOptions): Promise<SyncRunResult> {
+export function runSync(opts: SyncRunOptions & { dryRun: true }): Promise<SyncDryRunResult>;
+export function runSync(opts: SyncRunOptions & { dryRun?: false }): Promise<SyncRunResult>;
+export async function runSync(opts: SyncRunOptions): Promise<SyncRunResult | SyncDryRunResult> {
+  if (opts.dryRun) return dryRunSync(opts);
+
+  const { token, type, maxMatchesToProcess, pauseBetweenMatchesMs, log } = opts;
   // The first DB call (see firstDbCall).
   const syncRun = await firstDbCall(
     () => prisma.syncRun.create({ data: { type, startedAt: new Date() } }),
     "creating the SyncRun"
   );
 
-  const client = createGalaxyClient(token);
   const errors: SyncRunError[] = [];
-
-  let rateLimitNote: string | null = null;
 
   // --- Step 1: index-sync. Walk the analyses/list pages, upserting index
   // fields for every match seen. New matches default to ingestStatus:
   // PENDING (schema default) on create; existing matches' ingestStatus is
   // never touched here — only the detail-ingest step below changes it.
-  //
-  // Page 1 holds the newest matches (pages are newest-first; within a page
-  // Galaxy sorts ascending by matchId, see lib/galaxyMatchList.ts). Checked
-  // 2026-10-14 against the local DB: Match.id follows the original
-  // backfill's walk order, and ids 1-30 (page 1) hold higher matchIds than
-  // ids 31-60 (page 2). So an INCREMENTAL run stops after the first page on
-  // which every match already exists: everything older is known too. Walking
-  // all ~145 pages every run took ~80 s of back-to-back requests and used up
-  // Galaxy's rate limit before detail-ingest began. BACKFILL still walks
-  // every page (the way to refresh every match's index fields).
-  let matchesFound = 0;
-  let page = 1;
-  let totalPages = 1;
-
-  do {
-    let listResponse;
-    try {
-      listResponse = await client.listMatches(page);
-    } catch (e) {
-      if (!(e instanceof GalaxyRateLimitError)) throw e;
-      rateLimitNote = `Galaxy rate limit: stopped during the match-list walk at page ${page}; no matches were detail-ingested. Run the sync again later.`;
-      console.error(`[sync] ${rateLimitNote}`);
-      break;
-    }
-    totalPages = listResponse.totalPages;
-
-    // Before this page's upserts below, which would make every match on it
-    // "known". One query per page.
-    let pageFullyKnown = false;
-    if (type === "INCREMENTAL" && listResponse.analyses.length > 0) {
-      const pageIds = listResponse.analyses.map((m) => String(m.matchId));
-      const known = await prisma.match.findMany({
-        where: { source: SOURCE, sourceMatchId: { in: pageIds } },
-        select: { sourceMatchId: true },
-      });
-      const knownIds = new Set(known.map((k) => k.sourceMatchId));
-      pageFullyKnown = pageIds.every((id) => knownIds.has(id));
-    }
-
+  const walk = await walkMatchList(opts, async (listResponse) => {
     // Same upsert as app/api/galaxy/matches/list/[page]/route.ts, done here
     // too so the CLI/script path (which never hits that route) also
     // establishes "you" before detail-ingest runs below — ingestMatch's
@@ -205,25 +204,23 @@ export async function runSync({
         create: { source: SOURCE, sourceMatchId: String(m.matchId), ...indexData },
         update: indexData,
       });
-
-      matchesFound++;
     }
-
-    if (pageFullyKnown) break;
-    page++;
-  } while (page <= totalPages);
+  });
 
   // A rate limit during step 1 skips step 2 entirely (nothing selected): the
   // limit is still in force, so every request there would hit it too.
-  const listRateLimited = rateLimitNote !== null;
+  const listRateLimited = walk.rateLimitNote !== null;
   return detailIngestAndFinish({
     syncRun,
     type,
     token,
-    matchesFound,
+    matchesFound: walk.matchesSeen,
     errors,
-    rateLimitNote,
+    rateLimitNote: walk.rateLimitNote,
     maxMatchesToProcess,
+    pauseBetweenMatchesMs,
+    sleep: opts.sleep,
+    log,
     selectMatches: async () =>
       listRateLimited
         ? []
@@ -232,6 +229,122 @@ export async function runSync({
             orderBy: { id: "desc" },
           }),
   });
+}
+
+interface ListWalkResult {
+  pagesWalked: number;
+  totalPages: number;
+  matchesSeen: number;
+  // Seen on the list but not in the DB when their page was read.
+  newMatchIds: string[];
+  rateLimitNote: string | null;
+}
+
+// Step 1's walk, shared by the real run (onPage upserts) and the dry run
+// (onPage is a no-op). Page 1 holds the newest matches (pages are
+// newest-first; within a page Galaxy sorts ascending by matchId, see
+// lib/galaxyMatchList.ts). Checked 2026-10-14 against the local DB: Match.id
+// follows the original backfill's walk order, and ids 1-30 (page 1) hold
+// higher matchIds than ids 31-60 (page 2). So an INCREMENTAL run stops after
+// the first page on which every match already exists: everything older is
+// known too. Walking all ~145 pages every run took ~80 s of back-to-back
+// requests and used up Galaxy's rate limit before detail-ingest began.
+// BACKFILL still walks every page (the way to refresh every match's index
+// fields). Pages are pauseBetweenPagesMs apart (the CLI uses 1.5 s).
+async function walkMatchList(
+  opts: SyncRunOptions,
+  onPage: (listResponse: AnalysesListResponse) => Promise<void>
+): Promise<ListWalkResult> {
+  const client = createGalaxyClient(opts.token);
+  const pagePauseMs = opts.pauseBetweenPagesMs ?? 0;
+  const sleep = opts.sleep ?? defaultSleep;
+  const result: ListWalkResult = {
+    pagesWalked: 0,
+    totalPages: 1,
+    matchesSeen: 0,
+    newMatchIds: [],
+    rateLimitNote: null,
+  };
+  let page = 1;
+
+  do {
+    if (page > 1 && pagePauseMs > 0) await sleep(pagePauseMs);
+
+    let listResponse: AnalysesListResponse;
+    try {
+      listResponse = await client.listMatches(page);
+    } catch (e) {
+      if (!(e instanceof GalaxyRateLimitError)) throw e;
+      result.rateLimitNote = `Galaxy rate limit: stopped during the match-list walk at page ${page}; no matches were detail-ingested. Run the sync again later.`;
+      console.error(`[sync] ${result.rateLimitNote}`);
+      break;
+    }
+    result.totalPages = listResponse.totalPages;
+    result.pagesWalked++;
+
+    // Before this page's upserts in onPage, which would make every match on
+    // it "known". One query per page.
+    const pageIds = listResponse.analyses.map((m) => String(m.matchId));
+    let newOnPage: string[] = [];
+    if (pageIds.length > 0) {
+      const known = await prisma.match.findMany({
+        where: { source: SOURCE, sourceMatchId: { in: pageIds } },
+        select: { sourceMatchId: true },
+      });
+      const knownIds = new Set(known.map((k) => k.sourceMatchId));
+      newOnPage = pageIds.filter((id) => !knownIds.has(id));
+    }
+    const pageFullyKnown = pageIds.length > 0 && newOnPage.length === 0;
+
+    await onPage(listResponse);
+    result.matchesSeen += pageIds.length;
+    result.newMatchIds.push(...newOnPage);
+    opts.log?.(
+      `list page ${page}/${result.totalPages}: ${pageIds.length} matches, ${newOnPage.length} new`
+    );
+
+    if (opts.type === "INCREMENTAL" && pageFullyKnown) break;
+    page++;
+  } while (page <= result.totalPages);
+
+  return result;
+}
+
+// runSync's dry run: the list walk (list requests only, so INCREMENTAL's
+// early stop works the same) plus DB reads. No SyncRun, no Match or
+// PlayerIdentity write, no game request, no recompute.
+async function dryRunSync(opts: SyncRunOptions): Promise<SyncDryRunResult> {
+  // The first DB call (see firstDbCall). Read before the walk; a dry run
+  // changes nothing, so it's the same set afterwards.
+  const pending = await firstDbCall(
+    () =>
+      prisma.match.findMany({
+        where: { ingestStatus: { in: [...NEEDS_INGEST_STATUSES] } },
+        orderBy: { id: "desc" },
+        select: { sourceMatchId: true, ingestStatus: true, ingestError: true },
+      }),
+    "reading the non-DONE matches"
+  );
+
+  const walk = await walkMatchList(opts, async () => {});
+
+  // A real run creates new matches in walk order, then ingests by id desc:
+  // the last-created new match first, then the existing ones.
+  const newIds = [...new Set(walk.newMatchIds)].reverse();
+  const ordered = [...newIds, ...pending.map((m) => m.sourceMatchId)];
+  const limit = opts.maxMatchesToProcess;
+  return {
+    dryRun: true,
+    type: opts.type,
+    pagesWalked: walk.pagesWalked,
+    totalPages: walk.totalPages,
+    matchesSeen: walk.matchesSeen,
+    newMatchIds: newIds,
+    pendingExisting: pending,
+    wouldIngestTotal: ordered.length,
+    wouldIngest: limit === undefined ? ordered : ordered.slice(0, limit),
+    rateLimitNote: walk.rateLimitNote,
+  };
 }
 
 export class MissingSelfIdentityError extends Error {
@@ -300,8 +413,6 @@ export async function selectRetryCandidates(matchIds?: string[]): Promise<RetryC
   return { toIngest: rows.filter((r) => needs.includes(r.ingestStatus)), skipped };
 }
 
-const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 // Step 2 only: retries matches taken from our DB, with no analyses/list walk
 // (so matchesFound is always 0). Recorded as an INCREMENTAL SyncRun: the
 // SyncType enum has no value for a DB-only retry, and adding one would be a
@@ -358,8 +469,7 @@ interface DetailIngestContext {
   maxMatchesToProcess?: number;
   pauseBetweenMatchesMs?: number;
   sleep?: (ms: number) => Promise<void>;
-  // Per-match progress lines (DB-only path); unset = none, as runSync has
-  // always behaved.
+  // Per-match progress lines; unset = none (the route's behaviour).
   log?: (line: string) => void;
   // Called after detailAlreadyDone is counted, before any status changes.
   selectMatches: () => Promise<MatchRow[]>;

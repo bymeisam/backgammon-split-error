@@ -5,6 +5,7 @@
 import { runDbOnlySync, selectRetryCandidates, MissingSelfIdentityError } from "../lib/sync";
 import { prisma } from "../lib/prisma";
 import { SYNC_ERROR_LOG_RELATIVE_PATH } from "../lib/errorLog";
+import { describeDatabaseUrl, parseSyncCliArgs, printTarget } from "./syncCliShared";
 
 const PROGRESS_INTERVAL_MS = 15_000;
 export const DEFAULT_LIMIT = 10;
@@ -20,63 +21,14 @@ export interface RetryArgs {
   dryRun: boolean;
 }
 
-// `--match` takes every following argument up to the next flag, and may be
-// repeated: `--match 1 2 --match 3` -> ["1", "2", "3"].
+// See parseSyncCliArgs; the retry has a default limit and takes --match.
 export function parseRetryArgs(argv: string[]): RetryArgs | { error: string } {
-  let limit = DEFAULT_LIMIT;
-  let matchIds: string[] | undefined;
-  let dryRun = false;
-
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === "--dry-run") {
-      dryRun = true;
-    } else if (arg === "--limit") {
-      const value = argv[++i];
-      if (value === undefined || !/^\d+$/.test(value) || Number(value) < 1) {
-        return { error: `--limit needs a positive whole number, got ${value ?? "nothing"}.` };
-      }
-      limit = Number(value);
-    } else if (arg === "--match") {
-      const ids: string[] = [];
-      while (i + 1 < argv.length && !argv[i + 1].startsWith("--")) ids.push(argv[++i]);
-      if (ids.length === 0) return { error: "--match needs at least one sourceMatchId." };
-      matchIds = [...(matchIds ?? []), ...ids];
-    } else {
-      return { error: `Unknown argument: ${arg}` };
-    }
-  }
-
-  return { limit, matchIds, dryRun };
+  const args = parseSyncCliArgs(argv, { defaultLimit: DEFAULT_LIMIT, allowMatch: true });
+  if ("error" in args) return args;
+  return { limit: args.limit ?? DEFAULT_LIMIT, matchIds: args.matchIds, dryRun: args.dryRun };
 }
 
-// Host and database name only; never the credentials.
-export function describeDatabaseUrl(url: string | undefined): { host: string; database: string; isLocal: boolean } | null {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname;
-    return {
-      host,
-      database: parsed.pathname.replace(/^\//, ""),
-      isLocal: host === "localhost" || host === "127.0.0.1",
-    };
-  } catch {
-    return null;
-  }
-}
-
-function printTarget(env: NodeJS.ProcessEnv): void {
-  const db = describeDatabaseUrl(env.DATABASE_URL);
-  if (!db) {
-    console.log("Target DB: DATABASE_URL is not set or not a valid URL.");
-    return;
-  }
-  console.log(`Target DB: host ${db.host}, database ${db.database}`);
-  if (!db.isLocal) {
-    console.log(`*** This writes to a remote DB (host ${db.host}). ***`);
-  }
-}
+export { describeDatabaseUrl };
 
 export async function runRetryFailedFromCli(
   argv: string[],

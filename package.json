@@ -11,6 +11,7 @@
     "test:visual": "playwright test",
     "postinstall": "prisma generate",
     "backfill": "tsx scripts/backfill.ts",
+    "sync:backfill": "tsx scripts/backfill.ts",
     "sync:incremental": "tsx scripts/incremental-sync.ts",
     "sync:retry-failed": "tsx scripts/retry-failed-matches.ts",
     "backfill:opponent-identities": "tsx scripts/backfill-opponent-identities.ts",
