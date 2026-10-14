@@ -62,6 +62,22 @@ beforeEach(() => {
   db.findUnique.mockResolvedValue({ authorAppUserId: 7 });
 });
 
+
+describe("POST /api/forum/posts attachments", () => {
+  it("creates a text-only post with zero positions", async () => {
+    const res = await POST(request({ title: "t", body: "b", positions: [] }));
+    expect(res.status).toBe(201);
+    expect(db.postCreate.mock.calls[0][0].data.hideAnalysis).toBe(false);
+    expect(db.studyCreate).not.toHaveBeenCalled();
+    expect(db.linkCreate).not.toHaveBeenCalled();
+  });
+
+  it("still rejects malformed supplied attachments", async () => {
+    const res = await POST(request({ title: "t", body: "b", positions: [{}] }));
+    expect([400, 404]).toContain(res.status);
+    expect(db.postCreate).not.toHaveBeenCalled();
+  });
+});
 describe("POST /api/forum/posts hideAnalysis", () => {
   it("defaults to false when absent", async () => {
     const res = await POST(request({ title: "t", body: "b", positions: [MANUAL] }));

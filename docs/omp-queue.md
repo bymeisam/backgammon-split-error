@@ -45,6 +45,31 @@ _Use this shape:_
 ## Done by omp (to check)
 
 
+### Review notes at `fafd8c4` follow-up (completed 2026-10-14)
+Kept `/forum/new` title/body in a dedicated one-use session draft across both Add board routes; successful submit and Cancel clear it. Added draft storage/consume coverage and real `forumPositionCaption` outputs through handoff validation. The board action now sits right-aligned in a gap-separated row with the same bleed inset as the decision row; the builder's primary action remains unchanged. Tightened the preview and Remove board spacing. Updated the affected `/mistakes` visual baselines: the new inset action row adds 12px below the decision chips, so the board and decision-card screenshots gain that vertical spacing.
+
+Checks: `npm test` **868/868**, `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (**24/24**) passed. Captured 24 screenshots in `design/screenshots/2026-10-14-forum-post-button/`:
+- `mistakes-390-light.png`, `mistakes-390-dark.png`, `mistakes-1280-light.png`, `mistakes-1280-dark.png`
+- `match-analysis-390-light.png`, `match-analysis-390-dark.png`, `match-analysis-1280-light.png`, `match-analysis-1280-dark.png`
+- `replay-390-light.png`, `replay-390-dark.png`, `replay-1280-light.png`, `replay-1280-dark.png`
+- `position-builder-390-light.png`, `position-builder-390-dark.png`, `position-builder-1280-light.png`, `position-builder-1280-dark.png`
+- `forum-new-match-board-390-light.png`, `forum-new-match-board-390-dark.png`, `forum-new-match-board-1280-light.png`, `forum-new-match-board-1280-dark.png`
+- `forum-new-builder-draft-restored-390-light.png`, `forum-new-builder-draft-restored-390-dark.png`, `forum-new-builder-draft-restored-1280-light.png`, `forum-new-builder-draft-restored-1280-dark.png`
+
+No Prisma, migration, Oracle, or `.env*` changes.
+
+### Screenshot capture correction (completed 2026-10-14)
+Converted `e2e/forum-post-button-capture.spec.ts` into a draft round-trip test without screenshots, and moved the requested cases into the existing `forum-text-post-flows` harness using `forumActionShot`; the builder draft return asserts the title, body, and board. The test-generated screenshot path is no longer created by the e2e spec. Screenshot capture now imports Playwright's `expect` used by its draft restoration assertions.
+
+Checks completed: `npm test` (**868/868**), `npx tsc --noEmit`, `npm run lint`, `npm run build`, and `npm run test:visual` (**24/24**) passed. The real capture command completed with 108 files written to `design/screenshots/2026-10-14-forum-post-button/`; requested screenshots:
+- `forum-write-mistakes-post-button--390-light--full.png`, `forum-write-mistakes-post-button--390-dark--full.png`, `forum-write-mistakes-post-button--1280-light--full.png`, `forum-write-mistakes-post-button--1280-dark--full.png`
+- `forum-write-match-analysis-post-button--390-light--full.png`, `forum-write-match-analysis-post-button--390-dark--full.png`, `forum-write-match-analysis-post-button--1280-light--full.png`, `forum-write-match-analysis-post-button--1280-dark--full.png`
+- `forum-write-replay-post-button--390-light--viewport.png`, `forum-write-replay-post-button--390-dark--viewport.png`, `forum-write-replay-post-button--1280-light--viewport.png`, `forum-write-replay-post-button--1280-dark--viewport.png`
+- `forum-write-builder-post-button--390-light--full.png`, `forum-write-builder-post-button--390-dark--full.png`, `forum-write-builder-post-button--1280-light--full.png`, `forum-write-builder-post-button--1280-dark--full.png`
+- `forum-write-new-match-board--390-light--full.png`, `forum-write-new-match-board--390-dark--full.png`, `forum-write-new-match-board--1280-light--full.png`, `forum-write-new-match-board--1280-dark--full.png`
+- `forum-write-new-builder-draft-restored--390-light--full.png`, `forum-write-new-builder-draft-restored--390-dark--full.png`, `forum-write-new-builder-draft-restored--1280-light--full.png`, `forum-write-new-builder-draft-restored--1280-dark--full.png`
+
+The requested full-page `/forum/new` captures show `Remove board`. No Prisma, migration, Oracle, or `.env*` changes.
 ### Second visual refinement: focus, settled rating state, and separators (completed 2026-10-14)
 Implemented the remaining visual fixes on `omp/main`: grade-button focus now uses the contrasting `outline-ink` token; the screenshot harness waits for an enabled “Next card” before capturing the Hard-only saved state; checker and cube separators are non-breaking elements attached to the preceding position segment; non-interactive chips are left-aligned. The settled Hard-only button remained correctly primary after the wait, so no fill change was needed. The explicit 11px Enter kbd remains provided by `shared.kbd`.
 

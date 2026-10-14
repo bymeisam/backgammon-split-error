@@ -157,10 +157,19 @@ async function fulfillGame(route: Route) {
   });
 }
 
+function fixtureEventIds(fixture: unknown): number[] {
+  if (!fixture || typeof fixture !== "object" || !("data" in fixture)) return [];
+  const data = fixture.data;
+  if (!data || typeof data !== "object" || !("events" in data) || !Array.isArray(data.events)) return [];
+  return data.events.flatMap((event) =>
+    event && typeof event === "object" && "id" in event && typeof event.id === "number" ? [event.id] : []
+  );
+}
+
 // Mocks every network dependency /matches/[matchId] and
 // /sources/galaxy/matches/[matchId] have — same fixture data for both, so the only
 // variable between their screenshot sets is the surrounding page.
-async function mockGameFetches(page: Page) {
+async function mockGameFetches(page: Page, withDecisionIds = false) {
   await page.route(`**/api/matches/${MATCH_ID}/*`, fulfillGame);
   await page.route(`**/api/galaxy/matches/${MATCH_ID}/*`, fulfillGame);
   await page.route("**/api/player-identities", (route) =>
@@ -177,11 +186,21 @@ async function mockGameFetches(page: Page) {
   // mode is — otherwise its arrival time would race the screenshots. The
   // note UI's own look is covered by the /mistakes decision-card screenshot
   // instead.
+  const decisions = withDecisionIds
+    ? Object.entries(GAME_FIXTURES).flatMap(([gameIndex, fixture]) =>
+      fixtureEventIds(fixture).map((eventId) => ({
+        gameIndex: Number(gameIndex),
+        eventId: String(eventId),
+        dbDecisionId: 1,
+        note: null,
+      }))
+    )
+    : [];
   await page.route("**/api/decision-notes?*", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ canEdit: false, decisions: [] }),
+      body: JSON.stringify({ canEdit: false, decisions }),
     })
   );
 }
@@ -283,7 +302,7 @@ test.describe("BoardPanel visual regression", () => {
       // correctness signal, not a guessed delay — the click is a no-op to
       // wait on if already selected, and a genuine re-render to wait out
       // otherwise, either way ensuring the screenshot isn't mid-transition.
-      await expect(boardPanel(page)).toContainText(decision.myLabel);
+      await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
       await expect(boardPanel(page)).toHaveScreenshot(`mistakes-${decision.name}.png`);
     });
   }
@@ -406,3 +425,77 @@ test.describe("Shared markup visual regression", () => {
     await expect(mistakesSection(page)).toHaveScreenshot("mistakes-section-galaxy-matches.png");
   });
 });
+test.describe("Forum action write-gate propagation", () => {
+  test("the replay displays the action on a stored decision", async ({ page }) => {
+    await page.goto(`/matches/${MATCH_ID}/replay/6`);
+    await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
+  });
+
+  test("the match analysis detail displays the action for stored decisions", async ({ page }) => {
+    await mockGameFetches(page, true);
+    await page.goto(`/matches/${MATCH_ID}`);
+    await waitForAllGamesLoaded(page);
+    await expect(page.getByRole("button", { name: "Post to forum" }).first()).toBeVisible();
+  });
+
+  test("the mistakes list displays the action when writes are enabled", async ({ page }) => {
+    const decision = DECISIONS[0];
+    const { classification, category, severity } = decision.mistakesFilter;
+    await page.goto(`/mistakes?classification=${classification}&category=${category}&severity=${severity}`);
+    await page.getByText(decision.myLabel, { exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
+  });
+
+  test("the repeated-position detail displays the action when writes are enabled", async ({ page }) => {
+    await page.goto("/repeated-positions?phase=race&severity=doubtful");
+    const firstPosition = page.locator('a[href*="positionId="]').first();
+    await expect(firstPosition).toBeVisible();
+    await firstPosition.click();
+    await page.waitForURL(/positionId=/);
+    await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
+  });
+  test("the position builder displays the action when writes are enabled", async ({ page }) => {
+    await page.goto("/position-builder");
+    await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
+  });
+
+  test("the live Galaxy match page remains without the action", async ({ page }) => {
+    await mockGameFetches(page);
+    await page.goto("/sources/galaxy/matches");
+    await page.getByRole("button", { name: "Paste authorization" }).click();
+    await page.locator("#auth").fill("Bearer visual-test-token");
+    await page.getByRole("button", { name: "Connect" }).click();
+    await page.getByPlaceholder("Match ID").fill(MATCH_ID);
+    await page.getByRole("button", { name: "Jump to match" }).click();
+    await page.waitForURL(`**/sources/galaxy/matches/${MATCH_ID}`);
+    await waitForAllGamesLoaded(page);
+    await expect(page.getByRole("button", { name: "Post to forum" })).toHaveCount(0);
+  });
+});
+test("the text-only form submits with no positions and exposes both board sources", async ({ page }) => {
+    let submitted: { positions: unknown[] } | null = null;
+    await page.route("**/api/forum/posts", async (route) => {
+      submitted = route.request().postDataJSON() as { positions: unknown[] };
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ id: 987654 }) });
+    });
+    await page.goto("/forum/new");
+    const boardSourceLinks = page.getByRole("link", { name: /^Add a board from/ });
+    await expect(boardSourceLinks).toHaveCount(2);
+    await page.getByLabel("Title").fill("Text-only test");
+    await page.getByLabel("Body").fill("No board attached.");
+    await page.getByRole("button", { name: "Post", exact: true }).click();
+    await expect.poll(() => submitted?.positions).toEqual([]);
+  });
+
+  test("the replay handoff is consumed; removing it restores both board sources", async ({ page }) => {
+    await page.goto(`/matches/${MATCH_ID}/replay/6`);
+    await page.getByRole("button", { name: "Post to forum" }).click();
+    await page.waitForURL("**/forum/new");
+    await page.getByRole("button", { name: "Remove board" }).waitFor();
+    await expect(page.getByRole("status")).toBeVisible();
+    await page.getByRole("button", { name: "Remove board" }).click();
+    const boardSourceLinks = page.getByRole("link", { name: /^Add a board from/ });
+    await expect(boardSourceLinks).toHaveCount(2);
+    await page.reload();
+    await expect(boardSourceLinks).toHaveCount(2);
+  });

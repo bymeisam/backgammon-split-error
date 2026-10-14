@@ -25,7 +25,7 @@ export interface MatchSummary {
 
 // The match page's client part: it loads the games one by one from
 // /api/matches/[matchId]/[gameIndex] (lib/local-client.ts).
-export default function MatchAnalysis({ summary }: { summary: MatchSummary | null }) {
+export default function MatchAnalysis({ summary, canPostToForum }: { summary: MatchSummary | null; canPostToForum: boolean }) {
   const { matchId } = useParams<{ matchId: string }>();
 
   const fetchGame = useMemo(
@@ -92,7 +92,7 @@ export default function MatchAnalysis({ summary }: { summary: MatchSummary | nul
         </div>
       )}
 
-      {!notIngested && <MistakesSection matchId={matchId} games={games} bleed />}
+      {!notIngested && <MistakesSection matchId={matchId} games={games} bleed canPostToForum={canPostToForum} />}
     </PageShell>
   );
 }

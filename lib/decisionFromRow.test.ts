@@ -202,6 +202,11 @@ describe("decisionFromRow / decisionFromRowForReplay — roll from the Match ID'
   it("no Match ID -> no dice", () => {
     expect(decisionFromRow(baseRow())?.roll).toEqual([]);
   });
+  it("derives the match state for the forum caption from untouched raw", () => {
+    const decision = decisionFromRow(baseRow({ raw: rawWithMatchId("EYHqAEAAIAAE") }));
+    expect(decision?.matchState).toBeTruthy();
+    expect(decision?.matchState?.matchLength).toBe(7);
+  });
 
   it("cube decisions and resignations get no dice, even with dice in the Match ID", () => {
     const id = matchIdWithDice([6, 2]);

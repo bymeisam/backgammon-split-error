@@ -22,6 +22,7 @@ import {
   galaxyCubeState,
   galaxyLabels,
   galaxyMatchContext,
+  galaxyMatchState,
   galaxyRoll,
 } from "@/lib/analysis/galaxyFields";
 import type {
@@ -52,6 +53,14 @@ export function getDecisionAnalysis({ source, raw }: DecisionRawInput): Decision
   switch (source) {
     case "galaxy":
       return galaxyAnalysis(raw);
+    default:
+      return null;
+  }
+}
+export function decisionMatchState({ source, raw }: DecisionRawInput) {
+  switch (source) {
+    case "galaxy":
+      return galaxyMatchState(raw);
     default:
       return null;
   }

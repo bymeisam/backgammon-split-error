@@ -219,6 +219,7 @@ async function PositionDetailSection({ position }: { position: RepeatedPosition 
         showClassification={false}
         canEditNotes={isOwner && isAppWriteEnabled()}
         showOwnerTools={isOwner}
+        canPostToForum={isAppWriteEnabled()}
       />
     </div>
   );

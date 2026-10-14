@@ -1,4 +1,5 @@
 import { prismaReadOnly as prisma } from "@/lib/prisma";
+import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { GALAXY_SOURCE } from "@/lib/externalMatchUrl";
 import MatchAnalysis, { type MatchSummary } from "./MatchAnalysis";
 import { requireMemberDocument } from "@/lib/app-auth";
@@ -32,5 +33,5 @@ export default async function MatchAnalysisPage({ params }: { params: Promise<{ 
     console.error(`[match page] Match ${matchId} lookup failed:`, error);
   }
 
-  return <MatchAnalysis summary={summary} />;
+  return <MatchAnalysis summary={summary} canPostToForum={isAppWriteEnabled()} />;
 }

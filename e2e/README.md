@@ -71,20 +71,21 @@ write mode, so `playwright.config.ts` pins `ENABLE_WRITE_MODE=true` on the
 :3100 server instead of depending on `.env`. `/mistakes` is a server component reading Prisma
 directly — no fetch to mock — so it's made deterministic a different way:
 a separate local MySQL schema, `bg_test` (same Docker container as the
-normal `app_dev`), seeded with exactly these decisions
-(`e2e/seed-test-db.ts`), and the whole suite runs against a dedicated dev
+normal `app_dev`), seeded from the checked-in visual decisions and
+repeated-position fixture (`e2e/seed-test-db.ts`), and the whole suite runs against a dedicated dev
 server (`playwright.config.ts`'s `webServer`, port 3100) whose
 `DATABASE_URL`/`DATABASE_URL_READONLY` point at `bg_test` instead of
 whatever the real `.env` has configured. Reached via `/mistakes`'s own
 classification/category/severity filters (real query params, the same UI
 a visitor uses), then a click by exact move-label text — the same
 selection technique as the other two contexts, not a special-cased deep
-link. `bg_test` is small enough (10 rows) that this needs no shortcut: two
-of the five decisions do share one filter combo, but the click-by-label
-step already disambiguates them, same as it does for the much larger real
-mistake lists on `/matches`/`/sources/galaxy/matches`. All 9 board screenshots are now
-fully deterministic, independent of the real dev DB's live state — the
-*only* variable across all three contexts is the surrounding page.
+link. `bg_test` has 11 Decision rows (10 real fixture rows plus one
+test-only repeated CHECKER occurrence) and a seeded `RepeatedPosition`
+aggregate; two representative decisions share a filter combo, but the
+click-by-label step disambiguates them, as it does for the much larger real
+mistake lists on `/matches`/`/sources/galaxy/matches`. All 9 board screenshots are fully deterministic,
+independent of the real dev DB's live state — the *only* variable across all
+three contexts is the surrounding page.
 
 ## Shared markup coverage (5 tests, added 2026-09-28 + 2026-10-01)
 
@@ -128,13 +129,11 @@ does" above), no other new live-data dependency:
   via this same suite (16/16 passing against the pre-existing baselines,
   not just reasoned about).
 
-**`/repeated-positions` is not covered** — it renders the same
-`DecisionListWithDetail`/`MoveDelta`, but `bg_test` (see "Setup" below)
-only seeds `Match`/`Game`/`Decision`, no `RepeatedPosition` rows, and none
-of the 5 representative decisions are necessarily a *repeated* position in
-this 10-row dataset. Adding coverage there would mean extending the seed
-script and the recompute step, not reusing an existing page visit —
-skipped as not cheap, per the instruction that introduced this section.
+`/repeated-positions` now has a write-gate propagation test. It uses a
+test-only duplicate of a real seeded CHECKER decision plus its
+`RepeatedPosition` aggregate, then follows the visitor's severity-filter
+and position-link drilldown. That fixture makes the detail route deterministic
+without hand-assembling a board or relying on the real dev DB.
 
 **No `app/mistakes/page.tsx` (or any other application-route) changes were
 needed to make this work** — `/mistakes`, `lib/local-client.ts`, and
@@ -290,15 +289,17 @@ is a small hand-written stand-in for `/api/player-identities`, marking one
 regardless of what's actually in the real `PlayerIdentity` table.
 
 `e2e/fixtures/seed-data.json` is a one-time real snapshot (opponent name
-anonymized to "Test Opponent") of exactly the rows `e2e/seed-test-db.ts`
-writes into `bg_test`: the Match, its 3 Games, and 10 Decisions — the 5
+anonymized to "Test Opponent") of the base rows `e2e/seed-test-db.ts` writes
+into `bg_test`: the Match, its 3 Games, and 10 Decisions — the 5
 representative checker decisions plus each one's immediately preceding
 `dice_rolled` sibling row, kept for historical/snapshot fidelity (this is a
 real one-time capture, not hand-assembled) even though nothing reads them
 as siblings anymore — roll, cube, colour and labels all come from each
-row's own `raw` (its GNU Match ID and review). Since 2026-10-07 the
-snapshot holds only the columns the schema still has; the dropped,
-derivable ones were removed from it (`reports/2026-10-07-column-audit.md`,
-`docs/field-mapping.md`'s "Derived from raw"). Deliberately
-not a full match/account replica, just what these 5 tests
-render.
+row's own `raw` (its GNU Match ID and review). The seed script also adds a
+test-only duplicate of one CHECKER row and a matching `RepeatedPosition`
+aggregate, to exercise the repeated-position detail without depending on
+real data outside the snapshot. Since 2026-10-07 the snapshot holds only the
+columns the schema still has; the dropped, derivable ones were removed from
+it (`reports/2026-10-07-column-audit.md`, `docs/field-mapping.md`'s
+"Derived from raw"). Deliberately not a full match/account replica, just
+what the tests render.

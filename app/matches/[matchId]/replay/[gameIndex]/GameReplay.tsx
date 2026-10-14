@@ -9,7 +9,6 @@ import { useMoveTableKeys } from "@/app/hooks/useMoveTableKeys";
 import BoardPanel from "@/app/components/match-analysis/BoardPanel";
 import DecisionList, { SeverityLegend } from "@/app/components/match-analysis/DecisionList";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
-import Button from "@/app/components/ui/Button";
 import { doubleOfferLabel } from "@/lib/cubeState";
 import { style } from "./gameReplay.styles";
 
@@ -148,6 +147,7 @@ export default function GameReplay({
     <div className={style.layout}>
       <div className={style.boardColumn}>
         <BoardPanel
+          canPostToForum={canPostToForum}
           selected={selected}
           moveTab={moveTab}
           onSelectTab={setMoveTab}
@@ -205,12 +205,6 @@ export default function GameReplay({
                     />
                     Fixed perspective
                   </label>
-                )}
-                {/* Links the decision on screen (selectedIndex), not the one the page opened on. */}
-                {canPostToForum && selected?.dbDecisionId && (
-                  <Button variant="secondary" size="small" href={`/forum/new?decision=${selected.dbDecisionId}`}>
-                    Post to forum
-                  </Button>
                 )}
               </span>
             </div>

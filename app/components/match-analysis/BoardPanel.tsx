@@ -8,8 +8,10 @@ import { boardCubeFor, boardPositionFlipped } from "@/lib/boardFrame";
 import { playedMoveTier, SEVERITY_TIER_LABELS, type SeverityTier } from "@/lib/badges";
 import { formatLoss } from "@/lib/review/format";
 import SeverityBadge from "@/app/components/ui/SeverityBadge";
-import Board from "./Board";
 import DecisionReviewTools from "./DecisionReviewTools";
+import PostToForumButton from "@/app/components/ui/PostToForumButton";
+import { forumPositionCaption } from "@/lib/forumPosition";
+import Board from "./Board";
 import { style, type ArrowTier } from "./BoardPanel.styles";
 
 // One of the Played / Best chips under the board: a tab button when the
@@ -84,6 +86,8 @@ export default function BoardPanel({
   quizTabs = null,
   bleed = false,
   belowBoard,
+  canPostToForum = false,
+  showPostAction = true,
 }: {
   selected: Decision | null;
   moveTab: "my" | "best";
@@ -134,6 +138,8 @@ export default function BoardPanel({
   bleed?: boolean;
   // Between the board and the Played/Best chips (the replay's stepper).
   belowBoard?: ReactNode;
+  canPostToForum?: boolean;
+  showPostAction?: boolean;
 }) {
   // The position (and its cube) is flipped when exactly one of these holds:
   // the view asks for it (`flipped`), or the stored position is drawn from
@@ -264,6 +270,11 @@ export default function BoardPanel({
               onSelect={onSelectTab ? () => onSelectTab("best") : undefined}
               keyShortcuts="ArrowRight l"
             />
+          </div>
+        )}
+        {canPostToForum && showPostAction && !quiz && selected?.dbDecisionId && decoded && (
+          <div className={style.postRow(bleed)}>
+            <PostToForumButton decisionId={selected.dbDecisionId} position={decoded} cube={cube} dice={selected.roll} caption={selected.matchState ? forumPositionCaption(selected.matchState, selected.kind === "cube" ? "CUBE" : "CHECKER") : "Match position"} />
           </div>
         )}
       </div>
