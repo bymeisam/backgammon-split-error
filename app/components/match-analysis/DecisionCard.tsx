@@ -23,6 +23,7 @@ export default function DecisionCard({
   onMoveTabChange,
   canEditNotes,
   showOwnerTools,
+  canPostToForum,
 }: {
   decision: Decision;
   classification: string;
@@ -35,6 +36,8 @@ export default function DecisionCard({
   canEditNotes: boolean;
   // The owner's note card below the board (see BoardPanel).
   showOwnerTools: boolean;
+  // isAppWriteEnabled() from the server controls the forum action.
+  canPostToForum: boolean;
 }) {
   return (
     <div data-testid="decision-card" className={style.card}>
@@ -63,6 +66,7 @@ export default function DecisionCard({
         onSelectTab={onMoveTabChange}
         canEditNotes={canEditNotes}
         showOwnerTools={showOwnerTools}
+        canPostToForum={canPostToForum}
       />
     </div>
   );

@@ -103,8 +103,8 @@ async function resolvePosition(input: unknown): Promise<{ position: ResolvedPosi
 //                                 "positions": attachment[],
 //                                 "hideAnalysis"?: boolean }
 //
-// Creates a post with 1 to FORUM_LIMITS.positions attached positions, as the
-// signed-in member or owner. Write mode only (isAppWriteEnabled(), the same gate as every
+// Creates a post with zero to FORUM_LIMITS.positions attached positions, as
+// the signed-in member or owner. Write mode only (isAppWriteEnabled(), the same gate as every
 // other write). The post, its StudyPositions and the attachment rows are
 // created in one transaction. hideAnalysis (default false) permanently hides
 // the engine analysis of the post's game-sourced positions.
@@ -129,13 +129,9 @@ export async function POST(request: NextRequest) {
   if (!title || !body) return NextResponse.json({ error: "Title and body are required." }, { status: 400 });
   const hideAnalysis = optionalBoolean(input.hideAnalysis);
   if (hideAnalysis === "invalid") return NextResponse.json({ error: "hideAnalysis must be a boolean." }, { status: 400 });
-  if (
-    !Array.isArray(input.positions) ||
-    input.positions.length === 0 ||
-    input.positions.length > FORUM_LIMITS.positions
-  ) {
+  if (!Array.isArray(input.positions) || input.positions.length > FORUM_LIMITS.positions) {
     return NextResponse.json(
-      { error: `Add between 1 and ${FORUM_LIMITS.positions} position attachments.` },
+      { error: `Add at most ${FORUM_LIMITS.positions} position attachments.` },
       { status: 400 }
     );
   }

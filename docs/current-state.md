@@ -26,7 +26,7 @@ _Last updated: 2026-10-14._
   - check Clerk sign-up is restricted to invitations (the MEMBER default relies on it);
   - push; run "Auth verification" (`docs/deploy.md`) and check notes, review and the forum write live;
   - invite members in the Clerk dev instance (no SQL needed now, once pushed).
-- **omp:** queued "Forum: text-only posts, add-a-board buttons, Post to forum everywhere, no IDs" (`docs/omp-queue.md`). When it reports, the designer and visual reviewer review it (new form layout and button).
+- Forum text-only/board-handoff implementation is complete on `omp/main`; the queue records changes and checks. Visual suite and authenticated screenshots were not run because omp's database/Playwright policy requires localhost confirmation for every `.env*`/shell database URL, which was not provided. Main-session review and visual review remain.
 - **Later, not approved:** rename `isGalaxyEnabled()` → `isSyncEnabled()`; the custom-domain move.
 - **Ideas parked** (`docs/future-ideas.md`): forum topics and pinning (§ Forum); per-user permissions and an admin page; Snaps.
 - **Designer, deferred:** L2 (board beside the discussion on post pages); unscreenshotted states (delete modal, selected stack > 5, selected bar checker).

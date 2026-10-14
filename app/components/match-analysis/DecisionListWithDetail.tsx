@@ -27,6 +27,7 @@ export default function DecisionListWithDetail({
   showClassification,
   canEditNotes,
   showOwnerTools,
+  canPostToForum = false,
 }: {
   items: DecisionListItem[];
   showClassification: boolean;
@@ -37,6 +38,7 @@ export default function DecisionListWithDetail({
   // member's items carry no notes, tags or review data at all, and get no
   // note card.
   showOwnerTools: boolean;
+  canPostToForum?: boolean;
 }) {
   const { selectedKey: selectedId, moveTab, selectRow, setMoveTab } =
     useListSelection<string | null>(null);
@@ -88,6 +90,7 @@ export default function DecisionListWithDetail({
             onMoveTabChange={setMoveTab}
             canEditNotes={canEditNotes}
             showOwnerTools={showOwnerTools}
+            canPostToForum={canPostToForum}
           />
         )}
       </div>

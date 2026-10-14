@@ -162,6 +162,7 @@ async function DecisionListSection({ filters }: { filters: Filters }) {
         showClassification={!phase}
         canEditNotes={ownerWrite}
         showOwnerTools={isOwner}
+        canPostToForum={isAppWriteEnabled()}
       />
 
       <PaginationLinks

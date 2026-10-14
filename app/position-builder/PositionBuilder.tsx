@@ -1,7 +1,10 @@
 "use client";
 
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
+import { storeForumHandoff } from "@/app/forum/new/handoff";
 import type { CubeOwner, Side } from "@/lib/boardGeometry";
 import type { BoardCube } from "@/lib/boardFrame";
 import {
@@ -18,6 +21,7 @@ import {
   type PositionBuilderState,
 } from "@/lib/positionBuilder";
 import Board from "@/app/components/match-analysis/Board";
+import PostToForumButton from "@/app/components/match-analysis/PostToForumButton";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import { style } from "./positionBuilder.styles";
@@ -119,12 +123,19 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
   function postToForum() {
     try {
       const canonical = canonicalPositionForForum(state);
-      const query = new URLSearchParams({
-        positionId: canonical.positionId,
-        gnuMatchId: canonical.gnuMatchId,
-        kind: canonical.kind,
+      const decoded = decodeForumPosition(canonical.positionId, canonical.gnuMatchId, canonical.kind);
+      if (!decoded) throw new Error("The position is not valid.");
+      const stored = storeForumHandoff({
+        manual: canonical,
+        preview: {
+          position: decoded.position,
+          cube: decoded.cube,
+          dice: decoded.dice,
+          caption: forumPositionCaption(decoded.match, canonical.kind),
+        },
       });
-      router.push(`/forum/new?${query.toString()}`);
+      if (!stored) throw new Error("The board couldn't be handed off. Please allow session storage and try again.");
+      router.push("/forum/new");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The position is not valid.");
     }
@@ -369,9 +380,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
         </Card>
 
         {canPostToForum && (
-          <Button variant="primary" onClick={postToForum} disabled={errors.length > 0}>
-            Post to forum
-          </Button>
+          <PostToForumButton onPost={postToForum} disabled={errors.length > 0} />
         )}
       </div>
     </div>

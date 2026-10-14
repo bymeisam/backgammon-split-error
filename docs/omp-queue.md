@@ -4,20 +4,6 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Forum: text-only posts, "add a board" buttons, Post to forum everywhere, no IDs (queued 2026-10-14)
-**First merge `master`** (at least `8a1049f`): it touches `app/api/forum/posts/route.ts` and `[id]/route.ts` (a `jsonObject()` guard from `lib/forum.ts`). No schema change in this task, so `prisma generate` is all you need.
-
-The problem: the forum list's "New post" (`app/forum/page.tsx:27`) opens `/forum/new` with no prefill, and `NewPostForm.tsx` falls back to raw "GNU Position ID", "GNU Match ID" and "Decision ID" fields. Members can't produce those IDs. The user decided the following (2026-10-14):
-
-1. **Posts may have no board.** `POST /api/forum/posts` accepts 0..`FORUM_LIMITS.positions` attachments (today it's 1..N). A text-only post shows no board or analysis panel, and its replies have no move proposals (the reply composer offers none when the post has no positions). Check the post page, the list and the edit flow with zero positions.
-2. **New post form.** `/forum/new` is a plain title and body form. Above it, two buttons: **"Add a board from a match"** (to `/matches`) and **"Add a board from the position builder"** (to `/position-builder`). When a board was handed over (see 4), it shows on top as the read-only preview the `?decision=` path already uses, with a way to remove it. **Remove the "Source" select and every raw ID field** (GNU Position ID, GNU Match ID, Decision ID, Kind) from the UI entirely.
-3. **"Post to forum" button** on every board a user can view: the replay (exists, `GameReplay.tsx:210`), the position builder (exists, `PositionBuilder.tsx:371`), plus the match analysis boards, each `/mistakes` row or board, and repeated positions. Same label and component everywhere (a shared one in `app/components/ui/` if there isn't one). Gate it the way the existing buttons are (`isAppWriteEnabled()`). Members must see it (they reach all of those pages, `lib/accessRules.ts`).
-4. **No IDs in the URL or on screen.** The button doesn't put decision IDs or GNU IDs in the query string. It writes the attachment (`{ match: { decisionId } }` or `{ manual: { positionId, gnuMatchId, kind } }`, the same shapes the API already takes) to `sessionStorage` under one key, then navigates to plain `/forum/new`. The form reads it (inside try/catch), shows the board and clears it after a successful post. No stored draft means no board, and the two buttons show. The API still validates exactly as now (the decision exists, the IDs are valid), so a tampered draft just gets a 400/404. Drop the old `?decision=` and `?positionId=` query handling, or redirect it to the new flow; nothing outside the app links to it.
-5. Keep one board per post from these entry points. "Add another board" can come later; don't build multi-board UI now (the API limit stays).
-
-Not in scope (parked in `docs/future-ideas.md` § Forum): topics or categories, pinning, boards in replies.
-
-Checks: tests for 0-position posts (API and UI), the sessionStorage handoff (present, absent, malformed) and the new button on each page; `npm test`, tsc, lint, build, `npm run test:visual`. Screenshots (`design/screenshots/<YYYY-MM-DD>-<slug>/`) of the new form empty and with a board, a text-only post page, and the button on mistakes, analysis and repeated positions, at 390 and 1280 in light and dark. The new form layout and the button placement are new visible components, so master will bring in the designer and visual reviewer on review.
 
 ## Schema requests (omp → master)
 
@@ -28,6 +14,11 @@ _Use this shape:_
 - **Schema rule met:** 1, 2 or 3 (AGENTS.md § Schema rule)
 
 ## Done by omp (to check)
+
+### Forum text-only posts and board handoff (implemented on `omp/main`, 2026-10-14)
+Completed the approved text-only and zero-or-one-board flow. `/forum/new` uses one sessionStorage handoff key, a read-only preview, remove-board fallback, and a usable text-only state when handoff data is absent or invalid. Match/replay, per-match analysis, mistakes, repeated-position detail, and the position builder share the gated `Post to forum` action and navigate only to plain `/forum/new`. The post API permits zero positions; the list omits a zero-board count, and text-only details naturally render no board, analysis, or proposals while retaining ordinary replies and title/body editing. No schema, migration, Oracle, or `.env*` changes.
+
+Checks: `npm run lint`, `npx tsc --noEmit`, `npm test` (**813 tests**), and `npm run build` passed. `npm run test:visual` and authenticated screenshot capture were not run: omp policy blocks Playwright/browser runs unless every `.env*` and shell database URL is confirmed localhost; no such confirmation was provided. No DB/browser checks were run.
 
 ### Latest queue polish: hover capture, alignment, separator gap (completed 2026-10-14)
 Implemented the final polish on `omp/main`: the review screenshot harness moves the pointer away before capturing the enabled Hard-only “Next card”; interactive proposal chips use `justify-start`; trailing separators have no redundant right margin; the `gradeButton` class indentation is restored. The existing `outline-ink` focus ring remains unchanged because it is visible and consistent.

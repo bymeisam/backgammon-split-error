@@ -21,6 +21,10 @@ export const style = {
   body: "whitespace-pre-wrap text-ink",
   form: "flex flex-col gap-4",
   input: shared.input,
+  optionalBoard: "flex flex-col gap-2",
+  boardSources: "flex flex-col gap-2 sm:flex-row",
+  sourceButton: "min-h-[44px]",
+  removeBoard: "min-h-[44px] self-start",
   actions: "flex flex-wrap gap-3",
   // The Reply button sits at the end of the form instead of stretching.
   formActions: "flex justify-end",

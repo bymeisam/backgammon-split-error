@@ -89,6 +89,7 @@ export default function MistakesSection({
   matchId,
   games,
   bleed = false,
+  canPostToForum = false,
 }: {
   // Galaxy's match id (Match.sourceMatchId) — used only to look up this
   // match's notes in the DB. Omitted on /sources/galaxy/matches/[matchId]: that page
@@ -96,9 +97,10 @@ export default function MistakesSection({
   // fetch, no note UI — DecisionNote renders nothing without a dbDecisionId).
   matchId?: string;
   games: FetchedGame[];
+  bleed?: boolean;
   // The page has no side padding below md (/matches/[matchId]); the blocks
   // inset themselves.
-  bleed?: boolean;
+  canPostToForum?: boolean;
 }) {
   // Decisions here are built from game payloads (no DB ids), so notes and
   // the real Decision.id come from one per-match lookup, matched on
@@ -209,7 +211,7 @@ export default function MistakesSection({
           <div className={style.layout}>
             <div className={style.boardColumn}>
               {selected && <p className={style.contextLine(bleed)}>Game {selected.gameIndex}</p>}
-              <BoardPanel selected={selected} moveTab={moveTab} canEditNotes={matchNotes.canEdit} bleed={bleed} />
+              <BoardPanel selected={selected} moveTab={moveTab} canEditNotes={matchNotes.canEdit} canPostToForum={canPostToForum} bleed={bleed} />
             </div>
 
             <div className={style.listsColumn}>
