@@ -3,6 +3,7 @@ name: architect
 description: Read-only architecture advisor. Use on demand for cross-cutting decisions that touch several subsystems or are expensive to reverse, such as domain boundaries, data models, persistence, auth, APIs, integrations, migrations or deployment. Advises the main session only. It never changes code, schema, data or git state.
 tools: Read, Grep, Glob, WebFetch, WebSearch
 model: inherit
+effort: medium
 color: yellow
 ---
 

@@ -1,7 +1,7 @@
 modelRoles:
-  orch: "gpt-6-luna:high"
+  orch: "gpt-6-luna:medium"
   dev: "gpt-6-luna:medium"
   investigator: "gpt-6-luna:medium"
-  designer: "gpt-6-luna:high"
-  architect: "gpt-6-luna:high"
+  designer: "gpt-6-luna:medium"
+  architect: "gpt-6-luna:medium"
   visual_reviewer: "gpt-6-luna:medium"
