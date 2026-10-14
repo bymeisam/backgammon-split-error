@@ -406,8 +406,10 @@ model DecisionTag {
 //
 // role: OWNER (full access, and only together with Clerk's privateMetadata
 // isOwner flag), MEMBER (invited: read-only matches/mistakes plus the
-// forum) or NONE (signed in, awaiting approval). New rows start NONE
-// (lib/app-auth.ts's provisionAppUser); the role is set by hand. At most one
+// forum) or NONE (cut off by hand: no access). New rows start MEMBER
+// (lib/app-auth.ts's provisionAppUser; sign-up is invite-only, so the
+// invitation is the approval). The column default stays NONE; provisioning
+// sets the role explicitly. Later changes are made by hand. At most one
 // row may be OWNER: a second OWNER insert or update fails with a duplicate key
 // on AppUser_ownerSlot_key, so demote the old owner row first.
 //
@@ -447,7 +449,10 @@ model StudyPosition {
   gnuMatchId         String              @db.VarChar(191)
   kind               StudyPositionKind
   sourceDecisionId   Int?
-  sourceDecision     Decision?           @relation(fields: [sourceDecisionId], references: [id])
+  // onDelete: Restrict matches the DB's FK (RESTRICT, from the migration
+  // history); without it Prisma assumes SET NULL for an optional relation
+  // and `migrate diff` keeps proposing to re-create the FK.
+  sourceDecision     Decision?           @relation(fields: [sourceDecisionId], references: [id], onDelete: Restrict)
   createdAt          DateTime            @default(now())
   attachments        ForumPostPosition[]
   moveProposals      ForumMoveProposal[]

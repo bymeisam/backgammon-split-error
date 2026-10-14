@@ -74,6 +74,12 @@ describe("forum reply proposal APIs", () => {
     expect(db.createReply).not.toHaveBeenCalled();
   });
 
+  it.each([[null], [[]], ["text"], [42]])("rejects a non-object JSON body (%j) on create and edit", async (value) => {
+    expect((await POST(request(value), postContext)).status).toBe(400);
+    expect((await PATCH(request(value), replyContext)).status).toBe(400);
+    expect(db.createReply).not.toHaveBeenCalled();
+  });
+
   it("applies auth and write gates", async () => {
     db.require.mockResolvedValueOnce(new Response(null, { status: 401 }));
     expect((await POST(request({ body: "hello" }), postContext)).status).toBe(401);

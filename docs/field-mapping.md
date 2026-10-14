@@ -39,7 +39,7 @@ its absence from the collation-pinned column list above isn't mistaken for
 an oversight.
 
 **Note on implementation:** Prisma's schema DSL does not expose a collation
-attribute for MySQL (only for SQL Server via `@db.Collation`). These five
+attribute for MySQL (only for SQL Server via `@db.Collation`). These eight
 columns are pinned to `utf8mb4_bin` by hand-editing the generated migration
 SQL directly (adding `COLLATE utf8mb4_bin` to each column's definition) —
 this is not visible in `schema.prisma` itself, only in the migration file.

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { isLocalAuthBypass, localBypassIdentity } from "@/lib/localAuthBypass";
-import { isMemberOrOwner, resolveAppRole, type AppRole } from "@/lib/appRole";
+import { isMemberOrOwner, NEW_APP_USER_ROLE, resolveAppRole, type AppRole } from "@/lib/appRole";
 import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 
 export type { AppRole } from "@/lib/appRole";
@@ -22,8 +22,8 @@ export type AppAuthState = {
   clerkUserId: string;
   displayName: string;
   // The effective role (lib/appRole.ts): OWNER needs DB role OWNER plus
-  // Clerk's privateMetadata.isOwner; MEMBER is an invited member; NONE is
-  // signed in but awaiting approval (or no AppUser row yet).
+  // Clerk's privateMetadata.isOwner; MEMBER is an invited member (new rows
+  // start here); NONE is cut off by hand (or no AppUser row yet).
   role: AppRole;
 };
 
@@ -77,8 +77,10 @@ export async function isOwnerViewer(): Promise<boolean> {
 }
 
 /**
- * Provisions the local identity (new rows start as NONE, awaiting approval)
- * and resolves the role. Under the local AUTH_BYPASS, upserts the bypass
+ * Provisions the local identity and resolves the role. New rows start as
+ * MEMBER (NEW_APP_USER_ROLE): sign-up is invite-only in Clerk, so the
+ * invitation is the approval. Existing rows keep their role (a row set to
+ * NONE by hand stays cut off). Under the local AUTH_BYPASS, upserts the bypass
  * user (its stored role only on create: NONE for the owner, MEMBER for the
  * member) and returns its in-memory role (owner, or member with
  * AUTH_BYPASS_ROLE=member).
@@ -102,7 +104,7 @@ export async function provisionAppUser(): Promise<AppAuthState | null> {
   const displayName = displayNameFor(signedIn.user);
   const appUser = await prismaApp.appUser.upsert({
     where: { clerkUserId: signedIn.userId },
-    create: { clerkUserId: signedIn.userId, displayName, role: "NONE" },
+    create: { clerkUserId: signedIn.userId, displayName, role: NEW_APP_USER_ROLE },
     update: { displayName },
     select: { role: true },
   });
