@@ -15,6 +15,71 @@ _Use this shape:_
 
 ## Done by omp (to check)
 
+### Forum text-only posts and board handoff follow-ups (completed 2026-10-14)
+Fixed the single-use board handoff (read once, clear immediately, keep the attachment in component state; Remove does not touch storage), moved the shared forum action and its styles to `app/components/ui/`, restored primary styling in the position builder, restored score/kind captions derived from raw GNU match state with a safe fallback, removed the orphaned replay comment, and added browser coverage for empty/text-only and handoff/remove behavior plus write-gate propagation (including the read-only live Galaxy page). Updated the affected board visual baselines because the new action adds 54px of content height to `/mistakes` boards and the enclosing decision card. No schema, migration, Oracle, or `.env*` changes.
+
+Checks: `npm test` (816 tests), `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (21/21) passed. Captured all four size/theme variants under `design/screenshots/2026-10-14-forum-text-posts/`; the exact files are listed below.
+
+Screenshots:
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--390-dark--viewport.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--390-light--viewport.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--1280-dark--viewport.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--1280-light--viewport.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--1280-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--390-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--390-light--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--1280-dark--full.png`
+- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--1280-light--full.png`
+
+Implementation commit: `fafd8c4`.
+
 ### Forum text-only posts and board handoff (implemented on `omp/main`, 2026-10-14)
 Completed the approved text-only and zero-or-one-board flow. `/forum/new` uses one sessionStorage handoff key, a read-only preview, remove-board fallback, and a usable text-only state when handoff data is absent or invalid. Match/replay, per-match analysis, mistakes, repeated-position detail, and the position builder share the gated `Post to forum` action and navigate only to plain `/forum/new`. The post API permits zero positions; the list omits a zero-board count, and text-only details naturally render no board, analysis, or proposals while retaining ordinary replies and title/body editing. No schema, migration, Oracle, or `.env*` changes.
 
