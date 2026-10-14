@@ -4,20 +4,7 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-- **2026-10-14, master added migration `20261014100000_app_user_single_owner`** (additive: generated `AppUser.ownerSlot` plus a unique index, at most one OWNER row; already applied to the shared local `app_dev`). Merge master and run `npx prisma generate` before your next app run. The local `AUTH_BYPASS` owner row (`local-dev-owner`) is now stored as `NONE`; the bypass still acts as owner in memory.
-
-### Review notes on `omp/main` at `0c8ed7a` (queued 2026-10-14)
-Merge master first (it has the single-owner migration above; run `npx prisma generate` after).
-
-Claude Code reviewed `0c8ed7a`: the code is fine, and the visual-reviewer plus the main session opened the `-6` shots. Fixed: separators spaced and attached, no line starting with "·", the cube chip left-aligned, no tally regressions. The "Yes" focus ring is now visible (a subtle grey outline in dark). The main session looked at `review-hard-only-saved--390-dark`: "Next card" is light beige, not disabled-grey. It's almost certainly the **hover** colour (`hover:bg-primary/86`), because the script clicks "Hard" and "Next card" renders under the still-hovering mouse. Small polish left:
-
-1. **Screenshot script:** after clicking "Hard" (and before any capture where a button appears under the cursor), move the mouse away, e.g. `page.mouse.move(0, 0)`, then settle. Recapture the Hard-only saved state and confirm "Next card" has the same fill as "Yes".
-2. **Interactive chip alignment:** the clickable move chips still centre their wrapped text ("6/4 4/3 ↗" sits mid-chip at 390). `Button`'s base centres the content, so add `justify-start` to `proposalInteractiveChip` (`forum.styles.ts:62`).
-3. **Trailing separator gap:** at 1280, "…2-1 to play ·" followed by the move leaves a double-width gap (`appendSeparator` plus `proposalSeparator: "mx-1"`, `ProposalDisplay.tsx:18`, `forum.styles.ts:65`). Tighten the trailing separator's right margin, or let the move's own gap do the spacing.
-4. **Formatting:** the `gradeButton` class string in `review.styles.ts:108` lost its indentation. Restore it.
-5. **Optional:** make the "Yes"/grade-button focus ring a little stronger (e.g. `outline-[3px]`), if it stays consistent with other focus rings.
-
-Checks: vitest, tsc, lint, build, `npm run test:visual`. Before/after shots for items 1–3, listed under "Done by omp (to check)". Add a PROGRESS.md entry.
+_None queued._
 
 ## Schema requests (omp → master)
 
@@ -52,6 +39,7 @@ Implementation commit: `0c8ed7a`. No Prisma, migration, Oracle, or `.env*` chang
 
 ## Checked and done (master)
 
+- **Review notes at `0c8ed7a` (mouse-away capture, chip alignment, separator gap, indentation)**: `4a3c39f` + master merge `ebffba0` (2026-10-14). Checked: the main session opened the `-7` shots. "Next card" in the Hard-only saved state has the primary fill (same as "Reply"), wrapped interactive chips are left-aligned at 390, and the 1280 tally separator gap is single-width. Code already in master via `86060fb`. omp's docs commit `19ac02b` needs no merge; omp drops its "to check" entries on its next master merge.
 - **Review notes at `ebc8857` (focus ring, Hard-only capture, separators)**: `0c8ed7a` (2026-10-14). Checked, and merged into master with `omp/main` at `4a3c39f`, which already includes the start of the `0c8ed7a` polish task (mouse-away, `justify-start`, trailing separator, indentation). Still to come from omp for that task: its "to check" entry and the before/after shots.
 - **Review notes at `8f8fd4b` (tally, draft board, chip wrapping, focus, headers)**: `0ab1743` + `ec30993` (2026-10-14). Checked, and `omp/main` at `ebc8857` merged into master (`18789e8`); the follow-ups are in the `ebc8857` task.
 - **Review notes at `02831c2` (visual polish, comments, headers)**: `7224f45` (2026-10-14). Checked; the follow-ups are in the `8f8fd4b` task.

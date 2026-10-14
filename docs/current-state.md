@@ -27,7 +27,7 @@ _Last updated: 2026-10-14._
   - run "Auth verification" (`docs/deploy.md`) and check that notes, review and the forum write live;
   - invite members in the Clerk dev instance, then set their `AppUser.role = 'MEMBER'` on Oracle (an Oracle write, so ask for the SQL);
   - decide whether your existing notes and review cards live in the local DB. Oracle has none, so they'd need copying.
-- **omp:** the `0c8ed7a` polish task (`docs/omp-queue.md`). Its code is already merged (`4a3c39f`); the handoff and before/after shots are still to come. Review them when the hook flags them.
+- **omp:** nothing queued. The `0c8ed7a` polish (`4a3c39f`) is checked and in master; the review-refinement thread is closed.
 - **Small follow-ups (developer, approved earlier, not done yet):**
   - `formatEquity` uses a hyphen and no "+";
   - the `StudyPosition.sourceDecision` onDelete drift;
