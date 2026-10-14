@@ -155,7 +155,7 @@ repetition remain future phases.
 - Likes and upvotes.
 - Reputation systems.
 - Followers and social graphs beyond the later notification idea.
-- Categories and subforums.
+- Categories and subforums, plus pinning. The user's shape (2026-10-14): owner-defined **topics** (e.g. Announcements, Opening play, Cube decisions), each set to "board required", "board optional" or "no board"; posts live under a topic; replies stay free-form whatever the topic; the owner can **pin** posts to the top of a topic or the forum. Schema when it comes: a `ForumTopic` table, `ForumPost.topicId` and `ForumPost.pinnedAt` (rule 1: the list filters and sorts by them), additive only. Deferred by the user to keep the forum simple for now.
 - Rich-text editing.
 - Real-time updates.
 - Generic social-post abstractions.
