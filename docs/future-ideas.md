@@ -4,6 +4,9 @@ Ideas parked for later review. These are not planned work. Each entry says where
 
 ## To review later
 
+### Split scripts into smaller ones (user, 2026-10-15)
+The user wants to divide the scripts into smaller ones. It's still only an idea, to be talked through before any plan. Bring it up after the scripts cleanup (retired backfills, `scripts/README.md` ledger) has landed.
+
 ### Cube UI review (user, 2026-10-07)
 The user accepted the Galaxy-style cube display for now but wants to look at it again. Open points:
 - **Offered cube on takes and passes:** it's drawn centred on the bar column at the receiver's edge, and can overlap a receiver checker on the bar.
