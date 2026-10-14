@@ -600,7 +600,6 @@ const FORUM_SHOTS: Shot[] = [
       await forumActionShot(ctx, "replay-post-button", "viewport");
       await page.getByRole("button", { name: "Post to forum" }).click();
       await page.waitForURL("**/forum/new");
-      await forumShoot(ctx, "new-match-board", "full");
       await expect(page.getByRole("button", { name: "Remove board" })).toBeVisible();
       await forumShoot(ctx, "new-match-board", "full");
       await page.getByRole("button", { name: "Remove board" }).click();
