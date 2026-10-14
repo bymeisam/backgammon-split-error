@@ -11,11 +11,11 @@ _Last updated: 2026-10-14._
 - **Write model and roles:** unchanged (`prismaReadOnly` / `prismaApp` / `prisma`; new `AppUser` rows are `MEMBER`, invite-only sign-up). See `docs/deploy.md`.
 - **`.env`:** at the end of this batch `DATABASE_URL` pointed at a remote DB (probably Oracle) and `DATABASE_URL_READONLY` at local. Never assume and never change it; only the user does.
 
-## Galaxy: account blocked
+## Galaxy: not blocked after all
 
-- The user's Galaxy account was blocked everywhere (including play) on 2026-10-14, probably from syncing on this machine while playing on another one over a VPN with the same account. **No Galaxy requests from anyone** (sync, `galaxy-get.ts`, `/sources/galaxy` pages) until the user says the account works normally again.
-- Then: `npm run sync:incremental -- --dry-run` (check the host it prints), one `npm run sync:retry-failed -- --match <id>`, then paced runs. Never sync while playing.
-- Local DB: 4,418 DONE, 36 FAILED (all 429), 1 PENDING, 1 INGESTING. Oracle's state is unknown; checking it needs `DATABASE_URL_READONLY` pointed at Oracle. If Oracle never saw those matches, Oracle needs `sync:incremental`, not the retry script.
+- On 2026-10-14 the user's Galaxy account looked blocked everywhere, including play. It turned out to be Galaxy's website being down for maintenance, not something our sync caused. The earlier 429s were real, though, so keep syncing paced and don't sync while playing.
+- Next: `npm run sync:incremental -- --dry-run` (check the host it prints), one `npm run sync:retry-failed -- --match <id>`, then paced runs. Use only the user's own token: with another account's token, incremental and backfill would list that account's matches.
+- Local DB before the user's retry run: 4,418 DONE, 36 FAILED (all 429), 1 PENDING, 1 INGESTING; the user has since run `sync:retry-failed` (which DB it ran against, and the counts after, weren't checked). Oracle's state is unknown; checking it needs `DATABASE_URL_READONLY` pointed at Oracle. If Oracle never saw those matches, Oracle needs `sync:incremental`, not the retry script.
 
 ## Live site (Vercel + Oracle)
 
@@ -29,7 +29,7 @@ _Last updated: 2026-10-14._
   - migrate `bg_test` (`! DATABASE_URL="$(grep '^DATABASE_URL=' .env.test | cut -d= -f2- | tr -d '"')" npx prisma migrate deploy`), then the developer runs `npm run test:visual`;
   - pick the `/auth/complete` eyebrow ("Game Review" recommended, or remove); check Clerk sign-up is invitation-only; run "Auth verification" (`docs/deploy.md`) after pushing; invite members.
 - **Next batch: Snaps** (`docs/future-ideas.md` § Snaps). Plan: a script sends ~10 board photos to Gemini (free tier, Flash only; free-tier data may be used by Google), converts the answer to a GNU Position ID and scores it against the true position from `/position-builder`. Waiting on the user: `GEMINI_API_KEY` in `.env` and the photos (+ true positions). The test script can run on master; the builder "From photo" UI is omp's area.
-- **omp:** `04389bf` (forum text-only posts, board handoff, "Post to forum" everywhere) reviewed, not merged. Follow-ups plus the skipped screenshots are queued (`docs/omp-queue.md`, "Review notes at `04389bf`"). The user confirmed omp's `.env` and `.env.test` point at local, so omp can run Playwright. When omp reports: the designer and visual reviewer check `design/screenshots/2026-10-14-forum-text-posts/`, then the user merges `omp/main`.
+- **omp:** `fafd8c4`/`86769f4` (the `04389bf` follow-ups) checked: code by the main session, screenshots by the visual reviewer and designer (`reports/2026-10-13-forum-design-review.md`). Nothing blocks; the user merges `omp/main` when ready. Next omp task queued (`docs/omp-queue.md`, "Review notes at `fafd8c4`"): keep the draft when adding a board, right-align and inset the "Post to forum" button under boards, preview polish, a caption test. `.omp/config.yml`: `investigator` and `visual_reviewer` moved from local qwen models to `gpt-6-luna:medium`; omp merges master first.
 - **Idea parked:** glossary page of backgammon terms (`docs/future-ideas.md` § Reference).
 - **Later, not approved:** rename `isGalaxyEnabled()` → `isSyncEnabled()`; custom-domain move; progress dashboard and `/mistakes` index (suggested this session).
 - **Local test data (local DB only):** forum posts 1–3 and 5–7; proposal replies 8–10; AppUsers 1 (owner), 2 (`local-dev-owner`, NONE), 3 (`local-dev-member`).
@@ -38,4 +38,3 @@ _Last updated: 2026-10-14._
 
 - Never assume where `.env` points, and never change it. Only the user does that.
 - Every Oracle write needs the user's explicit approval, every time.
-- No Galaxy calls while the account is blocked.

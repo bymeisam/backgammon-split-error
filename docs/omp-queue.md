@@ -4,25 +4,18 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Review notes at `04389bf` (forum text-only posts and board handoff) (queued 2026-10-14)
-The code matches the spec. These are the follow-ups, then the screenshots that were skipped.
+### Review notes at `fafd8c4` (draft kept, button sizing, small polish) (queued 2026-10-14)
+**First, merge `master` into `omp/main`.** It brings this queue and a change to `.omp/config.yml`: the `investigator` and `visual_reviewer` roles now use `gpt-6-luna:medium` instead of the local qwen models. No schema change, so no `prisma generate` needed.
 
-**Browser runs are cleared:** the user confirmed (2026-10-14) that `.env` and `.env.test` in `../backgammon-omp` point at the local DB only. So run `npm run test:visual` and the screenshot capture this time.
+`fafd8c4`/`86769f4` are checked: the code matches the `04389bf` follow-ups, and nothing blocks. The visual reviewer and designer notes are in `reports/2026-10-13-forum-design-review.md` § "Re-check: text-only posts and board handoff (2026-10-14)". Fix these:
 
-1. **Stale board.** The handoff is cleared only after a successful post. If you press "Post to forum", leave `/forum/new` without posting, then later press "New post" on `/forum`, the old board comes back. Fix it like this: `NewPostForm` reads the handoff once, then clears it straight away, keeping the board only in React state. "Remove board" then needs no storage call, and a reload shows the plain form, which is fine. Update `handoff.test.ts` to match.
-2. **Shared component.** Move `PostToForumButton` (and its styles file) from `app/components/match-analysis/` to `app/components/ui/`, as the spec said. Restore the position builder's button to `variant="primary"`, as before (add a `variant` prop if needed). The other pages keep `secondary`.
-3. **Match caption.** Match previews now say only "Match position". The old caption came from `forumPositionCaption()` (score and kind, no IDs), so bring it back. `PostToForumButton` can build it when it writes the handoff, the way the builder does. Keep a fallback if decoding fails.
-4. **Tests the spec asked for:** the new-post form with no handoff (two buttons, posts `positions: []`), and with a handoff (preview shown, Remove returns to the two buttons). Also test that each page passes `canPostToForum` (replay, match analysis, `/mistakes`, repeated positions, builder) and that it stays false on `/sources/galaxy/matches/[matchId]`. Unit or render tests are fine.
-5. **Leftover:** delete the orphaned comment at `GameReplay.tsx:209` ("Links the decision on screen…").
-6. **Screenshots** in `design/screenshots/2026-10-14-forum-text-posts/`, at 390 and 1280, light and dark:
-   - the new form empty;
-   - the new form with a match board;
-   - the new form with a builder board;
-   - a text-only post page;
-   - the forum list with a text-only post;
-   - the button on the replay, match analysis, `/mistakes`, a repeated position and the builder.
+1. **Keep the draft when adding a board.** On `/forum/new`, title and body are plain `useState` (`NewPostForm.tsx:15-16`), and both "Add a board…" buttons leave the page, so the text is lost. Save `{ title, body }` to sessionStorage when either button is pressed (its own key, or alongside the handoff) and restore it on return, then clear it once read, like the handoff. A successful post or Cancel clears it. Add a unit test.
+2. **"Post to forum" sizing under the board.** In `BoardPanel` (`BoardPanel.tsx:275-277`) the button stretches across the whole board column at 1280 (louder than "Add to review"), and at 390 on replay and match analysis it has no side gutter, unlike the Played/Best row, which gets `mx-3 md:mx-0` from `decisionRow(bleed, …)` (`BoardPanel.styles.ts:35`). Give `PostToForumButton` a `className` prop (it renders a bare fragment now) and wrap it in a `postRow(bleed)` style in `BoardPanel.styles.ts`: right-aligned (`self-end` or a flex row with `justify-end`), the same bleed inset as `decisionRow`, and a gap above. The position builder's full-width primary button stays as it is.
+3. **Preview polish on `/forum/new`** (nit): drop the dead space under "Remove board" (`pb-2` on `preview`, `forum.styles.ts:48`), and give "Remove board" the same `px-2` inset as the caption below `sm` (`forum.styles.ts:27`, `:53`).
+4. **Caption test:** `SAFE_MATCH_CAPTION` in `handoff.ts` copies `forumPositionCaption`'s format by hand. Add a test that runs real `forumPositionCaption` outputs (money game, match with score, Crawford, post-Crawford, cube, checker with dice) through `resolveForumHandoff` and expects them kept, so a format change can't silently fall back to "Match position".
+5. **Screenshots** in `design/screenshots/2026-10-14-forum-post-button/`, 390 and 1280, light and dark: the button on `/mistakes`, match analysis, replay (viewport) and the builder; `/forum/new` with a match board; `/forum/new` after "Add a board from the position builder" and back, with title and body restored. List the files in your "to check" entry.
 
-   List the files in your "to check" entry. Master then brings in the designer and the visual reviewer.
+Not changing: the caption keeps the player-on-roll's score first, with no names.
 
 Checks: `npm test`, tsc, lint, build, `npm run test:visual`.
 
@@ -59,7 +52,8 @@ Implementation commit: `0c8ed7a`. No Prisma, migration, Oracle, or `.env*` chang
 
 ## Checked and done (master)
 
-- **Forum text-only posts and board handoff**: `04389bf` (2026-10-14). Reviewed; not merged yet. The follow-ups and the skipped screenshots are in the `04389bf` task above.
+- **Review notes at `04389bf` (stale board, shared button, caption, tests, screenshots)**: `fafd8c4` + `86769f4` (2026-10-14). Checked: code read by the main session, screenshots by the visual reviewer and designer. Nothing blocks; follow-ups are in the `fafd8c4` task. Not merged into master yet.
+- **Forum text-only posts and board handoff**: `04389bf` (2026-10-14). Checked; follow-ups were in the `04389bf` task, now done.
 - **Review notes at `0c8ed7a` (mouse-away capture, chip alignment, separator gap, indentation)**: `4a3c39f` + master merge `ebffba0` (2026-10-14). Checked: the main session opened the `-7` shots. "Next card" in the Hard-only saved state has the primary fill (same as "Reply"), wrapped interactive chips are left-aligned at 390, and the 1280 tally separator gap is single-width. Code already in master via `86060fb`. omp's docs commit `19ac02b` needs no merge; omp drops its "to check" entries on its next master merge.
 - **Review notes at `ebc8857` (focus ring, Hard-only capture, separators)**: `0c8ed7a` (2026-10-14). Checked, and merged into master with `omp/main` at `4a3c39f`, which already includes the start of the `0c8ed7a` polish task (mouse-away, `justify-start`, trailing separator, indentation). Still to come from omp for that task: its "to check" entry and the before/after shots.
 - **Review notes at `8f8fd4b` (tally, draft board, chip wrapping, focus, headers)**: `0ab1743` + `ec30993` (2026-10-14). Checked, and `omp/main` at `ebc8857` merged into master (`18789e8`); the follow-ups are in the `ebc8857` task.
