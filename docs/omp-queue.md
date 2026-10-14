@@ -16,9 +16,9 @@ _Use this shape:_
 ## Done by omp (to check)
 
 ### Forum text-only posts and board handoff follow-ups (completed 2026-10-14)
-Fixed the single-use board handoff (read once, clear immediately, keep the attachment in component state; Remove does not touch storage), moved the shared forum action and its styles to `app/components/ui/`, restored primary styling in the position builder, restored score/kind captions derived from raw GNU match state with a safe fallback, removed the orphaned replay comment, and added browser coverage for empty/text-only and handoff/remove behavior plus write-gate propagation (including the read-only live Galaxy page). Updated the affected board visual baselines because the new action adds 54px of content height to `/mistakes` boards and the enclosing decision card. No schema, migration, Oracle, or `.env*` changes.
+Fixed the single-use board handoff (read once, clear immediately, keep the attachment in component state; Remove does not touch storage), moved the shared forum action and its styles to `app/components/ui/`, restored primary styling in the position builder, restored score/kind captions derived from raw GNU match state with an identifier-safe fallback, removed the orphaned replay comment, and added browser coverage for empty/text-only and handoff/remove behavior plus write-gate propagation on replay, match analysis, `/mistakes`, repeated-position detail and builder (the read-only live Galaxy page stays without the action). Extended the local `bg_test` fixture with a deterministic repeated-position detail. Updated the affected board visual baselines because the new action adds 54px of content height to `/mistakes` boards and the enclosing decision card. No schema, migration, Oracle, or `.env*` changes.
 
-Checks: `npm test` (816 tests), `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (21/21) passed. Captured all four size/theme variants under `design/screenshots/2026-10-14-forum-text-posts/`; the exact files are listed below.
+Checks: `npx tsx e2e/seed-test-db.ts` (local `bg_test`: 1 match, 3 games, 11 decisions), `npm test` (816 tests), `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (23/23) passed. Captured all four size/theme variants under `design/screenshots/2026-10-14-forum-text-posts/`; the exact files are listed below.
 
 Screenshots:
 - `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--390-dark--full.png`
@@ -78,7 +78,7 @@ Screenshots:
 - `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--1280-dark--full.png`
 - `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--1280-light--full.png`
 
-Implementation commit: `fafd8c4`.
+Implementation commits: `fafd8c4`, `86769f4`.
 
 ### Forum text-only posts and board handoff (implemented on `omp/main`, 2026-10-14)
 Completed the approved text-only and zero-or-one-board flow. `/forum/new` uses one sessionStorage handoff key, a read-only preview, remove-board fallback, and a usable text-only state when handoff data is absent or invalid. Match/replay, per-match analysis, mistakes, repeated-position detail, and the position builder share the gated `Post to forum` action and navigate only to plain `/forum/new`. The post API permits zero positions; the list omits a zero-board count, and text-only details naturally render no board, analysis, or proposals while retaining ordinary replies and title/body editing. No schema, migration, Oracle, or `.env*` changes.
