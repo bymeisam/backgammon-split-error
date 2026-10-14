@@ -4,19 +4,20 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Review notes on `omp/main` at `ebc8857` (queued 2026-10-14)
-**Merge master first:** master merged `omp/main` at `ebc8857` (merge `18789e8`). The docs conflicts were resolved on master's side, so take master's `docs/omp-queue.md` and `docs/current-state.md`. In your copy, clear the "to check" entries that master lists under "Checked and done (master)", including the old "Queued review follow-up: keyboard contracts…" entry, which names no commit.
+- **2026-10-14, master added migration `20261014100000_app_user_single_owner`** (additive: generated `AppUser.ownerSlot` plus a unique index, at most one OWNER row; already applied to the shared local `app_dev`). Merge master and run `npx prisma generate` before your next app run. The local `AUTH_BYPASS` owner row (`local-dev-owner`) is now stored as `NONE`; the bypass still acts as owner in memory.
 
-Claude Code reviewed `0ab1743` and `ec30993`. The investigator found no logic defects (vitest 791/791, tsc clean, `prisma/` unchanged). The visual-reviewer opened 12 shots in `design/screenshots/2026-10-14-review-refinement-4/` and `-5/`. Fixed: the tally count beside the chip, the full-width draft board, chips no longer breaking inside a score or move, and the review radii tokens. What's left, all visual:
+### Review notes on `omp/main` at `0c8ed7a` (queued 2026-10-14)
+Merge master first (it has the single-owner migration above; run `npx prisma generate` after).
 
-1. **"Yes" focus ring in dark (second round).** `review-card1-reason-yes-focus--390-dark--viewport.png` still shows a dark slate halo on the near-black page; the light shot shows no clear ring either. `gradeButton` uses `focus-visible:outline-focus outline-offset-2` (`review.styles.ts:108`), so the dark `--focus` token (`app/globals.css` ~173) is too close to `paper`. Make it clearly visible in both themes: either change the token (check every other user of `outline-focus` still looks right) or give `gradeButton` its own ring. The forum chip's ring is a good reference.
-2. **Hard-only "Next card" still looks dull (second round)** in `review-hard-only-saved--390-dark` and `--1280-light`. First find out why: it's probably captured while `save.kind === "saving"` (`disabled:opacity-45`, `ReviewSession.tsx:629`) or mid-`transition-colors`. Make the screenshot script wait until the button is enabled, then recapture. Change the style only if the settled button still looks dull. Say which it was.
-3. **Chip separators.** The leading space before each "·" is trimmed, because the segments are flex items (`ProposalDisplay.tsx:15-18`, and the cube action at `:32`). Chips read "Position 1· 5-point match· 1–0", and a wrapped line starts with an orphan "·". Render the separator as its own element with horizontal margin, attached to the end of the preceding segment, so lines never start with "·". Same fix for the cube chip.
-4. **Could:** `text-left` on the non-interactive `proposalChip` (`forum.styles.ts:61-62`), since wrapped chip text is centred at 390. Also scale the dark "Enter" kbd in `recordedKey` (`review.styles.ts:120`) to the 11px label.
+Claude Code reviewed `0c8ed7a`: the code is fine, and the visual-reviewer plus the main session opened the `-6` shots. Fixed: separators spaced and attached, no line starting with "·", the cube chip left-aligned, no tally regressions. The "Yes" focus ring is now visible (a subtle grey outline in dark). The main session looked at `review-hard-only-saved--390-dark`: "Next card" is light beige, not disabled-grey. It's almost certainly the **hover** colour (`hover:bg-primary/86`), because the script clicks "Hard" and "Next card" renders under the still-hovering mouse. Small polish left:
 
-**Visual review:** your delegated visual-reviewer hasn't returned a report in the last three rounds, and items 1 and 2 got past your own check twice. For each item, compare the before and after shots of the same state side by side, and say in the handoff what you saw.
+1. **Screenshot script:** after clicking "Hard" (and before any capture where a button appears under the cursor), move the mouse away, e.g. `page.mouse.move(0, 0)`, then settle. Recapture the Hard-only saved state and confirm "Next card" has the same fill as "Yes".
+2. **Interactive chip alignment:** the clickable move chips still centre their wrapped text ("6/4 4/3 ↗" sits mid-chip at 390). `Button`'s base centres the content, so add `justify-start` to `proposalInteractiveChip` (`forum.styles.ts:62`).
+3. **Trailing separator gap:** at 1280, "…2-1 to play ·" followed by the move leaves a double-width gap (`appendSeparator` plus `proposalSeparator: "mx-1"`, `ProposalDisplay.tsx:18`, `forum.styles.ts:65`). Tighten the trailing separator's right margin, or let the move's own gap do the spacing.
+4. **Formatting:** the `gradeButton` class string in `review.styles.ts:108` lost its indentation. Restore it.
+5. **Optional:** make the "Yes"/grade-button focus ring a little stronger (e.g. `outline-[3px]`), if it stays consistent with other focus rings.
 
-Checks: vitest, tsc, lint, build, `npm run test:visual`. Recapture the changed states, and list them under "Done by omp (to check)". Add a PROGRESS.md entry.
+Checks: vitest, tsc, lint, build, `npm run test:visual`. Before/after shots for items 1–3, listed under "Done by omp (to check)". Add a PROGRESS.md entry.
 
 ## Schema requests (omp → master)
 
@@ -51,6 +52,7 @@ Implementation commit: `0c8ed7a`. No Prisma, migration, Oracle, or `.env*` chang
 
 ## Checked and done (master)
 
+- **Review notes at `ebc8857` (focus ring, Hard-only capture, separators)**: `0c8ed7a` (2026-10-14). Checked; the small polish left is in the `0c8ed7a` task. Not yet merged into master.
 - **Review notes at `8f8fd4b` (tally, draft board, chip wrapping, focus, headers)**: `0ab1743` + `ec30993` (2026-10-14). Checked, and `omp/main` at `ebc8857` merged into master (`18789e8`); the follow-ups are in the `ebc8857` task.
 - **Review notes at `02831c2` (visual polish, comments, headers)**: `7224f45` (2026-10-14). Checked; the follow-ups are in the `8f8fd4b` task.
 - **Review notes at `b657ca6` (screenshots, clean-up, master merge)**: `02831c2` + merge `d6c146e` (2026-10-14). Checked.

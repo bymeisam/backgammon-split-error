@@ -17,6 +17,7 @@ _Last updated: 2026-10-14._
 ## Live site (Vercel + Oracle)
 
 - **Oracle:** all 24 migrations are applied (verified). `bg_db_app` is created, and its grants match `scripts/sql/app-db-user.sql` (verified). `AppUser`, the forum tables, `DecisionNote`, `ReviewCard` and `ReviewLog` are all empty on Oracle.
+- **Pending Oracle step (needs the user's approval):** migration `20261014100000_app_user_single_owner` (at most one `OWNER` row). First check Oracle has at most one OWNER (`SELECT id, clerkUserId, role FROM AppUser WHERE role='OWNER';` as `bg_db_ro`), then `npx prisma migrate deploy` against Oracle. Additive, no `DROP`.
 - **Vercel:** `DATABASE_URL_APP` is set. `DATABASE_URL` and `ENABLE_WRITE_MODE` must stay unset there.
 - **Clerk:** the production instance uses the `*.vercel.app` URL. Clerk accepted it and shows it verified. If sign-in breaks, suspect this first. The planned move to `backgammon.bymeisam.dev` is described in `docs/deploy.md` § Clerk domain; users don't carry over between instances.
 - **Waiting on the user (step D):**

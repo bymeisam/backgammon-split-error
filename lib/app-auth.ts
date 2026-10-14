@@ -79,17 +79,21 @@ export async function isOwnerViewer(): Promise<boolean> {
 /**
  * Provisions the local identity (new rows start as NONE, awaiting approval)
  * and resolves the role. Under the local AUTH_BYPASS, upserts the bypass
- * user with its role (owner, or member with AUTH_BYPASS_ROLE=member).
+ * user (its stored role only on create: NONE for the owner, MEMBER for the
+ * member) and returns its in-memory role (owner, or member with
+ * AUTH_BYPASS_ROLE=member).
  * Writes through prismaApp but deliberately does not check
  * isAppWriteEnabled(): sign-in works wherever the client has a URL.
  */
 export async function provisionAppUser(): Promise<AppAuthState | null> {
   if (isLocalAuthBypass()) {
-    const { clerkUserId, displayName, role } = localBypassIdentity();
+    const { clerkUserId, displayName, role, storedRole } = localBypassIdentity();
+    // The stored role is set only on create and never updated; the bypass's
+    // owner role lives in memory (see LocalBypassIdentity.storedRole).
     await prismaApp.appUser.upsert({
       where: { clerkUserId },
-      create: { clerkUserId, displayName, role },
-      update: { displayName, role },
+      create: { clerkUserId, displayName, role: storedRole },
+      update: { displayName },
     });
     return { clerkUserId, displayName, role };
   }

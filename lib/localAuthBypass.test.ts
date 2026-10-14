@@ -83,6 +83,9 @@ describe("localBypassIdentity", () => {
     vi.stubEnv("AUTH_BYPASS_ROLE", undefined);
     const { localBypassIdentity, LOCAL_DEV_OWNER_CLERK_ID } = await load();
     expect(localBypassIdentity()).toMatchObject({ clerkUserId: LOCAL_DEV_OWNER_CLERK_ID, role: "OWNER" });
+    // Acts as owner in memory, but its row is stored as NONE: the database
+    // allows one OWNER row, and that is the real Clerk owner's.
+    expect(localBypassIdentity().storedRole).toBe("NONE");
     vi.stubEnv("AUTH_BYPASS_ROLE", "owner");
     expect(localBypassIdentity().role).toBe("OWNER");
   });
@@ -91,7 +94,7 @@ describe("localBypassIdentity", () => {
     vi.stubEnv("AUTH_BYPASS_ROLE", "member");
     const { localBypassIdentity, LOCAL_DEV_MEMBER_CLERK_ID, LOCAL_DEV_OWNER_CLERK_ID } = await load();
     const identity = localBypassIdentity();
-    expect(identity).toMatchObject({ clerkUserId: LOCAL_DEV_MEMBER_CLERK_ID, role: "MEMBER" });
+    expect(identity).toMatchObject({ clerkUserId: LOCAL_DEV_MEMBER_CLERK_ID, role: "MEMBER", storedRole: "MEMBER" });
     expect(identity.clerkUserId).not.toBe(LOCAL_DEV_OWNER_CLERK_ID);
   });
 });
