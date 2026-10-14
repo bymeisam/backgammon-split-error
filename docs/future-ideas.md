@@ -161,6 +161,14 @@ repetition remain future phases.
 - Generic social-post abstractions.
 - Public moderation infrastructure before public access is actually approved.
 
+## Reference
+
+### Glossary of backgammon terms
+- **Idea:** a page that explains backgammon terms (e.g. prime, anchor, blot, gammon, take point, EPC, wastage, Crawford).
+- **Links:** terms shared with [counting and race drills](#counting-and-race-drills) (EPC, take point, wastage) could link there, and entries could link to example positions from the user's own games.
+- **Notes:** a static page, so no schema change. Members could see it too.
+- **Source:** user, 2026-10-14.
+
 ## Decision notes
 
 ### Notes on a position, not just a decision
