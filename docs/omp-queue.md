@@ -4,20 +4,6 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Review notes at `fafd8c4` (draft kept, button sizing, small polish) (queued 2026-10-14)
-**First, merge `master` into `omp/main`.** It brings this queue and a change to `.omp/config.yml`: the `investigator` and `visual_reviewer` roles now use `gpt-6-luna:medium` instead of the local qwen models. No schema change, so no `prisma generate` needed.
-
-`fafd8c4`/`86769f4` are checked: the code matches the `04389bf` follow-ups, and nothing blocks. The visual reviewer and designer notes are in `reports/2026-10-13-forum-design-review.md` § "Re-check: text-only posts and board handoff (2026-10-14)". Fix these:
-
-1. **Keep the draft when adding a board.** On `/forum/new`, title and body are plain `useState` (`NewPostForm.tsx:15-16`), and both "Add a board…" buttons leave the page, so the text is lost. Save `{ title, body }` to sessionStorage when either button is pressed (its own key, or alongside the handoff) and restore it on return, then clear it once read, like the handoff. A successful post or Cancel clears it. Add a unit test.
-2. **"Post to forum" sizing under the board.** In `BoardPanel` (`BoardPanel.tsx:275-277`) the button stretches across the whole board column at 1280 (louder than "Add to review"), and at 390 on replay and match analysis it has no side gutter, unlike the Played/Best row, which gets `mx-3 md:mx-0` from `decisionRow(bleed, …)` (`BoardPanel.styles.ts:35`). Give `PostToForumButton` a `className` prop (it renders a bare fragment now) and wrap it in a `postRow(bleed)` style in `BoardPanel.styles.ts`: right-aligned (`self-end` or a flex row with `justify-end`), the same bleed inset as `decisionRow`, and a gap above. The position builder's full-width primary button stays as it is.
-3. **Preview polish on `/forum/new`** (nit): drop the dead space under "Remove board" (`pb-2` on `preview`, `forum.styles.ts:48`), and give "Remove board" the same `px-2` inset as the caption below `sm` (`forum.styles.ts:27`, `:53`).
-4. **Caption test:** `SAFE_MATCH_CAPTION` in `handoff.ts` copies `forumPositionCaption`'s format by hand. Add a test that runs real `forumPositionCaption` outputs (money game, match with score, Crawford, post-Crawford, cube, checker with dice) through `resolveForumHandoff` and expects them kept, so a format change can't silently fall back to "Match position".
-5. **Screenshots** in `design/screenshots/2026-10-14-forum-post-button/`, 390 and 1280, light and dark: the button on `/mistakes`, match analysis, replay (viewport) and the builder; `/forum/new` with a match board; `/forum/new` after "Add a board from the position builder" and back, with title and body restored. List the files in your "to check" entry.
-
-Not changing: the caption keeps the player-on-roll's score first, with no names.
-
-Checks: `npm test`, tsc, lint, build, `npm run test:visual`.
 
 ## Schema requests (omp → master)
 
@@ -30,6 +16,18 @@ _Use this shape:_
 ## Done by omp (to check)
 
 
+### Review notes at `fafd8c4` follow-up (completed 2026-10-14)
+Kept `/forum/new` title/body in a dedicated one-use session draft across both Add board routes; successful submit and Cancel clear it. Added draft storage/consume coverage and real `forumPositionCaption` outputs through handoff validation. The board action now sits right-aligned in a gap-separated row with the same bleed inset as the decision row; the builder's primary action remains unchanged. Tightened the preview and Remove board spacing. Updated the affected `/mistakes` visual baselines: the new inset action row adds 12px below the decision chips, so the board and decision-card screenshots gain that vertical spacing.
+
+Checks: `npm test` **868/868**, `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (**24/24**) passed. Captured 24 screenshots in `design/screenshots/2026-10-14-forum-post-button/`:
+- `mistakes-390-light.png`, `mistakes-390-dark.png`, `mistakes-1280-light.png`, `mistakes-1280-dark.png`
+- `match-analysis-390-light.png`, `match-analysis-390-dark.png`, `match-analysis-1280-light.png`, `match-analysis-1280-dark.png`
+- `replay-390-light.png`, `replay-390-dark.png`, `replay-1280-light.png`, `replay-1280-dark.png`
+- `position-builder-390-light.png`, `position-builder-390-dark.png`, `position-builder-1280-light.png`, `position-builder-1280-dark.png`
+- `forum-new-match-board-390-light.png`, `forum-new-match-board-390-dark.png`, `forum-new-match-board-1280-light.png`, `forum-new-match-board-1280-dark.png`
+- `forum-new-builder-draft-restored-390-light.png`, `forum-new-builder-draft-restored-390-dark.png`, `forum-new-builder-draft-restored-1280-light.png`, `forum-new-builder-draft-restored-1280-dark.png`
+
+No Prisma, migration, Oracle, or `.env*` changes.
 ### Second visual refinement: focus, settled rating state, and separators (completed 2026-10-14)
 Implemented the remaining visual fixes on `omp/main`: grade-button focus now uses the contrasting `outline-ink` token; the screenshot harness waits for an enabled “Next card” before capturing the Hard-only saved state; checker and cube separators are non-breaking elements attached to the preceding position segment; non-interactive chips are left-aligned. The settled Hard-only button remained correctly primary after the wait, so no fill change was needed. The explicit 11px Enter kbd remains provided by `shared.kbd`.
 

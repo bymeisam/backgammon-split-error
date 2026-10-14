@@ -16,6 +16,7 @@ export default function PostToForumButton({
   variant = "secondary",
   onPost,
   disabled = false,
+  className,
 }: {
   decisionId?: number;
   position?: DecodedPosition;
@@ -25,6 +26,7 @@ export default function PostToForumButton({
   variant?: "primary" | "secondary";
   onPost?: () => void;
   disabled?: boolean;
+  className?: string;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export default function PostToForumButton({
   }
   return (
     <>
-      <Button variant={variant} onClick={post} disabled={disabled}>Post to forum</Button>
+      <Button variant={variant} onClick={post} disabled={disabled} className={className}>Post to forum</Button>
       {message && <p className={style.message} role="status">{message}</p>}
     </>
   );

@@ -24,7 +24,7 @@ export const style = {
   optionalBoard: "flex flex-col gap-2",
   boardSources: "flex flex-col gap-2 sm:flex-row",
   sourceButton: "min-h-[44px]",
-  removeBoard: "min-h-[44px] self-start",
+  removeBoard: "min-h-[44px] self-start px-2 sm:px-0",
   actions: "flex flex-wrap gap-3",
   // The Reply button sits at the end of the form instead of stretching.
   formActions: "flex justify-end",
@@ -45,7 +45,7 @@ export const style = {
   gnuIdsSummary: "cursor-pointer select-none",
   identifier: "font-mono text-ink-muted",
   // The new-post form's read-only preview of a match decision.
-  preview: "flex flex-col gap-2 rounded-card border border-line bg-sunken p-0 pb-2 sm:p-2",
+  preview: "flex flex-col gap-2 rounded-card border border-line bg-sunken p-0 sm:p-2",
   // Caps the preview board's width from sm up, so it doesn't fill the form.
   // The preview sits on a sunken panel, where the shared board drop shadow
   // reads heavy: drop it here only. `.x>svg` outranks the svg's own class.

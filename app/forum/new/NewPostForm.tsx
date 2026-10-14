@@ -5,7 +5,7 @@ import Button from "@/app/components/ui/Button";
 import Board from "@/app/components/match-analysis/Board";
 import HideAnalysisCheckbox from "../HideAnalysisCheckbox";
 import { style } from "../forum.styles";
-import { clearForumHandoff, consumeForumHandoff, resolveForumHandoff, type ForumHandoff } from "./handoff";
+import { clearForumHandoff, clearForumPostDraft, consumeForumHandoff, consumeForumPostDraft, resolveForumHandoff, storeForumPostDraft, type ForumHandoff, type ForumPostDraft } from "./handoff";
 
 type Preview = ForumHandoff["preview"];
 type Attachment = { payload: { match: { decisionId: number } } | { manual: { positionId: string; gnuMatchId: string; kind: "CHECKER" | "CUBE" } }; preview: Preview; game: boolean };
@@ -19,7 +19,21 @@ export default function NewPostForm() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [hideAnalysis, setHideAnalysis] = useState(false);
+  const draftRead = useRef(false);
   const handoffRead = useRef(false);
+  useEffect(() => {
+    if (draftRead.current) return;
+    draftRead.current = true;
+    void Promise.resolve().then(() => {
+      const draft = consumeForumPostDraft();
+      if (!draft || typeof draft !== "object") return;
+      const value = draft as Partial<ForumPostDraft>;
+      if (typeof value.title === "string" && typeof value.body === "string") {
+        setTitle(value.title);
+        setBody(value.body);
+      }
+    });
+  }, []);
   useEffect(() => {
     if (handoffRead.current) return;
     handoffRead.current = true;
@@ -54,6 +68,7 @@ export default function NewPostForm() {
       }
       const result = await response.json();
       clearForumHandoff();
+      clearForumPostDraft();
       router.push(`/forum/${result.id}`);
     })().catch(() => {
       setError("Could not create post.");
@@ -78,15 +93,15 @@ export default function NewPostForm() {
           <>
             <p className={style.meta}>You can publish this post without a board.</p>
             <div className={style.boardSources}>
-              <Button href="/matches" className={style.sourceButton}>Add a board from a match</Button>
-              <Button href="/position-builder" className={style.sourceButton}>Add a board from the position builder</Button>
+              <Button href="/matches" className={style.sourceButton} onClick={() => storeForumPostDraft({ title, body })}>Add a board from a match</Button>
+              <Button href="/position-builder" className={style.sourceButton} onClick={() => storeForumPostDraft({ title, body })}>Add a board from the position builder</Button>
             </div>
             {message && <p className={style.error} role="status">{message}</p>}
           </>
         )}
       </section>
       {attachment?.game && <HideAnalysisCheckbox checked={hideAnalysis} onChange={setHideAnalysis} />}
-      <div className={style.actions}><Button type="submit" variant="primary" disabled={saving}>{saving ? "Posting…" : "Post"}</Button><Button href="/forum">Cancel</Button></div>
+      <div className={style.actions}><Button type="submit" variant="primary" disabled={saving}>{saving ? "Posting…" : "Post"}</Button><Button href="/forum" onClick={clearForumPostDraft}>Cancel</Button></div>
     </form>
   );
 }

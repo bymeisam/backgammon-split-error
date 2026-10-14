@@ -33,6 +33,7 @@ export const style = {
   // review back's "Yours [Best]", when your answer is the best).
   decisionRow: (bleed: boolean, single: boolean): string =>
     clsx("grid gap-2.5", single ? "grid-cols-1" : "grid-cols-2", bleed && "mx-3 md:mx-0"),
+  postRow: (bleed: boolean): string => clsx("mt-3 flex justify-end", bleed && "mx-3 md:mx-0"),
   // Function, 3+ params -> one options object. The shown one tinted in its
   // severity with a bar on the left, the other quiet. Good has no tint
   // token on purpose, so an active Good chip sits on the sunken surface,

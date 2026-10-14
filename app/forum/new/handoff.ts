@@ -3,6 +3,40 @@ import type { DecodedPosition } from "@/lib/gnuPositionId";
 import type { BoardCube } from "@/lib/boardFrame";
 
 export const FORUM_HANDOFF_KEY = "forum-board-handoff";
+export const FORUM_POST_DRAFT_KEY = "forum-post-draft";
+export type ForumPostDraft = { title: string; body: string };
+
+export function storeForumPostDraft(value: ForumPostDraft): boolean {
+  try {
+    window.sessionStorage.setItem(FORUM_POST_DRAFT_KEY, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function consumeForumPostDraft(): unknown {
+  try {
+    const value = window.sessionStorage.getItem(FORUM_POST_DRAFT_KEY);
+    window.sessionStorage.removeItem(FORUM_POST_DRAFT_KEY);
+    return value === null ? null : JSON.parse(value);
+  } catch {
+    try {
+      window.sessionStorage.removeItem(FORUM_POST_DRAFT_KEY);
+    } catch {
+      // Storage may be unavailable; posting remains usable.
+    }
+    return null;
+  }
+}
+
+export function clearForumPostDraft(): void {
+  try {
+    window.sessionStorage.removeItem(FORUM_POST_DRAFT_KEY);
+  } catch {
+    // Storage may be unavailable; posting remains usable.
+  }
+}
 export type ForumHandoff =
   | { match: { decisionId: number }; preview: { position: DecodedPosition; cube: BoardCube | null; dice: number[]; caption: string } }
   | { manual: { positionId: string; gnuMatchId: string; kind: "CHECKER" | "CUBE" }; preview: { position: DecodedPosition; cube: BoardCube; dice: number[]; caption: string } };
