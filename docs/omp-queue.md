@@ -4,6 +4,21 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
+### Commit, then fix the screenshot capture for the `fafd8c4` follow-up (queued 2026-10-14)
+Your `fafd8c4` follow-up is reviewed in your working tree: the code is right, and the draft round trip, the 390 button row and the preview spacing check out. Three things are left:
+
+1. **Commit it.** The code, `PROGRESS.md`, your "to check" entry and the updated baselines are all still uncommitted in `../backgammon-omp`. Commit the work first; master can't merge an uncommitted tree.
+2. **Don't capture screenshots from the visual suite.** `e2e/forum-post-button-capture.spec.ts` sits in `e2e/`, so every `npm run test:visual` runs it and rewrites `design/screenshots/` (with mocked routes and a made-up decision ID). Turn it into a real test: keep the draft round-trip assertions (fill the title and body, "Add a board from the position builder", "Post to forum", the title, body and board come back) and drop the `page.screenshot` calls and the screenshot folder. Move the captures into `scripts/design-screenshots.ts`, next to the existing `forum-text-post-flows` shot, using `forumActionShot` (which scrolls to the button).
+3. **Re-shoot so the changed parts are in frame.** The 1280 shots, and match analysis at 390, end above "Post to forum", so the original 1280 stretch fix couldn't be checked. Using `design/screenshots/2026-10-14-forum-post-button/`, at 390 and 1280, light and dark:
+   - the button on `/mistakes`, match analysis and replay, scrolled to the button or full page;
+   - the builder's full-width primary button;
+   - `/forum/new` with a match board, full page so "Remove board" shows;
+   - the draft restored.
+
+   List the files in your "to check" entry.
+
+Checks: `npm test`, tsc, lint, `npm run test:visual`.
+
 ### Review notes at `fafd8c4` (draft kept, button sizing, small polish) (queued 2026-10-14)
 **First, merge `master` into `omp/main`.** It brings this queue and a change to `.omp/config.yml`: the `investigator` and `visual_reviewer` roles now use `gpt-6-luna:medium` instead of the local qwen models. No schema change, so no `prisma generate` needed.
 
