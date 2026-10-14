@@ -4,20 +4,27 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Forum: text-only posts, "add a board" buttons, Post to forum everywhere, no IDs (queued 2026-10-14)
-**First merge `master`** (at least `8a1049f`): it touches `app/api/forum/posts/route.ts` and `[id]/route.ts` (a `jsonObject()` guard from `lib/forum.ts`). No schema change in this task, so `prisma generate` is all you need.
+### Review notes at `04389bf` (forum text-only posts and board handoff) (queued 2026-10-14)
+The code matches the spec. These are the follow-ups, then the screenshots that were skipped.
 
-The problem: the forum list's "New post" (`app/forum/page.tsx:27`) opens `/forum/new` with no prefill, and `NewPostForm.tsx` falls back to raw "GNU Position ID", "GNU Match ID" and "Decision ID" fields. Members can't produce those IDs. The user decided the following (2026-10-14):
+**Browser runs are cleared:** the user confirmed (2026-10-14) that `.env` and `.env.test` in `../backgammon-omp` point at the local DB only. So run `npm run test:visual` and the screenshot capture this time.
 
-1. **Posts may have no board.** `POST /api/forum/posts` accepts 0..`FORUM_LIMITS.positions` attachments (today it's 1..N). A text-only post shows no board or analysis panel, and its replies have no move proposals (the reply composer offers none when the post has no positions). Check the post page, the list and the edit flow with zero positions.
-2. **New post form.** `/forum/new` is a plain title and body form. Above it, two buttons: **"Add a board from a match"** (to `/matches`) and **"Add a board from the position builder"** (to `/position-builder`). When a board was handed over (see 4), it shows on top as the read-only preview the `?decision=` path already uses, with a way to remove it. **Remove the "Source" select and every raw ID field** (GNU Position ID, GNU Match ID, Decision ID, Kind) from the UI entirely.
-3. **"Post to forum" button** on every board a user can view: the replay (exists, `GameReplay.tsx:210`), the position builder (exists, `PositionBuilder.tsx:371`), plus the match analysis boards, each `/mistakes` row or board, and repeated positions. Same label and component everywhere (a shared one in `app/components/ui/` if there isn't one). Gate it the way the existing buttons are (`isAppWriteEnabled()`). Members must see it (they reach all of those pages, `lib/accessRules.ts`).
-4. **No IDs in the URL or on screen.** The button doesn't put decision IDs or GNU IDs in the query string. It writes the attachment (`{ match: { decisionId } }` or `{ manual: { positionId, gnuMatchId, kind } }`, the same shapes the API already takes) to `sessionStorage` under one key, then navigates to plain `/forum/new`. The form reads it (inside try/catch), shows the board and clears it after a successful post. No stored draft means no board, and the two buttons show. The API still validates exactly as now (the decision exists, the IDs are valid), so a tampered draft just gets a 400/404. Drop the old `?decision=` and `?positionId=` query handling, or redirect it to the new flow; nothing outside the app links to it.
-5. Keep one board per post from these entry points. "Add another board" can come later; don't build multi-board UI now (the API limit stays).
+1. **Stale board.** The handoff is cleared only after a successful post. If you press "Post to forum", leave `/forum/new` without posting, then later press "New post" on `/forum`, the old board comes back. Fix it like this: `NewPostForm` reads the handoff once, then clears it straight away, keeping the board only in React state. "Remove board" then needs no storage call, and a reload shows the plain form, which is fine. Update `handoff.test.ts` to match.
+2. **Shared component.** Move `PostToForumButton` (and its styles file) from `app/components/match-analysis/` to `app/components/ui/`, as the spec said. Restore the position builder's button to `variant="primary"`, as before (add a `variant` prop if needed). The other pages keep `secondary`.
+3. **Match caption.** Match previews now say only "Match position". The old caption came from `forumPositionCaption()` (score and kind, no IDs), so bring it back. `PostToForumButton` can build it when it writes the handoff, the way the builder does. Keep a fallback if decoding fails.
+4. **Tests the spec asked for:** the new-post form with no handoff (two buttons, posts `positions: []`), and with a handoff (preview shown, Remove returns to the two buttons). Also test that each page passes `canPostToForum` (replay, match analysis, `/mistakes`, repeated positions, builder) and that it stays false on `/sources/galaxy/matches/[matchId]`. Unit or render tests are fine.
+5. **Leftover:** delete the orphaned comment at `GameReplay.tsx:209` ("Links the decision on screen…").
+6. **Screenshots** in `design/screenshots/2026-10-14-forum-text-posts/`, at 390 and 1280, light and dark:
+   - the new form empty;
+   - the new form with a match board;
+   - the new form with a builder board;
+   - a text-only post page;
+   - the forum list with a text-only post;
+   - the button on the replay, match analysis, `/mistakes`, a repeated position and the builder.
 
-Not in scope (parked in `docs/future-ideas.md` § Forum): topics or categories, pinning, boards in replies.
+   List the files in your "to check" entry. Master then brings in the designer and the visual reviewer.
 
-Checks: tests for 0-position posts (API and UI), the sessionStorage handoff (present, absent, malformed) and the new button on each page; `npm test`, tsc, lint, build, `npm run test:visual`. Screenshots (`design/screenshots/<YYYY-MM-DD>-<slug>/`) of the new form empty and with a board, a text-only post page, and the button on mistakes, analysis and repeated positions, at 390 and 1280 in light and dark. The new form layout and the button placement are new visible components, so master will bring in the designer and visual reviewer on review.
+Checks: `npm test`, tsc, lint, build, `npm run test:visual`.
 
 ## Schema requests (omp → master)
 
@@ -52,6 +59,7 @@ Implementation commit: `0c8ed7a`. No Prisma, migration, Oracle, or `.env*` chang
 
 ## Checked and done (master)
 
+- **Forum text-only posts and board handoff**: `04389bf` (2026-10-14). Reviewed; not merged yet. The follow-ups and the skipped screenshots are in the `04389bf` task above.
 - **Review notes at `0c8ed7a` (mouse-away capture, chip alignment, separator gap, indentation)**: `4a3c39f` + master merge `ebffba0` (2026-10-14). Checked: the main session opened the `-7` shots. "Next card" in the Hard-only saved state has the primary fill (same as "Reply"), wrapped interactive chips are left-aligned at 390, and the 1280 tally separator gap is single-width. Code already in master via `86060fb`. omp's docs commit `19ac02b` needs no merge; omp drops its "to check" entries on its next master merge.
 - **Review notes at `ebc8857` (focus ring, Hard-only capture, separators)**: `0c8ed7a` (2026-10-14). Checked, and merged into master with `omp/main` at `4a3c39f`, which already includes the start of the `0c8ed7a` polish task (mouse-away, `justify-start`, trailing separator, indentation). Still to come from omp for that task: its "to check" entry and the before/after shots.
 - **Review notes at `8f8fd4b` (tally, draft board, chip wrapping, focus, headers)**: `0ab1743` + `ec30993` (2026-10-14). Checked, and `omp/main` at `ebc8857` merged into master (`18789e8`); the follow-ups are in the `ebc8857` task.
