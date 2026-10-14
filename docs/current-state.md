@@ -6,56 +6,42 @@ _Last updated: 2026-10-14._
 
 ## Code
 
-- Branch `master`, clean. **Pushed up to `517674d`**. Two doc-only commits are unpushed: `01b8035` (future ideas) and `d35b3f9` (PROGRESS). vitest 773/773, tsc, eslint and build are clean.
-- **Write model** (`docs/deploy.md` § The two write gates; `docs/field-mapping.md` § Credential scoping):
-  - **Three clients:** `prismaReadOnly` (`DATABASE_URL_READONLY`, `bg_db_ro`), `prismaApp` (`DATABASE_URL_APP`, `bg_db_app`; falls back to `DATABASE_URL` outside production) and `prisma` (`DATABASE_URL`, `bg_db_rw`, for sync, ingest and migrations, on your machine only).
-  - **`isAppWriteEnabled()`** (`lib/appWriteGate.ts`) gates every in-app write: forum, notes, tags, review, plus AppUser provisioning, which doesn't check the gate. Notes, tags and review stay owner-only.
-  - **`isGalaxyEnabled()`** is for Galaxy and sync only.
-- **Roles:** Owner needs DB role `OWNER` **and** Clerk `privateMetadata.isOwner`. Member needs `MEMBER`. `NONE` waits on `/auth/complete`. `lib/accessRules.ts` maps every route; anything unlisted is owner-only.
-- **Local:** `.env` is back on local. `AUTH_BYPASS=true [AUTH_BYPASS_ROLE=member]` works only with localhost URLs. Local migrations are hand-written from `prisma migrate diff` (leave out the known `StudyPosition.sourceDecision` FK drift, check for `DROP`), then applied with `migrate deploy`.
+- Branch `master`, clean, **not pushed**: about 10 commits ahead of `origin/master`. They include the omp merges `18789e8` and `86060fb`, the Clerk paths in code (`7607f87`), the session-start queue hook (`e3eb39e`) and the single-owner rule (`02b7cb7`). On the merged tree: vitest 792/792, tsc, eslint and build are clean.
+- **Write model:** three clients, `prismaReadOnly` (`bg_db_ro`), `prismaApp` (`bg_db_app`, every in-app write) and `prisma` (`bg_db_rw`, local only, for sync, ingest and migrations). `isAppWriteEnabled()` gates app writes, and `isGalaxyEnabled()` is for Galaxy and sync only (`docs/deploy.md` § The two write gates).
+- **Roles:** owner needs DB `role = 'OWNER'` **and** Clerk `privateMetadata.isOwner = true`. Member needs `MEMBER`. `NONE` waits on `/auth/complete`. **At most one OWNER row**, enforced by the generated `AppUser.ownerSlot` plus a unique index; demote the old row first if the owner's Clerk id changes. The local `AUTH_BYPASS` owner row (`local-dev-owner`) is stored as `NONE` and acts as owner in memory.
+- **Clerk paths** are set in code (`lib/clerkConfig.ts`). Vercel needs only the two Clerk keys.
+- **Local:** `.env` currently points at **Oracle** (`DATABASE_URL_READONLY` at least, per the user). Never assume and never change it. Local migrations are hand-written from `prisma migrate diff --from-config-datasource`; leave out the known `StudyPosition.sourceDecision` FK drift, and check for `DROP`.
+- **Queue hook:** `.claude/hooks/omp-queue-check.mjs` runs at session start and lists omp's "Done by omp (to check)" entries that master hasn't checked.
 
 ## Live site (Vercel + Oracle)
 
-- **Oracle:** all 24 migrations are applied (verified). `bg_db_app` is created, and its grants match `scripts/sql/app-db-user.sql` (verified). `AppUser`, the forum tables, `DecisionNote`, `ReviewCard` and `ReviewLog` are all empty on Oracle.
-- **Pending Oracle step (needs the user's approval):** migration `20261014100000_app_user_single_owner` (at most one `OWNER` row). First check Oracle has at most one OWNER (`SELECT id, clerkUserId, role FROM AppUser WHERE role='OWNER';` as `bg_db_ro`), then `npx prisma migrate deploy` against Oracle. Additive, no `DROP`.
-- **Vercel:** `DATABASE_URL_APP` is set. `DATABASE_URL` and `ENABLE_WRITE_MODE` must stay unset there.
-- **Clerk:** the production instance uses the `*.vercel.app` URL. Clerk accepted it and shows it verified. If sign-in breaks, suspect this first. The planned move to `backgammon.bymeisam.dev` is described in `docs/deploy.md` § Clerk domain; users don't carry over between instances.
-- **Waiting on the user (step D):**
-  1. Sign in on the live site. You should land on `/auth/complete`, because your `AppUser` row is created as `NONE`.
-  2. Ask Claude Code for the one-line SQL (run in DBeaver as the admin, an Oracle write) that sets your row to `OWNER`.
-  3. Set `privateMetadata.isOwner = true` on your user in Clerk.
-  4. Then run "Auth verification" in `docs/deploy.md`, and check that notes, review and the forum write on the live site.
-  5. Members later: invite them in Clerk, then set `role = 'MEMBER'` by hand.
-
-## omp (`../backgammon-omp`, `omp/main`)
-
-- Master merged the previous omp work at `ebc8857` (`18789e8`). omp fast-forwarded `master` through `fd9ee54` before starting the next task.
-- **Current task complete:** second visual refinement commit `0c8ed7a`. Grade-button focus uses `outline-ink`; Hard-only screenshots wait for an enabled “Next card”; proposal separators stay attached to preceding segments; non-interactive chips are left-aligned.
-- **Verification:** vitest 792/792, tsc, eslint, build and visual suite 15/15 passed. Real local screenshots are in `design/screenshots/2026-10-14-review-refinement-6/`; `/api/review/queue` returned HTTP 200. Main inspected the required before/after states.
-- **Ready for main review:** the handoff is under `Done by omp (to check)` in `docs/omp-queue.md`. No Prisma, migration, Oracle, or `.env*` changes.
+- **Oracle:** 25/25 migrations applied, including the single-owner one (verified read-only). `AppUser` has one row, the owner (`OWNER`). Match 4,375 and Decision 1,266,751. The forum tables, `DecisionNote`, `ReviewCard` and `ReviewLog` were empty at the last check.
+- **Clerk:** the live site uses the **development instance** (`pk_test_`/`sk_test_`), because the production instance can't work on `*.vercel.app` (no Account Portal, no invitations). The move to `backgammon.bymeisam.dev` is in `docs/deploy.md` § Clerk domain; members get re-invited on the production instance.
+- **Vercel:** `DATABASE_URL_APP` and the Clerk test keys are set. `DATABASE_URL` and `ENABLE_WRITE_MODE` stay unset. **Deployment Protection is on** on purpose until launch (`docs/deploy.md` § Manual steps, step 6).
+- **No Oracle steps are pending.**
 
 ## Open threads
 
-- **Small follow-ups (developer, approved to run after Phase 3, which is now done):**
+- **User:**
+  - push master, then confirm that signed-out `/` lands on `/sign-in` on the vercel.app host and that the owner sees everything;
+  - run "Auth verification" (`docs/deploy.md`) and check that notes, review and the forum write live;
+  - invite members in the Clerk dev instance, then set their `AppUser.role = 'MEMBER'` on Oracle (an Oracle write, so ask for the SQL);
+  - decide whether your existing notes and review cards live in the local DB. Oracle has none, so they'd need copying.
+- **omp:** the `0c8ed7a` polish task (`docs/omp-queue.md`). Its code is already merged (`4a3c39f`); the handoff and before/after shots are still to come. Review them when the hook flags them.
+- **Small follow-ups (developer, approved earlier, not done yet):**
   - `formatEquity` uses a hyphen and no "+";
-  - the `StudyPosition.sourceDecision` onDelete drift (schema SET NULL, DB RESTRICT);
+  - the `StudyPosition.sourceDecision` onDelete drift;
   - PATCH `/api/forum/posts/[id]` throws on a `null` body;
   - `bg_test` isn't migrated;
   - the designer body still names `design/screenshots/<YYYY-MM-DD>/`;
-  - `docs/field-mapping.md` says "these five columns" but lists eight.
-- **Later, not approved:** rename `isGalaxyEnabled()` → `isSyncEnabled()`, once omp's branch is merged.
-- **Local check, optional, the user runs it:** the "Vercel-like" run (Galaxy off, app writes on, member). The command is in this session's history: `DATABASE_URL_APP=<local> ENABLE_WRITE_MODE=false AUTH_BYPASS=true AUTH_BYPASS_ROLE=member NEXT_DIST_DIR=.next-test npx next dev -p 3300`.
-- **Question for the user:** are your existing notes and review cards in the local DB? Oracle has none. If they're local, they'll need copying to Oracle.
-- **Ideas parked** (`docs/future-ideas.md`):
-  - per-user permissions with an admin page;
-  - **Snaps** (a position from a photo): Gemini free tier first, starting with a 10-photo test. It's omp's area; queue it when the user says.
+  - `docs/field-mapping.md` says "five columns" but lists eight;
+  - optional: mention the single-owner rule in `app/status/notes.ts`.
+- **Later, not approved:** rename `isGalaxyEnabled()` → `isSyncEnabled()`; the move to the custom domain.
+- **Ideas parked** (`docs/future-ideas.md`): per-user permissions with an admin page; Snaps (a position from a photo, Gemini free tier first, omp's area).
 - **Designer, deferred:** L2 (the board beside the discussion on post pages), and the unscreenshotted states (the delete modal, a selected stack taller than 5, a selected bar checker).
-- **Ongoing:** move hand-composed buttons, tables and cards onto `app/components/ui/` when you touch them.
-- **Accepted, not fixed:** paths containing a dot skip `proxy.ts`; the page guards still apply.
-- **Local test data:** forum posts 1–3, 5, 6 and 7; omp's proposal replies 8–10 (`ForumMoveProposal` 1–3); and the `local-dev-member` AppUser. All are on the local DB only.
-- The old branches (`omp-forum`, `omp-position-builder`, `ollama-dev`, `shared-agents`) are merged and can be deleted when the user wants.
+- **Local test data (local DB only):** forum posts 1–3 and 5–7; proposal replies 8–10 (`ForumMoveProposal` 1–3); AppUsers 1 (owner), 2 (`local-dev-owner`, NONE) and 3 (`local-dev-member`).
 
 ## Rules to remember
 
 - Never assume where `.env` points, and never change it. Only the user does that.
-- Every Oracle write needs the user's explicit approval, every time. That includes the step D role update.
+- Every Oracle write needs the user's explicit approval, every time, including role updates.
