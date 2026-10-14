@@ -20,6 +20,8 @@ Completed the approved text-only and zero-or-one-board flow. `/forum/new` uses o
 
 Checks: `npm run lint`, `npx tsc --noEmit`, `npm test` (**813 tests**), and `npm run build` passed. `npm run test:visual` and authenticated screenshot capture were not run: omp policy blocks Playwright/browser runs unless every `.env*` and shell database URL is confirmed localhost; no such confirmation was provided. No DB/browser checks were run.
 
+Implementation commit: `04389bf`.
+
 ### Latest queue polish: hover capture, alignment, separator gap (completed 2026-10-14)
 Implemented the final polish on `omp/main`: the review screenshot harness moves the pointer away before capturing the enabled Hard-only “Next card”; interactive proposal chips use `justify-start`; trailing separators have no redundant right margin; the `gradeButton` class indentation is restored. The existing `outline-ink` focus ring remains unchanged because it is visible and consistent.
 
