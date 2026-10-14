@@ -266,3 +266,25 @@ There are now three segmented controls, each built slightly differently:
    - A selected checker on the bar. No screenshot shows that either.
 
 **Not in any screenshot:** the delete modal itself (with the new text), the reply-delete modal, and keyboard focus on a different point while one is selected. In that last case both marks are focus-blue, and only their shapes tell them apart: a triangle outline and a ring.
+
+## Re-check: text-only posts and board handoff (2026-10-14)
+
+Branch `omp/main`, commits 04389bf and fafd8c4. Screenshots: `backgammon-omp/design/screenshots/2026-10-14-forum-text-posts/`. I checked `forum-write-new-empty`, `-new-match-board`, `-new-builder-board`, `-text-only-post` and `-list-with-text-only-post` at 390-dark and 1280-light, and `-builder-post-button` and `-mistakes-post-button` at 1280-light.
+
+**Answers in brief**
+- **Empty /forum/new:** yes, it's clear how to add a board. The "Board (optional)" overline, the line "You can publish this post without a board." and two plainly worded buttons (side by side at 1280, stacked full width with 44px targets at 390) leave no doubt.
+- **Text-only post:** it reads as intentional. The detail page is just the post card, with no empty frame and no placeholder. In the list the meta line simply leaves out "· N positions". Neither one looks like a board failed to load.
+- **Button prominence:** right on the builder (primary, at the end of the sidebar flow). Too loud on /mistakes (see should-fix 2).
+
+**Blocking:** none.
+
+**Should-fix**
+1. **Source only: what you've typed is lost when you go to add a board.** Title and body are plain `useState` (`app/forum/new/NewPostForm.tsx:15-16`). Both "Add a board…" buttons are links that leave the page (`:81-82`). The board section sits under the fields, which invites you to write first, then click and lose the text. **Fix:** either save `{title, body}` with the handoff in sessionStorage and restore them on return, or (cheaper) move the "Board (optional)" section above Title. The first is better, because it also covers someone who decides on a board halfway through writing.
+2. **/mistakes: "Post to forum" stretches across the whole board column** (`forum-write-mistakes-post-button--1280-light`, a 788px outlined bar between the Played/Best chips and the note card). It's styled secondary, but it ends up the widest control in the column and outweighs "Add to review". It stretches because `PostToForumButton` renders a bare fragment (`app/components/ui/PostToForumButton.tsx:48-51`) inside BoardPanel's flex column (`app/components/match-analysis/BoardPanel.tsx:275-277`). **Fix:** give `PostToForumButton` a `className` passthrough. Have BoardPanel pass a `postAction: "self-end"` (or `self-start`) entry from `BoardPanel.styles.ts` so the button keeps its natural width. This affects match analysis, replay and repeated positions too, wherever BoardPanel is used. Leave the builder's full-width primary as it is.
+
+**Nice-to-have**
+1. Preview card at 390 (`forum-write-new-match-board--390-dark`): the board runs to the card's edges, while the caption and "Remove board" are inset. That's acceptable, but a matching inset (or a full bleed for the caption too) would look tidier.
+2. Caption "5-point match · 1–0 · 2-1 to play" doesn't say whose score is whose. The app convention is "you X – opp Y", or Bottom/Top for builder positions.
+3. Not a defect: in the full-page captures of the builder and /mistakes, the sticky navbar appears in the middle of the page. That's how the screenshot script stitches full pages. If it hides content in future reviews, switch those pages to `--viewport` captures or make the header static during capture.
+
+**Checked and holding:** the dice show the higher die first (2-1). Point numbering and the bear-off trays are intact on both previews. The builder preview correctly leaves out "Hide engine analysis". "Remove board" is a 44px quiet control. The text-only detail and list at 390 have no overflow, and the dark-mode contrast holds.

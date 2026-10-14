@@ -66,7 +66,16 @@ vi.mock("@/lib/galaxy-client", () => ({
   createGalaxyClient: () => ({ listMatches: vi.fn(), getGameReviews }),
 }));
 
-import { ingestMatch, parseMatchIndexData } from "@/lib/ingest";
+// The pause between game requests (GAME_REQUEST_PAUSE_MS) resolves at once
+// here; GalaxyRateLimitError stays the real class.
+const { pauseSleep } = vi.hoisted(() => ({ pauseSleep: vi.fn(async () => {}) }));
+vi.mock("@/lib/galaxyRateLimit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/galaxyRateLimit")>()),
+  sleep: pauseSleep,
+}));
+
+import { GAME_REQUEST_PAUSE_MS, ingestMatch, parseMatchIndexData } from "@/lib/ingest";
+import { GalaxyRateLimitError } from "@/lib/galaxyRateLimit";
 
 const indexData: MatchIndexData = {
   opponentName: "Test Opponent",
@@ -656,6 +665,44 @@ describe("ingestMatch", () => {
 // POST /api/galaxy/matches/[matchId]/sync passes its client-supplied
 // indexData into ingestMatch. Before the allow-list, ingestMatch spread it
 // straight into the Match upsert, so any extra key landed on the row.
+describe("ingestMatch: Galaxy request pacing and rate limits", () => {
+  it("pauses between game requests, not before the first", async () => {
+    const games: Record<number, GameReviewsResponse> = {
+      1: gameReviewsResponse([moveEvent(10)]),
+      2: gameReviewsResponse([moveEvent(30)]),
+    };
+    getGameReviews.mockImplementation(async (_matchId: number, gameIndex: number) => games[gameIndex] ?? null);
+
+    await ingestMatch(90000040, indexData, "token");
+
+    // Games 1, 2, then the null that ends the match: two pauses.
+    expect(getGameReviews).toHaveBeenCalledTimes(3);
+    expect(pauseSleep).toHaveBeenCalledTimes(2);
+    expect(pauseSleep).toHaveBeenCalledWith(GAME_REQUEST_PAUSE_MS);
+  });
+
+  it("flags rateLimited (and records the error) when a game request gives up on a 429", async () => {
+    getGameReviews.mockImplementation(async (_matchId: number, gameIndex: number) => {
+      if (gameIndex === 1) return gameReviewsResponse([moveEvent(10)]);
+      throw new GalaxyRateLimitError("Galaxy API returned 429 for match 90000041 game 2.");
+    });
+
+    const summary = await ingestMatch(90000041, indexData, "token");
+
+    expect(summary.rateLimited).toBe(true);
+    expect(summary.errors).toEqual(["game 2: Galaxy API returned 429 for match 90000041 game 2."]);
+  });
+
+  it("does not flag rateLimited for any other fetch error", async () => {
+    getGameReviews.mockRejectedValue(new Error("Galaxy API returned 500 for match 90000042 game 1."));
+
+    const summary = await ingestMatch(90000042, indexData, "token");
+
+    expect(summary.rateLimited).toBe(false);
+    expect(summary.errors).toHaveLength(1);
+  });
+});
+
 describe("Match index fields (mass-assignment guard)", () => {
   const hostile = {
     ...indexData,

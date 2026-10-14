@@ -10,6 +10,7 @@ import { DecisionKind, ErrorSeverity } from "@/lib/generated/prisma/client";
 import type { GameEvent } from "@/lib/gameReviewsTypes";
 import { getDecisionAnalysis } from "@/lib/analysis";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
+import { GalaxyRateLimitError, sleep } from "@/lib/galaxyRateLimit";
 
 // How many of a game's own CHECKER decisions get a plyNumber at all —
 // deeper plies aren't a useful filter dimension (see Decision.plyNumber's
@@ -17,6 +18,11 @@ import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 const MAX_TRACKED_PLY = 4;
 
 const MAX_GAMES = 20;
+
+// A short pause between one game's request and the next, so a match's
+// games aren't fetched back to back (Galaxy rate-limits bursts; see
+// lib/galaxyRateLimit.ts). Not before the first game.
+export const GAME_REQUEST_PAUSE_MS = 300;
 
 // This file is Galaxy-specific ingest logic, so the source tag is hardcoded
 // here rather than threaded through as a parameter — a future second source
@@ -120,6 +126,11 @@ export interface IngestSummary {
   // plus any other event type whose reviews array happened to be empty.
   eventsSkippedNoReview: number;
   errors: string[];
+  // True when a game request was still rate-limited (429) after the
+  // client's retries (GalaxyRateLimitError). Its message is in errors too;
+  // the flag lets lib/sync.ts stop its run instead of failing every
+  // remaining match against the same limit.
+  rateLimited: boolean;
   // Non-fatal: an event with error_analysis: null was skipped under an
   // event_type not in EVENT_TYPES_SAFE_FOR_NULL_ERROR_ANALYSIS. Doesn't
   // count against the match's success (unlike errors) — just surfaces that
@@ -208,6 +219,7 @@ export async function ingestMatch(
   let decisionsIngested = 0;
   let decisionsSkippedNotCounted = 0;
   let eventsSkippedNoReview = 0;
+  let rateLimited = false;
   // Match.playedAt, computed in memory (no per-game copy is stored since
   // 2026-10-07): the first game, in gameIndex order, that has a decision
   // sets it — see the per-game comment below.
@@ -239,10 +251,13 @@ export async function ingestMatch(
   const client = createGalaxyClient(token);
 
   for (let gameIndex = 1; gameIndex <= MAX_GAMES; gameIndex++) {
+    if (gameIndex > 1) await sleep(GAME_REQUEST_PAUSE_MS);
+
     let response;
     try {
       response = await client.getGameReviews(matchId, gameIndex);
     } catch (e) {
+      if (e instanceof GalaxyRateLimitError) rateLimited = true;
       errors.push(`game ${gameIndex}: ${e instanceof Error ? e.message : "fetch failed"}`);
       break;
     }
@@ -461,6 +476,7 @@ export async function ingestMatch(
     decisionsSkippedNotCounted,
     eventsSkippedNoReview,
     errors,
+    rateLimited,
     warnings,
     analysisMissing,
   };

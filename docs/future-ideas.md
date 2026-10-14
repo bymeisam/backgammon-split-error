@@ -87,6 +87,31 @@ ForumPost so the same explorer can later be reused by review cards; engine
 evaluation, best-move comparison, cube interaction, match scoring and spaced
 repetition remain future phases.
 
+### Our own analysis engine (GNU Backgammon) for "what if" questions
+- **Idea:** run GNU Backgammon (gnubg, free and open source, scriptable from the command line or Python) ourselves, so any position can be analysed, not only the ones a game produced.
+- **Why it matters:** today every analysis comes from Galaxy, and only for the exact position and roll that came up in a game. So the app can't answer "what's the best move here with a different roll?" or "what if this one checker were on another point?". Looking for those answers in the games we already have would rarely find a match, except in the opening. An engine answers them for any position.
+- **What it would unlock:**
+  - **All 21 rolls:** on a card's back (or in the position builder), a grid with the best move for every roll from that position. Rolls that share a plan (e.g. all the rolls that make the 5-point) stand out. This is how strong players study (XG's "analyze all rolls").
+  - **Move one checker:** change the position by a checker and re-analyse it, to see when the best move flips.
+  - **Analysis for builder positions:** a position built by hand in `/position-builder` gets real candidate moves and equities, so it can become a review card without typing in the analysis by hand.
+  - **Analysis of games played here:** the same engine is the "Analysis" piece of "Own play platform" below.
+- **Costs and open questions:**
+  - gnubg can't run on Vercel. Start with a local script that precomputes the results (e.g. all 21 rolls for each mistake position) and stores them. Later, maybe a small service on the Oracle VM for on-demand questions from the builder.
+  - Its numbers will differ slightly from Galaxy's. Label which engine each analysis comes from, and don't mix the two in one comparison.
+  - Storing results needs a schema decision when it comes (they're new data, not something in `raw`).
+- **Source:** user, 2026-10-14, while discussing comparing positions.
+
+### Bundles: review related positions together
+- **Idea:** group a few related positions into one review card, a **bundle**, so they're learned by contrast. For example, two positions that differ by one checker and have completely different best moves; one checker that turns a double/take into a double/pass; or one position with different rolls.
+- **What a bundle holds:** two or more positions, either decisions from your games or positions built in `/position-builder`. They can be checker plays, cube decisions or a mix. One position can be in more than one bundle (e.g. the same base position paired with a one-checker twin in one bundle and an other-roll twin in another).
+- **Notes:** each position has its own note, shown under its board on the back. The note belongs to the position, so it reads the same in every bundle that holds it. A one-line title for the whole bundle is a possible later addition, not needed to start.
+- **Front:** says it's a bundle ("Bundle · 1 of 3"). You answer one board at a time with next/prev: a move for a checker play, double/no double and take/pass for a cube decision. Judging each board on its own, rather than seeing them side by side, keeps it from turning into "spot the difference".
+- **Back:** all the boards together, side by side on desktop and stacked on a phone (side by side doesn't fit at 390px). The checker that differs is highlighted. Each board shows your answer against the right one, then its note.
+- **Grading:** one grade for the whole bundle, scheduled as one unit so the positions never drift apart. All answers right: you choose Hard/Good/Easy as usual. Any wrong: graded Again automatically, with the misses marked. (The review screen already caps grades in some states, so this follows an existing pattern.)
+- **Built positions, before an engine:** self-assessed. When you build a position you write its answer (best move or cube action); on the back you mark each built board right or wrong yourself. Positions from games are checked against their analysis automatically. Once an engine exists ("Our own analysis engine" above), built positions get checked automatically too.
+- **Needs (when it's planned):** today a `ReviewCard` must point at one game `Decision` (`decisionId`), so bundles need a schema decision: cards for built positions (the existing `StudyPosition` rows are the natural base), a place for a built position's self-written answer and note, and a bundle with its ordered positions. Schema goes on master; the review screen is omp's area, so the UI would go through `docs/omp-queue.md`.
+- **Source:** user, 2026-10-14 (brainstorm; nothing decided beyond the above).
+
 ### Position search from a manual board
 - **Idea:** set up a position on screen, encode it to a GNU Position ID, and search your decisions for that exact position.
 - **Notes:** other sources may use a different position-ID format, such as XG's, so this needs a common representation. Closely related to [notes on a position](#notes-on-a-position-not-just-a-decision).
@@ -161,6 +186,14 @@ repetition remain future phases.
 - Generic social-post abstractions.
 - Public moderation infrastructure before public access is actually approved.
 
+## Reference
+
+### Glossary of backgammon terms
+- **Idea:** a page that explains backgammon terms (e.g. prime, anchor, blot, gammon, take point, EPC, wastage, Crawford).
+- **Links:** terms shared with [counting and race drills](#counting-and-race-drills) (EPC, take point, wastage) could link there, and entries could link to example positions from the user's own games.
+- **Notes:** a static page, so no schema change. Members could see it too.
+- **Source:** user, 2026-10-14.
+
 ## Decision notes
 
 ### Notes on a position, not just a decision
@@ -204,6 +237,7 @@ repetition remain future phases.
 ## Sync
 
 ### Stop the match-list walk early
+- **Done 2026-10-14.** `INCREMENTAL` runs now stop after the first page whose matches are all already stored; `BACKFILL` still walks every page (`lib/sync.ts` step 1). The same change retries Galaxy's 429 with a backoff and stops a run cleanly when the limit holds (`lib/galaxyRateLimit.ts`). The notes below are the original idea.
 - **Problem (measured 2026-10-08):** every sync pages through Galaxy's whole match list (~4,300 matches) before syncing anything. That's about 80 s of fixed cost, even when nothing is new. On top of that, each new match costs about 6–7 s (`SyncRun` history).
 - **Idea:** Galaxy's list is newest-first, so stop paging once sync reaches a match that's already stored. A daily incremental sync would then read a page or two, taking about 1–2 s. Local syncs get faster too.
 - **Related:**

@@ -4,6 +4,20 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
+### Review notes at `fafd8c4` (draft kept, button sizing, small polish) (queued 2026-10-14)
+**First, merge `master` into `omp/main`.** It brings this queue and a change to `.omp/config.yml`: the `investigator` and `visual_reviewer` roles now use `gpt-6-luna:medium` instead of the local qwen models. No schema change, so no `prisma generate` needed.
+
+`fafd8c4`/`86769f4` are checked: the code matches the `04389bf` follow-ups, and nothing blocks. The visual reviewer and designer notes are in `reports/2026-10-13-forum-design-review.md` § "Re-check: text-only posts and board handoff (2026-10-14)". Fix these:
+
+1. **Keep the draft when adding a board.** On `/forum/new`, title and body are plain `useState` (`NewPostForm.tsx:15-16`), and both "Add a board…" buttons leave the page, so the text is lost. Save `{ title, body }` to sessionStorage when either button is pressed (its own key, or alongside the handoff) and restore it on return, then clear it once read, like the handoff. A successful post or Cancel clears it. Add a unit test.
+2. **"Post to forum" sizing under the board.** In `BoardPanel` (`BoardPanel.tsx:275-277`) the button stretches across the whole board column at 1280 (louder than "Add to review"), and at 390 on replay and match analysis it has no side gutter, unlike the Played/Best row, which gets `mx-3 md:mx-0` from `decisionRow(bleed, …)` (`BoardPanel.styles.ts:35`). Give `PostToForumButton` a `className` prop (it renders a bare fragment now) and wrap it in a `postRow(bleed)` style in `BoardPanel.styles.ts`: right-aligned (`self-end` or a flex row with `justify-end`), the same bleed inset as `decisionRow`, and a gap above. The position builder's full-width primary button stays as it is.
+3. **Preview polish on `/forum/new`** (nit): drop the dead space under "Remove board" (`pb-2` on `preview`, `forum.styles.ts:48`), and give "Remove board" the same `px-2` inset as the caption below `sm` (`forum.styles.ts:27`, `:53`).
+4. **Caption test:** `SAFE_MATCH_CAPTION` in `handoff.ts` copies `forumPositionCaption`'s format by hand. Add a test that runs real `forumPositionCaption` outputs (money game, match with score, Crawford, post-Crawford, cube, checker with dice) through `resolveForumHandoff` and expects them kept, so a format change can't silently fall back to "Match position".
+5. **Screenshots** in `design/screenshots/2026-10-14-forum-post-button/`, 390 and 1280, light and dark: the button on `/mistakes`, match analysis, replay (viewport) and the builder; `/forum/new` with a match board; `/forum/new` after "Add a board from the position builder" and back, with title and body restored. List the files in your "to check" entry.
+
+Not changing: the caption keeps the player-on-roll's score first, with no names.
+
+Checks: `npm test`, tsc, lint, build, `npm run test:visual`.
 
 ## Schema requests (omp → master)
 
@@ -15,95 +29,6 @@ _Use this shape:_
 
 ## Done by omp (to check)
 
-### Forum text-only posts and board handoff follow-ups (completed 2026-10-14)
-Fixed the single-use board handoff (read once, clear immediately, keep the attachment in component state; Remove does not touch storage), moved the shared forum action and its styles to `app/components/ui/`, restored primary styling in the position builder, restored score/kind captions derived from raw GNU match state with an identifier-safe fallback, removed the orphaned replay comment, and added browser coverage for empty/text-only and handoff/remove behavior plus write-gate propagation on replay, match analysis, `/mistakes`, repeated-position detail and builder (the read-only live Galaxy page stays without the action). Extended the local `bg_test` fixture with a deterministic repeated-position detail. Updated the affected board visual baselines because the new action adds 54px of content height to `/mistakes` boards and the enclosing decision card. No schema, migration, Oracle, or `.env*` changes.
-
-Checks: `npx tsx e2e/seed-test-db.ts` (local `bg_test`: 1 match, 3 games, 11 decisions), `npm test` (816 tests), `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (23/23) passed. Captured all four size/theme variants under `design/screenshots/2026-10-14-forum-text-posts/`; the exact files are listed below.
-
-Screenshots:
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-builder-board--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-text-only-post--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list-with-text-only-post--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--390-dark--viewport.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--390-light--viewport.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--1280-dark--viewport.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-replay-post-button--1280-light--viewport.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-match-analysis-post-button--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-mistakes-post-button--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-repeated-position-post-button--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-builder-post-button--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-empty-after-reload--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-new-match-board-removed--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-position-builder--1280-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--390-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--390-light--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--1280-dark--full.png`
-- `design/screenshots/2026-10-14-forum-text-posts/forum-write-list--1280-light--full.png`
-
-Implementation commits: `fafd8c4`, `86769f4`.
-
-### Forum text-only posts and board handoff (implemented on `omp/main`, 2026-10-14)
-Completed the approved text-only and zero-or-one-board flow. `/forum/new` uses one sessionStorage handoff key, a read-only preview, remove-board fallback, and a usable text-only state when handoff data is absent or invalid. Match/replay, per-match analysis, mistakes, repeated-position detail, and the position builder share the gated `Post to forum` action and navigate only to plain `/forum/new`. The post API permits zero positions; the list omits a zero-board count, and text-only details naturally render no board, analysis, or proposals while retaining ordinary replies and title/body editing. No schema, migration, Oracle, or `.env*` changes.
-
-Checks: `npm run lint`, `npx tsc --noEmit`, `npm test` (**813 tests**), and `npm run build` passed. `npm run test:visual` and authenticated screenshot capture were not run: omp policy blocks Playwright/browser runs unless every `.env*` and shell database URL is confirmed localhost; no such confirmation was provided. No DB/browser checks were run.
-
-Implementation commit: `04389bf`.
-
-### Latest queue polish: hover capture, alignment, separator gap (completed 2026-10-14)
-Implemented the final polish on `omp/main`: the review screenshot harness moves the pointer away before capturing the enabled Hard-only “Next card”; interactive proposal chips use `justify-start`; trailing separators have no redundant right margin; the `gradeButton` class indentation is restored. The existing `outline-ink` focus ring remains unchanged because it is visible and consistent.
-
-Checks: `npm test` **792/792**, `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (**15/15**) passed. `npx prisma generate` passed after merging master’s single-owner migration. Real local screenshots captured 76 forum and 48 review files under `design/screenshots/2026-10-14-review-refinement-7/`; `/api/review/queue` returned HTTP 200.
-
-Before/after inspection:
-- Hard-only state: `-6/review-hard-only-saved--390-dark--viewport.png` had the hover beige fill; `-7/review-hard-only-saved--390-dark--viewport.png` matches the primary “Yes” fill after moving the pointer away.
-- Interactive chip: `-6/forum-write-post-5--390-dark--full.png` centered the wrapped move; `-7/forum-write-post-5--390-dark--full.png` is left-aligned.
-- Separator gap: the `-7` 1280 tally and checker/cube states show one normal gap before the move/action, without the prior double spacing.
-
-Opened final representatives:
-- `design/screenshots/2026-10-14-review-refinement-7/review-hard-only-saved--390-dark--viewport.png`
-- `design/screenshots/2026-10-14-review-refinement-7/forum-write-post-5--390-dark--full.png`
-- `design/screenshots/2026-10-14-review-refinement-7/forum-write-post-7--390-dark--full.png`
-- `design/screenshots/2026-10-14-review-refinement-7/forum-write-post-5-tally-open--1280-light--full.png`
-
-Implementation commit: `4a3c39f`. Merge/generate commit: `ebffba0`. No new schema changes, Oracle writes, or `.env*` changes.
 
 ### Second visual refinement: focus, settled rating state, and separators (completed 2026-10-14)
 Implemented the remaining visual fixes on `omp/main`: grade-button focus now uses the contrasting `outline-ink` token; the screenshot harness waits for an enabled “Next card” before capturing the Hard-only saved state; checker and cube separators are non-breaking elements attached to the preceding position segment; non-interactive chips are left-aligned. The settled Hard-only button remained correctly primary after the wait, so no fill change was needed. The explicit 11px Enter kbd remains provided by `shared.kbd`.
@@ -127,6 +52,8 @@ Implementation commit: `0c8ed7a`. No Prisma, migration, Oracle, or `.env*` chang
 
 ## Checked and done (master)
 
+- **Review notes at `04389bf` (stale board, shared button, caption, tests, screenshots)**: `fafd8c4` + `86769f4` (2026-10-14). Checked: code read by the main session, screenshots by the visual reviewer and designer. Nothing blocks; follow-ups are in the `fafd8c4` task. Not merged into master yet.
+- **Forum text-only posts and board handoff**: `04389bf` (2026-10-14). Checked; follow-ups were in the `04389bf` task, now done.
 - **Review notes at `0c8ed7a` (mouse-away capture, chip alignment, separator gap, indentation)**: `4a3c39f` + master merge `ebffba0` (2026-10-14). Checked: the main session opened the `-7` shots. "Next card" in the Hard-only saved state has the primary fill (same as "Reply"), wrapped interactive chips are left-aligned at 390, and the 1280 tally separator gap is single-width. Code already in master via `86060fb`. omp's docs commit `19ac02b` needs no merge; omp drops its "to check" entries on its next master merge.
 - **Review notes at `ebc8857` (focus ring, Hard-only capture, separators)**: `0c8ed7a` (2026-10-14). Checked, and merged into master with `omp/main` at `4a3c39f`, which already includes the start of the `0c8ed7a` polish task (mouse-away, `justify-start`, trailing separator, indentation). Still to come from omp for that task: its "to check" entry and the before/after shots.
 - **Review notes at `8f8fd4b` (tally, draft board, chip wrapping, focus, headers)**: `0ab1743` + `ec30993` (2026-10-14). Checked, and `omp/main` at `ebc8857` merged into master (`18789e8`); the follow-ups are in the `ebc8857` task.

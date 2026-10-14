@@ -91,6 +91,27 @@ against `DATABASE_URL` (the read-write Oracle credential) and a fresh
 `GALAXY_TOKEN`, same as always. The deployed app never does this itself: see
 "The Galaxy gate" below for what that means concretely.
 
+There are three sync scripts: `npm run sync:backfill` (walks every page of
+Galaxy's match list), `npm run sync:incremental` (stops at the first list
+page it already knows) and `npm run sync:retry-failed`. All three are paced
+the same way: matches are detail-ingested one at a time with a 5 s pause
+between them and one line per match, and the two that walk the list fetch
+its pages 1.5 s apart. All three take `--limit N` (backfill and incremental:
+no limit by default) and `--dry-run`, and print the target DB's host first,
+warning when it isn't local. A dry run of backfill or incremental still
+requests the list pages (the only way to see what's new) but makes no game
+request and writes nothing; it reports the pages walked, the matches seen,
+how many would be new and how many existing non-DONE matches would be
+retried.
+
+`npm run sync:retry-failed` (`scripts/retry-failed-matches.ts`) retries only
+the matches already in the DB that aren't DONE (FAILED, PENDING or stuck
+INGESTING), with no walk of Galaxy's match list: `--limit N` (default 10),
+`--match <sourceMatchId> ...`, and `--dry-run` to list what it would fetch
+first (no Galaxy request at all). Don't sync while playing on Galaxy,
+especially from another IP/VPN: heavy API use alongside play got the
+account blocked (2026-10-14).
+
 ## The two write gates
 
 Two separate switches, each failing closed:
