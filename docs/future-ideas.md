@@ -204,6 +204,7 @@ repetition remain future phases.
 ## Sync
 
 ### Stop the match-list walk early
+- **Done 2026-10-14.** `INCREMENTAL` runs now stop after the first page whose matches are all already stored; `BACKFILL` still walks every page (`lib/sync.ts` step 1). The same change retries Galaxy's 429 with a backoff and stops a run cleanly when the limit holds (`lib/galaxyRateLimit.ts`). The notes below are the original idea.
 - **Problem (measured 2026-10-08):** every sync pages through Galaxy's whole match list (~4,300 matches) before syncing anything. That's about 80 s of fixed cost, even when nothing is new. On top of that, each new match costs about 6–7 s (`SyncRun` history).
 - **Idea:** Galaxy's list is newest-first, so stop paging once sync reaches a match that's already stored. A daily incremental sync would then read a page or two, taking about 1–2 s. Local syncs get faster too.
 - **Related:**

@@ -4,24 +4,30 @@
 // with an empty `events` array, not a 404 — same "no models" honesty about
 // upstream failures) — only reshaped to the shared interface and given a
 // per-request token via a factory instead of reading it out of a request
-// body inline.
+// body inline. Since 2026-10-14 a 429 (rate limited) is retried with a
+// backoff before giving up with a GalaxyRateLimitError (see
+// lib/galaxyRateLimit.ts); every other status behaves as before.
 import type { MatchDataClient } from "@/lib/types/data-client";
 import type { AnalysesListResponse } from "@/lib/analysesTypes";
 import type { GameReviewsResponse } from "@/lib/gameReviewsTypes";
 import { analysesListUrl, gameReviewsUrl } from "@/lib/galaxyEndpoints";
+import { fetchWithRateLimitRetry, sleep, type Sleep } from "@/lib/galaxyRateLimit";
 
-export function createGalaxyClient(authorization: string): MatchDataClient {
+export interface GalaxyClientOptions {
+  // The wait between 429 retries. Injectable so tests don't really wait.
+  sleep?: Sleep;
+}
+
+export function createGalaxyClient(
+  authorization: string,
+  options: GalaxyClientOptions = {}
+): MatchDataClient {
+  const sleepFn = options.sleep ?? sleep;
+  const init: RequestInit = { headers: { authorization }, cache: "no-store" };
+
   return {
     async listMatches(page: number): Promise<AnalysesListResponse> {
-      let res: Response;
-      try {
-        res = await fetch(analysesListUrl(page), {
-          headers: { authorization },
-          cache: "no-store",
-        });
-      } catch {
-        throw new Error("Network error contacting Galaxy API.");
-      }
+      const res = await fetchWithRateLimitRetry(analysesListUrl(page), init, `page ${page}`, sleepFn);
 
       if (!res.ok) {
         throw new Error(`Galaxy API returned ${res.status} for page ${page}.`);
@@ -43,15 +49,12 @@ export function createGalaxyClient(authorization: string): MatchDataClient {
       matchId: number,
       gameIndex: number
     ): Promise<GameReviewsResponse | null> {
-      let res: Response;
-      try {
-        res = await fetch(gameReviewsUrl(String(matchId), gameIndex), {
-          headers: { authorization },
-          cache: "no-store",
-        });
-      } catch {
-        throw new Error("Network error contacting Galaxy API.");
-      }
+      const res = await fetchWithRateLimitRetry(
+        gameReviewsUrl(String(matchId), gameIndex),
+        init,
+        `match ${matchId} game ${gameIndex}`,
+        sleepFn
+      );
 
       // 404 is the literal "not found" case the shared interface expects.
       if (res.status === 404) return null;

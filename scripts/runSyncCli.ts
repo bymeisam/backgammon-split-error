@@ -1,6 +1,8 @@
 // Shared by scripts/backfill.ts and scripts/incremental-sync.ts — both call
-// runSync uncapped (runs to full completion), the only difference between
-// them is the `type` tag on the SyncRun row. Progress is logged on a timer
+// runSync uncapped (runs to full completion, or until Galaxy's rate limit
+// stops it). The type is more than a label since 2026-10-14: BACKFILL walks
+// every page of Galaxy's match list, INCREMENTAL stops at the first page
+// whose matches are all already in the DB (see lib/sync.ts step 1). Progress is logged on a timer
 // (not per-match) so runSync's signature stays exactly as specified —
 // nothing in lib/sync.ts needs to know a script is watching it.
 import "dotenv/config";
@@ -64,8 +66,11 @@ export async function runSyncFromCli(type: SyncType): Promise<void> {
     if (result.errors.length > 0) {
       console.log("Errors:");
       for (const e of result.errors) {
-        console.log(`  match ${e.matchId}: ${e.error}`);
+        console.log(e.matchId === null ? `  ${e.error}` : `  match ${e.matchId}: ${e.error}`);
       }
+    }
+    if (result.rateLimitNote) {
+      console.log(`\n${result.rateLimitNote}`);
     }
   } finally {
     clearInterval(progressInterval);
