@@ -29,6 +29,23 @@ _Use this shape:_
 
 ## Done by omp (to check)
 
+### Latest queue polish: hover capture, alignment, separator gap (completed 2026-10-14)
+Implemented the final polish on `omp/main`: the review screenshot harness moves the pointer away before capturing the enabled Hard-only “Next card”; interactive proposal chips use `justify-start`; trailing separators have no redundant right margin; the `gradeButton` class indentation is restored. The existing `outline-ink` focus ring remains unchanged because it is visible and consistent.
+
+Checks: `npm test` **792/792**, `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_DIR=.next-test npm run build`, and `npm run test:visual` (**15/15**) passed. `npx prisma generate` passed after merging master’s single-owner migration. Real local screenshots captured 76 forum and 48 review files under `design/screenshots/2026-10-14-review-refinement-7/`; `/api/review/queue` returned HTTP 200.
+
+Before/after inspection:
+- Hard-only state: `-6/review-hard-only-saved--390-dark--viewport.png` had the hover beige fill; `-7/review-hard-only-saved--390-dark--viewport.png` matches the primary “Yes” fill after moving the pointer away.
+- Interactive chip: `-6/forum-write-post-5--390-dark--full.png` centered the wrapped move; `-7/forum-write-post-5--390-dark--full.png` is left-aligned.
+- Separator gap: the `-7` 1280 tally and checker/cube states show one normal gap before the move/action, without the prior double spacing.
+
+Opened final representatives:
+- `design/screenshots/2026-10-14-review-refinement-7/review-hard-only-saved--390-dark--viewport.png`
+- `design/screenshots/2026-10-14-review-refinement-7/forum-write-post-5--390-dark--full.png`
+- `design/screenshots/2026-10-14-review-refinement-7/forum-write-post-7--390-dark--full.png`
+- `design/screenshots/2026-10-14-review-refinement-7/forum-write-post-5-tally-open--1280-light--full.png`
+
+Implementation commit: `4a3c39f`. Merge/generate commit: `ebffba0`. No new schema changes, Oracle writes, or `.env*` changes.
 
 ### Second visual refinement: focus, settled rating state, and separators (completed 2026-10-14)
 Implemented the remaining visual fixes on `omp/main`: grade-button focus now uses the contrasting `outline-ink` token; the screenshot harness waits for an enabled “Next card” before capturing the Hard-only saved state; checker and cube separators are non-breaking elements attached to the preceding position segment; non-interactive chips are left-aligned. The settled Hard-only button remained correctly primary after the wait, so no fill change was needed. The explicit 11px Enter kbd remains provided by `shared.kbd`.

@@ -29,10 +29,10 @@ _Last updated: 2026-10-14._
 
 ## omp (`../backgammon-omp`, `omp/main`)
 
-- Master merged the previous omp work at `ebc8857` (`18789e8`). omp fast-forwarded `master` through `fd9ee54` before starting the next task.
-- **Current task complete:** second visual refinement commit `0c8ed7a`. Grade-button focus uses `outline-ink`; Hard-only screenshots wait for an enabled “Next card”; proposal separators stay attached to preceding segments; non-interactive chips are left-aligned.
-- **Verification:** vitest 792/792, tsc, eslint, build and visual suite 15/15 passed. Real local screenshots are in `design/screenshots/2026-10-14-review-refinement-6/`; `/api/review/queue` returned HTTP 200. Main inspected the required before/after states.
-- **Ready for main review:** the handoff is under `Done by omp (to check)` in `docs/omp-queue.md`. No Prisma, migration, Oracle, or `.env*` changes.
+- Master merged the previous omp work at `ebc8857` (`18789e8`). omp fast-forwarded `master` through `fd9ee54`, then merged the single-owner migration (`ebffba0`) and ran `npx prisma generate`.
+- **Current task complete:** latest polish commit `4a3c39f`. The Hard-only capture moves the pointer away before capture; interactive chips are left-aligned; trailing separators have one normal gap; grade-button formatting is restored. The existing `outline-ink` focus ring remains.
+- **Verification:** vitest 792/792, tsc, eslint, build and visual suite 15/15 passed. Real local screenshots are in `design/screenshots/2026-10-14-review-refinement-7/`; `/api/review/queue` returned HTTP 200. Main inspected the required before/after states.
+- **Ready for main review:** the handoff is under `Done by omp (to check)` in `docs/omp-queue.md`. No new schema changes, Oracle writes, or `.env*` changes.
 
 ## Open threads
 
