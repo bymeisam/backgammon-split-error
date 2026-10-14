@@ -1023,6 +1023,7 @@ What's next: Oracle rollout for Steps 3-5 (pending user go-ahead; Step 6 is docs
   - **Docs/agents:** the designer role's screenshot path is `design/screenshots/<YYYY-MM-DD>-<slug>/` (role source, then `agents:sync`); `docs/field-mapping.md` "These five" is now "These eight".
   - **Checks:** lint, `tsc --noEmit`, `npm test` (65 files, 804 tests) and `NEXT_DIST_DIR=.next-test npm run build` passed.
   - **Blocked for the developer** (the guard hook: `.env`'s `DATABASE_URL` isn't localhost): `prisma generate`, the `migrate diff` check for the FK, `migrate deploy`/`status` on `bg_test`, the `/sign-in` screenshots and the visual suite. The commands are in the developer's report for the main session.
+  - **Follow-up, once `.env` was local:** `prisma generate` ran, and `migrate diff` against local reports an empty migration (the FK drift is gone). `/sign-in` shots (`--set=auth`, 390/1280, light/dark) are in `design/screenshots/2026-10-14-sign-in-centring/` (gitignored); the Clerk card is centred under the brand. `bg_test` was not migrated (its URL is only in `.env.test`), so the visual suite was not run: the user runs `migrate deploy` on `bg_test`.
 - **What's next:**
   - **User:** master is pushed through `204f8ab` (`3711702`, docs only, still to push). Check the live sign-in lands on `/sign-in` and the Clerk development instance works, and invite members (set their `AppUser.role = 'MEMBER'` on Oracle by hand).
   - **omp:** nothing queued; pick the next forum/review task.
