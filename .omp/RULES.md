@@ -17,4 +17,6 @@ The repo's roles are omp agents of the same name in `.omp/agents/`:
 
 Use only these five roles for repo work. omp's built-in agents (`task`, `sonic`, and any other that can edit files) carry none of the repo rules, including "never touch `prisma/`" on `omp/main`, so never use them for edits. The read-only built-ins (`scout`, `reviewer`, `security-reviewer`) are fine for looking around and reviewing.
 
+**Commit every finished queue task on `omp/main`.** The developer commits as part of its job (`agents/roles/developer/body.md`), so a handoff to it must not say "commit not requested". A queue task counts as done only once it's committed and its "Done by omp (to check)" entry gives the commit hash: master reviews and merges commits, never a working tree. This is the standing approval to commit locally on `omp/main`. Nobody pushes.
+
 The main session is the orchestrator: it owns planning, user approval, agent choice, complete handoffs, integration and final verification. Delegated agents don't spawn further agents.

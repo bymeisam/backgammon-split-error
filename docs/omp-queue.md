@@ -1,9 +1,38 @@
 # omp queue
 
-Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backgammon-omp`). The rules are in AGENTS.md § Two worktrees, one local DB. Newest items at the top of each section. Done happens in two steps. When omp finishes a task, it adds an entry under "Done by omp (to check)" in its own copy on `omp/main`, giving the commit, what changed and which checks ran. That entry is how master knows to review. After the review, only master moves the item to "Checked and done (master)", with the date and commit, and queues any follow-ups as a new task. When omp next merges master, it deletes its "to check" entries for items that master has marked checked. If this file conflicts on a merge, omp keeps master's version and re-adds only its own new "to check" entries.
+Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backgammon-omp`). The rules are in AGENTS.md § Two worktrees, one local DB. Newest items at the top of each section. Done happens in two steps. When omp finishes a task, it commits the work on `omp/main` (standing approval, see `.omp/RULES.md`) and adds an entry under "Done by omp (to check)" in its own copy on `omp/main`, giving the commit, what changed and which checks ran. That entry is how master knows to review. After the review, only master moves the item to "Checked and done (master)", with the date and commit, and queues any follow-ups as a new task. When omp next merges master, it deletes its "to check" entries for items that master has marked checked. If this file conflicts on a merge, omp keeps master's version and re-adds only its own new "to check" entries.
 
 ## Tasks for omp
 
+### Commit, then fix the screenshot capture for the `fafd8c4` follow-up (queued 2026-10-14)
+Your `fafd8c4` follow-up is reviewed in your working tree: the code is right, and the draft round trip, the 390 button row and the preview spacing check out. Three things are left:
+
+1. **Commit it.** The code, `PROGRESS.md`, your "to check" entry and the updated baselines are all still uncommitted in `../backgammon-omp`. Commit the work first; master can't merge an uncommitted tree.
+2. **Don't capture screenshots from the visual suite.** `e2e/forum-post-button-capture.spec.ts` sits in `e2e/`, so every `npm run test:visual` runs it and rewrites `design/screenshots/` (with mocked routes and a made-up decision ID). Turn it into a real test: keep the draft round-trip assertions (fill the title and body, "Add a board from the position builder", "Post to forum", the title, body and board come back) and drop the `page.screenshot` calls and the screenshot folder. Move the captures into `scripts/design-screenshots.ts`, next to the existing `forum-text-post-flows` shot, using `forumActionShot` (which scrolls to the button).
+3. **Re-shoot so the changed parts are in frame.** The 1280 shots, and match analysis at 390, end above "Post to forum", so the original 1280 stretch fix couldn't be checked. Using `design/screenshots/2026-10-14-forum-post-button/`, at 390 and 1280, light and dark:
+   - the button on `/mistakes`, match analysis and replay, scrolled to the button or full page;
+   - the builder's full-width primary button;
+   - `/forum/new` with a match board, full page so "Remove board" shows;
+   - the draft restored.
+
+   List the files in your "to check" entry.
+
+Checks: `npm test`, tsc, lint, `npm run test:visual`.
+
+### Review notes at `fafd8c4` (draft kept, button sizing, small polish) (queued 2026-10-14)
+**First, merge `master` into `omp/main`.** It brings this queue and a change to `.omp/config.yml`: the `investigator` and `visual_reviewer` roles now use `gpt-6-luna:medium` instead of the local qwen models. No schema change, so no `prisma generate` needed.
+
+`fafd8c4`/`86769f4` are checked: the code matches the `04389bf` follow-ups, and nothing blocks. The visual reviewer and designer notes are in `reports/2026-10-13-forum-design-review.md` § "Re-check: text-only posts and board handoff (2026-10-14)". Fix these:
+
+1. **Keep the draft when adding a board.** On `/forum/new`, title and body are plain `useState` (`NewPostForm.tsx:15-16`), and both "Add a board…" buttons leave the page, so the text is lost. Save `{ title, body }` to sessionStorage when either button is pressed (its own key, or alongside the handoff) and restore it on return, then clear it once read, like the handoff. A successful post or Cancel clears it. Add a unit test.
+2. **"Post to forum" sizing under the board.** In `BoardPanel` (`BoardPanel.tsx:275-277`) the button stretches across the whole board column at 1280 (louder than "Add to review"), and at 390 on replay and match analysis it has no side gutter, unlike the Played/Best row, which gets `mx-3 md:mx-0` from `decisionRow(bleed, …)` (`BoardPanel.styles.ts:35`). Give `PostToForumButton` a `className` prop (it renders a bare fragment now) and wrap it in a `postRow(bleed)` style in `BoardPanel.styles.ts`: right-aligned (`self-end` or a flex row with `justify-end`), the same bleed inset as `decisionRow`, and a gap above. The position builder's full-width primary button stays as it is.
+3. **Preview polish on `/forum/new`** (nit): drop the dead space under "Remove board" (`pb-2` on `preview`, `forum.styles.ts:48`), and give "Remove board" the same `px-2` inset as the caption below `sm` (`forum.styles.ts:27`, `:53`).
+4. **Caption test:** `SAFE_MATCH_CAPTION` in `handoff.ts` copies `forumPositionCaption`'s format by hand. Add a test that runs real `forumPositionCaption` outputs (money game, match with score, Crawford, post-Crawford, cube, checker with dice) through `resolveForumHandoff` and expects them kept, so a format change can't silently fall back to "Match position".
+5. **Screenshots** in `design/screenshots/2026-10-14-forum-post-button/`, 390 and 1280, light and dark: the button on `/mistakes`, match analysis, replay (viewport) and the builder; `/forum/new` with a match board; `/forum/new` after "Add a board from the position builder" and back, with title and body restored. List the files in your "to check" entry.
+
+Not changing: the caption keeps the player-on-roll's score first, with no names.
+
+Checks: `npm test`, tsc, lint, build, `npm run test:visual`.
 
 ## Schema requests (omp → master)
 
