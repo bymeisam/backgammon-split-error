@@ -341,7 +341,13 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
       await shoot("review-hard-only-back", "viewport");
       await shoot("review-hard-only-back", "full");
       await page.getByRole("button", { name: "Hard" }).click();
-      await page.getByRole("button", { name: "Next card" }).waitFor();
+      await page.mouse.move(0, 0);
+      const nextCard = page.getByRole("button", { name: "Next card" });
+      await nextCard.waitFor({ state: "visible" });
+      await page.waitForFunction(() => {
+        const button = [...document.querySelectorAll("button")].find((element) => element.textContent?.includes("Next card"));
+        return button instanceof HTMLButtonElement && !button.disabled;
+      });
       await settle(page);
       await page.evaluate(() => window.scrollBy(0, 100));
       await settle(page);

@@ -27,16 +27,12 @@ _Last updated: 2026-10-14._
   4. Then run "Auth verification" in `docs/deploy.md`, and check that notes, review and the forum write on the live site.
   5. Members later: invite them in Clerk, then set `role = 'MEMBER'` by hand.
 
-## omp (`../backgammon-omp`, `omp/main` at `02831c2`, not merged)
+## omp (`../backgammon-omp`, `omp/main`)
 
-- **Queue** (`docs/omp-queue.md` on master, read with `git show master:docs/omp-queue.md`):
-  1. **Item 3 of "Review notes at `b657ca6`":** merge master and resolve the reply-route (and probably `app/review/page.tsx`) conflicts onto `prismaApp` / `isAppWriteEnabled()`. Its forum routes still use `isGalaxyEnabled()`, so it **can't merge into master until this is done**.
-  2. **"Review notes at `02831c2`":**
-     - the 390px checker chip overflow (must-fix) and six visual should-fixes;
-     - the `ReplyComposer.tsx:39` comment that contradicts its code;
-     - the reply route header, the review key-reference headers, and JSX formatting;
-     - missing screenshots: selected cube option, focus rings, tallies at 390.
-- Then Claude Code re-reviews (investigator + visual-reviewer) and the user merges. Expect a small conflict in `docs/omp-queue.md`.
+- Master merged the previous omp work at `ebc8857` (`18789e8`). omp fast-forwarded `master` through `fd9ee54` before starting the next task.
+- **Current task complete:** second visual refinement commit `0c8ed7a`. Grade-button focus uses `outline-ink`; Hard-only screenshots wait for an enabled “Next card”; proposal separators stay attached to preceding segments; non-interactive chips are left-aligned.
+- **Verification:** vitest 792/792, tsc, eslint, build and visual suite 15/15 passed. Real local screenshots are in `design/screenshots/2026-10-14-review-refinement-6/`; `/api/review/queue` returned HTTP 200. Main inspected the required before/after states.
+- **Ready for main review:** the handoff is under `Done by omp (to check)` in `docs/omp-queue.md`. No Prisma, migration, Oracle, or `.env*` changes.
 
 ## Open threads
 
