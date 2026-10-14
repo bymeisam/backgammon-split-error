@@ -105,7 +105,7 @@ export const style = {
   // `wide`: spans the row (after a wrong answer).
   gradeButton: (opts: { primary: boolean; wide: boolean }): string =>
     clsx(
-"flex flex-col items-center gap-1 rounded-control border px-1.5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-45",
+      "flex flex-col items-center gap-1 rounded-control border px-1.5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-45",
       opts.primary
         ? "border-primary bg-primary text-on-primary hover:bg-primary/86"
         : "border-line-strong bg-surface text-ink hover:bg-sunken",

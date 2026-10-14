@@ -341,6 +341,7 @@ async function reviewSession(ctx: ShotContext): Promise<void> {
       await shoot("review-hard-only-back", "viewport");
       await shoot("review-hard-only-back", "full");
       await page.getByRole("button", { name: "Hard" }).click();
+      await page.mouse.move(0, 0);
       const nextCard = page.getByRole("button", { name: "Next card" });
       await nextCard.waitFor({ state: "visible" });
       await page.waitForFunction(() => {

@@ -16,7 +16,7 @@ function WrappedPositionLabel({ label, appendSeparator = false }: { label: strin
         <span className={style.proposalPositionSegment} key={`${index}-${segment}`}>
           {segment}
           {(index < segments.length - 1 || (appendSeparator && index === segments.length - 1)) && (
-            <span className={style.proposalSeparator}>·</span>
+            <span className={index === segments.length - 1 ? style.proposalTrailingSeparator : style.proposalSeparator}>·</span>
           )}
         </span>
       ))}
