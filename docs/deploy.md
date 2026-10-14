@@ -91,6 +91,14 @@ against `DATABASE_URL` (the read-write Oracle credential) and a fresh
 `GALAXY_TOKEN`, same as always. The deployed app never does this itself: see
 "The Galaxy gate" below for what that means concretely.
 
+`npm run sync:retry-failed` (`scripts/retry-failed-matches.ts`) retries only
+the matches already in the DB that aren't DONE (FAILED, PENDING or stuck
+INGESTING), with no walk of Galaxy's match list: `--limit N` (default 10),
+`--match <sourceMatchId> ...`, 5 s between matches, and `--dry-run` to list
+what it would fetch first. It prints the target DB's host and warns when it
+isn't local. Don't sync while playing on Galaxy, especially from another
+IP/VPN: heavy API use alongside play got the account blocked (2026-10-14).
+
 ## The two write gates
 
 Two separate switches, each failing closed:

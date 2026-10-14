@@ -13,6 +13,12 @@
 // the match that hit it is recorded FAILED as usual, the rest are left
 // untouched for the next run, the SyncRun is finished with a note, and the
 // stat recomputes still run.
+//
+// DB-only retry (since 2026-10-14, runDbOnlySync below): step 2 alone, with
+// the same SyncRun bookkeeping and recomputes, for matches taken from our DB
+// instead of from the analyses/list walk (scripts/retry-failed-matches.ts).
+// It makes no list request at all, which matters when Galaxy is rate
+// limiting or blocking the account.
 import { prisma } from "@/lib/prisma";
 import { createGalaxyClient } from "@/lib/galaxy-client";
 import { ingestMatch, type MatchIndexData } from "@/lib/ingest";
@@ -82,37 +88,42 @@ export interface SyncRunResult {
   rateLimitNote: string | null;
 }
 
+type MatchRow = Awaited<ReturnType<typeof prisma.match.findMany>>[number];
+
+// Deliberately the very first DB call of a run, and deliberately wrapped: if
+// Oracle's pinned CA has rotated (lib/oracleCertCheck.ts — the exact failure
+// this project hit 2026-10-02), EVERY DB call after it would fail the same
+// way, one ~10s pool-timeout at a time, through every single pending match in
+// the detail-ingest loop — slow, and each one would look like an unrelated
+// per-match failure rather than one root cause. Failing immediately here,
+// with a clear message, avoids both problems. If this throws for any OTHER
+// reason, it propagates exactly as any other unexpected top-level failure
+// already does (the CLI's own .catch, or app/api/sync/incremental/route.ts's
+// try/catch -> 502).
+async function firstDbCall<T>(fn: () => Promise<T>, where: string): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (isCertVerificationError(error)) {
+      console.error(`[sync] ${ORACLE_CERT_FAILURE_HINT}`);
+      throw new Error(
+        `${ORACLE_CERT_FAILURE_HINT} (failed on the very first DB call of this sync run, ${where}, before any match was attempted.)`
+      );
+    }
+    throw error;
+  }
+}
+
 export async function runSync({
   token,
   type,
   maxMatchesToProcess,
 }: SyncRunOptions): Promise<SyncRunResult> {
-  // Deliberately the very first DB call in this function, and deliberately
-  // wrapped: if Oracle's pinned CA has rotated (lib/oracleCertCheck.ts —
-  // the exact failure this project hit 2026-10-02), EVERY DB call below
-  // would fail the same way, one ~10s pool-timeout at a time, through
-  // every single pending match in the detail-ingest loop further down —
-  // slow, and each one would look like an unrelated per-match failure
-  // rather than one root cause. Failing immediately here, with a clear
-  // message, avoids both problems. If this throws for any OTHER reason,
-  // it propagates exactly as any other unexpected top-level failure in
-  // this function already does (scripts/runSyncCli.ts's own .catch, or
-  // app/api/sync/incremental/route.ts's try/catch -> 502) — no change
-  // there.
-  let syncRun;
-  try {
-    syncRun = await prisma.syncRun.create({
-      data: { type, startedAt: new Date() },
-    });
-  } catch (error) {
-    if (isCertVerificationError(error)) {
-      console.error(`[sync] ${ORACLE_CERT_FAILURE_HINT}`);
-      throw new Error(
-        `${ORACLE_CERT_FAILURE_HINT} (failed on the very first DB call of this sync run, before any match was attempted.)`
-      );
-    }
-    throw error;
-  }
+  // The first DB call (see firstDbCall).
+  const syncRun = await firstDbCall(
+    () => prisma.syncRun.create({ data: { type, startedAt: new Date() } }),
+    "creating the SyncRun"
+  );
 
   const client = createGalaxyClient(token);
   const errors: SyncRunError[] = [];
@@ -202,33 +213,198 @@ export async function runSync({
     page++;
   } while (page <= totalPages);
 
+  // A rate limit during step 1 skips step 2 entirely (nothing selected): the
+  // limit is still in force, so every request there would hit it too.
+  const listRateLimited = rateLimitNote !== null;
+  return detailIngestAndFinish({
+    syncRun,
+    type,
+    token,
+    matchesFound,
+    errors,
+    rateLimitNote,
+    maxMatchesToProcess,
+    selectMatches: async () =>
+      listRateLimited
+        ? []
+        : prisma.match.findMany({
+            where: { ingestStatus: { in: [...NEEDS_INGEST_STATUSES] } },
+            orderBy: { id: "desc" },
+          }),
+  });
+}
+
+export class MissingSelfIdentityError extends Error {
+  constructor() {
+    super(
+      'No "you" PlayerIdentity row (source galaxy, isMe) in this DB. It is normally created by the match-list walk of a normal sync; run `npm run sync:incremental` once first. Nothing was fetched.'
+    );
+    this.name = "MissingSelfIdentityError";
+  }
+}
+
+export interface DbOnlySyncOptions {
+  token: string;
+  // Restrict to these sourceMatchIds. Ids not in the DB, or already DONE,
+  // are skipped and reported in the result's `skipped`.
+  matchIds?: string[];
+  maxMatchesToProcess?: number;
+  // Sleep between matches (not before the first).
+  pauseBetweenMatchesMs?: number;
+  // Injectable for tests.
+  sleep?: (ms: number) => Promise<void>;
+  // One line per match as it completes, plus "waiting Ns..." before each
+  // pause. Defaults to console.log.
+  log?: (line: string) => void;
+}
+
+export interface SkippedMatch {
+  sourceMatchId: string;
+  reason: "not found" | "already DONE";
+}
+
+export interface DbOnlySyncResult extends SyncRunResult {
+  // Non-DONE matches selected from the DB before the limit is applied.
+  candidates: number;
+  skipped: SkippedMatch[];
+}
+
+export interface RetryCandidates {
+  toIngest: MatchRow[];
+  skipped: SkippedMatch[];
+}
+
+// The matches a DB-only retry would fetch, in the same order as step 2 of a
+// normal sync (id desc). Shared by the real run and the CLI's --dry-run.
+export async function selectRetryCandidates(matchIds?: string[]): Promise<RetryCandidates> {
+  if (matchIds === undefined) {
+    const toIngest = await prisma.match.findMany({
+      where: { ingestStatus: { in: [...NEEDS_INGEST_STATUSES] } },
+      orderBy: { id: "desc" },
+    });
+    return { toIngest, skipped: [] };
+  }
+  const unique = [...new Set(matchIds)];
+  const rows = await prisma.match.findMany({
+    where: { source: SOURCE, sourceMatchId: { in: unique } },
+    orderBy: { id: "desc" },
+  });
+  const byId = new Map(rows.map((r) => [r.sourceMatchId, r]));
+  const skipped: SkippedMatch[] = [];
+  for (const id of unique) {
+    const row = byId.get(id);
+    if (!row) skipped.push({ sourceMatchId: id, reason: "not found" });
+    else if (row.ingestStatus === "DONE") skipped.push({ sourceMatchId: id, reason: "already DONE" });
+  }
+  const needs: readonly string[] = NEEDS_INGEST_STATUSES;
+  return { toIngest: rows.filter((r) => needs.includes(r.ingestStatus)), skipped };
+}
+
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// Step 2 only: retries matches taken from our DB, with no analyses/list walk
+// (so matchesFound is always 0). Recorded as an INCREMENTAL SyncRun: the
+// SyncType enum has no value for a DB-only retry, and adding one would be a
+// schema change, so the CLI says so in its output instead.
+export async function runDbOnlySync({
+  token,
+  matchIds,
+  maxMatchesToProcess,
+  pauseBetweenMatchesMs,
+  sleep,
+  log = (line) => console.log(line),
+}: DbOnlySyncOptions): Promise<DbOnlySyncResult> {
+  // ingestMatch's opponent resolution needs the "you" row, which only the
+  // list walk creates. It exists after any earlier normal sync; if it
+  // doesn't, stop before creating a SyncRun or fetching anything. This is the
+  // first DB call here, so it gets the cert check (see firstDbCall).
+  const me = await firstDbCall(
+    () => prisma.playerIdentity.findFirst({ where: { source: SOURCE, isMe: true } }),
+    'looking up the "you" PlayerIdentity'
+  );
+  if (!me) throw new MissingSelfIdentityError();
+
+  const syncRun = await prisma.syncRun.create({
+    data: { type: "INCREMENTAL", startedAt: new Date() },
+  });
+
+  let selected: RetryCandidates = { toIngest: [], skipped: [] };
+  const result = await detailIngestAndFinish({
+    syncRun,
+    type: "INCREMENTAL",
+    token,
+    matchesFound: 0,
+    errors: [],
+    rateLimitNote: null,
+    maxMatchesToProcess,
+    pauseBetweenMatchesMs,
+    sleep,
+    log,
+    selectMatches: async () => {
+      selected = await selectRetryCandidates(matchIds);
+      return selected.toIngest;
+    },
+  });
+  return { ...result, candidates: selected.toIngest.length, skipped: selected.skipped };
+}
+
+interface DetailIngestContext {
+  syncRun: { id: number; startedAt: Date };
+  type: SyncType;
+  token: string;
+  matchesFound: number;
+  errors: SyncRunError[];
+  rateLimitNote: string | null;
+  maxMatchesToProcess?: number;
+  pauseBetweenMatchesMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+  // Per-match progress lines (DB-only path); unset = none, as runSync has
+  // always behaved.
+  log?: (line: string) => void;
+  // Called after detailAlreadyDone is counted, before any status changes.
+  selectMatches: () => Promise<MatchRow[]>;
+}
+
+// Step 2 plus the SyncRun bookkeeping and the recomputes, shared by runSync
+// and runDbOnlySync.
+async function detailIngestAndFinish(ctx: DetailIngestContext): Promise<SyncRunResult> {
+  const { syncRun, type, token, matchesFound, errors, maxMatchesToProcess } = ctx;
+  let rateLimitNote = ctx.rateLimitNote;
+  const pauseMs = ctx.pauseBetweenMatchesMs ?? 0;
+  const sleep = ctx.sleep ?? defaultSleep;
+
   // --- Step 2: detail-ingest. Matches already DONE are never touched here
   // — no Galaxy call is made for them — which is what makes reruns cheap.
   // detailAlreadyDone is captured here, before the loop below can change any
   // status — index-sync above never touches ingestStatus, so this is exactly
   // "how many matches in the index needed no work this run."
-  // A rate limit during step 1 skips this step entirely (toIngest empty):
-  // the limit is still in force, so every request here would hit it too.
   const detailAlreadyDone = await prisma.match.count({ where: { ingestStatus: "DONE" } });
   let rateLimitedMatchId: number | null = null;
-  const toIngest =
-    rateLimitNote === null
-      ? await prisma.match.findMany({
-          where: { ingestStatus: { in: [...NEEDS_INGEST_STATUSES] } },
-          orderBy: { id: "desc" },
-        })
-      : [];
+  const toIngest = await ctx.selectMatches();
 
   let matchesProcessed = 0;
   let matchesSynced = 0;
   let matchesFailed = 0;
 
+  const log = ctx.log;
+  const total =
+    maxMatchesToProcess === undefined ? toIngest.length : Math.min(toIngest.length, maxMatchesToProcess);
+
+  // Strictly sequential: one match at a time (ingestMatch fetches its games
+  // one by one and writes them), then the pause, then the next match.
   for (const match of toIngest) {
     if (maxMatchesToProcess !== undefined && matchesProcessed >= maxMatchesToProcess) {
       break;
     }
+    if (matchesProcessed > 0 && pauseMs > 0) {
+      log?.(`waiting ${pauseMs / 1000}s...`);
+      await sleep(pauseMs);
+    }
 
     const externalMatchId = Number(match.sourceMatchId);
+    const position = `[${matchesProcessed + 1}/${total}] match ${externalMatchId}`;
+    const matchStartedAt = Date.now();
+    const elapsed = () => `${((Date.now() - matchStartedAt) / 1000).toFixed(1)}s`;
 
     // Written before any Galaxy call — this is what makes a mid-match crash
     // (stuck at INGESTING) visibly distinguishable from a never-attempted
@@ -275,6 +451,9 @@ export async function runSync({
         data: { ingestStatus: "DONE", ingestError: null },
       });
       matchesSynced++;
+      log?.(
+        `${position}: DONE, ${summary.gamesIngested} games, ${summary.decisionsIngested} decisions, ${elapsed()}`
+      );
     } catch (e) {
       const fullMessage = e instanceof Error ? e.message : "Unknown error";
       const stack = e instanceof Error ? e.stack : undefined;
@@ -305,6 +484,7 @@ export async function runSync({
           `match ${externalMatchId}: failed to record failure detail: ${loggingError instanceof Error ? loggingError.message : "unknown error"}`
         );
       }
+      log?.(`${position}: FAILED (${shortMessage.slice(0, 120)}), ${elapsed()}`);
 
       matchesFailed++;
       errors.push({ matchId: externalMatchId, error: shortMessage });

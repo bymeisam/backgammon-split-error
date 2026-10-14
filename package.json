@@ -12,6 +12,7 @@
     "postinstall": "prisma generate",
     "backfill": "tsx scripts/backfill.ts",
     "sync:incremental": "tsx scripts/incremental-sync.ts",
+    "sync:retry-failed": "tsx scripts/retry-failed-matches.ts",
     "backfill:opponent-identities": "tsx scripts/backfill-opponent-identities.ts",
     "backfill:played-at": "tsx scripts/backfill-played-at.ts",
     "agents:sync": "tsx scripts/sync-agents.ts"

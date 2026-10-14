@@ -33,17 +33,21 @@ const h = vi.hoisted(() => {
         create: vi.fn(async () => ({ id: 7, startedAt: new Date("2026-10-14T00:00:00Z") })),
         update: undefined as unknown,
       },
-      playerIdentity: { upsert: vi.fn(async () => ({})) },
+      playerIdentity: {
+        upsert: vi.fn(async () => ({})),
+        findFirst: vi.fn(async (): Promise<object | null> => ({ id: 1, isMe: true })),
+      },
       match: {
         findMany: vi.fn(
           async (args: {
             where: { sourceMatchId?: { in: string[] }; ingestStatus?: { in: string[] } };
+            orderBy?: unknown;
           }) => {
             const ids = args.where.sourceMatchId?.in;
             const rows = state.matches.filter(
               (m) => (ids ? ids.includes(m.sourceMatchId) : true) && statusIn(args.where, m)
             );
-            return ids ? rows : [...rows].sort((a, b) => b.id - a.id);
+            return ids && !args.orderBy ? rows : [...rows].sort((a, b) => b.id - a.id);
           }
         ),
         upsert: vi.fn(
@@ -83,7 +87,7 @@ vi.mock("@/lib/recompute-repeated-positions", () => ({
   recomputeRepeatedPositions: h.recomputeRepeatedPositions,
 }));
 
-import { runSync } from "@/lib/sync";
+import { runSync, runDbOnlySync, MissingSelfIdentityError } from "@/lib/sync";
 
 function analysis(matchId: number): MatchAnalysis {
   return {
@@ -236,5 +240,120 @@ describe("runSync: match-list paging by type", () => {
 
     expect(h.listMatches.mock.calls.map((c) => c[0])).toEqual([1, 2, 3]);
     expect(result.matchesFound).toBe(9);
+  });
+});
+
+describe("runDbOnlySync: retry from the DB, no match-list walk", () => {
+  const noSleep = vi.fn(async (ms: number) => void ms);
+
+  beforeEach(() => {
+    noSleep.mockClear();
+    h.ingestMatch.mockImplementation(async (matchId: number) => okSummary(matchId));
+  });
+
+  it("never calls listMatches and processes only non-DONE matches, newest id first, up to the limit", async () => {
+    seed(501, "FAILED");
+    seed(502, "DONE");
+    seed(503, "PENDING");
+    seed(504, "INGESTING");
+    seed(505, "FAILED");
+
+    const result = await runDbOnlySync({ token: "t", maxMatchesToProcess: 3, sleep: noSleep, log: () => {} });
+
+    expect(h.listMatches).not.toHaveBeenCalled();
+    expect(h.prisma.playerIdentity.upsert).not.toHaveBeenCalled();
+    expect(h.ingestMatch.mock.calls.map((c) => c[0])).toEqual([505, 504, 503]);
+    expect(statusOf(501)).toBe("FAILED");
+    expect(statusOf(502)).toBe("DONE");
+    expect(result.candidates).toBe(4);
+    expect(result.matchesFound).toBe(0);
+    expect(result.matchesProcessed).toBe(3);
+    expect(result.matchesSynced).toBe(3);
+    expect(result.stillPending).toBe(1);
+    expect(result.skipped).toEqual([]);
+    expect(h.prisma.syncRun.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ type: "INCREMENTAL" }),
+    });
+    expect(h.syncRunUpdate).toHaveBeenCalledTimes(1);
+    expect(h.recomputeMistakeStats).toHaveBeenCalledTimes(1);
+    expect(h.recomputeRepeatedPositions).toHaveBeenCalledTimes(1);
+  });
+
+  it("matchIds restricts the run and reports unknown and already-DONE ids", async () => {
+    seed(601, "FAILED");
+    seed(602, "DONE");
+    seed(603, "FAILED");
+
+    const result = await runDbOnlySync({
+      token: "t",
+      matchIds: ["601", "602", "999"],
+      sleep: noSleep,
+      log: () => {},
+    });
+
+    expect(h.ingestMatch.mock.calls.map((c) => c[0])).toEqual([601]);
+    expect(statusOf(603)).toBe("FAILED");
+    expect(result.skipped).toEqual([
+      { sourceMatchId: "602", reason: "already DONE" },
+      { sourceMatchId: "999", reason: "not found" },
+    ]);
+    expect(result.candidates).toBe(1);
+  });
+
+  it("pauses between matches, not before the first, and logs one line per match", async () => {
+    seed(701, "FAILED");
+    seed(702, "FAILED");
+    seed(703, "FAILED");
+    h.ingestMatch.mockImplementation(async (matchId: number) =>
+      matchId === 702 ? { ...okSummary(matchId), errors: ["game 2: Galaxy API returned 500."] } : { ...okSummary(matchId), gamesIngested: 4, decisionsIngested: 212 }
+    );
+    const events: string[] = [];
+    noSleep.mockImplementation(async (ms: number) => void events.push(`sleep ${ms}`));
+
+    await runDbOnlySync({
+      token: "t",
+      pauseBetweenMatchesMs: 5000,
+      sleep: noSleep,
+      log: (line) => events.push(line),
+    });
+
+    expect(noSleep).toHaveBeenCalledTimes(2);
+    expect(events).toHaveLength(7);
+    expect(events[0]).toMatch(/^\[1\/3\] match 703: DONE, 4 games, 212 decisions, \d+\.\ds$/);
+    expect(events.slice(1, 3)).toEqual(["waiting 5s...", "sleep 5000"]);
+    expect(events[3]).toMatch(/^\[2\/3\] match 702: FAILED \(game 2: Galaxy API returned 500\.\), \d+\.\ds$/);
+    expect(events.slice(4, 6)).toEqual(["waiting 5s...", "sleep 5000"]);
+    expect(events[6]).toMatch(/^\[3\/3\] match 701: DONE/);
+  });
+
+  it("stops cleanly on a Galaxy rate limit and still records the SyncRun and recomputes", async () => {
+    seed(801, "FAILED");
+    seed(802, "FAILED");
+    seed(803, "FAILED");
+    h.ingestMatch.mockImplementation(async (matchId: number) =>
+      matchId === 802
+        ? { ...okSummary(matchId), gamesIngested: 0, rateLimited: true, errors: ["game 1: Galaxy API returned 429 for match 802 game 1."] }
+        : okSummary(matchId)
+    );
+
+    const result = await runDbOnlySync({ token: "t", pauseBetweenMatchesMs: 5000, sleep: noSleep, log: () => {} });
+
+    expect(h.ingestMatch.mock.calls.map((c) => c[0])).toEqual([803, 802]);
+    expect(noSleep).toHaveBeenCalledTimes(1);
+    expect(statusOf(801)).toBe("FAILED");
+    expect(result.rateLimitNote).toBe("Galaxy rate limit: stopped after match 802; 2 matches left for the next run.");
+    expect(h.syncRunUpdate).toHaveBeenCalledTimes(1);
+    expect(h.recomputeMistakeStats).toHaveBeenCalledTimes(1);
+    expect(h.recomputeRepeatedPositions).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops before creating a SyncRun or fetching anything when the \"you\" PlayerIdentity is missing", async () => {
+    seed(901, "FAILED");
+    h.prisma.playerIdentity.findFirst.mockResolvedValueOnce(null);
+
+    await expect(runDbOnlySync({ token: "t", sleep: noSleep })).rejects.toBeInstanceOf(MissingSelfIdentityError);
+    expect(h.prisma.syncRun.create).not.toHaveBeenCalled();
+    expect(h.ingestMatch).not.toHaveBeenCalled();
+    expect(h.listMatches).not.toHaveBeenCalled();
   });
 });
