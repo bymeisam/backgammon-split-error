@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { requireMemberApi } from "@/lib/app-auth";
 import { isAppWriteEnabled } from "@/lib/appWriteGate";
-import { forumIdentity, optionalBoolean, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
+import { forumIdentity, jsonObject, optionalBoolean, parseId, textField, FORUM_LIMITS } from "@/lib/forum";
 import { canDeleteForumItem, canEditForumItem } from "@/lib/forumPermissions";
 
 export const dynamic = "force-dynamic";
@@ -53,12 +53,14 @@ export async function PATCH(request: NextRequest, context: Context) {
   if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
   if (!canEditForumItem(user, existing.authorAppUserId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
-  let input: { title?: unknown; body?: unknown; hideAnalysis?: unknown };
+  let payload: unknown;
   try {
-    input = await request.json();
+    payload = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
+  const input: { title?: unknown; body?: unknown; hideAnalysis?: unknown } | null = jsonObject(payload);
+  if (!input) return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   const title = textField(input.title, FORUM_LIMITS.title);
   const body = textField(input.body, FORUM_LIMITS.body);
   if (!title || !body) return NextResponse.json({ error: "Title and body are required." }, { status: 400 });

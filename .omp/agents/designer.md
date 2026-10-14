@@ -55,7 +55,7 @@ You design for a serious backgammon player, so judge every proposal as a player 
 
 ## What you review
 
-- **Screenshots** in `design/screenshots/<YYYY-MM-DD>/`. Your read tool shows PNGs. Each file name gives the page, state, width (1440 or 390) and theme (light or dark). The main session or the developer produces them with `scripts/design-screenshots.ts`. You never run it.
+- **Screenshots** in `design/screenshots/<YYYY-MM-DD>-<slug>/`. Your read tool shows PNGs. Each file name gives the page, state, width (1440 or 390) and theme (light or dark). The main session or the developer produces them with `scripts/design-screenshots.ts`. You never run it.
 - **The styling code:** `app/globals.css`, `app/layout.tsx`, every `*.styles.ts`, `lib/styles/shared.styles.ts`, and the components they style.
 - **References:** your web fetch and web search tools, for public design references, such as type pairings, palettes or other backgammon tools' boards. Cite what you use.
 

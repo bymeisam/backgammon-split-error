@@ -6,10 +6,16 @@
 //     not enough for owner access.
 //   - DB OWNER without the Clerk flag falls back to MEMBER (still invited).
 //   - DB MEMBER is MEMBER, whatever the Clerk flag says.
-//   - Anything else (no AppUser row, DB NONE) is NONE: awaiting approval.
-//     The Clerk flag on its own grants nothing.
+//   - Anything else (no AppUser row, DB NONE) is NONE: no access. New rows
+//     start as MEMBER (NEW_APP_USER_ROLE: sign-up is invite-only in Clerk,
+//     so the invitation is the approval); NONE is set by hand to cut
+//     someone off. The Clerk flag on its own grants nothing.
 
 export type AppRole = "OWNER" | "MEMBER" | "NONE";
+
+// The role a newly provisioned AppUser row is created with. Never OWNER:
+// the owner is set by hand (DB OWNER plus Clerk privateMetadata.isOwner).
+export const NEW_APP_USER_ROLE = "MEMBER" satisfies AppRole;
 
 export function resolveAppRole(dbRole: AppRole | null, clerkIsOwner: boolean): AppRole {
   if (dbRole === "OWNER") return clerkIsOwner ? "OWNER" : "MEMBER";

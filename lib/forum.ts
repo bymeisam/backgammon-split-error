@@ -26,6 +26,13 @@ export function textField(value: unknown, max: number): string | null {
   return text.length > 0 && text.length <= max ? text : null;
 }
 
+// A parsed JSON request body as a plain object, or null when it's anything
+// else (null, an array, a string, a number…), so routes can 400 instead of
+// throwing on `input.title`.
+export function jsonObject(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
 // An optional boolean field (e.g. a post's hideAnalysis): "absent" when it
 // isn't in the request, the boolean when it is one, "invalid" otherwise
 // (null, a string, a number…).

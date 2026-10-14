@@ -25,9 +25,11 @@ to a false match under a case-insensitive collation.
 Columns currently pinned this way: `Match.sourceMatchId`,
 `PlayerIdentity.sourceUserId`, `Decision.userId`,
 `RepeatedPosition.sourcePositionId`, `Decision.sourcePositionId`,
-`StudyPosition.positionId`, `StudyPosition.gnuMatchId`, and
+`StudyPosition.positionId`, `StudyPosition.gnuMatchId`,
 `ForumMoveProposal.resultPositionId` (nullable; the GNU Position ID after a
-proposed checker play, migration `20261013140000_forum_move_proposal`).
+proposed checker play, migration `20261013140000_forum_move_proposal`), and
+`AppUser.clerkUserId` (the Clerk user ID, migration
+`20261011120000_add_app_user`).
 `Decision.cubeOwnerUserId` was pinned too until it was dropped on
 2026-10-07; its pin went with it.
 
@@ -39,7 +41,7 @@ its absence from the collation-pinned column list above isn't mistaken for
 an oversight.
 
 **Note on implementation:** Prisma's schema DSL does not expose a collation
-attribute for MySQL (only for SQL Server via `@db.Collation`). These five
+attribute for MySQL (only for SQL Server via `@db.Collation`). These nine
 columns are pinned to `utf8mb4_bin` by hand-editing the generated migration
 SQL directly (adding `COLLATE utf8mb4_bin` to each column's definition) —
 this is not visible in `schema.prisma` itself, only in the migration file.

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prismaApp, prismaReadOnly } from "@/lib/prisma";
 import { requireMemberApi } from "@/lib/app-auth";
 import { isAppWriteEnabled } from "@/lib/appWriteGate";
-import { FORUM_LIMITS, forumIdentity, optionalBoolean, rawMatchId, sourceDecision, textField, validIds } from "@/lib/forum";
+import { FORUM_LIMITS, forumIdentity, jsonObject, optionalBoolean, rawMatchId, sourceDecision, textField, validIds } from "@/lib/forum";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 
 export const dynamic = "force-dynamic";
@@ -122,7 +122,8 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
-  const input = payload as { title?: unknown; body?: unknown; positions?: unknown; hideAnalysis?: unknown };
+  const input: { title?: unknown; body?: unknown; positions?: unknown; hideAnalysis?: unknown } | null = jsonObject(payload);
+  if (!input) return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   const title = textField(input.title, FORUM_LIMITS.title);
   const body = textField(input.body, FORUM_LIMITS.body);
   if (!title || !body) return NextResponse.json({ error: "Title and body are required." }, { status: 400 });

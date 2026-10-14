@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatLoss, formatMatchContext, formatRelativeDue, questionFor } from "@/lib/review/format";
+import { formatEquity, formatLoss, formatMatchContext, formatRelativeDue, questionFor } from "@/lib/review/format";
 
 describe("formatRelativeDue", () => {
   const now = new Date(2026, 9, 7, 15, 0);
@@ -45,5 +45,21 @@ describe("formatLoss", () => {
   it("zero, and negatives with a minus sign", () => {
     expect(formatLoss(0)).toBe("0.000");
     expect(formatLoss(-0.1829)).toBe("−0.183");
+  });
+});
+
+describe("formatEquity", () => {
+  it("signs non-zero values with + or a true minus (U+2212)", () => {
+    expect(formatEquity(0.4123)).toBe("+0.412");
+    expect(formatEquity(-0.1829)).toBe("\u2212" + "0.183");
+    expect(formatEquity(1)).toBe("+1.000");
+    expect(formatEquity(-1)).toBe("\u2212" + "1.000");
+  });
+
+  it("shows zero, and anything that rounds to it, unsigned", () => {
+    expect(formatEquity(0)).toBe("0.000");
+    expect(formatEquity(-0)).toBe("0.000");
+    expect(formatEquity(-0.0004)).toBe("0.000");
+    expect(formatEquity(0.0004)).toBe("0.000");
   });
 });

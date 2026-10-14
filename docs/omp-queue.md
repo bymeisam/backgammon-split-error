@@ -4,20 +4,20 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-- **2026-10-14, master added migration `20261014100000_app_user_single_owner`** (additive: generated `AppUser.ownerSlot` plus a unique index, at most one OWNER row; already applied to the shared local `app_dev`). Merge master and run `npx prisma generate` before your next app run. The local `AUTH_BYPASS` owner row (`local-dev-owner`) is now stored as `NONE`; the bypass still acts as owner in memory.
+### Forum: text-only posts, "add a board" buttons, Post to forum everywhere, no IDs (queued 2026-10-14)
+**First merge `master`** (at least `8a1049f`): it touches `app/api/forum/posts/route.ts` and `[id]/route.ts` (a `jsonObject()` guard from `lib/forum.ts`). No schema change in this task, so `prisma generate` is all you need.
 
-### Review notes on `omp/main` at `0c8ed7a` (queued 2026-10-14)
-Merge master first (it has the single-owner migration above; run `npx prisma generate` after).
+The problem: the forum list's "New post" (`app/forum/page.tsx:27`) opens `/forum/new` with no prefill, and `NewPostForm.tsx` falls back to raw "GNU Position ID", "GNU Match ID" and "Decision ID" fields. Members can't produce those IDs. The user decided the following (2026-10-14):
 
-Claude Code reviewed `0c8ed7a`: the code is fine, and the visual-reviewer plus the main session opened the `-6` shots. Fixed: separators spaced and attached, no line starting with "·", the cube chip left-aligned, no tally regressions. The "Yes" focus ring is now visible (a subtle grey outline in dark). The main session looked at `review-hard-only-saved--390-dark`: "Next card" is light beige, not disabled-grey. It's almost certainly the **hover** colour (`hover:bg-primary/86`), because the script clicks "Hard" and "Next card" renders under the still-hovering mouse. Small polish left:
+1. **Posts may have no board.** `POST /api/forum/posts` accepts 0..`FORUM_LIMITS.positions` attachments (today it's 1..N). A text-only post shows no board or analysis panel, and its replies have no move proposals (the reply composer offers none when the post has no positions). Check the post page, the list and the edit flow with zero positions.
+2. **New post form.** `/forum/new` is a plain title and body form. Above it, two buttons: **"Add a board from a match"** (to `/matches`) and **"Add a board from the position builder"** (to `/position-builder`). When a board was handed over (see 4), it shows on top as the read-only preview the `?decision=` path already uses, with a way to remove it. **Remove the "Source" select and every raw ID field** (GNU Position ID, GNU Match ID, Decision ID, Kind) from the UI entirely.
+3. **"Post to forum" button** on every board a user can view: the replay (exists, `GameReplay.tsx:210`), the position builder (exists, `PositionBuilder.tsx:371`), plus the match analysis boards, each `/mistakes` row or board, and repeated positions. Same label and component everywhere (a shared one in `app/components/ui/` if there isn't one). Gate it the way the existing buttons are (`isAppWriteEnabled()`). Members must see it (they reach all of those pages, `lib/accessRules.ts`).
+4. **No IDs in the URL or on screen.** The button doesn't put decision IDs or GNU IDs in the query string. It writes the attachment (`{ match: { decisionId } }` or `{ manual: { positionId, gnuMatchId, kind } }`, the same shapes the API already takes) to `sessionStorage` under one key, then navigates to plain `/forum/new`. The form reads it (inside try/catch), shows the board and clears it after a successful post. No stored draft means no board, and the two buttons show. The API still validates exactly as now (the decision exists, the IDs are valid), so a tampered draft just gets a 400/404. Drop the old `?decision=` and `?positionId=` query handling, or redirect it to the new flow; nothing outside the app links to it.
+5. Keep one board per post from these entry points. "Add another board" can come later; don't build multi-board UI now (the API limit stays).
 
-1. **Screenshot script:** after clicking "Hard" (and before any capture where a button appears under the cursor), move the mouse away, e.g. `page.mouse.move(0, 0)`, then settle. Recapture the Hard-only saved state and confirm "Next card" has the same fill as "Yes".
-2. **Interactive chip alignment:** the clickable move chips still centre their wrapped text ("6/4 4/3 ↗" sits mid-chip at 390). `Button`'s base centres the content, so add `justify-start` to `proposalInteractiveChip` (`forum.styles.ts:62`).
-3. **Trailing separator gap:** at 1280, "…2-1 to play ·" followed by the move leaves a double-width gap (`appendSeparator` plus `proposalSeparator: "mx-1"`, `ProposalDisplay.tsx:18`, `forum.styles.ts:65`). Tighten the trailing separator's right margin, or let the move's own gap do the spacing.
-4. **Formatting:** the `gradeButton` class string in `review.styles.ts:108` lost its indentation. Restore it.
-5. **Optional:** make the "Yes"/grade-button focus ring a little stronger (e.g. `outline-[3px]`), if it stays consistent with other focus rings.
+Not in scope (parked in `docs/future-ideas.md` § Forum): topics or categories, pinning, boards in replies.
 
-Checks: vitest, tsc, lint, build, `npm run test:visual`. Before/after shots for items 1–3, listed under "Done by omp (to check)". Add a PROGRESS.md entry.
+Checks: tests for 0-position posts (API and UI), the sessionStorage handoff (present, absent, malformed) and the new button on each page; `npm test`, tsc, lint, build, `npm run test:visual`. Screenshots (`design/screenshots/<YYYY-MM-DD>-<slug>/`) of the new form empty and with a board, a text-only post page, and the button on mistakes, analysis and repeated positions, at 390 and 1280 in light and dark. The new form layout and the button placement are new visible components, so master will bring in the designer and visual reviewer on review.
 
 ## Schema requests (omp → master)
 
@@ -69,7 +69,8 @@ Implementation commit: `0c8ed7a`. No Prisma, migration, Oracle, or `.env*` chang
 
 ## Checked and done (master)
 
-- **Review notes at `ebc8857` (focus ring, Hard-only capture, separators)**: `0c8ed7a` (2026-10-14). Checked; the small polish left is in the `0c8ed7a` task. Not yet merged into master.
+- **Review notes at `0c8ed7a` (mouse-away capture, chip alignment, separator gap, indentation)**: `4a3c39f` + master merge `ebffba0` (2026-10-14). Checked: the main session opened the `-7` shots. "Next card" in the Hard-only saved state has the primary fill (same as "Reply"), wrapped interactive chips are left-aligned at 390, and the 1280 tally separator gap is single-width. Code already in master via `86060fb`. omp's docs commit `19ac02b` needs no merge; omp drops its "to check" entries on its next master merge.
+- **Review notes at `ebc8857` (focus ring, Hard-only capture, separators)**: `0c8ed7a` (2026-10-14). Checked, and merged into master with `omp/main` at `4a3c39f`, which already includes the start of the `0c8ed7a` polish task (mouse-away, `justify-start`, trailing separator, indentation). Still to come from omp for that task: its "to check" entry and the before/after shots.
 - **Review notes at `8f8fd4b` (tally, draft board, chip wrapping, focus, headers)**: `0ab1743` + `ec30993` (2026-10-14). Checked, and `omp/main` at `ebc8857` merged into master (`18789e8`); the follow-ups are in the `ebc8857` task.
 - **Review notes at `02831c2` (visual polish, comments, headers)**: `7224f45` (2026-10-14). Checked; the follow-ups are in the `8f8fd4b` task.
 - **Review notes at `b657ca6` (screenshots, clean-up, master merge)**: `02831c2` + merge `d6c146e` (2026-10-14). Checked.

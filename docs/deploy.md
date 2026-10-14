@@ -205,9 +205,11 @@ up automatically.
 
 The app uses Clerk's invite-only sign-in flow (`/sign-in`). Do not add a
 public `SignUpButton`; disable public sign-up in the Clerk dashboard and invite
-only approved people. Every first signed-in access provisions an `AppUser`
-row with `role=NONE` (awaiting approval) and the Clerk display name. The role
-is set by hand (`lib/appRole.ts` resolves it). The database allows **at most one
+only approved people. **Before public sign-up is ever opened**, build the admin dashboard for approvals and user management first (`docs/future-ideas.md` § Per-user permissions and an admin page). Every first signed-in access provisions an `AppUser`
+row with `role=MEMBER` and the Clerk display name: sign-up is invite-only, so
+the Clerk invitation is the approval (`NEW_APP_USER_ROLE` in `lib/appRole.ts`,
+decided 2026-10-14). Existing rows keep their role; any change after that is
+made by hand (`lib/appRole.ts` resolves it). A new row is never `OWNER`. The database allows **at most one
 `OWNER` row** (the generated `AppUser.ownerSlot` column with a unique index,
 migration `20261014100000_app_user_single_owner`): setting a second row to
 `OWNER` fails with `Duplicate entry '1' for key 'AppUser.AppUser_ownerSlot_key'`,
@@ -219,13 +221,15 @@ so demote the old owner row (to `NONE` or `MEMBER`) first.
 - **Member**: `AppUser.role` is `MEMBER`. Read-only matches, analysis,
   replays, mistakes, repeated positions and settings, plus the forum. No
   notes, tags, review data, `/review`, `/sources` or `/status`.
-- **NONE**: signed in, awaiting approval.
+- **NONE**: cut off. Set by hand (`UPDATE AppUser SET role = 'NONE' WHERE
+  clerkUserId = '…';`) to remove someone's access; they land on
+  `/auth/complete` and see no application data. New rows never start here.
 
 Which pages and APIs each role reaches is one table, `lib/accessRules.ts`
 (anything unlisted is owner-only). Identity matching uses the verified Clerk
 user ID, never email or client metadata. Unauthenticated document requests go
 to `/sign-in`; NONE goes to `/auth/complete`, which provisions the local row if
-needed and shows the pending-approval state without exposing application
+needed and shows the no-access state without exposing application
 data; a member on an owner page gets a 404. APIs return 401 for signed-out
 requests and 404 for a role that isn't allowed.
 
@@ -240,7 +244,7 @@ The authenticated `/position-builder` route is a member page. It keeps edits in 
   1. Add the domain to the Vercel project (Settings → Domains) and set its DNS.
   2. In Clerk, create the production instance (clone the development one), enter `backgammon.bymeisam.dev` as the application domain, and add the DNS records Clerk lists (CNAMEs such as `clerk.` and `accounts.` under the domain). Wait until Clerk shows them verified and the SSL certificates issued.
   3. In Vercel, set the production keys (`pk_live_` / `sk_live_`) on **Production**; keep the development keys on **Preview** if previews still need sign-in.
-  4. Users don't carry over between Clerk instances: re-invite members in the production instance, and set the owner's `privateMetadata.isOwner = true` there again. Their `AppUser` rows are keyed by Clerk user id (`clerkUserId`), so the new instance's ids create new rows (role `NONE`): first demote the owner's old row (`UPDATE AppUser SET role = 'NONE' WHERE clerkUserId = '<old id>';`, since only one row may be `OWNER`), then set the owner's new row to `OWNER` and members' to `MEMBER`, and delete or leave the old rows.
+  4. Users don't carry over between Clerk instances: re-invite members in the production instance, and set the owner's `privateMetadata.isOwner = true` there again. Their `AppUser` rows are keyed by Clerk user id (`clerkUserId`), so the new instance's ids create new rows (role `MEMBER`, so re-invited members need no manual step): first demote the owner's old row (`UPDATE AppUser SET role = 'NONE' WHERE clerkUserId = '<old id>';`, since only one row may be `OWNER`), then set the owner's new row to `OWNER`, and delete or leave the old rows.
   5. Check the redirect/allowed-origin settings in Clerk name the new domain, then run "Auth verification" below.
 - **Known snags:** SSL issuance in Clerk can stall on CAA DNS records (Clerk support fixed it by hand for others); the Vercel Marketplace Clerk integration has been reported to fall back to development keys ("Production domain required"). Contact Clerk support for either.
 
@@ -264,7 +268,7 @@ bypass after local authenticated smoke and visual review are complete.
 
 ## Auth verification (do this after every deploy)
 
-Open the production URL in a private/incognito window. It must redirect to `/sign-in`. A signed-in user with `AppUser.role` NONE must land on `/auth/complete` and receive no application data; a member must get a 404 on `/review` and `/status`. Verify the owner's Clerk private metadata and `AppUser.role` (OWNER) separately after migrations.
+Open the production URL in a private/incognito window. It must redirect to `/sign-in`. A newly invited user's first sign-in must create an `AppUser` row with role MEMBER and let them in. A signed-in user whose `AppUser.role` was set to NONE by hand must land on `/auth/complete` and receive no application data; a member must get a 404 on `/review` and `/status`. Verify the owner's Clerk private metadata and `AppUser.role` (OWNER) separately after migrations.
 
 ## Making the Claude PR review actually block merges (manual, GitHub settings)
 

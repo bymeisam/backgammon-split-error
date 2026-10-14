@@ -55,6 +55,10 @@ export function formatLoss(loss: number): string {
   return `−${Math.abs(loss).toFixed(3)}`;
 }
 
+// Signed equity: "+0.412", "−0.183" (true minus, U+2212, like formatLoss),
+// and "0.000" with no sign, including a tiny negative that rounds to zero.
 export function formatEquity(e: number): string {
-  return e.toFixed(3);
+  const abs = Math.abs(e).toFixed(3);
+  if (abs === "0.000") return abs;
+  return `${e < 0 ? "−" : "+"}${abs}`;
 }

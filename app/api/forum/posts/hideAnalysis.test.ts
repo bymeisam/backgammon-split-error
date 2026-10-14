@@ -112,3 +112,16 @@ describe("PATCH /api/forum/posts/[id] hideAnalysis", () => {
     expect(db.update).not.toHaveBeenCalled();
   });
 });
+
+describe("POST and PATCH reject a JSON body that isn't a plain object", () => {
+  it.each([[null], [[]], ["text"], [42], [true]])("400 for %j", async (value) => {
+    const post = await POST(request(value));
+    expect(post.status).toBe(400);
+    expect(await post.json()).toEqual({ error: "Invalid JSON." });
+    const patch = await PATCH(request(value), ctx);
+    expect(patch.status).toBe(400);
+    expect(await patch.json()).toEqual({ error: "Invalid JSON." });
+    expect(db.postCreate).not.toHaveBeenCalled();
+    expect(db.update).not.toHaveBeenCalled();
+  });
+});
