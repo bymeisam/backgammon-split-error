@@ -57,6 +57,19 @@ Checks: `npm test` **868/868**, `npx tsc --noEmit`, `npm run lint`, `NEXT_DIST_D
 - `forum-new-builder-draft-restored-390-light.png`, `forum-new-builder-draft-restored-390-dark.png`, `forum-new-builder-draft-restored-1280-light.png`, `forum-new-builder-draft-restored-1280-dark.png`
 
 No Prisma, migration, Oracle, or `.env*` changes.
+
+### Screenshot capture correction (completed 2026-10-14)
+Converted `e2e/forum-post-button-capture.spec.ts` into a draft round-trip test without screenshots, and moved the requested cases into the existing `forum-text-post-flows` harness using `forumActionShot`; the builder draft return asserts the title, body, and board. The test-generated screenshot path is no longer created by the e2e spec. Screenshot capture now imports Playwright's `expect` used by its draft restoration assertions.
+
+Checks completed: `npm test` (**868/868**), `npx tsc --noEmit`, `npm run lint`, `npm run build`, and `npm run test:visual` (**24/24**) passed. The real capture command completed with 108 files written to `design/screenshots/2026-10-14-forum-post-button/`; requested screenshots:
+- `forum-write-mistakes-post-button--{390,1280}-{light,dark}--full.png`
+- `forum-write-match-analysis-post-button--{390,1280}-{light,dark}--full.png`
+- `forum-write-replay-post-button--{390,1280}-{light,dark}--viewport.png`
+- `forum-write-builder-post-button--{390,1280}-{light,dark}--full.png`
+- `forum-write-new-match-board--{390,1280}-{light,dark}--full.png`
+- `forum-write-new-builder-draft-restored--{390,1280}-{light,dark}--full.png`
+
+The requested full-page `/forum/new` captures show `Remove board`. No Prisma, migration, Oracle, or `.env*` changes.
 ### Second visual refinement: focus, settled rating state, and separators (completed 2026-10-14)
 Implemented the remaining visual fixes on `omp/main`: grade-button focus now uses the contrasting `outline-ink` token; the screenshot harness waits for an enabled “Next card” before capturing the Hard-only saved state; checker and cube separators are non-breaking elements attached to the preceding position segment; non-interactive chips are left-aligned. The settled Hard-only button remained correctly primary after the wait, so no fill change was needed. The explicit 11px Enter kbd remains provided by `shared.kbd`.
 

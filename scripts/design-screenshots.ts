@@ -92,7 +92,7 @@
 // answer) when it has such an option, else right.
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { chromium, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { isThemeId, serializeThemeCookie, THEME_COOKIE, THEMES } from "../lib/themes";
 
 type Theme = "light" | "dark";
@@ -601,6 +601,8 @@ const FORUM_SHOTS: Shot[] = [
       await page.getByRole("button", { name: "Post to forum" }).click();
       await page.waitForURL("**/forum/new");
       await forumShoot(ctx, "new-match-board", "full");
+      await expect(page.getByRole("button", { name: "Remove board" })).toBeVisible();
+      await forumShoot(ctx, "new-match-board", "full");
       await page.getByRole("button", { name: "Remove board" }).click();
       await forumShoot(ctx, "new-match-board-removed", "full");
       await page.reload();
@@ -620,7 +622,20 @@ const FORUM_SHOTS: Shot[] = [
       await forumActionShot(ctx, "builder-post-button");
       await page.getByRole("button", { name: "Post to forum" }).click();
       await page.waitForURL("**/forum/new");
+      await expect(page.getByRole("button", { name: "Remove board" })).toBeVisible();
       await forumShoot(ctx, "new-builder-board", "full");
+
+      await open(page, "/forum/new");
+      await page.getByLabel("Title").fill("Draft title");
+      await page.getByLabel("Body").fill("Draft body");
+      await page.getByRole("link", { name: "Add a board from the position builder" }).click();
+      await page.getByRole("button", { name: "Post to forum" }).click();
+      await page.waitForURL("**/forum/new");
+      await expect(page.getByLabel("Title")).toHaveValue("Draft title");
+      await expect(page.getByLabel("Body")).toHaveValue("Draft body");
+      await expect(page.getByRole("button", { name: "Remove board" })).toBeVisible();
+      await forumShoot(ctx, "new-builder-draft-restored", "full");
+
       const created = await page.evaluate(async () => {
         const response = await fetch("/api/forum/posts", {
           method: "POST",
@@ -659,8 +674,8 @@ const FORUM_SHOTS: Shot[] = [
       await forumShoot(ctx, "position-builder", "full");
     },
   },
-
 ];
+
 
 // The auth set (--set=auth): the real Clerk screens, so no bypass.
 const AUTH_SHOTS: Shot[] = [
