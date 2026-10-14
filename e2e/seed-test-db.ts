@@ -1,12 +1,13 @@
 // Seeds the local `bg_test` MySQL schema (see e2e/README.md) with exactly
-// the rows the /mistakes visual-regression tests need: 1 Match, 3 Games,
-// and 10 Decisions — the 5 representative decisions already used in
-// board-visual.spec.ts, plus each one's immediately preceding dice_rolled
-// sibling row. Those siblings are kept for historical/snapshot fidelity
-// (this is a real one-time capture, not hand-assembled), but nothing reads
-// them as siblings: roll, cube, colour and labels all come from each row's
-// own raw (its GNU Match ID and review; lib/analysis/index.ts). Deliberately
-// not a full match/account replica, just what these 5 tests actually render.
+// the rows the visual-regression tests need: 1 Match, 3 Games, and 11
+// Decision rows — the 10 real fixture rows (5 representative decisions and
+// their immediately preceding dice_rolled siblings) plus one test-only
+// duplicate CHECKER occurrence that gives the repeated-position drilldown
+// a deterministic two-occurrence group. The 10 fixture rows are a real
+// one-time capture, not hand-assembled; nothing reads the sibling rows as
+// siblings: roll, cube, colour and labels all come from each row's own raw
+// (its GNU Match ID and review; lib/analysis/index.ts). Deliberately not a
+// full match/account replica, just what the visual tests actually render.
 //
 // Source data: e2e/fixtures/seed-data.json — a real, one-time snapshot of
 // these exact rows (opponent name anonymized), not re-derived or
@@ -124,8 +125,50 @@ async function main() {
     });
   }
 
+  // A second occurrence of a real seeded CHECKER decision makes the
+  // repeated-position drilldown deterministic without adding another raw
+  // payload. The extra row is test-only; it shares the source board and
+  // severity, with a matching two-occurrence aggregate.
+  const staleSource = seed.decisions.find((decision) => decision.kind === "CHECKER" && decision.errorSeverity === "ERROR");
+  if (!staleSource) throw new Error("No seeded ERROR checker decision for stale fixture cleanup");
+  const repeatedId = Math.max(...seed.decisions.map(({ id }) => id)) + 1;
+  const staleGameId = gameIdByIndex.get(staleSource.gameIndex);
+  if (!staleGameId) throw new Error("No seeded game for stale repeated-position fixture cleanup");
+  await prisma.decision.deleteMany({
+    where: { id: repeatedId, gameId: staleGameId, eventId: BigInt(staleSource.eventId) + 1n },
+  });
+  const repeatedSource = seed.decisions.find((decision) => decision.kind === "CHECKER" && decision.classification === "race" && decision.errorSeverity === "DOUBTFUL");
+  if (!repeatedSource) throw new Error("No seeded race/doubtful checker decision for the repeated-position fixture");
+  const repeatedSourceRow = await prisma.decision.findUniqueOrThrow({ where: { id: repeatedSource.id } });
+  if (!repeatedSourceRow.sourcePositionId) throw new Error("Repeated-position fixture source has no sourcePositionId");
+  const repeatedEventId = BigInt(repeatedSource.eventId) + 1n;
+  await prisma.decision.upsert({
+    where: { gameId_eventId: { gameId: repeatedSourceRow.gameId, eventId: repeatedEventId } },
+    create: { ...repeatedSourceRow, id: repeatedId, eventId: repeatedEventId } as never,
+    update: {},
+  });
+  const repeatedWhere = {
+    sourcePositionId: repeatedSourceRow.sourcePositionId,
+    errorSeverity: repeatedSourceRow.errorSeverity,
+    plyNumber: repeatedSourceRow.plyNumber,
+  };
+  const repeatedAggregate = await prisma.repeatedPosition.findFirst({ where: repeatedWhere });
+  const repeatedAggregateData = {
+    sourcePositionId: repeatedSourceRow.sourcePositionId,
+    classification: repeatedSourceRow.classification,
+    errorSeverity: repeatedSourceRow.errorSeverity,
+    plyNumber: repeatedSourceRow.plyNumber,
+    occurrenceCount: 2,
+    computedAt: new Date(),
+  };
+  if (repeatedAggregate) {
+    await prisma.repeatedPosition.update({ where: { id: repeatedAggregate.id }, data: repeatedAggregateData });
+  } else {
+    await prisma.repeatedPosition.create({ data: repeatedAggregateData });
+  }
+
   console.log(
-    `Seeded bg_test: 1 match, ${seed.games.length} games, ${seed.decisions.length} decisions (match ${seed.match.sourceMatchId}).`
+    `Seeded bg_test: 1 match, ${seed.games.length} games, ${seed.decisions.length + 1} decisions (match ${seed.match.sourceMatchId}).`
   );
 
   await prisma.$disconnect();

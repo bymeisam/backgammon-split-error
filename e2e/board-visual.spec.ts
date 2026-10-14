@@ -437,6 +437,23 @@ test.describe("Forum action write-gate propagation", () => {
     await waitForAllGamesLoaded(page);
     await expect(page.getByRole("button", { name: "Post to forum" }).first()).toBeVisible();
   });
+
+  test("the mistakes list displays the action when writes are enabled", async ({ page }) => {
+    const decision = DECISIONS[0];
+    const { classification, category, severity } = decision.mistakesFilter;
+    await page.goto(`/mistakes?classification=${classification}&category=${category}&severity=${severity}`);
+    await page.getByText(decision.myLabel, { exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
+  });
+
+  test("the repeated-position detail displays the action when writes are enabled", async ({ page }) => {
+    await page.goto("/repeated-positions?phase=race&severity=doubtful");
+    const firstPosition = page.locator('a[href*="positionId="]').first();
+    await expect(firstPosition).toBeVisible();
+    await firstPosition.click();
+    await page.waitForURL(/positionId=/);
+    await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
+  });
   test("the position builder displays the action when writes are enabled", async ({ page }) => {
     await page.goto("/position-builder");
     await expect(page.getByRole("button", { name: "Post to forum" })).toBeVisible();
