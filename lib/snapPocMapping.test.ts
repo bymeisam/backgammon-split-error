@@ -3,8 +3,10 @@ import {
   builderStateToLayout,
   isCheckersMirrored,
   layoutToBuilderState,
+  rotateLayout180,
   toggleMirrorCheckers,
   toggleMirrorNumbers,
+  toggleRotate,
   type SnapLayout,
   type SnapOrientation,
   type SnapPoint,
@@ -135,6 +137,19 @@ describe("builderStateToLayout", () => {
   }
 });
 
+// Every drawn stack as "row@x:side×count", sorted, at its absolute x.
+function screen(o: SnapOrientation): string[] {
+  const { position } = layoutToBuilderState(layout(), o);
+  const out: string[] = [];
+  for (let p = 1; p <= 24; p++) {
+    const x = stackBase(p, Boolean(o.mirroredNumbers)).cx;
+    const row = p <= 12 ? "bottom" : "top";
+    if (position.mine[p - 1]) out.push(`${row}@${x}:mine×${position.mine[p - 1]}`);
+    if (position.opponent[p - 1]) out.push(`${row}@${x}:opponent×${position.opponent[p - 1]}`);
+  }
+  return out.sort();
+}
+
 // The review page's two mirror buttons. Board draws point p at
 // stackBase(p, homeLeft).cx, with homeLeft = mirroredNumbers.
 describe("mirror toggles", () => {
@@ -144,18 +159,6 @@ describe("mirror toggles", () => {
     { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true },
   ];
 
-  // Every drawn stack as "row@x:side×count", sorted, at its absolute x.
-  function screen(o: SnapOrientation): string[] {
-    const { position } = layoutToBuilderState(layout(), o);
-    const out: string[] = [];
-    for (let p = 1; p <= 24; p++) {
-      const x = stackBase(p, Boolean(o.mirroredNumbers)).cx;
-      const row = p <= 12 ? "bottom" : "top";
-      if (position.mine[p - 1]) out.push(`${row}@${x}:mine×${position.mine[p - 1]}`);
-      if (position.opponent[p - 1]) out.push(`${row}@${x}:opponent×${position.opponent[p - 1]}`);
-    }
-    return out.sort();
-  }
 
   for (const o of base) {
     const label = `${o.bottomColor} bottom, home ${o.bottomHome}, numbers ${o.mirroredNumbers ? "mirrored" : "plain"}`;
@@ -188,5 +191,76 @@ describe("mirror toggles", () => {
     expect(layoutToBuilderState(layout(), old)).toEqual(
       layoutToBuilderState(layout(), { ...old, mirroredNumbers: false })
     );
+  });
+});
+
+// "Rotate board": the photo read turned 180 degrees.
+describe("rotate board", () => {
+  const all: SnapOrientation[] = [];
+  for (const bottomColor of ["dark", "light"] as const)
+    for (const bottomHome of ["right", "left"] as const)
+      for (const mirroredNumbers of [false, true]) all.push({ bottomColor, bottomHome, mirroredNumbers });
+
+  it("rotateLayout180 swaps and reverses the rows and flips a top/bottom cube", () => {
+    const r = rotateLayout180(layout());
+    expect(r.topRow).toEqual([...layout().bottomRow].reverse());
+    expect(r.bottomRow).toEqual([...layout().topRow].reverse());
+    expect(r.cube).toEqual({ visible: true, value: 4, location: "bottom" });
+    expect(r.bar).toEqual(layout().bar);
+    expect(r.borneOff).toEqual(layout().borneOff);
+    expect(r.dice).toEqual(layout().dice);
+    const centred = { ...layout(), cube: { visible: true, value: 1, location: "center" as const } };
+    expect(rotateLayout180(centred).cube.location).toBe("center");
+  });
+
+  it("is its own inverse", () => {
+    expect(rotateLayout180(rotateLayout180(layout()))).toEqual(layout());
+  });
+
+  for (const o of all) {
+    const rotated = toggleRotate(o);
+    const label = `${o.bottomColor} bottom, home ${o.bottomHome}, numbers ${o.mirroredNumbers ? "mirrored" : "plain"}`;
+
+    it(`round-trips the photo layout with rotation on (${label})`, () => {
+      const back = builderStateToLayout(layoutToBuilderState(layout(), rotated), rotated);
+      const original = layout();
+      expect(back.topRow).toEqual(original.topRow);
+      expect(back.bottomRow).toEqual(original.bottomRow);
+      expect(back.bar).toEqual(original.bar);
+      expect(back.borneOff).toEqual(original.borneOff);
+      expect(back.cube).toEqual(original.cube);
+    });
+
+    it(`reads the board as the upside-down photo and leaves the other toggles alone (${label})`, () => {
+      expect(rotated.rotated).toBe(true);
+      expect(rotated.bottomHome).toBe(o.bottomHome);
+      expect(rotated.mirroredNumbers).toBe(o.mirroredNumbers);
+      expect(toggleRotate(rotated).rotated).toBe(false);
+      expect(layoutToBuilderState(layout(), rotated)).toEqual(layoutToBuilderState(rotateLayout180(layout()), o));
+      // The checkers move: each stack goes to the other row's mirrored column.
+      expect(screen(rotated)).not.toEqual(screen(o));
+    });
+
+    it(`combines with Mirror numbers and Mirror checkers (${label})`, () => {
+      // Mirror numbers still moves nothing but the labels, rotated or not.
+      expect(screen(toggleMirrorNumbers(rotated))).toEqual(screen(rotated));
+      // The toggles commute, and the saved photo layout is the same whichever
+      // order they were pressed in.
+      for (const toggle of [toggleMirrorNumbers, toggleMirrorCheckers]) {
+        const a = toggleRotate(toggle(o));
+        const b = toggle(toggleRotate(o));
+        expect(a).toEqual(b);
+        expect(builderStateToLayout(layoutToBuilderState(layout(), a), a)).toEqual(
+          builderStateToLayout(layoutToBuilderState(layout(), b), b)
+        );
+      }
+    });
+  }
+
+  it("a file saved without rotated loads exactly as before", () => {
+    const old: SnapOrientation = { bottomColor: "dark", bottomHome: "left" };
+    expect(isSnapOrientation({ ...old, rotated: true })).toBe(true);
+    expect(isSnapOrientation({ ...old, rotated: 1 })).toBe(false);
+    expect(layoutToBuilderState(layout(), old)).toEqual(layoutToBuilderState(layout(), { ...old, rotated: false }));
   });
 });

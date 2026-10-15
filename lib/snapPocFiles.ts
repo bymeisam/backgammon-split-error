@@ -112,7 +112,8 @@ export function isSnapOrientation(v: unknown): v is SnapOrientation {
   return (
     (o.bottomColor === "light" || o.bottomColor === "dark") &&
     (o.bottomHome === "right" || o.bottomHome === "left") &&
-    (o.mirroredNumbers === undefined || typeof o.mirroredNumbers === "boolean")
+    (o.mirroredNumbers === undefined || typeof o.mirroredNumbers === "boolean") &&
+    (o.rotated === undefined || typeof o.rotated === "boolean")
   );
 }
 

@@ -18,6 +18,7 @@ import {
   layoutToBuilderState,
   toggleMirrorCheckers,
   toggleMirrorNumbers,
+  toggleRotate,
   type SnapLayout,
   type SnapOrientation,
 } from "@/lib/snapPocLayout";
@@ -69,7 +70,7 @@ export default function SnapPocReview({ items: initialItems, model }: { items: S
   const source: Source = sources[item.image] ?? (item.truth ? "truth" : "gemini");
   const sourceLayout = source === "truth" && item.truth ? item.truth.layout : item.gemini;
   const builderState = sourceLayout ? layoutToBuilderState(sourceLayout, orientation) : emptyBuilderState();
-  const builderKey = `${item.image}|${source}|${orientation.bottomColor}|${orientation.bottomHome}|${item.truth?.savedAt ?? ""}`;
+  const builderKey = `${item.image}|${source}|${orientation.bottomColor}|${orientation.bottomHome}|${Boolean(orientation.rotated)}|${item.truth?.savedAt ?? ""}`;
   const confirmed = items.filter((i) => i.truth).length;
   const score = scores[index];
 
@@ -84,6 +85,7 @@ export default function SnapPocReview({ items: initialItems, model }: { items: S
 
   const checkersMirrored = isCheckersMirrored(orientation);
   const numbersMirrored = Boolean(orientation.mirroredNumbers);
+  const rotated = Boolean(orientation.rotated);
 
   async function save(state: PositionBuilderState) {
     if (!model) return;
@@ -216,29 +218,32 @@ export default function SnapPocReview({ items: initialItems, model }: { items: S
                 ))}
               </div>
             </div>
-            {/* Two independent toggles, each moving one thing on screen:
-                the checkers (the layout mapping flips) or the point numbers
-                (the board is drawn mirrored and the mapping flips with it, so
-                the checkers stay put). */}
-            <div className={style.fieldLabel}>
-              Mirror
-              <div className={style.segmented}>
-                <button
-                  type="button"
-                  aria-pressed={checkersMirrored}
-                  className={style.segmentOption(checkersMirrored)}
-                  onClick={() => setOrientation(toggleMirrorCheckers(orientation))}
-                >
-                  Mirror checkers
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={numbersMirrored}
-                  className={style.segmentOption(numbersMirrored)}
-                  onClick={() => setOrientation(toggleMirrorNumbers(orientation))}
-                >
-                  Mirror numbers
-                </button>
+            {/* Three independent on/off toggles, each moving one thing on
+                screen: the checkers mirror (the layout mapping flips), the
+                point numbers mirror (Board's homeLeft, with the mapping
+                flipped too so the checkers stay put), or the checkers turn
+                180 degrees (the photo read upside down). Each is its own
+                Button: primary when on, secondary when off. */}
+            <div className={style.fieldLabel} role="group" aria-label="Board view">
+              Board view
+              <div className={style.toggleRow}>
+                {(
+                  [
+                    ["Mirror checkers", checkersMirrored, toggleMirrorCheckers],
+                    ["Mirror numbers", numbersMirrored, toggleMirrorNumbers],
+                    ["Rotate board", rotated, toggleRotate],
+                  ] as const
+                ).map(([label, on, toggle]) => (
+                  <Button
+                    key={label}
+                    size="compact"
+                    variant={on ? "primary" : "secondary"}
+                    aria-pressed={on}
+                    onClick={() => setOrientation(toggle(orientation))}
+                  >
+                    {label}
+                  </Button>
+                ))}
               </div>
             </div>
             <p className={style.infoText}>

@@ -133,13 +133,18 @@ export function snapCheckerTotals(layout: SnapLayout): { light: number; dark: nu
  * along the bottom edge (the builder's "Bottom" side, `mine`), and on which
  * side of the photo the bottom player's home board is. `mirroredNumbers`
  * only changes the drawing: the review page draws the board mirrored (point
- * 1 bottom-left, Board's `homeLeft`). It's optional, and absent means false,
- * so truth files saved before it existed load unchanged. It plays no part in
- * the layout mapping below. */
+ * 1 bottom-left, Board's `homeLeft`); it plays no part in the layout mapping
+ * below. `rotated` reads the photo turned 180 degrees (taken from the other
+ * side of the table): the mapping below rotates the layout first
+ * (rotateLayout180), and back on the way out, so bottomColor and bottomHome
+ * describe the rotated view and stored layouts stay in the photo's own
+ * frame. Both are optional, and absent means false, so truth files saved
+ * before they existed load unchanged. */
 export interface SnapOrientation {
   bottomColor: "light" | "dark";
   bottomHome: "right" | "left";
   mirroredNumbers?: boolean;
+  rotated?: boolean;
 }
 
 export const DEFAULT_SNAP_ORIENTATION: SnapOrientation = { bottomColor: "dark", bottomHome: "right" };
@@ -159,6 +164,27 @@ export function toggleMirrorCheckers(o: SnapOrientation): SnapOrientation {
  * flips with it, so each photo column still lands on the same screen column. */
 export function toggleMirrorNumbers(o: SnapOrientation): SnapOrientation {
   return { ...o, bottomHome: otherHome(o.bottomHome), mirroredNumbers: !o.mirroredNumbers };
+}
+
+/** "Rotate board": the photo read turned 180 degrees. The checkers move
+ * (top<->bottom, left<->right); the numbers and the board itself don't. */
+export function toggleRotate(o: SnapOrientation): SnapOrientation {
+  return { ...o, rotated: !o.rotated };
+}
+
+/** The layout as seen with the photo turned 180 degrees: each row becomes
+ * the other row reversed, a cube at the top goes to the bottom and back.
+ * Bar and borne-off counts are per colour and the dice are a pair, so they
+ * don't change. Its own inverse. */
+export function rotateLayout180(layout: SnapLayout): SnapLayout {
+  const location =
+    layout.cube.location === "top" ? "bottom" : layout.cube.location === "bottom" ? "top" : layout.cube.location;
+  return {
+    ...layout,
+    topRow: [...layout.bottomRow].reverse(),
+    bottomRow: [...layout.topRow].reverse(),
+    cube: { ...layout.cube, location },
+  };
 }
 
 /** Whether "Mirror checkers" reads as on: the bottom home board is on the
@@ -193,7 +219,8 @@ function clampCubeValue(value: number): number {
  * constant). When the layout's points and bar already hold 15 or fewer, that
  * equals the tray count; when they hold more, it goes negative and the
  * builder reports an invalid count until checkers are removed. */
-export function layoutToBuilderState(layout: SnapLayout, orientation: SnapOrientation): PositionBuilderState {
+export function layoutToBuilderState(photoLayout: SnapLayout, orientation: SnapOrientation): PositionBuilderState {
+  const layout = orientation.rotated ? rotateLayout180(photoLayout) : photoLayout;
   const state = initialPositionBuilderState();
   const mineColor = orientation.bottomColor;
   const oppColor = otherColor(mineColor);
@@ -244,8 +271,14 @@ export function layoutToBuilderState(layout: SnapLayout, orientation: SnapOrient
 }
 
 /** Builder state -> visual layout: the inverse of layoutToBuilderState, used
- * to store the user's corrected board as a layout comparable with Gemini's. */
+ * to store the user's corrected board as a layout comparable with Gemini's
+ * (in the photo's own frame: a rotated reading is turned back). */
 export function builderStateToLayout(state: PositionBuilderState, orientation: SnapOrientation): SnapLayout {
+  const layout = viewLayout(state, orientation);
+  return orientation.rotated ? rotateLayout180(layout) : layout;
+}
+
+function viewLayout(state: PositionBuilderState, orientation: SnapOrientation): SnapLayout {
   const mineColor = orientation.bottomColor;
   const oppColor = otherColor(mineColor);
   const { position } = state;

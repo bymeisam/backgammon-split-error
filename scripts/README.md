@@ -56,13 +56,17 @@ Proof of concept:
   `?model=<folder>` to pick a results folder; default is the one with the most
   answers). One photo at a time: the photo on the left, the position builder
   on the right, pre-filled from Gemini's answer. Set "Bottom colour" (light
-  or dark), then line the board up with the photo using two one-click
-  toggles, each moving one thing on screen: "Mirror checkers" mirrors the
+  or dark), then line the board up with the photo using three independent
+  on/off toggles under "Board view", each moving one thing on screen: "Mirror checkers" mirrors the
   checkers left-right and leaves the point numbers where they are (it flips
   which side the bottom player's home board is on); "Mirror numbers" mirrors
   the point numbers (1 bottom-left, Board's `homeLeft`) and changes nothing
   else on the board: triangles, checkers, bar, tray, cube and dice stay
-  exactly where they are. Either toggle reloads the board from the
+  exactly where they are; "Rotate board" reads the photo turned 180 degrees
+  (taken from the other side of the table): the checkers move top<->bottom and
+  left<->right, and a cube at the top goes to the bottom, while the numbers,
+  triangles, tray and dice stay. Saved truth stays in the photo's own frame
+  (the rotation is undone on save), so scoring is unaffected. Any toggle reloads the board from the
   saved truth or Gemini's answer, so unsaved edits are lost: set them first.
   Correct the board, then "Save as correct". That writes
   `snap-poc/truth/<image>.json` (gitignored) and scores Gemini against it in

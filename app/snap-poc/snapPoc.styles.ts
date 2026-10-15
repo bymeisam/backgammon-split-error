@@ -34,6 +34,9 @@ export const style = {
       selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
     ),
   fieldLabel: shared.filterField,
+  // The board-view toggles: separate Buttons side by side, not a segmented
+  // control, so each reads as on or off by itself.
+  toggleRow: "flex flex-wrap gap-2",
   resetLink: clsx(shared.textButton, "self-start"),
   // The builder's extra actions card.
   saveCard: "flex flex-col gap-3 p-4",
