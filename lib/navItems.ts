@@ -16,7 +16,7 @@ export interface NavItem {
   showsDueCount?: boolean;
 }
 
-// Sources only with the Galaxy/sync gate on (isGalaxyEnabled()); proxy.ts 404s
+// Sources only with the Galaxy/sync gate on (isSyncEnabled()); proxy.ts 404s
 // /sources and everything under it otherwise. It's in the end group, first
 // (Sources · Settings · Status): you visit it to sync, not to study.
 // Review, Sources and Status are owner-only (lib/accessRules.ts), so a

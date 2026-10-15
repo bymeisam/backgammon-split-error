@@ -1,7 +1,7 @@
 import { UserButton } from "@clerk/nextjs";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isSyncEnabled } from "@/lib/galaxyGate";
 import { isAppWriteEnabled } from "@/lib/appWriteGate";
 import { currentRuntimeModeLabel } from "@/lib/runtimeMode";
 import { navItems } from "@/lib/navItems";
@@ -42,7 +42,7 @@ async function DueBadge() {
 // review shortcuts are the owner's only (lib/accessRules.ts).
 export default async function AppNav({ role }: { role: AppRole | null }) {
   await connection();
-  const galaxyEnabled = isGalaxyEnabled();
+  const galaxyEnabled = isSyncEnabled();
   // Sources follows the Galaxy/sync gate; the due badge and the review
   // shortcuts follow the app-write gate (lib/appWriteGate.ts).
   const ownerWrite = role === "OWNER" && isAppWriteEnabled();

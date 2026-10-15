@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isSyncEnabled } from "@/lib/galaxyGate";
 import { SOURCES, type Source, type SourceStatus } from "@/lib/sources";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
@@ -66,7 +66,7 @@ function SourceCard({ source, status }: { source: Source; status: SourceStatus }
 export default async function SourcesPage() {
   await requireOwnerDocument();
   await connection();
-  if (!isGalaxyEnabled()) notFound();
+  if (!isSyncEnabled()) notFound();
 
   const now = new Date();
   const cards = await Promise.all(SOURCES.map(async (source) => ({ source, status: await source.status(now) })));

@@ -116,13 +116,13 @@ account blocked (2026-10-14).
 
 Two separate switches, each failing closed:
 
-- **Galaxy and sync**: `isGalaxyEnabled()` (`lib/galaxyGate.ts`), below. Needs
+- **Galaxy and sync**: `isSyncEnabled()` (`lib/galaxyGate.ts`), below. Needs
   `DATABASE_URL` and `ENABLE_WRITE_MODE=true`, so it's local only. A rename to
   `isSyncEnabled()` is planned.
 - **App writes**: `isAppWriteEnabled()` (`lib/appWriteGate.ts`), for the
   forum, decision notes, tags and review (cards, answers, bulk add). On when
   `DATABASE_URL_APP` is set (Vercel), or, outside production, when
-  `isGalaxyEnabled()` is (local write mode, where `prismaApp` falls back to
+  `isSyncEnabled()` is (local write mode, where `prismaApp` falls back to
   `DATABASE_URL`). Each write route checks it itself and returns 403 when it's
   off; the pages hide their write controls the same way. AppUser provisioning
   doesn't check it, so sign-in works wherever `prismaApp` has a URL.
@@ -130,10 +130,10 @@ Two separate switches, each failing closed:
 ## The Galaxy gate (temporary)
 
 Everything that handles a Galaxy bearer token or syncs Match/Game/Decision
-rows is gated behind `isGalaxyEnabled()` (`lib/galaxyGate.ts`):
+rows is gated behind `isSyncEnabled()` (`lib/galaxyGate.ts`):
 
 ```ts
-export function isGalaxyEnabled(): boolean {
+export function isSyncEnabled(): boolean {
   return Boolean(process.env.DATABASE_URL) && process.env.ENABLE_WRITE_MODE === "true";
 }
 ```
@@ -174,7 +174,7 @@ and stay available regardless of the flag.
 
 Once the app sits behind a real auth wall that admits only you, lifting the
 gate is a **pure environment-variable change on Vercel — no code edit
-required**, because the call sites above already read `isGalaxyEnabled()`
+required**, because the call sites above already read `isSyncEnabled()`
 as their only source of truth (in-app writes don't depend on this; they're
 already on through `DATABASE_URL_APP`):
 
@@ -183,7 +183,7 @@ already on through `DATABASE_URL_APP`):
    polarity, both are required; setting `DATABASE_URL` alone still leaves
    the gate shut.
 
-`isGalaxyEnabled()` starts returning `true` on the next request after that
+`isSyncEnabled()` starts returning `true` on the next request after that
 env change takes effect, and `proxy.ts`, the navbar and `/sources` pick it
 up automatically.
 
@@ -282,7 +282,7 @@ memory only: the `local-dev-owner` row is created with `role=NONE` (the single
 row's role. It is an explicit opt-in (off unless exactly `true`), refuses to turn
 on and logs a warning when `DATABASE_URL`, `DATABASE_URL_READONLY` or
 `DATABASE_URL_APP` points anywhere but
-localhost, and does not disable `isGalaxyEnabled()`, `isAppWriteEnabled()`
+localhost, and does not disable `isSyncEnabled()`, `isAppWriteEnabled()`
 or their database/write-mode gates. Never set it on a deployed
 environment. Remove this
 bypass after local authenticated smoke and visual review are complete.

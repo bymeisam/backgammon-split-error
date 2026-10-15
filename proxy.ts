@@ -1,7 +1,7 @@
 import { isLocalAuthBypass } from "@/lib/localAuthBypass";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { isGalaxyEnabled } from "@/lib/galaxyGate";
+import { isSyncEnabled } from "@/lib/galaxyGate";
 import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 
 // Two jobs, in this order, for every page and API request:
@@ -11,7 +11,7 @@ import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 //    Galaxy gate (temporary)" section and its "Lifting the gate" subsection.
 //    One choke point (the galaxyPaths list below) rather than a check
 //    repeated in each handler, so there's exactly one place that can forget
-//    to gate a new Galaxy-related route. isGalaxyEnabled() (lib/galaxyGate.ts)
+//    to gate a new Galaxy-related route. isSyncEnabled() (lib/galaxyGate.ts)
 //    is the single source of truth this reads — the navbar's Sources link
 //    (app/components/ui/AppNav.tsx, lib/navItems.ts) reads the same function,
 //    so the two can never disagree. In-app writes (the forum, decision notes,
@@ -27,7 +27,7 @@ import { AUTH_COMPLETE_PATH, SIGN_IN_PATH } from "@/lib/clerkConfig";
 // `middleware.ts` is deprecated as of Next.js 16 in favor of this file
 // (node_modules/next/dist/docs/.../proxy.md) — same mechanism, renamed.
 
-// Prefixes gated by isGalaxyEnabled(). An entry ending in "/" matches only
+// Prefixes gated by isSyncEnabled(). An entry ending in "/" matches only
 // paths under it; any other entry matches itself and paths under it.
 const galaxyPaths = [
   // The Sources page and Galaxy's pages under it (/sources/galaxy/matches
@@ -67,7 +67,7 @@ export default clerkMiddleware(
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-app-route", req.nextUrl.pathname);
 
-    if (isGalaxyPath(req.nextUrl.pathname) && !isGalaxyEnabled()) {
+    if (isGalaxyPath(req.nextUrl.pathname) && !isSyncEnabled()) {
       return new NextResponse("Not Found", { status: 404 });
     }
     if (isPublicPath(req.nextUrl.pathname) || isLocalAuthBypass()) {

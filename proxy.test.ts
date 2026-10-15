@@ -1,4 +1,4 @@
-// proxy.ts's Galaxy/sync gate: with isGalaxyEnabled() off, Galaxy and sync
+// proxy.ts's Galaxy/sync gate: with isSyncEnabled() off, Galaxy and sync
 // paths 404 before any handler runs, while the in-app write routes (notes,
 // tags, review), which check isAppWriteEnabled() themselves, pass through.
 // Clerk is mocked to a pass-through wrapper and the local auth bypass is on,
@@ -16,7 +16,7 @@ vi.mock("@clerk/nextjs/server", () => ({
     return (req: NextRequest) => handler({ protect: async () => {} }, req);
   },
 }));
-vi.mock("@/lib/galaxyGate", () => ({ isGalaxyEnabled: () => false }));
+vi.mock("@/lib/galaxyGate", () => ({ isSyncEnabled: () => false }));
 vi.mock("@/lib/localAuthBypass", () => ({ isLocalAuthBypass: () => true }));
 
 import proxy from "./proxy";

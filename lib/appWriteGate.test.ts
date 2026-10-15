@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const gate = vi.hoisted(() => ({ galaxy: false }));
-vi.mock("@/lib/galaxyGate", () => ({ isGalaxyEnabled: () => gate.galaxy }));
+vi.mock("@/lib/galaxyGate", () => ({ isSyncEnabled: () => gate.galaxy }));
 
 import { isAppWriteEnabled } from "./appWriteGate";
 
@@ -13,7 +13,7 @@ describe("isAppWriteEnabled", () => {
     gate.galaxy = false;
   });
 
-  // [DATABASE_URL_APP set, NODE_ENV, isGalaxyEnabled] -> expected
+  // [DATABASE_URL_APP set, NODE_ENV, isSyncEnabled] -> expected
   const cases: Array<[boolean, "production" | "development", boolean, boolean]> = [
     [true, "production", true, true],
     [true, "production", false, true],

@@ -260,7 +260,7 @@ describe("the rules catch what they should", () => {
     const f = "app/x/page.tsx";
     expect(galaxyViolations(f, "<p>Synced from Galaxy</p>")).toHaveLength(1);
     expect(galaxyViolations(f, 'title="Galaxy token"')).toHaveLength(1);
-    expect(galaxyViolations(f, "if (isGalaxyEnabled()) createGalaxyClient();")).toEqual([]);
+    expect(galaxyViolations(f, "if (isSyncEnabled()) createGalaxyClient();")).toEqual([]);
     expect(galaxyViolations(f, "// Galaxy's own lists")).toEqual([]);
     expect(galaxyViolations(f, "<a>View on Galaxy ↗</a>")).toEqual([]);
     expect(galaxyViolations("app/sources/galaxy/matches/page.tsx", "<h1>Galaxy matches</h1>")).toEqual([]);

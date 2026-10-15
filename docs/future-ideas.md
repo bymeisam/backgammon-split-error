@@ -226,7 +226,7 @@ repetition remain future phases.
 - **Source:** user's idea list, 2026-10-06.
 
 ### Per-user permissions and an admin page
-- **Idea:** store per-user permissions on `AppUser` (at least "can sync" and "can write in the app"), and add an owner-only admin page to turn them on and off per user. Today these are deployment-wide switches: `isGalaxyEnabled()` (to become `isSyncEnabled()` once there's a second source) and `isAppWriteEnabled()`, plus the role.
+- **Idea:** store per-user permissions on `AppUser` (at least "can sync" and "can write in the app"), and add an owner-only admin page to turn them on and off per user. Today these are deployment-wide switches: `isSyncEnabled()` (renamed from `isGalaxyEnabled()`: done 2026-10-15) and `isAppWriteEnabled()`, plus the role.
 - **Notes:** the env switches stay as the deployment-level layer (does this deployment have a write credential at all?). The `AppUser` flags would add a per-user layer on top (may this user write?). The role and the access table in `lib/accessRules.ts` already decide who can reach what; the admin page could also manage roles, replacing the hand-run `UPDATE AppUser SET role = …`.
 - **Source:** user, 2026-10-13. Deferred: not needed until there are more users or more sources.
 - **Trigger: public sign-up.** Sign-up is invite-only today, so the invitation is the approval and new `AppUser` rows start as `MEMBER` (decided 2026-10-14). Before public sign-up is ever opened, build this admin page first: new sign-ups must start as `NONE` again and wait for approval there, alongside the other user management (roles, permissions, cutting someone off). (User, 2026-10-14.)

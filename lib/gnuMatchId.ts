@@ -259,19 +259,6 @@ export class PlayerUserIds {
   }
 }
 
-// One decision's (or event's) seat evidence: its own colour if Galaxy filled
-// it in, plus the seat actorPlayerFor reads from its Match ID. Shared by
-// anything that maps a Match ID seat to a userId (gameScoreFromMatchId's
-// callers), so seats always resolve the same way.
-export function addSeatEvidence(
-  players: PlayerUserIds,
-  e: { userId: string; color: string | null | undefined; analysedEvent: string | null | undefined; matchId: DecodedMatchId | null }
-): void {
-  const colorPlayer = gnuPlayerForColor(e.color);
-  if (colorPlayer !== null) players.add(e.userId, colorPlayer);
-  players.add(e.userId, e.matchId && e.analysedEvent ? actorPlayerFor(e.analysedEvent, e.matchId) : null);
-}
-
 // The user's and opponent's score and the Crawford state at a decision, from
 // its Match ID (pass a game's first decision for the score entering the
 // game). Not stored: Game.userScore/opponentScore/crawfordState were

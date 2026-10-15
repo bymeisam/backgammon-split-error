@@ -146,7 +146,7 @@ jobs:
             - **Credential-scoping violations**: using the read-write
               Prisma client where the read-only one would suffice, or any
               change that could weaken the Galaxy-gate's fail-closed
-              guarantee (lib/galaxyGate.ts's isGalaxyEnabled() must require
+              guarantee (lib/galaxyGate.ts's isSyncEnabled() must require
               BOTH DATABASE_URL present AND ENABLE_WRITE_MODE === "true" —
               flag an `&&` weakened to `||`, a default-to-enabled fallback,
               or a check that only tests one condition). Always HIGH — this

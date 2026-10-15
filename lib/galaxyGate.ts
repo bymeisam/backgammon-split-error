@@ -18,6 +18,6 @@
 // sufficient, so a stray ENABLE_WRITE_MODE=true left over in an environment
 // that was never meant to have DATABASE_URL still can't turn Galaxy access
 // on by itself.
-export function isGalaxyEnabled(): boolean {
+export function isSyncEnabled(): boolean {
   return Boolean(process.env.DATABASE_URL) && process.env.ENABLE_WRITE_MODE === "true";
 }

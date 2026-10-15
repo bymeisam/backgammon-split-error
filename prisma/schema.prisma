@@ -130,7 +130,8 @@ model Decision {
   plyNumber        Int?
   // GNU Position ID (review.source_position.formatted_value) of the board
   // position this decision was made at. Populated at ingest going forward;
-  // backfilled for pre-existing rows by scripts/backfill-source-position-id.ts.
+  // backfilled once for pre-existing rows by a script, since retired (see
+  // scripts/README.md).
   // Nullable only for migration sequencing (can't backfill 1.2M+ rows inside
   // the same ADD COLUMN) — real coverage is 100%, same as plyNumber's own
   // nullable-but-always-computable precedent. Collation pinned to
@@ -278,7 +279,7 @@ model RepeatedPosition {
 // The user's own free-text note on one decision — the app's first
 // user-authored data (everything else is ingested from Galaxy or derived
 // from it). 1:1 with Decision via the unique decisionId. Written only by
-// POST /api/decisions/[id]/note (gated by proxy.ts / isGalaxyEnabled()),
+// POST /api/decisions/[id]/note (gated by proxy.ts / isSyncEnabled()),
 // read alongside every decision a board is shown for. Saving an empty note
 // deletes the row rather than storing "".
 //

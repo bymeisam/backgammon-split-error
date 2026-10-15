@@ -101,10 +101,10 @@ export default defineConfig({
     // screenshot-diffing test server.
     //
     // ENABLE_WRITE_MODE is pinned to "true" here (after the .env.test
-    // spread, so it always wins) so isGalaxyEnabled() is on for this server
+    // spread, so it always wins) so isSyncEnabled() is on for this server
     // regardless of what .env/.env.test say: decision-card-chromium-darwin.png
     // is captured with DecisionNote's editable textarea, which only renders
-    // when write mode is on. The other half of isGalaxyEnabled(),
+    // when write mode is on. The other half of isSyncEnabled(),
     // DATABASE_URL, comes from .env.test (bg_test). Writes from this server
     // can only reach bg_test, and the suite itself never saves a note.
     //

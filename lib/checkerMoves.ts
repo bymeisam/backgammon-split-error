@@ -105,22 +105,6 @@ export function legalHopsForDie(position: DecodedPosition, die: number): Checker
   return hops;
 }
 
-/** All distinct one-hop moves available from the supplied dice. */
-export function allLegalHops(position: DecodedPosition, dice: readonly number[]): CheckerHop[] {
-  const seen = new Set<string>();
-  const hops: CheckerHop[] = [];
-  for (const die of dice) {
-    for (const hop of legalHopsForDie(position, die)) {
-      const key = hopKey(hop);
-      if (!seen.has(key)) {
-        seen.add(key);
-        hops.push(hop);
-      }
-    }
-  }
-  return hops;
-}
-
 function notationLocation(location: CheckerLocation): string {
   return location === "bar" ? "bar" : String(location);
 }

@@ -287,7 +287,8 @@ export async function ingestMatch(
     // close enough to be useful; it only breaks down for a large historical
     // backfill run months/years after the fact, which is exactly what
     // happened for this app's original 2026-09 backfill (see
-    // scripts/backfill-played-at.ts for the one-time consequence of that).
+    // docs/field-mapping.md's playedAt section for the one-time consequence
+    // of that, and scripts/README.md for the retired reconciliation script).
     let firstDecision: { eventId: number; timestamp: Date } | null = null;
     const plyByEventId = checkerPlyByEventId(response.data.events);
 
@@ -447,8 +448,8 @@ export async function ingestMatch(
 
   // Reflects this match's own currently-known opponentName on every
   // (re-)ingest — not a cross-match "most recent name wins" comparison the
-  // way the one-time backfill script (scripts/backfill-opponent-identities.ts)
-  // does; a match re-synced out of chronological order could in theory
+  // way the one-time backfill script (backfill-opponent-identities.ts, since
+  // retired; see scripts/README.md) did; a match re-synced out of chronological order could in theory
   // regress a displayName that a newer match already set. Acceptable here:
   // display-name changes are rare, and matches are normally processed
   // roughly in order by the resumable sync loop.

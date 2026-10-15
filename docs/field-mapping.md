@@ -84,7 +84,7 @@ and never falls back to `DATABASE_URL`; outside production, when
 `DATABASE_URL_APP` is unset (or empty), it falls back to `DATABASE_URL`
 (`appDatabaseUrl()`, `lib/appDatabaseUrl.ts`). Every write except `AppUser`
 provisioning is gated by `isAppWriteEnabled()` (`lib/appWriteGate.ts`), not
-`isGalaxyEnabled()` (which is for Galaxy and sync only), so the live site,
+`isSyncEnabled()` (which is for Galaxy and sync only), so the live site,
 which has no `DATABASE_URL`, can accept them. Provisioning doesn't check the
 gate, so sign-in works wherever the client has a URL.
 
@@ -100,7 +100,7 @@ a code change.
 
 | Client | Used by |
 |---|---|
-| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/backfill-opponent-identities.ts`, `scripts/notes-import.ts` |
+| `prisma` (read-write) | `lib/ingest.ts`, `lib/sync.ts`, `scripts/backfill.ts`, `scripts/incremental-sync.ts`, `scripts/runSyncCli.ts`, `/api/sync/incremental`, `app/api/galaxy/matches/list/[page]/route.ts` (writes the `isMe` `PlayerIdentity` row), `prisma/seed.ts`, `scripts/notes-import.ts` |
 | `prismaReadOnly` (read-only) | `app/api/review/queue` (through `lib/review/queuePlan.ts`'s `loadQueuePlan`, which also gives the dashboard's due widget its "N new · N review" split, `dueSplit`, the /review header's own counts for an unfiltered session; since 2026-10-08 the dashboard's big number and the navbar's due badge are that split's sum, so they show what a session will serve; write mode only), `app/api/review/summary`, `app/api/tags` (GET), `app/review/page.tsx`, `app/review/cards/page.tsx`, `lib/review/dueCount.ts` (the due count before today's limits: since 2026-10-08 only the dashboard's "N more held back by today's limits" line, the count minus the split's sum; write mode only), `lib/dashboardQueries.ts` (the last finished `SyncRun`, for the Galaxy card's LAST SYNC and LAST SYNC ADDED on `/sources` through `lib/sources.ts`'s `galaxyStatus`, write mode only — the navbar's sync line until 2026-10-09; since 2026-10-09 also `sourceLibrary`, one `Match` aggregate for the same card's IN LIBRARY and LATEST MATCH: the count of the source's `ingestStatus` DONE matches and their latest `playedAt`, run in parallel with the sync-run lookup; the dashboard's weekly mistake count), `app/sources/page.tsx` (through `lib/sources.ts`; write mode only, gated by `proxy.ts`), `lib/repeatedPositionQueries.ts` (`listRepeatedPositions`: the /repeated-positions list and, since 2026-10-08, the dashboard's "Most repeated blunders" panel, top 4 by `occurrenceCount` with `errorSeverity` BLUNDER), `app/page.tsx` (the dashboard, through those and `listMatches`), `app/matches/[matchId]/page.tsx` (since 2026-10-08: one `Match` row by `(source, sourceMatchId)`, its `playedAt`, `userScore` and `opponentScore`, for the header's sub line "Match 47816592 · 5 Oct 2026 · 2–5"; the games still load client-side), `lib/local-client.ts` (the `/matches` DB-backed read path — and everything that routes through it: `/api/matches/list/[page]`, `/api/matches/[matchId]/[gameIndex]`), `app/api/player-identities/route.ts`, `app/status/page.tsx`, `app/api/decision-notes/route.ts` (`/matches/[matchId]`'s per-match note lookup; `/sources/galaxy/matches/[matchId]` never calls it), `scripts/notes-export.ts` |
 | `prismaApp` (in-app writes) | Forum: `app/api/forum/posts/route.ts` (POST), `app/api/forum/posts/[id]/route.ts` (PATCH, DELETE), `app/api/forum/posts/[id]/replies/route.ts` (POST), `app/api/forum/replies/[id]/route.ts` (PATCH, DELETE). Study: `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `app/api/tags/attach`, `app/api/tags/detach`, `app/api/review/cards` (POST), `app/api/review/cards/[id]` (PATCH, DELETE), `app/api/review/cards/[id]/answer`, `app/api/review/bulk`. All of these check `isAppWriteEnabled()`. AppUser (no gate check): `lib/app-auth.ts` (`provisionAppUser`, including the local `AUTH_BYPASS` upsert), `lib/forum.ts` (`forumIdentity`: looks up the viewer's `AppUser` row, or upserts the reserved bypass row under the local `AUTH_BYPASS`) |
 
@@ -113,10 +113,10 @@ user wouldn't. Don't point migrations at `bg_db_ro`, and don't invent a
 third, even-more-privileged migration-only user unless `bg_db_rw`'s
 grants ever turn out to be insufficient.
 
-**One deliberately-flagged ambiguous case:** `scripts/backfill-opponent-identities.ts`
-is named like the other "backfill" scripts, but unlike a pure diagnostic, it
-*writes* — it upserts `PlayerIdentity` rows. It uses the read-write client,
-not read-only, despite the naming similarity. The rule going forward: only
+**One deliberately-flagged ambiguous case:** the one-time
+`backfill-opponent-identities.ts` script (since retired; see
+`scripts/README.md`) was named like a diagnostic, but it *wrote* — it upserted
+`PlayerIdentity` rows — so it used the read-write client. The rule going forward: only
 a script that **exclusively reads** (verification/diagnostic scripts) gets
 the read-only client; anything that writes, even a one-time backfill, gets
 read-write. `app/api/db-check/route.ts` is the one other place that reads
@@ -208,7 +208,7 @@ Match ID (see "GNU Match ID" below) of the game's first stored decision by
   player 1, white = player 0), the opponent's the other seat's. Seats
   resolve per match from the match's own decisions (each event's `color`
   where Galaxy filled it in, else the Match ID's dice owner for a move or
-  turn for a cube decision — `addSeatEvidence`).
+  turn for a cube decision, fed into `PlayerUserIds`).
 - **Crawford:** `"crawford"` when the Match ID's Crawford bit is set,
   `"post_crawford"` when it isn't but a player is 1-away, `"none"`
   otherwise. Matches Galaxy's own label on every local game of length 2+
@@ -347,14 +347,14 @@ match, clustered by whichever `SyncRun` touched it — not a real play date,
 and there is no way to recover the real one.** This is a permanent,
 accepted limitation of the historical data, not a bug to keep chasing.
 
-`scripts/backfill-played-at.ts` reconciles every already-ingested match's
-`Match.playedAt` to the rule above (re-derived from stored `Decision.raw`
-JSON, no live Galaxy calls; since 2026-10-07 it no longer touches the
-dropped `Game.playedAt`) — useful for keeping stored values self-consistent
-with `lib/ingest.ts`'s current rule if that rule ever changes again, but it
-does not and cannot fix the historical backfill's fundamentally wrong dates,
-for the reason above. Its 2026-10-07 local dry run: 4,378 matches, 0 would
-change, 1 with no stored decision (`6029642`).
+A one-off script, `backfill-played-at.ts` (since retired; see
+`scripts/README.md` for what it did and how to restore it), reconciled every
+already-ingested match's `Match.playedAt` to the rule above, re-derived from
+stored `Decision.raw` JSON with no live Galaxy calls. It could not fix the
+historical backfill's fundamentally wrong dates, for the reason above. Its
+2026-10-07 local dry run: 4,378 matches, 0 would change, 1 with no stored
+decision (`6029642`). `lib/ingest.ts` sets `playedAt` at ingest, so new
+matches never need it.
 
 ## Decision
 
@@ -608,8 +608,9 @@ One data point worth recording: the old approach's "response" bucket
 rows against the "first move" bucket's 15,395 — an unexplained ~2:1 ratio,
 since a game's very first response should be roughly as common as its very
 first move. Ordinal ply resolves this cleanly: ply 1 and ply 2 come out to
-15,311 and 15,200 respectively (see `scripts/backfill-ply-number.ts`'s
-output, and `PROGRESS.md`'s entry for this change) — a genuine, expected
+15,311 and 15,200 respectively (from the output of the one-time
+`backfill-ply-number.ts` script, since retired, see `scripts/README.md`; and
+`PROGRESS.md`'s entry for this change) — a genuine, expected
 near-1:1 ratio. The old discrepancy was an artifact of position-ID matching
 (most likely: a meaningful slice of "opening_game" decisions whose source
 position isn't the literal starting position turn out to still be
@@ -1097,13 +1098,15 @@ upsert so re-running any of them is idempotent:**
   rare edge case (display-name changes are uncommon, and matches are
   normally processed roughly in order by the resumable sync loop).
 
-**One-time backfill:** `scripts/backfill-opponent-identities.ts` populated
+**One-time backfill:** the `backfill-opponent-identities.ts` script (since
+retired; see `scripts/README.md`) populated
 `PlayerIdentity` for every opponent already present in decisions ingested
 before this feature existed (2,111 distinct opponents, from 8,464 distinct
 `(matchId, userId)` pairs across 4,274 matches) — computing the
 "most-recently-played match's name" per opponent exactly as described
 above, across the whole dataset at once rather than one match at a time.
-Safe to re-run (same upsert semantics as the three ongoing paths above).
+It used the same upsert semantics as the three ongoing paths above, which
+now cover every new match at ingest.
 
 Used anywhere the UI needs to show a name instead of a raw `userId`, or
 decide "which side is you" in a match's decisions — `MistakesSection`
