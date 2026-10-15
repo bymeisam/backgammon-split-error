@@ -34,7 +34,7 @@ Run directly:
 - `npx tsx scripts/notes-import.ts --in notes-export.json [--dry-run]`:
   imports that file into whichever DB `DATABASE_URL` points at.
 - `npx tsx scripts/gnubg-evaluation.ts`: read-only local comparison of GNU
-  Backgammon with Galaxy. Requires the `omp-gnubg:1.07.001` Docker image and
+  Backgammon with Galaxy. Requires the `bg-gnubg:1.07.001` Docker image and
   `DATABASE_URL_READONLY` pointing to local `bg_db_ro`; results are described
   in `reports/2026-10-15-gnubg-engine-test.md`.
 

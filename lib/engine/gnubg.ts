@@ -2,13 +2,14 @@ import { spawn } from "node:child_process";
 import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 
-export const GNUBG_IMAGE = "omp-gnubg:1.07.001";
-export const EVALUATION_PLIES = 0;
+export const GNUBG_IMAGE = "bg-gnubg:1.07.001";
+export const EVALUATION_PLIES = 2;
 
 export type Candidate = {
   rank: number;
   move: string;
   equity: number;
+  plies: number;
   probabilities: { win: number; winGammon: number; winBackgammon: number; lose: number; loseGammon: number; loseBackgammon: number } | null;
 };
 export type Analysis = { positionId: string; roll: [number, number]; plies: number; candidates: Candidate[] };
@@ -30,11 +31,8 @@ export function parseHints(output: string): Candidate[][] {
   for (const line of output.split(/\r?\n/)) {
     const match = candidateLine.exec(line);
     if (match) {
-      if (Number(match[2]) !== EVALUATION_PLIES) {
-        throw new Error(`gnubg returned ${match[2]}-ply output; expected ${EVALUATION_PLIES}-ply`);
-      }
       if (Number(match[1]) === 1) groups.push([]);
-      groups.at(-1)?.push({ rank: Number(match[1]), move: standardMoveNotation(match[3].trim()), equity: Number(match[4]), probabilities: null });
+      groups.at(-1)?.push({ rank: Number(match[1]), plies: Number(match[2]), move: standardMoveNotation(match[3].trim()), equity: Number(match[4]), probabilities: null });
       continue;
     }
     const probs = probabilityLine.exec(line);
@@ -43,6 +41,11 @@ export function parseHints(output: string): Candidate[][] {
         win: Number(probs[1]), winGammon: Number(probs[2]), winBackgammon: Number(probs[3]),
         lose: Number(probs[4]), loseGammon: Number(probs[5]), loseBackgammon: Number(probs[6]),
       };
+    }
+  }
+  for (const group of groups) {
+    if (group[0]?.plies !== EVALUATION_PLIES) {
+      throw new Error(`gnubg best candidate was ${group[0]?.plies ?? "missing"}-ply; expected ${EVALUATION_PLIES}-ply`);
     }
   }
   return groups;
@@ -78,8 +81,15 @@ async function run(input: string): Promise<string> {
   return promise;
 }
 
+export async function timeEmptyRun(): Promise<number> {
+  const started = performance.now();
+  await run("quit\n");
+  return performance.now() - started;
+}
+
 async function evaluateMany(positionId: string, matchId: string, rolls: [number, number][]): Promise<Analysis[]> {
-  const groups = parseHints(await run(commands(positionId, matchId, rolls)));
+  const input = commands(positionId, matchId, rolls);
+  const groups = parseHints(await run(input));
   if (groups.length !== rolls.length || groups.some((candidates) => !candidates.length)) {
     throw new Error(`gnubg returned ${groups.length} analyses for ${rolls.length} requested rolls`);
   }

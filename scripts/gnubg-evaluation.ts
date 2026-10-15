@@ -3,13 +3,20 @@ import { prismaReadOnly } from "@/lib/prisma";
 import { getDecisionAnalysis } from "@/lib/analysis";
 import { galaxyReview } from "@/lib/analysis/galaxyFields";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
-import { analyze, allRolls } from "@/lib/engine/gnubg";
+import { analyze, allRolls, timeEmptyRun, EVALUATION_PLIES } from "@/lib/engine/gnubg";
 
 function normalize(move: string): string {
   return move.replace(/\*/g, "").split(/\s+/).flatMap((token) => {
     const repeated = /^(.+?)\((\d+)\)$/.exec(token);
     return repeated ? Array(Number(repeated[2])).fill(repeated[1]) : [token];
   }).sort().join(" ").toLowerCase();
+}
+
+function errorBand(loss: number | null): "none" | "doubtful" | "error" | "blunder" {
+  if (loss === null || loss < 0.0001) return "none";
+  if (loss <= 0.02) return "doubtful";
+  if (loss < 0.0799) return "error";
+  return "blunder";
 }
 
 async function main() {
@@ -76,15 +83,32 @@ async function main() {
   }
   if (sample.length < 180) throw new Error(`Only ${sample.length} decisions available; wanted about 200`);
 
+  const startupRuns: number[] = [];
+  for (let i = 0; i < 5; i++) startupRuns.push(await timeEmptyRun());
+  const startupRunsSorted = [...startupRuns].sort((a, b) => a - b);
+  const dockerStartupMs = startupRunsSorted[2];
+
   const outcomes = [];
+  const depthMismatches: { id: number; phase: string; severity: string; positionId: string; matchId: string; error: string }[] = [];
   for (const row of sample) {
     const started = performance.now();
-    const result = await analyze(row.sourcePositionId!, row.matchId);
+    let result;
+    try {
+      result = await analyze(row.sourcePositionId!, row.matchId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("best candidate was") || !message.includes(`expected ${EVALUATION_PLIES}-ply`)) throw error;
+      depthMismatches.push({ id: row.id, phase: row.phase, severity: row.errorSeverity, positionId: row.sourcePositionId!, matchId: row.matchId, error: message });
+      continue;
+    }
     const elapsedMs = performance.now() - started;
     const played = result.candidates.find((candidate) => normalize(candidate.move) === normalize(row.playedMove));
     const bestMove = result.candidates[0].move;
     const bestEquity = result.candidates[0].equity;
     const playedLoss = played ? bestEquity - played.equity : null;
+    const galaxyLoss = row.rawError === null ? null : Math.max(0, -row.rawError);
+    const galaxyErrorBand = errorBand(galaxyLoss);
+    const gnubgErrorBand = errorBand(playedLoss);
     outcomes.push({
       id: row.id,
       phase: row.phase,
@@ -102,6 +126,9 @@ async function main() {
       gnubgPlayedEquity: played?.equity ?? null,
       playedEquityDifference: played ? played.equity - row.playedEquity : null,
       gnubgPlayedLoss: playedLoss,
+      galaxyErrorBand,
+      gnubgErrorBand,
+      absoluteLossDifference: playedLoss === null || galaxyLoss === null ? null : Math.abs(playedLoss - galaxyLoss),
       gnubgCallsMistake: playedLoss !== null && playedLoss >= 0.08,
       elapsedMs,
     });
@@ -110,22 +137,57 @@ async function main() {
 
   const rollTimer = performance.now();
   const middle = sample[Math.floor(sample.length / 2)];
-  await allRolls(middle.sourcePositionId!, middle.matchId);
+  let allRollError: string | null = null;
+  try {
+    await allRolls(middle.sourcePositionId!, middle.matchId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("best candidate was") || !message.includes("expected 2-ply")) throw error;
+    allRollError = message;
+  }
   const allRollMs = performance.now() - rollTimer;
   const knownPlayed = outcomes.filter((row) => row.playedEquityDifference !== null);
   const sortedDiff = knownPlayed.map((row) => Math.abs(row.playedEquityDifference!)).sort((a, b) => a - b);
-  const summarize = (items: typeof outcomes) => ({ n: items.length, agreement: items.filter((row) => row.bestAgrees).length, errorRows: items.filter((row) => ["ERROR", "BLUNDER"].includes(row.errorSeverity)).length, errorCaught: items.filter((row) => ["ERROR", "BLUNDER"].includes(row.errorSeverity) && row.gnubgCallsMistake).length });
+  const sortedLossDiff = outcomes.flatMap((row) => row.absoluteLossDifference === null ? [] : [row.absoluteLossDifference]).sort((a, b) => a - b);
+  const bandSummary = Object.fromEntries(["ERROR", "BLUNDER"].map((severity) => {
+    const items = outcomes.filter((row) => row.errorSeverity === severity);
+    return [severity, {
+      n: items.length,
+      sameBand: items.filter((row) => row.gnubgErrorBand.toUpperCase() === severity).length,
+      lowerBand: items.filter((row) => severity === "ERROR" ? row.gnubgErrorBand === "doubtful" : ["error", "doubtful"].includes(row.gnubgErrorBand)).length,
+      noneBand: items.filter((row) => row.gnubgErrorBand === "none").length,
+      higherBand: items.filter((row) => severity === "ERROR" && row.gnubgErrorBand === "blunder").length,
+    }];
+  }));
+  const nonErrors = outcomes.filter((row) => ["NONE", "DOUBTFUL"].includes(row.errorSeverity));
   console.log(JSON.stringify({
     db: { host: url.hostname, database: url.pathname.slice(1), candidateRows: rows.length, eligible: eligible.length },
     sampleCounts: Object.fromEntries(["opening", "middle game", "bear-off"].map((phase) => [phase, sample.filter((row) => row.phase === phase).length])),
-    evaluation: { plies: 0, n: outcomes.length, bestAgrees: outcomes.filter((row) => row.bestAgrees).length, agreementRate: outcomes.filter((row) => row.bestAgrees).length / outcomes.length,
-      playedEquityMeasured: knownPlayed.length, medianAbsEquityDifference: sortedDiff[Math.floor(sortedDiff.length / 2)] ?? null,
-      errorRows: outcomes.filter((row) => ["ERROR", "BLUNDER"].includes(row.errorSeverity)).length,
-      errorCaught: outcomes.filter((row) => ["ERROR", "BLUNDER"].includes(row.errorSeverity) && row.gnubgCallsMistake).length,
-      medianMs: outcomes.map((row) => row.elapsedMs).sort((a, b) => a - b)[Math.floor(outcomes.length / 2)],
-      all21RollsMs: allRollMs,
+    rawErrorBands: {
+      galaxy: { doubtful: "0.0001–0.02", error: ">0.02–0.0798", blunder: ">=0.0799" },
+      note: "Galaxy loss is max(0, -rawError); positive NONE values are not treated as loss.",
     },
-    severity: Object.fromEntries(["ERROR", "BLUNDER"].map((severity) => [severity, summarize(outcomes.filter((row) => row.errorSeverity === severity))])),
+    evaluation: {
+      plies: EVALUATION_PLIES, attempted: sample.length, analyzed: outcomes.length, depthMismatches: depthMismatches.length,
+      bestAgrees: outcomes.filter((row) => row.bestAgrees).length,
+      agreementRate: outcomes.filter((row) => row.bestAgrees).length / outcomes.length,
+      playedEquityMeasured: knownPlayed.length,
+      medianAbsEquityDifference: sortedDiff[Math.floor(sortedDiff.length / 2)] ?? null,
+      medianAbsPlayedLossDifference: sortedLossDiff[Math.floor(sortedLossDiff.length / 2)] ?? null,
+      dockerEmptyRunMedianMs: dockerStartupMs,
+      medianPositionTotalMs: outcomes.map((row) => row.elapsedMs).sort((a, b) => a - b)[Math.floor(outcomes.length / 2)],
+      medianPositionEngineEstimateMs: outcomes.map((row) => row.elapsedMs).sort((a, b) => a - b)[Math.floor(outcomes.length / 2)] - dockerStartupMs,
+      all21RollsTotalMs: allRollMs,
+      all21RollsEngineEstimateMs: allRollMs - dockerStartupMs,
+      all21RollsDepthError: allRollError,
+    },
+    severity: bandSummary,
+    nonErrors: {
+      n: nonErrors.length,
+      gnubgErrorOrBlunderFalseAlarms: nonErrors.filter((row) => ["error", "blunder"].includes(row.gnubgErrorBand)).length,
+      gnubgDoubtfulOrHigher: nonErrors.filter((row) => row.gnubgErrorBand !== "none").length,
+    },
+    depthMismatches,
     disagreements: outcomes.filter((row) => !row.bestAgrees).slice(0, 8),
     unmeasuredPlayedEquity: outcomes.filter((row) => row.playedEquityDifference === null).length,
     outcomes,
