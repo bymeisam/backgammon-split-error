@@ -39,6 +39,8 @@ export const ACCESS_RULES: readonly Rule[] = [
   { pattern: "/forum/**", tier: "member" },
   { pattern: "/position-builder", tier: "member" },
   { pattern: "/settings", tier: "member" },
+  // Dev-only (404 in production): the Snaps proof-of-concept review page.
+  { pattern: "/snap-poc", tier: "member" },
 
   // Member APIs. Everything else under /api (decision notes, decisions,
   // review, tags, sync, galaxy, check-existence, db-check) is owner.
@@ -46,6 +48,8 @@ export const ACCESS_RULES: readonly Rule[] = [
   { pattern: "/api/matches/list/**", tier: "member" },
   { pattern: "/api/matches/*/*", tier: "member" },
   { pattern: "/api/player-identities", tier: "member" },
+  // Dev-only (404 in production): app/snap-poc's photo and truth-file routes.
+  { pattern: "/api/snap-poc/**", tier: "member" },
 ];
 
 function segments(path: string): string[] {

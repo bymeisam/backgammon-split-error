@@ -31,6 +31,7 @@ import {
   cubeBadgeCenter,
   diePips,
   diePosition,
+  drawnPoint,
   isOffSlotFilled,
   moveAnchor,
   offColumnGeometry,
@@ -53,6 +54,15 @@ import { style, type ArrowTier } from "./BoardPanel.styles";
 // checkers, bar checkers, cube, arrows, dice. Interactive boards add their
 // highlights under the checkers, landing markers over them, and transparent
 // hit areas on top. Every position comes from lib/boardGeometry.ts.
+//
+// `homeLeft` mirrors the point numbering (point 1 bottom-left) and nothing
+// else. Every per-point layer loops over the drawn columns (`column`, the
+// default board's point at that position) and draws them exactly as the
+// default board does; `point` is the logical point that column stands for
+// (drawnPoint), which picks the label, the checkers' counts, the highlight
+// and the point the callbacks report. So with homeLeft on, the SVG differs
+// from the default only where the data differs, and a position re-mapped to
+// match (app/snap-poc's Mirror numbers) differs only in the label text.
 
 function OffTray({ side, count }: { side: Side; count: number }) {
   const { fill, contrast, rim } = CHECKER_PALETTE[side];
@@ -276,9 +286,8 @@ function SelectedRing({ base, count }: { base: StackBase; count: number }) {
 
 // The landing marker: a dashed ghost checker in the next free slot. On a
 // blot it would hit, that's slot 0, over the blot.
-function LandingMarker({ point, decoded }: { point: number; decoded: DecodedPosition }) {
-  const base = stackBase(point);
-  const cy = stackSlotY(base, decoded.mine[point - 1]);
+function LandingMarker({ base, count }: { base: StackBase; count: number }) {
+  const cy = stackSlotY(base, count);
   return <circle cx={base.cx} cy={cy} r={R - 1} className={style.interactiveDestination} />;
 }
 
@@ -289,6 +298,7 @@ export default function Board({
   roll = [],
   rollSide,
   flipped = false,
+  homeLeft = false,
   cube = null,
   onPointKeyDown,
   onBarKeyDown,
@@ -315,6 +325,8 @@ export default function Board({
   roll?: number[];
   rollSide?: Side;
   flipped?: boolean;
+  // Mirror the point numbering only: point 1 bottom-left.
+  homeLeft?: boolean;
   cube?: BoardCube | null;
   onPointKeyDown?: (point: number) => void;
   onBarKeyDown?: (side: Side) => void;
@@ -349,6 +361,9 @@ export default function Board({
       onRollDieClick
   );
   const drawnRollSide = rollSide ?? (flipped ? "opponent" : "mine");
+  // Drawn columns, in the default board's point order (see the note above).
+  const columns = Array.from({ length: 24 }, (_, i) => i + 1);
+  const pointAt = (column: number) => drawnPoint(column, homeLeft);
   const activate = (event: KeyboardEvent<SVGElement>, callback: () => void) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
@@ -381,29 +396,32 @@ export default function Board({
         className={style.boardSurface}
       />
 
-      {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
-        <polygon key={point} points={trianglePoints(point)} className={style.point(point % 2 === 1)} />
+      {columns.map((column) => (
+        <polygon key={column} points={trianglePoints(column)} className={style.point(column % 2 === 1)} />
       ))}
 
       {/* point numbers, in the frame band */}
-      {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
-        <text
-          key={point}
-          x={stackBase(point).cx}
-          y={pointRow(point) === "bottom" ? NUMBER_BOTTOM_Y : NUMBER_TOP_Y}
-          textAnchor="middle"
-          dominantBaseline="central"
-          className={style.pointNumber}
-        >
-          {flipped ? 25 - point : point}
-        </text>
-      ))}
+      {columns.map((column) => {
+        const point = pointAt(column);
+        return (
+          <text
+            key={column}
+            x={stackBase(column).cx}
+            y={pointRow(column) === "bottom" ? NUMBER_BOTTOM_Y : NUMBER_TOP_Y}
+            textAnchor="middle"
+            dominantBaseline="central"
+            className={style.pointNumber}
+          >
+            {flipped ? 25 - point : point}
+          </text>
+        );
+      })}
 
       {/* explorer highlights, under the checkers so they never wash them out */}
       {interactivePointHighlight &&
-        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
-          const highlight = interactivePointHighlight(point);
-          return highlight && <PointHighlight key={`highlight-point-${point}`} point={point} highlight={highlight} />;
+        columns.map((column) => {
+          const highlight = interactivePointHighlight(pointAt(column));
+          return highlight && <PointHighlight key={`highlight-point-${column}`} point={column} highlight={highlight} />;
         })}
       {interactiveBarHighlight &&
         interactiveBarSides.map((side) => {
@@ -416,12 +434,13 @@ export default function Board({
       <OffTray side="mine" count={decoded.mineOff} />
 
       {/* point checkers */}
-      {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
+      {columns.map((column) => {
+        const point = pointAt(column);
         const mineCount = decoded.mine[point - 1];
         const oppCount = decoded.opponent[point - 1];
-        const base = stackBase(point);
+        const base = stackBase(column);
         return (
-          <g key={point}>
+          <g key={column}>
             {mineCount > 0 && <Stack base={base} count={mineCount} side="mine" />}
             {oppCount > 0 && <Stack base={base} count={oppCount} side="opponent" />}
           </g>
@@ -445,8 +464,8 @@ export default function Board({
         {subMoves.map((move, i) => (
           <Arrow
             key={i}
-            from={moveAnchor(move.from, decoded, true, flipped)}
-            to={moveAnchor(move.to, decoded, false, flipped)}
+            from={moveAnchor(move.from, decoded, true, flipped, homeLeft)}
+            to={moveAnchor(move.to, decoded, false, flipped, homeLeft)}
             hit={move.hit}
             count={move.count}
           />
@@ -455,23 +474,24 @@ export default function Board({
 
       {/* landing markers, over the checkers (a hit lands on a blot) */}
       {interactivePointHighlight &&
-        Array.from({ length: 24 }, (_, i) => i + 1).map((point) =>
-          interactivePointHighlight(point) === "destination" ? (
-            <LandingMarker key={`landing-${point}`} point={point} decoded={decoded} />
+        columns.map((column) =>
+          interactivePointHighlight(pointAt(column)) === "destination" ? (
+            <LandingMarker key={`landing-${column}`} base={stackBase(column)} count={decoded.mine[pointAt(column) - 1]} />
           ) : null
         )}
 
       {/* the selected checker's ring, over the checkers */}
       {interactivePointHighlight &&
-        Array.from({ length: 24 }, (_, i) => i + 1).map((point) =>
-          interactivePointHighlight(point) === "selected" ? (
+        columns.map((column) => {
+          const point = pointAt(column);
+          return interactivePointHighlight(point) === "selected" ? (
             <SelectedRing
-              key={`selected-point-${point}`}
-              base={stackBase(point)}
+              key={`selected-point-${column}`}
+              base={stackBase(column)}
               count={decoded.mine[point - 1] || decoded.opponent[point - 1]}
             />
-          ) : null
-        )}
+          ) : null;
+        })}
       {interactiveBarHighlight &&
         interactiveBarSides.map((side) =>
           interactiveBarHighlight(side) === "selected" ? (
@@ -484,12 +504,13 @@ export default function Board({
         )}
 
       {(onPointKeyDown || onPointClick || onPointPointerDown || onPointPointerUp || onPointPointerCancel) &&
-        Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
+        columns.map((column) => {
+          const point = pointAt(column);
           const enabled = interactivePointEnabled?.(point) ?? true;
           return (
             <polygon
-              key={`target-point-${point}`}
-              points={trianglePoints(point)}
+              key={`target-point-${column}`}
+              points={trianglePoints(column)}
               fill="transparent"
               className={style.interactiveTarget(enabled, interactivePointHighlight?.(point) === "selected")}
               role="button"

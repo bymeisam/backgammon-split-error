@@ -45,6 +45,40 @@ Dev tooling:
 - `npm run agents:sync` (`sync-agents.ts`): generates the agent files from
   `agents/roles/`.
 
+Proof of concept:
+- `npx tsx scripts/snap-poc.ts [--force] [--model <id>] [--only <filename>]`:
+  Snaps PoC, step 1. Asks Gemini's free tier to read the board in each photo
+  in `snap-poc/` (gitignored) and caches the answers in
+  `snap-poc/results/<model>/<image>.json`. No DB. Needs `GEMINI_API_KEY`.
+  Picks the newest stable Flash model unless `--model` is given, waits 7 s
+  between calls and stops on HTTP 429. Layout type and validator are in
+  `lib/snapPocLayout.ts`.
+  Sideways photos (bar running horizontally): the prompt asks Gemini to
+  rotate them 90° first and say which way in `notes`.
+- `/snap-poc` (page, not a script): Snaps PoC, step 2. Dev only (404 in
+  production, not in the nav). Run `npm run dev`, open `/snap-poc` (add
+  `?model=<folder>` to pick a results folder; default is the one with the most
+  answers). One photo at a time: the photo on the left, the position builder
+  on the right, pre-filled from Gemini's answer. Set "Bottom colour" (light
+  or dark), then line the board up with the photo using three independent
+  on/off toggles under "Board view", each moving one thing on screen: "Mirror checkers" mirrors the
+  checkers left-right and leaves the point numbers where they are (it flips
+  which side the bottom player's home board is on); "Mirror numbers" mirrors
+  the point numbers (1 bottom-left, Board's `homeLeft`) and changes nothing
+  else on the board: triangles, checkers, bar, tray, cube and dice stay
+  exactly where they are; "Rotate board" reads the photo turned 180 degrees
+  (taken from the other side of the table): the checkers move top<->bottom and
+  left<->right, and a cube at the top goes to the bottom, while the numbers,
+  triangles, tray and dice stay. Saved truth stays in the photo's own frame
+  (the rotation is undone on save), so scoring is unaffected. Any toggle reloads the board from the
+  saved truth or Gemini's answer, so unsaved edits are lost: set them first.
+  Correct the board, then "Save as correct". That writes
+  `snap-poc/truth/<image>.json` (gitignored) and scores Gemini against it in
+  the table at the top (points exact, checkers off, bar, tray, dice, cube, and
+  the best of the four mirror/flip symmetries). Mapping is in
+  `lib/snapPocLayout.ts`, scoring in `lib/snapPocScore.ts`, file access in
+  `lib/snapPocFiles.ts`.
+
 SQL:
 - `sql/app-db-user.sql`: creates the `bg_db_app` write user and its grants on
   Oracle. Run by hand, as the HeatWave admin, only with the owner's approval

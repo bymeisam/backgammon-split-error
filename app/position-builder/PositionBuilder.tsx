@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
 import { storeForumHandoff } from "@/app/forum/new/handoff";
@@ -42,9 +42,25 @@ function numberValue(value: string): number {
 
 // canPostToForum: isAppWriteEnabled(), decided by the server page (the forum
 // write routes' gate). Off hides "Post to forum"; the builder still works.
-export default function PositionBuilder({ canPostToForum }: { canPostToForum: boolean }) {
+// initialState / extraActions: optional, for other local tools that pre-fill
+// the board and add their own buttons (app/snap-poc). Callers reset the
+// builder by changing its React key.
+// homeLeft: draw the board mirrored (point 1 bottom-left). Only the drawing
+// changes: Board's hit areas use the same mirrored geometry and still report
+// the logical point, so clicks edit the point drawn under the pointer.
+export default function PositionBuilder({
+  canPostToForum,
+  initialState,
+  extraActions,
+  homeLeft = false,
+}: {
+  canPostToForum: boolean;
+  initialState?: PositionBuilderState;
+  extraActions?: (state: PositionBuilderState) => ReactNode;
+  homeLeft?: boolean;
+}) {
   const router = useRouter();
-  const [state, setState] = useState<PositionBuilderState>(initialPositionBuilderState);
+  const [state, setState] = useState<PositionBuilderState>(initialState ?? initialPositionBuilderState);
   const [editingSide, setEditingSide] = useState<Side>("mine");
   const [action, setAction] = useState<BuilderAction>("add");
   const [message, setMessage] = useState<string | null>(null);
@@ -170,6 +186,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
             roll={state.decisionType === "checker" ? state.roll ?? [] : []}
             rollSide={state.playerToMove}
             cube={cube}
+            homeLeft={homeLeft}
             onPointClick={(point) => edit(point)}
             onBarClick={(side) => {
               setEditingSide(side);
@@ -382,6 +399,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
         {canPostToForum && (
           <PostToForumButton onPost={postToForum} disabled={errors.length > 0} variant="primary" />
         )}
+        {extraActions?.(state)}
       </div>
     </div>
   );

@@ -120,8 +120,20 @@ export function pointRow(point: number): "bottom" | "top" {
   return point <= 12 ? "bottom" : "top";
 }
 
-export function trianglePoints(point: number): string {
-  const col = pointColumn(point);
+// Mirrored numbering ("home left", point 1 bottom-left): the board is drawn
+// exactly as the default one, column by column, triangle colours and all;
+// only which logical point each column stands for changes. drawnPoint gives
+// the default-board point whose column logical `point` occupies (1<->12,
+// 13<->24 within a row). It is its own inverse, so it also maps a drawn
+// column back to its logical point. With homeLeft false it is the identity,
+// so the default board's numbers are exactly what they were.
+export function drawnPoint(point: number, homeLeft: boolean): number {
+  if (!homeLeft) return point;
+  return point <= 12 ? 13 - point : 37 - point;
+}
+
+export function trianglePoints(point: number, homeLeft = false): string {
+  const col = pointColumn(drawnPoint(point, homeLeft));
   const cx = colCenterX(col);
   const halfW = TRI_HALF_W;
   if (pointRow(point) === "bottom") {
@@ -146,8 +158,9 @@ function halfStackBase(cx: number, half: "bottom" | "top"): StackBase {
 
 // Both sides share a point's stack origin — which half it's in depends
 // only on the physical point, not whose checkers are on it.
-export function stackBase(point: number): StackBase {
-  return halfStackBase(colCenterX(pointColumn(point)), pointRow(point));
+// Its cx is also where the point's number label sits.
+export function stackBase(point: number, homeLeft = false): StackBase {
+  return halfStackBase(colCenterX(pointColumn(drawnPoint(point, homeLeft))), pointRow(point));
 }
 
 export function barStackBase(side: Side): StackBase {
@@ -220,12 +233,14 @@ export function nextOffSlotIndex(count: number, badgeAtBottom: boolean): number 
 // `decoded`/subMoves have already been through flipPerspective/
 // mirrorSubMoves upstream, so the mover's own checkers live in
 // decoded.opponent — and, for bar/off, in the opponent side's top-half
-// geometry — not decoded.mine's bottom half.
+// geometry — not decoded.mine's bottom half. `homeLeft` must match Board's
+// too: it re-maps point anchors only (the bar and off-tray don't move).
 export function moveAnchor(
   ref: PointRef,
   decoded: DecodedPosition,
   isOrigin: boolean,
-  flipped: boolean
+  flipped: boolean,
+  homeLeft = false
 ): { x: number; y: number } {
   const side: Side = flipped ? "opponent" : "mine";
 
@@ -247,7 +262,7 @@ export function moveAnchor(
   }
 
   const count = (flipped ? decoded.opponent : decoded.mine)[ref - 1];
-  const base = stackBase(ref);
+  const base = stackBase(ref, homeLeft);
   return { x: base.cx, y: stackSlotY(base, isOrigin ? count - 1 : count) };
 }
 
