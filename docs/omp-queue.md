@@ -5,7 +5,12 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 ## Tasks for omp
 
 ### Review notes at `834329e` (engine phase 1): 2-ply rerun, merge master, sharper error check (queued 2026-10-15)
-**First, merge `master` into `omp/main`**, then run `npx prisma generate` (no schema change). Your branch never merged master for phase 1: your `npm test` ran 874 tests, master has 939. On the merge, **keep master's `docs/current-state.md`** (yours edited a stale 2026-10-14 copy; master rewrites it at wrap-up, don't edit it on `omp/main`), and add your PROGRESS.md entry on top of master's.
+**First, merge `master` into `omp/main`**, then run `npx prisma generate` (no schema change). Your branch never merged master for phase 1: your `npm test` ran 874 tests, master has 937. On the merge, **keep master's `docs/current-state.md`** (yours edited a stale 2026-10-14 copy; master rewrites it at wrap-up, don't edit it on `omp/main`), and add your PROGRESS.md entry on top of master's.
+
+**`scripts/` is now in folders on master** (commit `6964a9c`: `sync/`, `db/`, `readonly/`, `screenshots/`, `agents/`, `snaps/`; `notes-export`/`notes-import` retired). On the merge:
+- `git mv scripts/gnubg-evaluation.ts scripts/engine/gnubg-evaluation.ts`, and fix its relative imports (`../lib/` → `../../lib/`) and any `__dirname` paths.
+- `scripts/README.md` will conflict: keep master's version and add your entry as a new `engine/` section, with a one-line rule like the other sections have (e.g. "Local only, read-only DB; runs gnubg in Docker").
+- Update any `scripts/gnubg-evaluation.ts` mention in your report and docs to the new path. The regenerated `.omp/agents/` files come from master; don't hand-edit them.
 
 The phase 1 work is sound (separate-process GPL boundary, fixture tests, read-only local-only harness, the 21-roll batch, the local-precompute recommendation, the proposal-only results table). What's left is the core question, because the run was at 0-ply.
 
