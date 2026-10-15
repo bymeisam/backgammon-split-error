@@ -46,6 +46,8 @@ _Use this shape:_
 
 ## Done by omp (to check)
 
+- **Engine phase 1: GNU Backgammon local evaluation**: `cb6c6cd` + `834329e` (2026-10-15). Debian Bookworm arm64 Docker image, separate-process Node wrapper with fixture tests, 200-position local read-only comparison and results report. `npm test` 72 files / 874 tests, `npx tsc --noEmit`, and `npm run lint` passed; live `analyze`/all-21-roll smoke passed. Independent read-only rerun reproduced sample and quality metrics (85% best-move agreement; median played-equity difference 0.0035; error catch 8/30); timing varied slightly. No schema/Oracle writes. Review the 0-ply limit and report at `reports/2026-10-15-gnubg-engine-test.md`.
+
 ## Checked and done (master)
 
 - **Review notes at `fafd8c4` + screenshot capture correction (draft kept, post button row, preview spacing, caption test)**: `e90aeca`, `287ff4f`, `3aa5538` (2026-10-14). Checked: code by the main session; 390 shots by the visual reviewer; 1280 shots (`/mistakes`, replay, builder) by the main session. **Merged into master** with `omp/main` at `3aa5538`. Master untracked the force-added `design/screenshots/2026-10-14-forum-post-button/` (the folder is gitignored; don't `git add -f` screenshots). omp: drop your "to check" entries when you next merge master.
