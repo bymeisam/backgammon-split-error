@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { parseHint, parseHints } from "@/lib/engine/gnubg";
+import { analyze, parseHint, parseHints } from "@/lib/engine/gnubg";
 
 describe("parseHint", () => {
   const fixture = readFileSync(new URL("./fixtures/hint.txt", import.meta.url), "utf8");
@@ -27,6 +27,9 @@ describe("parseHint", () => {
 
   it("splits batched hint output into separate roll results", () => {
     expect(parseHints(`${fixture}\n${fixture}`)).toHaveLength(2);
+  });
+  it("rejects invalid caller-supplied dice before starting Docker", async () => {
+    await expect(analyze("AQAAhAAAAAAAAA", "Q4mmAAAAAAAE", [0, 1])).rejects.toThrow(/two dice from 1 to 6/);
   });
 
   it("returns no candidates for non-hint output", () => {

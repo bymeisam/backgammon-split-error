@@ -86,11 +86,12 @@ async function evaluateMany(positionId: string, matchId: string, rolls: [number,
   return groups.map((candidates, index) => ({ positionId, roll: rolls[index], plies: EVALUATION_PLIES, candidates }));
 }
 
-export async function analyze(positionId: string, matchId: string): Promise<Analysis> {
+export async function analyze(positionId: string, matchId: string, requestedRoll?: [number, number]): Promise<Analysis> {
   const match = decodeGnuMatchId(matchId);
   if (!match) throw new Error("Invalid GNU Match ID");
-  const roll = [...match.dice].sort((a, b) => b - a) as [number, number];
-  if (roll.some((die) => die < 1 || die > 6)) throw new Error("Match ID does not contain a valid roll");
+  const inputRoll = requestedRoll ?? match.dice;
+  if (inputRoll.some((die) => !Number.isInteger(die) || die < 1 || die > 6)) throw new Error("Roll must contain two dice from 1 to 6");
+  const roll = [...inputRoll].sort((a, b) => b - a) as [number, number];
   return (await evaluateMany(positionId, matchId, [roll]))[0];
 }
 

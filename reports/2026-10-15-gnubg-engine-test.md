@@ -10,7 +10,7 @@ docker build -t omp-gnubg:1.07.001 engine/gnubg
 
 `engine/gnubg/Dockerfile` uses `debian:bookworm-slim` and installs the Debian `gnubg` package. On this run it installed GNU Backgammon **1.07.001** (`/usr/games/gnubg`) and its required `gnubg-data` package. The package initialized the two-sided bear-off database. The wrapper invokes the executable only as a separate process with `docker run --rm -i omp-gnubg:1.07.001 /usr/games/gnubg -t -q`; no GNU Backgammon source is copied into this repository.
 
-Commands go over stdin: `new game`, `set matchid <GNU Match ID>`, set the configured evaluation level, `set board <GNU Position ID>`, `set dice <high> <low>`, `hint`, then `quit`. A single process handles all 21 unordered rolls for one position; starting one container per roll would waste startup time. The wrapper validates/parses the CLI's ranked `hint` output and expands GNU's repeated-move shorthand into the app's per-hop notation.
+`analyze(positionId, matchId, roll?)` uses the Match ID's roll by default or accepts an explicit pair; `allRolls(positionId, matchId)` submits all 21 unordered rolls in one process. Commands go over stdin: `new game`, `set matchid <GNU Match ID>`, set the configured evaluation level, then for each roll `set board <GNU Position ID>`, `set dice <high> <low>`, `hint`, and finally `quit`. The wrapper validates/parses ranked output and expands GNU repeated-move shorthand into the app's per-hop notation.
 
 The current interface reports **0-ply**: GNU 1.07.001's `hint` output identifies each candidate as `Cubeful 0-ply`, including after setting the deeper analysis/evaluation options. The wrapper verifies that the reported level matches its single `EVALUATION_PLIES` setting instead of claiming a deeper analysis that the CLI did not produce. This is a fast baseline, not evidence about 2-ply quality.
 
@@ -28,6 +28,7 @@ Read-only local `app_dev`, through `DATABASE_URL_READONLY` using `bg_db_ro`. The
 | Also flagged by GNU at loss ≥ 0.08 | 8/30 (26.7%) |
 | Median time per position | 309 ms |
 | All 21 rolls, one Docker process | 661 ms |
+An independent second run reproduced the sample composition and quality metrics exactly; timing varied as expected between runs (323 ms median per position and 646 ms for all rolls). The table gives the first run's observed timings, not a fixed performance guarantee.
 
 The equity difference is GNU's played-candidate equity minus Galaxy's played-candidate equity; median is reported as the median absolute difference. GNU's played candidate was absent from its returned candidate list for one decision. “Also flagged” uses a fixed 0.08 equity-loss threshold against GNU's best candidate; this is a simple comparison rule, not GNU's official game-review severity classifier. It caught 0/16 Galaxy `ERROR` decisions and 8/14 `BLUNDER` decisions in this sample.
 
@@ -41,7 +42,7 @@ The comparison is a small, deterministically shuffled sample of the latest 6,000
 
 ## Recommendation
 
-Prefer **local precomputation** for an initial real feature. The measured container-backed all-roll request took about 0.66 seconds; the full 200-decision harness took 87 seconds including query/sample preparation and one all-roll run. The 309 ms median engine invocation is suitable for paced offline work and avoids introducing an always-on Oracle-VM service, deployment, monitoring, and network failure mode. The Docker image is an evaluation prerequisite on the machine doing the work. Revisit a service only if repeated on-demand all-roll requests prove materially useful and local compute is unavailable. First compare 2-ply output using GNU's actual move-analysis path; the tested `hint` protocol did not provide it.
+Prefer **local precomputation** for an initial real feature. The measured container-backed all-roll request took 0.65–0.66 seconds; the full 200-decision harness took 82–87 seconds including query/sample preparation and one all-roll run. The 309–323 ms median engine invocation is suitable for paced offline work and avoids introducing an always-on Oracle-VM service, deployment, monitoring, and network failure mode. The Docker image is an evaluation prerequisite on the machine doing the work. Revisit a service only if repeated on-demand all-roll requests prove materially useful and local compute is unavailable. First compare 2-ply output using GNU's actual move-analysis path; the tested `hint` protocol did not provide it.
 
 ## Results-table proposal only
 
@@ -57,6 +58,6 @@ A JSON result payload is adequate until SQL needs to filter or aggregate candida
 
 ## Verification
 
-- `npm test`: 72 files, 873 tests passed; `npx tsc --noEmit` and `npm run lint` passed.
+- `npm test`: 72 files, 874 tests passed; `npx tsc --noEmit` and `npm run lint` passed.
 - Live smoke: `analyze` returned ranked candidates and probabilities for a real local decision; `allRolls` returned 21 unique rolls in one Docker invocation. Fixture tests parse saved CLI output without Docker.
 - Comparison and bear-off checks used only local `bg_db_ro`; no database writes, schema changes, or Oracle access.
