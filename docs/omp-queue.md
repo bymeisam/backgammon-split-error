@@ -4,7 +4,37 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-_None queued._
+### Engine phase 1: drive GNU Backgammon (gnubg) from Node and test it against Galaxy (queued 2026-10-15)
+**First, merge `master` into `omp/main`**, then run `npx prisma generate`. There's no schema change, but master has these changes:
+- every agent role is on medium effort (`.omp/config.yml`);
+- four one-off backfill scripts are retired, and `scripts/README.md` is the new ledger;
+- `isGalaxyEnabled()` is renamed `isSyncEnabled()`;
+- AGENTS.md now gives you the analysis engine as a stream.
+Master is also building a local-only `/snap-poc` page that adds two optional props to `PositionBuilder` (`initialState`, `extraActions`). If you touch the builder, merge master again first.
+
+Background: `docs/future-ideas.md` § "Our own analysis engine (GNU Backgammon)". Today every analysis comes from Galaxy, only for the position and roll a game produced. This phase only finds out whether gnubg can answer "best move for any position and roll" well and fast enough. **No schema, no UI, no stored results.**
+
+1. **Install gnubg locally.** Find the most reliable way to drive it from Node: command-line mode (`gnubg -t -q`, commands through stdin) or its Python interface. Write the install steps and the chosen approach in the report. gnubg is GPL: run it as a separate process only, and never copy its source into this repo.
+2. **Write the wrapper, `lib/engine/gnubg.ts`.**
+   - Given a GNU Position ID, a GNU Match ID (or score, match length and cube) and a roll, it returns the ranked candidate moves with equity, and the win/gammon/backgammon chances if available.
+   - Also `allRolls(position, match)`, which gives the best move and equity for each of the 21 rolls.
+   - Set the evaluation level (e.g. 2-ply) in one place, and record it in each result.
+   - Moves in standard notation (higher die first, as the app shows them). Reuse the existing decoders in `lib/gnuPositionId.ts` and `lib/gnuMatchId.ts`.
+   - Unit tests for the parsing and the move notation, run against saved gnubg output fixtures, so `npm test` doesn't need gnubg installed.
+3. **Compare with Galaxy on real data** (local DB, **read-only**: no writes of any kind). Take a sample of about 200 CHECKER decisions with analysis: a mix of opening, middle game and bear-off, and include the user's errors and blunders. Run gnubg on the same position and roll, and measure:
+   - how often gnubg's best move equals Galaxy's best move;
+   - the typical equity difference on the played move;
+   - how often gnubg also calls the user's error an error;
+   - the time per position, and the time for all 21 rolls.
+   Galaxy's analysis is read through `getDecisionAnalysis` (`lib/analysis/index.ts`), not straight from `raw`.
+4. **Report** in `reports/2026-10-<dd>-gnubg-engine-test.md`. It covers:
+   - the install and drive approach;
+   - the accuracy and speed numbers, with a few example disagreements;
+   - a recommendation: precompute locally vs a small service on the Oracle VM;
+   - what a results table would need. Write that last part as a proposal only; any schema goes through "Schema requests".
+
+Checks: `npm test`, tsc, lint. No screenshots (no UI).
+
 
 ## Schema requests (omp → master)
 
