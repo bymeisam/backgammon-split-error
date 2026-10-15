@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   builderStateToLayout,
+  isCheckersMirrored,
   layoutToBuilderState,
+  toggleMirrorCheckers,
+  toggleMirrorNumbers,
   type SnapLayout,
   type SnapOrientation,
   type SnapPoint,
 } from "./snapPocLayout";
 import { checkerTotal, validateBuilderState } from "./positionBuilder";
+import { stackBase } from "./boardGeometry";
+import { isSnapOrientation } from "./snapPocFiles";
 
 const none: SnapPoint = { color: "none", count: 0 };
 const L = (count: number): SnapPoint => ({ color: "light", count });
@@ -128,4 +133,69 @@ describe("builderStateToLayout", () => {
       expect(back.cube).toEqual(original.cube);
     });
   }
+});
+
+// The review page's two mirror buttons. Board draws point p at
+// stackBase(p, homeLeft).cx, with homeLeft = mirroredNumbers.
+describe("mirror toggles", () => {
+  const base: SnapOrientation[] = [
+    { bottomColor: "dark", bottomHome: "right" },
+    { bottomColor: "light", bottomHome: "left" },
+    { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true },
+  ];
+
+  // Every drawn stack as "row@column:side×count", sorted, where column is the
+  // stack's visual column (0 = leftmost) in its row. Absolute x shifts by
+  // 12u on a mirrored board (the 42u off-tray and the 30u cube gutter swap
+  // sides), so the visual column is what "stays put" means.
+  function screen(o: SnapOrientation): string[] {
+    const homeLeft = Boolean(o.mirroredNumbers);
+    const { position } = layoutToBuilderState(layout(), o);
+    const column = (p: number) => {
+      const row = p <= 12 ? Array.from({ length: 12 }, (_, i) => i + 1) : Array.from({ length: 12 }, (_, i) => i + 13);
+      const xs = row.map((q) => stackBase(q, homeLeft).cx).sort((m, n) => m - n);
+      return xs.indexOf(stackBase(p, homeLeft).cx);
+    };
+    const out: string[] = [];
+    for (let p = 1; p <= 24; p++) {
+      const x = column(p);
+      const row = p <= 12 ? "bottom" : "top";
+      if (position.mine[p - 1]) out.push(`${row}@${x}:mine×${position.mine[p - 1]}`);
+      if (position.opponent[p - 1]) out.push(`${row}@${x}:opponent×${position.opponent[p - 1]}`);
+    }
+    return out.sort();
+  }
+
+  for (const o of base) {
+    const label = `${o.bottomColor} bottom, home ${o.bottomHome}, numbers ${o.mirroredNumbers ? "mirrored" : "plain"}`;
+
+    it(`Mirror numbers keeps the photo layout and the checkers' screen positions (${label})`, () => {
+      const next = toggleMirrorNumbers(o);
+      expect(next.mirroredNumbers).toBe(!o.mirroredNumbers);
+      expect(next.bottomHome).not.toBe(o.bottomHome);
+      const before = builderStateToLayout(layoutToBuilderState(layout(), o), o);
+      const after = builderStateToLayout(layoutToBuilderState(layout(), next), next);
+      expect(after).toEqual(before);
+      expect(screen(next)).toEqual(screen(o));
+      expect(isCheckersMirrored(next)).toBe(isCheckersMirrored(o));
+    });
+
+    it(`Mirror checkers moves the checkers but not the numbers (${label})`, () => {
+      const next = toggleMirrorCheckers(o);
+      expect(Boolean(next.mirroredNumbers)).toBe(Boolean(o.mirroredNumbers));
+      expect(isCheckersMirrored(next)).toBe(!isCheckersMirrored(o));
+      expect(screen(next)).not.toEqual(screen(o));
+    });
+  }
+
+  it("reads a file saved without mirroredNumbers exactly as before", () => {
+    const old: SnapOrientation = { bottomColor: "dark", bottomHome: "left" };
+    expect(isSnapOrientation(old)).toBe(true);
+    expect(isSnapOrientation({ ...old, mirroredNumbers: true })).toBe(true);
+    expect(isSnapOrientation({ ...old, mirroredNumbers: "yes" })).toBe(false);
+    expect(isCheckersMirrored(old)).toBe(true);
+    expect(layoutToBuilderState(layout(), old)).toEqual(
+      layoutToBuilderState(layout(), { ...old, mirroredNumbers: false })
+    );
+  });
 });

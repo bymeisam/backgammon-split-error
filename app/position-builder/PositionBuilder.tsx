@@ -45,14 +45,19 @@ function numberValue(value: string): number {
 // initialState / extraActions: optional, for other local tools that pre-fill
 // the board and add their own buttons (app/snap-poc). Callers reset the
 // builder by changing its React key.
+// homeLeft: draw the board mirrored (point 1 bottom-left). Only the drawing
+// changes: Board's hit areas use the same mirrored geometry and still report
+// the logical point, so clicks edit the point drawn under the pointer.
 export default function PositionBuilder({
   canPostToForum,
   initialState,
   extraActions,
+  homeLeft = false,
 }: {
   canPostToForum: boolean;
   initialState?: PositionBuilderState;
   extraActions?: (state: PositionBuilderState) => ReactNode;
+  homeLeft?: boolean;
 }) {
   const router = useRouter();
   const [state, setState] = useState<PositionBuilderState>(initialState ?? initialPositionBuilderState);
@@ -181,6 +186,7 @@ export default function PositionBuilder({
             roll={state.decisionType === "checker" ? state.roll ?? [] : []}
             rollSide={state.playerToMove}
             cube={cube}
+            homeLeft={homeLeft}
             onPointClick={(point) => edit(point)}
             onBarClick={(side) => {
               setEditingSide(side);

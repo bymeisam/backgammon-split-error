@@ -55,9 +55,16 @@ Proof of concept:
   production, not in the nav). Run `npm run dev`, open `/snap-poc` (add
   `?model=<folder>` to pick a results folder; default is the one with the most
   answers). One photo at a time: the photo on the left, the position builder
-  on the right, pre-filled from Gemini's answer. Set the two orientation
-  toggles (which colour is at the bottom, which side the bottom player's home
-  board is on), correct the board, then "Save as correct". That writes
+  on the right, pre-filled from Gemini's answer. Set "Bottom colour" (light
+  or dark), then line the board up with the photo using two one-click
+  toggles, each moving one thing on screen: "Mirror checkers" mirrors the
+  checkers left-right and leaves the point numbers where they are (it flips
+  which side the bottom player's home board is on); "Mirror numbers" mirrors
+  the point numbers (the board is drawn with home bottom-left, Board's
+  `homeLeft`) and leaves the checkers in the same columns. The off-tray, cube
+  and dice move with the numbers. Either toggle reloads the board from the
+  saved truth or Gemini's answer, so unsaved edits are lost: set them first.
+  Correct the board, then "Save as correct". That writes
   `snap-poc/truth/<image>.json` (gitignored) and scores Gemini against it in
   the table at the top (points exact, checkers off, bar, tray, dice, cube, and
   the best of the four mirror/flip symmetries). Mapping is in

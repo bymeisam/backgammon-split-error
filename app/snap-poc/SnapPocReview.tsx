@@ -14,7 +14,10 @@ import {
 import {
   DEFAULT_SNAP_ORIENTATION,
   builderStateToLayout,
+  isCheckersMirrored,
   layoutToBuilderState,
+  toggleMirrorCheckers,
+  toggleMirrorNumbers,
   type SnapLayout,
   type SnapOrientation,
 } from "@/lib/snapPocLayout";
@@ -78,6 +81,9 @@ export default function SnapPocReview({ items: initialItems, model }: { items: S
   function setOrientation(next: Partial<SnapOrientation>) {
     setOrientations((previous) => ({ ...previous, [item.image]: { ...orientation, ...next } }));
   }
+
+  const checkersMirrored = isCheckersMirrored(orientation);
+  const numbersMirrored = Boolean(orientation.mirroredNumbers);
 
   async function save(state: PositionBuilderState) {
     if (!model) return;
@@ -210,20 +216,29 @@ export default function SnapPocReview({ items: initialItems, model }: { items: S
                 ))}
               </div>
             </div>
+            {/* Two independent toggles, each moving one thing on screen:
+                the checkers (the layout mapping flips) or the point numbers
+                (the board is drawn mirrored and the mapping flips with it, so
+                the checkers stay put). */}
             <div className={style.fieldLabel}>
-              Bottom home board
+              Mirror
               <div className={style.segmented}>
-                {(["left", "right"] as const).map((home) => (
-                  <button
-                    key={home}
-                    type="button"
-                    aria-pressed={orientation.bottomHome === home}
-                    className={style.segmentOption(orientation.bottomHome === home)}
-                    onClick={() => setOrientation({ bottomHome: home })}
-                  >
-                    {home === "left" ? "Left" : "Right"}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  aria-pressed={checkersMirrored}
+                  className={style.segmentOption(checkersMirrored)}
+                  onClick={() => setOrientation(toggleMirrorCheckers(orientation))}
+                >
+                  Mirror checkers
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={numbersMirrored}
+                  className={style.segmentOption(numbersMirrored)}
+                  onClick={() => setOrientation(toggleMirrorNumbers(orientation))}
+                >
+                  Mirror numbers
+                </button>
               </div>
             </div>
             <p className={style.infoText}>
@@ -245,6 +260,7 @@ export default function SnapPocReview({ items: initialItems, model }: { items: S
           key={builderKey}
           canPostToForum={false}
           initialState={builderState}
+          homeLeft={numbersMirrored}
           extraActions={(state) => {
             const errors = validateBuilderState(state);
             return (

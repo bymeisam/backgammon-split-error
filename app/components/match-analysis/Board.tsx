@@ -19,25 +19,25 @@ import {
   OFF_COL,
   OFF_SLOTS,
   OFF_TRACK_W,
-  OFF_TRACK_X,
   R,
   RING_R,
   TRI_HALF_W,
   Y0,
   Y1,
   barStackBase,
-  colCenterX,
   colX,
   cubeBadgeCenter,
   diePips,
   diePosition,
   isOffSlotFilled,
+  mirrorSpanX,
   moveAnchor,
   offColumnGeometry,
+  offTrackCenterX,
+  offTrackX,
   offeredCubeCenter,
   offTrayBounds,
   offTrayRect,
-  pointColumn,
   pointRow,
   stackBase,
   stackSlotY,
@@ -53,14 +53,18 @@ import { style, type ArrowTier } from "./BoardPanel.styles";
 // checkers, bar checkers, cube, arrows, dice. Interactive boards add their
 // highlights under the checkers, landing markers over them, and transparent
 // hit areas on top. Every position comes from lib/boardGeometry.ts.
+// `homeLeft` draws the board mirrored left-right (point 1 bottom-left, the
+// off-tray on the left); every helper below takes it and passes it to the
+// geometry, which mirrors the x coordinates.
 
-function OffTray({ side, count }: { side: Side; count: number }) {
+function OffTray({ side, count, homeLeft }: { side: Side; count: number; homeLeft: boolean }) {
   const { fill, contrast, rim } = CHECKER_PALETTE[side];
   const { topY, bottomY, badgeAtBottom } = offTrayBounds(side);
   const { badgeR, badgeCy, trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
   const slotH = Math.max(slotSpan - 1.5, 2);
-  const cx = OFF_TRACK_X + OFF_TRACK_W / 2;
-  const tray = offTrayRect(side);
+  const cx = offTrackCenterX(homeLeft);
+  const trackX = offTrackX(homeLeft);
+  const tray = offTrayRect(side, homeLeft);
 
   return (
     <>
@@ -70,7 +74,7 @@ function OffTray({ side, count }: { side: Side; count: number }) {
         return (
           <rect
             key={i}
-            x={OFF_TRACK_X}
+            x={trackX}
             y={trackTop + i * slotSpan}
             width={OFF_TRACK_W}
             height={slotH}
@@ -125,9 +129,10 @@ function Stack({ base, count, side }: { base: StackBase; count: number; side: Si
 // a possibly-wrong number is worse than no number. An owned cube sits in
 // the left gutter; an offered one (a take/pass) centred on the receiver's
 // edge.
-function Cube({ cube }: { cube: BoardCube | null }) {
+function Cube({ cube, homeLeft }: { cube: BoardCube | null; homeLeft: boolean }) {
   if (!cube) return null;
-  const { x, y } = cube.kind === "offered" ? offeredCubeCenter(cube.side) : cubeBadgeCenter(cube.owner);
+  const { x, y } =
+    cube.kind === "offered" ? offeredCubeCenter(cube.side, homeLeft) : cubeBadgeCenter(cube.owner, homeLeft);
   return (
     <g>
       <rect
@@ -153,14 +158,16 @@ function BoardDie({
   value,
   index,
   side,
+  homeLeft,
   onClick,
 }: {
   value: number;
   index: number;
   side: Side;
+  homeLeft: boolean;
   onClick?: () => void;
 }) {
-  const { x, y } = diePosition(index);
+  const { x, y } = diePosition(index, homeLeft);
   const s = DIE_SIZE;
   const die = (
     <>
@@ -250,18 +257,18 @@ const SOURCE_BAR_H = 3;
 // base edge (selected keeps the bar, so it reads as the same checker, picked
 // up). The selected ring is drawn over the checkers (SelectedRing). A
 // destination draws nothing here.
-function PointHighlight({ point, highlight }: { point: number; highlight: BoardHighlight }) {
+function PointHighlight({ point, highlight, homeLeft }: { point: number; highlight: BoardHighlight; homeLeft: boolean }) {
   if (highlight === "destination") return null;
-  const cx = colCenterX(pointColumn(point));
+  const cx = stackBase(point, homeLeft).cx;
   const barY = pointRow(point) === "bottom" ? Y1 - SOURCE_BAR_H : Y0;
   return (
     <rect x={cx - TRI_HALF_W} y={barY} width={2 * TRI_HALF_W} height={SOURCE_BAR_H} className={style.interactiveSource} />
   );
 }
 
-function BarHighlight({ side, highlight }: { side: Side; highlight: BoardHighlight }) {
+function BarHighlight({ side, highlight, homeLeft }: { side: Side; highlight: BoardHighlight; homeLeft: boolean }) {
   if (highlight === "destination") return null;
-  const x = colX(BAR_COL);
+  const x = mirrorSpanX(colX(BAR_COL), BAR_W, homeLeft);
   const barY = side === "mine" ? Y1 - SOURCE_BAR_H : Y0;
   return <rect x={x} y={barY} width={BAR_W} height={SOURCE_BAR_H} className={style.interactiveSource} />;
 }
@@ -276,8 +283,8 @@ function SelectedRing({ base, count }: { base: StackBase; count: number }) {
 
 // The landing marker: a dashed ghost checker in the next free slot. On a
 // blot it would hit, that's slot 0, over the blot.
-function LandingMarker({ point, decoded }: { point: number; decoded: DecodedPosition }) {
-  const base = stackBase(point);
+function LandingMarker({ point, decoded, homeLeft }: { point: number; decoded: DecodedPosition; homeLeft: boolean }) {
+  const base = stackBase(point, homeLeft);
   const cy = stackSlotY(base, decoded.mine[point - 1]);
   return <circle cx={base.cx} cy={cy} r={R - 1} className={style.interactiveDestination} />;
 }
@@ -289,6 +296,7 @@ export default function Board({
   roll = [],
   rollSide,
   flipped = false,
+  homeLeft = false,
   cube = null,
   onPointKeyDown,
   onBarKeyDown,
@@ -315,6 +323,8 @@ export default function Board({
   roll?: number[];
   rollSide?: Side;
   flipped?: boolean;
+  // Draw the board mirrored left-right: home (point 1) bottom-left.
+  homeLeft?: boolean;
   cube?: BoardCube | null;
   onPointKeyDown?: (point: number) => void;
   onBarKeyDown?: (side: Side) => void;
@@ -365,7 +375,7 @@ export default function Board({
           tray column are all frame; the two playing halves are bone. */}
       <rect x={0} y={0} width={BOARD_W} height={BOARD_H} rx={14} className={style.boardFrame} />
       <rect
-        x={colX(0)}
+        x={mirrorSpanX(colX(0), colX(BAR_COL) - colX(0), homeLeft)}
         y={Y0}
         width={colX(BAR_COL) - colX(0)}
         height={Y1 - Y0}
@@ -373,7 +383,7 @@ export default function Board({
         className={style.boardSurface}
       />
       <rect
-        x={colX(BAR_COL + 1)}
+        x={mirrorSpanX(colX(BAR_COL + 1), colX(OFF_COL) - colX(BAR_COL + 1), homeLeft)}
         y={Y0}
         width={colX(OFF_COL) - colX(BAR_COL + 1)}
         height={Y1 - Y0}
@@ -382,14 +392,14 @@ export default function Board({
       />
 
       {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
-        <polygon key={point} points={trianglePoints(point)} className={style.point(point % 2 === 1)} />
+        <polygon key={point} points={trianglePoints(point, homeLeft)} className={style.point(point % 2 === 1)} />
       ))}
 
       {/* point numbers, in the frame band */}
       {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
         <text
           key={point}
-          x={stackBase(point).cx}
+          x={stackBase(point, homeLeft).cx}
           y={pointRow(point) === "bottom" ? NUMBER_BOTTOM_Y : NUMBER_TOP_Y}
           textAnchor="middle"
           dominantBaseline="central"
@@ -403,23 +413,27 @@ export default function Board({
       {interactivePointHighlight &&
         Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
           const highlight = interactivePointHighlight(point);
-          return highlight && <PointHighlight key={`highlight-point-${point}`} point={point} highlight={highlight} />;
+          return highlight && (
+            <PointHighlight key={`highlight-point-${point}`} point={point} highlight={highlight} homeLeft={homeLeft} />
+          );
         })}
       {interactiveBarHighlight &&
         interactiveBarSides.map((side) => {
           const highlight = interactiveBarHighlight(side);
-          return highlight && <BarHighlight key={`highlight-bar-${side}`} side={side} highlight={highlight} />;
+          return highlight && (
+            <BarHighlight key={`highlight-bar-${side}`} side={side} highlight={highlight} homeLeft={homeLeft} />
+          );
         })}
 
       {/* off tray halves */}
-      <OffTray side="opponent" count={decoded.opponentOff} />
-      <OffTray side="mine" count={decoded.mineOff} />
+      <OffTray side="opponent" count={decoded.opponentOff} homeLeft={homeLeft} />
+      <OffTray side="mine" count={decoded.mineOff} homeLeft={homeLeft} />
 
       {/* point checkers */}
       {Array.from({ length: 24 }, (_, i) => i + 1).map((point) => {
         const mineCount = decoded.mine[point - 1];
         const oppCount = decoded.opponent[point - 1];
-        const base = stackBase(point);
+        const base = stackBase(point, homeLeft);
         return (
           <g key={point}>
             {mineCount > 0 && <Stack base={base} count={mineCount} side="mine" />}
@@ -429,24 +443,24 @@ export default function Board({
       })}
 
       {/* bar checkers */}
-      {decoded.mineBar > 0 && <Stack base={barStackBase("mine")} count={decoded.mineBar} side="mine" />}
+      {decoded.mineBar > 0 && <Stack base={barStackBase("mine", homeLeft)} count={decoded.mineBar} side="mine" />}
       {decoded.opponentBar > 0 && (
-        <Stack base={barStackBase("opponent")} count={decoded.opponentBar} side="opponent" />
+        <Stack base={barStackBase("opponent", homeLeft)} count={decoded.opponentBar} side="opponent" />
       )}
 
       {/* doubling cube — after the bar checkers, so an offered cube (drawn
           on the bar column at the receiver's edge) stays visible over a
           checker on the bar. An owned cube sits in the empty left gutter,
           so the order doesn't matter for it. */}
-      <Cube cube={cube} />
+      <Cube cube={cube} homeLeft={homeLeft} />
 
       {/* move arrows, in currentColor (the group's arrow token) */}
       <g className={style.arrow(arrowTier)}>
         {subMoves.map((move, i) => (
           <Arrow
             key={i}
-            from={moveAnchor(move.from, decoded, true, flipped)}
-            to={moveAnchor(move.to, decoded, false, flipped)}
+            from={moveAnchor(move.from, decoded, true, flipped, homeLeft)}
+            to={moveAnchor(move.to, decoded, false, flipped, homeLeft)}
             hit={move.hit}
             count={move.count}
           />
@@ -457,7 +471,7 @@ export default function Board({
       {interactivePointHighlight &&
         Array.from({ length: 24 }, (_, i) => i + 1).map((point) =>
           interactivePointHighlight(point) === "destination" ? (
-            <LandingMarker key={`landing-${point}`} point={point} decoded={decoded} />
+            <LandingMarker key={`landing-${point}`} point={point} decoded={decoded} homeLeft={homeLeft} />
           ) : null
         )}
 
@@ -467,7 +481,7 @@ export default function Board({
           interactivePointHighlight(point) === "selected" ? (
             <SelectedRing
               key={`selected-point-${point}`}
-              base={stackBase(point)}
+              base={stackBase(point, homeLeft)}
               count={decoded.mine[point - 1] || decoded.opponent[point - 1]}
             />
           ) : null
@@ -477,7 +491,7 @@ export default function Board({
           interactiveBarHighlight(side) === "selected" ? (
             <SelectedRing
               key={`selected-bar-${side}`}
-              base={barStackBase(side)}
+              base={barStackBase(side, homeLeft)}
               count={side === "mine" ? decoded.mineBar : decoded.opponentBar}
             />
           ) : null
@@ -489,7 +503,7 @@ export default function Board({
           return (
             <polygon
               key={`target-point-${point}`}
-              points={trianglePoints(point)}
+              points={trianglePoints(point, homeLeft)}
               fill="transparent"
               className={style.interactiveTarget(enabled, interactivePointHighlight?.(point) === "selected")}
               role="button"
@@ -511,7 +525,7 @@ export default function Board({
           return (
             <rect
               key={`target-bar-${side}`}
-              x={colX(BAR_COL)}
+              x={mirrorSpanX(colX(BAR_COL), BAR_W, homeLeft)}
               y={side === "mine" ? CENTER_Y : Y0}
               width={BAR_W}
               height={ROW_H}
@@ -537,6 +551,7 @@ export default function Board({
           value={value}
           index={i}
           side={drawnRollSide}
+          homeLeft={homeLeft}
           onClick={onRollDieClick ? () => onRollDieClick(i) : undefined}
         />
       ))}

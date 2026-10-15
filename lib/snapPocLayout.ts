@@ -131,13 +131,41 @@ export function snapCheckerTotals(layout: SnapLayout): { light: number; dark: nu
 
 /** How the photo's visual layout maps onto the builder: which colour sits
  * along the bottom edge (the builder's "Bottom" side, `mine`), and on which
- * side of the photo the bottom player's home board is. */
+ * side of the photo the bottom player's home board is. `mirroredNumbers`
+ * only changes the drawing: the review page draws the board mirrored (point
+ * 1 bottom-left, Board's `homeLeft`). It's optional, and absent means false,
+ * so truth files saved before it existed load unchanged. It plays no part in
+ * the layout mapping below. */
 export interface SnapOrientation {
   bottomColor: "light" | "dark";
   bottomHome: "right" | "left";
+  mirroredNumbers?: boolean;
 }
 
 export const DEFAULT_SNAP_ORIENTATION: SnapOrientation = { bottomColor: "dark", bottomHome: "right" };
+
+function otherHome(home: SnapOrientation["bottomHome"]): SnapOrientation["bottomHome"] {
+  return home === "right" ? "left" : "right";
+}
+
+/** "Mirror checkers": the checkers mirror left-right on screen and the point
+ * numbers stay put. Only the layout mapping flips. */
+export function toggleMirrorCheckers(o: SnapOrientation): SnapOrientation {
+  return { ...o, bottomHome: otherHome(o.bottomHome) };
+}
+
+/** "Mirror numbers": the point numbers mirror and the checkers stay where
+ * they are on screen. The board is drawn mirrored and the layout mapping
+ * flips with it, so each photo column still lands on the same screen column. */
+export function toggleMirrorNumbers(o: SnapOrientation): SnapOrientation {
+  return { ...o, bottomHome: otherHome(o.bottomHome), mirroredNumbers: !o.mirroredNumbers };
+}
+
+/** Whether "Mirror checkers" reads as on: the bottom home board is on the
+ * other side from where the drawn numbers put it. */
+export function isCheckersMirrored(o: SnapOrientation): boolean {
+  return (o.bottomHome === "left") !== Boolean(o.mirroredNumbers);
+}
 
 /** Point number (1-24, in `mine`'s frame, as DecodedPosition indexes both
  * sides) shown at visual index `i` (0 = leftmost) of a row. Follows Board's

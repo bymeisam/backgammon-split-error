@@ -38,7 +38,13 @@ export async function POST(req: Request) {
   const truth = {
     image,
     model,
-    orientation: { bottomColor: body.orientation.bottomColor, bottomHome: body.orientation.bottomHome },
+    // mirroredNumbers is written only when on, so a default board saves the
+    // same shape as before it existed.
+    orientation: {
+      bottomColor: body.orientation.bottomColor,
+      bottomHome: body.orientation.bottomHome,
+      ...(body.orientation.mirroredNumbers ? { mirroredNumbers: true } : {}),
+    },
     layout: layout.layout,
     savedAt: new Date().toISOString(),
   };

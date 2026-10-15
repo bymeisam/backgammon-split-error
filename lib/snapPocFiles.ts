@@ -109,7 +109,11 @@ export interface SnapTruth {
 export function isSnapOrientation(v: unknown): v is SnapOrientation {
   if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
-  return (o.bottomColor === "light" || o.bottomColor === "dark") && (o.bottomHome === "right" || o.bottomHome === "left");
+  return (
+    (o.bottomColor === "light" || o.bottomColor === "dark") &&
+    (o.bottomHome === "right" || o.bottomHome === "left") &&
+    (o.mirroredNumbers === undefined || typeof o.mirroredNumbers === "boolean")
+  );
 }
 
 /** `image` must already be an allowlisted name. */
