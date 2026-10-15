@@ -84,5 +84,9 @@ export const config = {
     // Every route except Next.js internals, static files (anything with a
     // file extension) and Clerk's own /__clerk proxy paths.
     "/((?!_next|.*\\..*|__clerk).*)",
+    // The dev-only snap-poc photo route (app/api/snap-poc/image/[name]): its
+    // paths end in a file extension, so the line above skips them; listed
+    // here so Clerk runs and the route's member check can read the session.
+    "/api/snap-poc/image/:name",
   ],
 };

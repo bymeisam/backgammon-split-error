@@ -117,6 +117,11 @@ Board facts:
 - Each side has 15 checkers in total (on points, on the bar, or borne off into a tray).
 - "light" means the lighter checker colour in the photo and "dark" means the darker one, whatever the actual colours are.
 
+Sideways photos:
+- If the board is photographed sideways, i.e. the central bar runs horizontally across the photo instead of vertically, first mentally rotate the photo 90° so that the bar runs vertically (top to bottom), as on a normal board.
+- Then report topRow and bottomRow left to right as seen in that rotated frame, never ordered by quadrant in the original photo. Everything else (bar, trays, dice, cube "top"/"bottom") is also described in the rotated frame.
+- Say in notes which way you rotated it (clockwise or counter-clockwise).
+
 What to return:
 - topRow: exactly 12 entries for the top points, left to right as seen in the photo. Each is { color, count }: the colour of the checkers on that point ("none" with count 0 if empty) and how many there are.
 - bottomRow: exactly 12 entries for the bottom points, left to right as seen in the photo, same shape.

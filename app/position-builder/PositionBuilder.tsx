@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
 import { storeForumHandoff } from "@/app/forum/new/handoff";
@@ -42,9 +42,20 @@ function numberValue(value: string): number {
 
 // canPostToForum: isAppWriteEnabled(), decided by the server page (the forum
 // write routes' gate). Off hides "Post to forum"; the builder still works.
-export default function PositionBuilder({ canPostToForum }: { canPostToForum: boolean }) {
+// initialState / extraActions: optional, for other local tools that pre-fill
+// the board and add their own buttons (app/snap-poc). Callers reset the
+// builder by changing its React key.
+export default function PositionBuilder({
+  canPostToForum,
+  initialState,
+  extraActions,
+}: {
+  canPostToForum: boolean;
+  initialState?: PositionBuilderState;
+  extraActions?: (state: PositionBuilderState) => ReactNode;
+}) {
   const router = useRouter();
-  const [state, setState] = useState<PositionBuilderState>(initialPositionBuilderState);
+  const [state, setState] = useState<PositionBuilderState>(initialState ?? initialPositionBuilderState);
   const [editingSide, setEditingSide] = useState<Side>("mine");
   const [action, setAction] = useState<BuilderAction>("add");
   const [message, setMessage] = useState<string | null>(null);
@@ -382,6 +393,7 @@ export default function PositionBuilder({ canPostToForum }: { canPostToForum: bo
         {canPostToForum && (
           <PostToForumButton onPost={postToForum} disabled={errors.length > 0} variant="primary" />
         )}
+        {extraActions?.(state)}
       </div>
     </div>
   );

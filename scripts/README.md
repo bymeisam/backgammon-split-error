@@ -49,6 +49,20 @@ Proof of concept:
   Picks the newest stable Flash model unless `--model` is given, waits 7 s
   between calls and stops on HTTP 429. Layout type and validator are in
   `lib/snapPocLayout.ts`.
+  Sideways photos (bar running horizontally): the prompt asks Gemini to
+  rotate them 90° first and say which way in `notes`.
+- `/snap-poc` (page, not a script): Snaps PoC, step 2. Dev only (404 in
+  production, not in the nav). Run `npm run dev`, open `/snap-poc` (add
+  `?model=<folder>` to pick a results folder; default is the one with the most
+  answers). One photo at a time: the photo on the left, the position builder
+  on the right, pre-filled from Gemini's answer. Set the two orientation
+  toggles (which colour is at the bottom, which side the bottom player's home
+  board is on), correct the board, then "Save as correct". That writes
+  `snap-poc/truth/<image>.json` (gitignored) and scores Gemini against it in
+  the table at the top (points exact, checkers off, bar, tray, dice, cube, and
+  the best of the four mirror/flip symmetries). Mapping is in
+  `lib/snapPocLayout.ts`, scoring in `lib/snapPocScore.ts`, file access in
+  `lib/snapPocFiles.ts`.
 
 SQL:
 - `sql/app-db-user.sql`: creates the `bg_db_app` write user and its grants on

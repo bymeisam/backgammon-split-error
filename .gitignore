@@ -69,5 +69,7 @@ notes-export*.json
 # Galaxy website build (compiled Flutter/Dart JS), local reference only, never commit
 galaxy-source/
 
-# Snaps proof-of-concept photos (personal, not committed)
-snap-poc/
+# Snaps proof-of-concept photos, results and truths (personal, not committed).
+# Root-anchored so app/snap-poc and app/api/snap-poc stay tracked (and Tailwind,
+# which skips gitignored files, scans them).
+/snap-poc/

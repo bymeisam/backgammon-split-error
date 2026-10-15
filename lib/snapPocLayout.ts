@@ -2,8 +2,15 @@
 // (scripts/snap-poc.ts), and a light validator for it. Purely visual: rows
 // are left to right as seen in the photo, colours are "light"/"dark" as they
 // look, with no backgammon perspective (whose home board, direction of play).
-// Step 2 (the local review page) reuses these types and adds the
-// layout -> position mapping here.
+// Step 2 (the local review page, app/snap-poc) reuses these types and the
+// layout <-> builder-state mapping at the bottom.
+
+import {
+  CUBE_VALUES,
+  initialPositionBuilderState,
+  normalizeRoll,
+  type PositionBuilderState,
+} from "./positionBuilder";
 
 export type SnapColor = "light" | "dark" | "none";
 
@@ -117,4 +124,131 @@ export function snapCheckerTotals(layout: SnapLayout): { light: number; dark: nu
     else if (p.color === "dark") dark += p.count;
   }
   return { light, dark };
+}
+
+// ---------------------------------------------------------------------------
+// Layout <-> position builder state (step 2's review page).
+
+/** How the photo's visual layout maps onto the builder: which colour sits
+ * along the bottom edge (the builder's "Bottom" side, `mine`), and on which
+ * side of the photo the bottom player's home board is. */
+export interface SnapOrientation {
+  bottomColor: "light" | "dark";
+  bottomHome: "right" | "left";
+}
+
+export const DEFAULT_SNAP_ORIENTATION: SnapOrientation = { bottomColor: "dark", bottomHome: "right" };
+
+/** Point number (1-24, in `mine`'s frame, as DecodedPosition indexes both
+ * sides) shown at visual index `i` (0 = leftmost) of a row. Follows Board's
+ * own drawing (lib/boardGeometry.ts pointColumn): with home on the right the
+ * bottom row reads 12..1 left to right and the top row 13..24; home on the
+ * left mirrors both rows. */
+function pointAt(row: "top" | "bottom", i: number, bottomHome: SnapOrientation["bottomHome"]): number {
+  const col = bottomHome === "right" ? i : 11 - i;
+  return row === "bottom" ? 12 - col : 13 + col;
+}
+
+function otherColor(color: "light" | "dark"): "light" | "dark" {
+  return color === "light" ? "dark" : "light";
+}
+
+function clampCubeValue(value: number): number {
+  let best: number = CUBE_VALUES[0];
+  for (const v of CUBE_VALUES) if (Math.abs(v - value) < Math.abs(best - value)) best = v;
+  return best;
+}
+
+/** Visual layout -> builder state. The bottom colour is `mine`. Each side's
+ * borne-off count is 15 minus what's on its points and bar, so the builder's
+ * checker totals stay at 15 (its add/remove edits keep each side's total
+ * constant). When the layout's points and bar already hold 15 or fewer, that
+ * equals the tray count; when they hold more, it goes negative and the
+ * builder reports an invalid count until checkers are removed. */
+export function layoutToBuilderState(layout: SnapLayout, orientation: SnapOrientation): PositionBuilderState {
+  const state = initialPositionBuilderState();
+  const mineColor = orientation.bottomColor;
+  const oppColor = otherColor(mineColor);
+  const mine = new Array(24).fill(0);
+  const opponent = new Array(24).fill(0);
+
+  for (const row of ["top", "bottom"] as const) {
+    const points = row === "top" ? layout.topRow : layout.bottomRow;
+    points.slice(0, 12).forEach((p, i) => {
+      if (p.count <= 0 || p.color === "none") return;
+      const point = pointAt(row, i, orientation.bottomHome);
+      if (p.color === mineColor) mine[point - 1] = p.count;
+      else opponent[point - 1] = p.count;
+    });
+  }
+
+  const mineBar = layout.bar[mineColor];
+  const opponentBar = layout.bar[oppColor];
+  const onBoard = (side: number[], bar: number) => side.reduce((a, b) => a + b, bar);
+  state.position = {
+    mine,
+    opponent,
+    mineBar,
+    opponentBar,
+    mineOff: 15 - onBoard(mine, mineBar),
+    opponentOff: 15 - onBoard(opponent, opponentBar),
+  };
+
+  state.roll = layout.dice.length === 2 ? normalizeRoll([layout.dice[0], layout.dice[1]]) : null;
+  state.decisionType = state.roll ? "checker" : "cube";
+
+  const owner =
+    layout.cube.visible && layout.cube.location === "top"
+      ? "opponent"
+      : layout.cube.visible && layout.cube.location === "bottom"
+        ? "mine"
+        : "center";
+  const value = clampCubeValue(layout.cube.value);
+  // A cube at 1 is centred; an owned cube is at least 2 (the builder's rules).
+  if (owner === "center" || value === 1) {
+    state.cubeOwner = "center";
+    state.cubeValue = 1;
+  } else {
+    state.cubeOwner = owner;
+    state.cubeValue = value;
+  }
+  return state;
+}
+
+/** Builder state -> visual layout: the inverse of layoutToBuilderState, used
+ * to store the user's corrected board as a layout comparable with Gemini's. */
+export function builderStateToLayout(state: PositionBuilderState, orientation: SnapOrientation): SnapLayout {
+  const mineColor = orientation.bottomColor;
+  const oppColor = otherColor(mineColor);
+  const { position } = state;
+  const rowOf = (row: "top" | "bottom"): SnapPoint[] =>
+    Array.from({ length: 12 }, (_, i) => {
+      const point = pointAt(row, i, orientation.bottomHome);
+      const m = position.mine[point - 1];
+      const o = position.opponent[point - 1];
+      if (m > 0) return { color: mineColor, count: m };
+      if (o > 0) return { color: oppColor, count: o };
+      return { color: "none", count: 0 };
+    });
+
+  const byColor = (mineValue: number, oppValue: number) =>
+    (mineColor === "light"
+      ? { light: mineValue, dark: oppValue }
+      : { light: oppValue, dark: mineValue });
+
+  return {
+    topRow: rowOf("top"),
+    bottomRow: rowOf("bottom"),
+    bar: byColor(position.mineBar, position.opponentBar),
+    borneOff: byColor(Math.max(0, position.mineOff), Math.max(0, position.opponentOff)),
+    dice: state.roll ? [...state.roll] : [],
+    cube: {
+      visible: true,
+      value: state.cubeValue,
+      location: state.cubeOwner === "mine" ? "bottom" : state.cubeOwner === "opponent" ? "top" : "center",
+    },
+    barSide: "middle",
+    confidence: "high",
+    notes: "",
+  };
 }
