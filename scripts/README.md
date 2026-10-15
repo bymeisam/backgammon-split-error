@@ -41,6 +41,15 @@ Dev tooling:
 - `npm run agents:sync` (`sync-agents.ts`): generates the agent files from
   `agents/roles/`.
 
+Proof of concept:
+- `npx tsx scripts/snap-poc.ts [--force] [--model <id>] [--only <filename>]`:
+  Snaps PoC, step 1. Asks Gemini's free tier to read the board in each photo
+  in `snap-poc/` (gitignored) and caches the answers in
+  `snap-poc/results/<model>/<image>.json`. No DB. Needs `GEMINI_API_KEY`.
+  Picks the newest stable Flash model unless `--model` is given, waits 7 s
+  between calls and stops on HTTP 429. Layout type and validator are in
+  `lib/snapPocLayout.ts`.
+
 SQL:
 - `sql/app-db-user.sql`: creates the `bg_db_app` write user and its grants on
   Oracle. Run by hand, as the HeatWave admin, only with the owner's approval
