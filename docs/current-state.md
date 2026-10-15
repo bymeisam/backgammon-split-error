@@ -31,7 +31,7 @@ _Last updated: 2026-10-15._
   - `GEMINI_API_KEY` on Vercel (the user sets it);
   - a "reading…" state and a check on Vercel's function duration;
   - a one-line note that free-tier photos may be used by Google.
-  - **Who builds it is still open.** The builder is in omp's stream; the main session suggested moving Snaps to master.
+  - **Master builds Snaps** (user decided 2026-10-15), including its "From photo" changes to the position builder. **On hold** until the user has new photos.
 
 ## Live site (Vercel + Oracle)
 
