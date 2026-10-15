@@ -60,9 +60,9 @@ Proof of concept:
   toggles, each moving one thing on screen: "Mirror checkers" mirrors the
   checkers left-right and leaves the point numbers where they are (it flips
   which side the bottom player's home board is on); "Mirror numbers" mirrors
-  the point numbers (the board is drawn with home bottom-left, Board's
-  `homeLeft`) and leaves the checkers in the same columns. The off-tray, cube
-  and dice move with the numbers. Either toggle reloads the board from the
+  the point numbers (1 bottom-left, Board's `homeLeft`) and changes nothing
+  else on the board: triangles, checkers, bar, tray, cube and dice stay
+  exactly where they are. Either toggle reloads the board from the
   saved truth or Gemini's answer, so unsaved edits are lost: set them first.
   Correct the board, then "Save as correct". That writes
   `snap-poc/truth/<image>.json` (gitignored) and scores Gemini against it in

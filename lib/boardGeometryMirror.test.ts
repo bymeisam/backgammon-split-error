@@ -1,26 +1,13 @@
 import { describe, expect, it } from "vitest";
-import {
-  BOARD_W,
-  DIE_SIZE,
-  OFF_TRAY_W,
-  barStackBase,
-  cubeBadgeCenter,
-  diePosition,
-  moveAnchor,
-  offTrackCenterX,
-  offTrackX,
-  offTrayRect,
-  offeredCubeCenter,
-  stackBase,
-  trianglePoints,
-} from "./boardGeometry";
 import type { DecodedPosition } from "./gnuPositionId";
+import { drawnPoint, moveAnchor, stackBase, trianglePoints } from "./boardGeometry";
 
-// Board's homeLeft mode: the same board reflected across its vertical centre
-// line, so point 1 sits bottom-left.
+// Board's homeLeft mode: only the point numbering is mirrored (point 1
+// bottom-left). The board is drawn column by column exactly as by default;
+// drawnPoint maps a logical point to the default point whose column it takes.
 
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
-// Points of a row ordered by their label's x (labels sit at stackBase.cx).
+// Points of a row ordered by their x (labels and stacks sit at stackBase.cx).
 const leftToRight = (points: number[], homeLeft: boolean) =>
   [...points].sort((a, b) => stackBase(a, homeLeft).cx - stackBase(b, homeLeft).cx);
 
@@ -32,14 +19,13 @@ function decoded(): DecodedPosition {
   return { mine, opponent, mineBar: 1, opponentBar: 0, mineOff: 2, opponentOff: 0 };
 }
 
-describe("mirrored board geometry (homeLeft)", () => {
-  it("reflects every point's x across the board's centre line, keeping its y", () => {
-    for (const point of range(1, 24)) {
-      const plain = stackBase(point);
-      const mirrored = stackBase(point, true);
-      expect(mirrored.cx).toBe(BOARD_W - plain.cx);
-      expect(mirrored.baseY).toBe(plain.baseY);
-      expect(mirrored.dir).toBe(plain.dir);
+describe("mirrored numbering (homeLeft)", () => {
+  it("drawnPoint swaps 1<->12 and 13<->24 within each row and is its own inverse", () => {
+    expect(range(1, 12).map((p) => drawnPoint(p, true))).toEqual(range(1, 12).reverse());
+    expect(range(13, 24).map((p) => drawnPoint(p, true))).toEqual(range(13, 24).reverse());
+    for (const p of range(1, 24)) {
+      expect(drawnPoint(drawnPoint(p, true), true)).toBe(p);
+      expect(drawnPoint(p, false)).toBe(p);
     }
   });
 
@@ -51,63 +37,26 @@ describe("mirrored board geometry (homeLeft)", () => {
     expect(leftToRight(range(13, 24), false)).toEqual(range(13, 24));
   });
 
-  it("puts point 1 bottom-left, on the left of the bar", () => {
-    expect(stackBase(1, true).cx).toBeLessThan(barStackBase("mine", true).cx);
-    expect(stackBase(1, true).cx).toBeLessThan(stackBase(12, true).cx);
+  it("puts a point in an existing column at the same x and y: no column moves", () => {
+    for (const p of range(1, 24)) {
+      const column = drawnPoint(p, true);
+      expect(stackBase(p, true)).toEqual(stackBase(column));
+      expect(trianglePoints(p, true)).toBe(trianglePoints(column));
+    }
   });
 
-  it("mirrors the triangles with their points", () => {
-    expect(trianglePoints(1, true)).toBe(
-      trianglePoints(1)
-        .split(" ")
-        .map((pair) => {
-          const [x, y] = pair.split(",").map(Number);
-          return `${BOARD_W - x},${y}`;
-        })
-        .join(" ")
-        .replace(/^(\S+) (\S+)/, "$2 $1")
-    );
-  });
-
-  it("keeps the bar in the middle of the field", () => {
-    const bar = barStackBase("mine", true).cx;
-    expect(bar).toBe(BOARD_W - barStackBase("mine").cx);
-    expect(stackBase(6, true).cx).toBeLessThan(bar);
-    expect(stackBase(7, true).cx).toBeGreaterThan(bar);
-  });
-
-  it("moves the off-tray to the left edge and the cube gutter to the right", () => {
-    const plainTray = offTrayRect("mine");
-    const tray = offTrayRect("mine", true);
-    expect(tray.x).toBe(BOARD_W - plainTray.x - OFF_TRAY_W);
-    expect(tray.y).toBe(plainTray.y);
-    expect(tray.x + tray.width).toBeLessThan(stackBase(1, true).cx);
-    expect(plainTray.x).toBeGreaterThan(stackBase(1).cx);
-    expect(offTrackCenterX(true)).toBe(BOARD_W - offTrackCenterX());
-    expect(offTrackX(true)).toBeGreaterThanOrEqual(tray.x);
-    expect(cubeBadgeCenter("center", true).x).toBe(BOARD_W - cubeBadgeCenter("center").x);
-    expect(cubeBadgeCenter("center", true).x).toBeGreaterThan(stackBase(12, true).cx);
-    expect(offeredCubeCenter("mine", true).x).toBe(barStackBase("mine", true).cx);
-  });
-
-  it("moves the dice to the mirrored field, keeping roll order left to right", () => {
-    const d0 = diePosition(0, true);
-    const d1 = diePosition(1, true);
-    expect(d0.x).toBeLessThan(d1.x);
-    const centre = (d0.x + d1.x + DIE_SIZE) / 2;
-    const plainCentre = (diePosition(0).x + diePosition(1).x + DIE_SIZE) / 2;
-    expect(centre).toBe(BOARD_W - plainCentre);
-    expect(centre).toBeLessThan(barStackBase("mine", true).cx);
-  });
-
-  it("mirrors move-arrow anchors, flipped or not", () => {
+  it("re-maps point anchors to their column and leaves bar/off anchors alone", () => {
     for (const flipped of [false, true]) {
-      for (const ref of [6, 19, "bar", "off"] as const) {
-        for (const isOrigin of [true, false]) {
-          const plain = moveAnchor(ref, decoded(), isOrigin, flipped);
+      for (const isOrigin of [true, false]) {
+        for (const ref of ["bar", "off"] as const) {
+          expect(moveAnchor(ref, decoded(), isOrigin, flipped, true)).toEqual(
+            moveAnchor(ref, decoded(), isOrigin, flipped)
+          );
+        }
+        for (const ref of [6, 19]) {
           const mirrored = moveAnchor(ref, decoded(), isOrigin, flipped, true);
-          expect(mirrored.x).toBe(BOARD_W - plain.x);
-          expect(mirrored.y).toBe(plain.y);
+          expect(mirrored.x).toBe(stackBase(drawnPoint(ref, true)).cx);
+          expect(mirrored.y).toBe(moveAnchor(ref, decoded(), isOrigin, flipped).y);
         }
       }
     }
@@ -118,7 +67,5 @@ describe("mirrored board geometry (homeLeft)", () => {
       expect(stackBase(point, false)).toEqual(stackBase(point));
       expect(trianglePoints(point, false)).toBe(trianglePoints(point));
     }
-    expect(offTrayRect("opponent", false)).toEqual(offTrayRect("opponent"));
-    expect(diePosition(1, false)).toEqual(diePosition(1));
   });
 });

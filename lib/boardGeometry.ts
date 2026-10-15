@@ -64,20 +64,6 @@ export const BOARD_H = Y1 + MARGIN_Y;
 // The board's horizontal dividing line.
 export const CENTER_Y = Y0 + ROW_H;
 
-// Mirrored boards ("home left"): every x reflects across the board's
-// vertical centre line, so point 1 sits bottom-left, the off-tray on the left
-// and the cube gutter on the right. Done on the coordinates, not with a
-// scaleX(-1) transform, so text and dice pips still read the right way round.
-// With homeLeft false both return x unchanged, so the default board's
-// numbers are exactly what they were.
-export function mirrorX(x: number, homeLeft: boolean): number {
-  return homeLeft ? BOARD_W - x : x;
-}
-// Left edge of the span [x, x + width] after mirroring.
-export function mirrorSpanX(x: number, width: number, homeLeft: boolean): number {
-  return homeLeft ? BOARD_W - x - width : x;
-}
-
 // Point numbers: centred in the frame band above and below the field.
 export const NUMBER_TOP_Y = MARGIN_Y / 2;
 export const NUMBER_BOTTOM_Y = Y1 + MARGIN_Y / 2;
@@ -89,11 +75,9 @@ export const NUMBER_BOTTOM_Y = Y1 + MARGIN_Y / 2;
 export const DIE_SIZE = 26;
 export const DIE_GAP = 8;
 export const DICE_CENTER_X = (colX(BAR_COL + 1) + colX(OFF_COL)) / 2;
-// Top-left corner of die `index` (0 or 1). On a mirrored board the pair
-// moves to the mirrored field but keeps roll order left to right.
-export function diePosition(index: number, homeLeft = false): { x: number; y: number } {
-  const centerX = mirrorX(DICE_CENTER_X, homeLeft);
-  const x = index === 0 ? centerX - DIE_GAP / 2 - DIE_SIZE : centerX + DIE_GAP / 2;
+// Top-left corner of die `index` (0 or 1).
+export function diePosition(index: number): { x: number; y: number } {
+  const x = index === 0 ? DICE_CENTER_X - DIE_GAP / 2 - DIE_SIZE : DICE_CENTER_X + DIE_GAP / 2;
   return { x, y: CENTER_Y - DIE_SIZE / 2 };
 }
 // Pip centres as fractions of the die's side (the mockup's dieSVG); none
@@ -136,9 +120,21 @@ export function pointRow(point: number): "bottom" | "top" {
   return point <= 12 ? "bottom" : "top";
 }
 
+// Mirrored numbering ("home left", point 1 bottom-left): the board is drawn
+// exactly as the default one, column by column, triangle colours and all;
+// only which logical point each column stands for changes. drawnPoint gives
+// the default-board point whose column logical `point` occupies (1<->12,
+// 13<->24 within a row). It is its own inverse, so it also maps a drawn
+// column back to its logical point. With homeLeft false it is the identity,
+// so the default board's numbers are exactly what they were.
+export function drawnPoint(point: number, homeLeft: boolean): number {
+  if (!homeLeft) return point;
+  return point <= 12 ? 13 - point : 37 - point;
+}
+
 export function trianglePoints(point: number, homeLeft = false): string {
-  const col = pointColumn(point);
-  const cx = mirrorX(colCenterX(col), homeLeft);
+  const col = pointColumn(drawnPoint(point, homeLeft));
+  const cx = colCenterX(col);
   const halfW = TRI_HALF_W;
   if (pointRow(point) === "bottom") {
     return `${cx - halfW},${Y1} ${cx + halfW},${Y1} ${cx},${Y1 - TRI_H}`;
@@ -164,11 +160,11 @@ function halfStackBase(cx: number, half: "bottom" | "top"): StackBase {
 // only on the physical point, not whose checkers are on it.
 // Its cx is also where the point's number label sits.
 export function stackBase(point: number, homeLeft = false): StackBase {
-  return halfStackBase(mirrorX(colCenterX(pointColumn(point)), homeLeft), pointRow(point));
+  return halfStackBase(colCenterX(pointColumn(drawnPoint(point, homeLeft))), pointRow(point));
 }
 
-export function barStackBase(side: Side, homeLeft = false): StackBase {
-  return halfStackBase(mirrorX(colCenterX(BAR_COL), homeLeft), side === "mine" ? "bottom" : "top");
+export function barStackBase(side: Side): StackBase {
+  return halfStackBase(colCenterX(BAR_COL), side === "mine" ? "bottom" : "top");
 }
 
 // Center y of the checker at `index` in a stack, clamped to the drawn
@@ -185,21 +181,14 @@ export function stackSlotY({ baseY, dir }: StackBase, index: number): number {
 export const OFF_TRAY_X = colX(OFF_COL) + OFF_TRAY_GAP;
 export const OFF_TRAY_W = OFF_W - OFF_TRAY_GAP;
 export const OFF_TRAY_H = ROW_H - 4;
-export function offTrayRect(side: Side, homeLeft = false): { x: number; y: number; width: number; height: number } {
+export function offTrayRect(side: Side): { x: number; y: number; width: number; height: number } {
   const y = side === "mine" ? CENTER_Y + 4 : Y0;
-  return { x: mirrorSpanX(OFF_TRAY_X, OFF_TRAY_W, homeLeft), y, width: OFF_TRAY_W, height: OFF_TRAY_H };
+  return { x: OFF_TRAY_X, y, width: OFF_TRAY_W, height: OFF_TRAY_H };
 }
 
 // Off-tray checker track, inset 5u inside the tray.
 export const OFF_TRACK_X = OFF_TRAY_X + 5;
 export const OFF_TRACK_W = OFF_TRAY_W - 10;
-// The track's left edge and centre line on a (possibly mirrored) board.
-export function offTrackX(homeLeft = false): number {
-  return mirrorSpanX(OFF_TRACK_X, OFF_TRACK_W, homeLeft);
-}
-export function offTrackCenterX(homeLeft = false): number {
-  return mirrorX(OFF_TRACK_X + OFF_TRACK_W / 2, homeLeft);
-}
 
 // Each side's off-tray half, 4u inside its tray. The badge always sits at
 // the end nearest the board's center line, so the two halves mirror each
@@ -245,7 +234,7 @@ export function nextOffSlotIndex(count: number, badgeAtBottom: boolean): number 
 // mirrorSubMoves upstream, so the mover's own checkers live in
 // decoded.opponent — and, for bar/off, in the opponent side's top-half
 // geometry — not decoded.mine's bottom half. `homeLeft` must match Board's
-// too (a mirrored board).
+// too: it re-maps point anchors only (the bar and off-tray don't move).
 export function moveAnchor(
   ref: PointRef,
   decoded: DecodedPosition,
@@ -256,7 +245,7 @@ export function moveAnchor(
   const side: Side = flipped ? "opponent" : "mine";
 
   if (ref === "bar") {
-    const base = barStackBase(side, homeLeft);
+    const base = barStackBase(side);
     const barCount = flipped ? decoded.opponentBar : decoded.mineBar;
     return { x: base.cx, y: stackSlotY(base, isOrigin ? barCount - 1 : barCount) };
   }
@@ -267,7 +256,7 @@ export function moveAnchor(
     const { trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
     const nextIndex = nextOffSlotIndex(offCount, badgeAtBottom);
     return {
-      x: offTrackCenterX(homeLeft),
+      x: OFF_TRACK_X + OFF_TRACK_W / 2,
       y: trackTop + nextIndex * slotSpan + slotSpan / 2,
     };
   }
@@ -286,8 +275,8 @@ export const CUBE_BADGE_R = 13;
 // board's own dividing line when centered/undoubled, or inset into the
 // owning side's half otherwise — mirrors how bar checkers sit close to
 // (not at) the board's top/bottom edge.
-export function cubeBadgeCenter(owner: CubeOwner, homeLeft = false): { x: number; y: number } {
-  const x = mirrorX(MARGIN_X + CUBE_COL_W / 2, homeLeft);
+export function cubeBadgeCenter(owner: CubeOwner): { x: number; y: number } {
+  const x = MARGIN_X + CUBE_COL_W / 2;
   if (owner === "center") return { x, y: CENTER_Y };
   const y = owner === "mine" ? Y1 - CUBE_BADGE_R - 4 : Y0 + CUBE_BADGE_R + 4;
   return { x, y };
@@ -300,8 +289,8 @@ export function cubeBadgeCenter(owner: CubeOwner, homeLeft = false): { x: number
 // (its cube painter centres the offered cube horizontally and puts it flush
 // with the frame on the receiver's side). `side` is the receiver's side as
 // drawn. Inset 2px from the field edge so the outline isn't clipped.
-export function offeredCubeCenter(side: Side, homeLeft = false): { x: number; y: number } {
-  const x = mirrorX(colCenterX(BAR_COL), homeLeft);
+export function offeredCubeCenter(side: Side): { x: number; y: number } {
+  const x = colCenterX(BAR_COL);
   const y = side === "mine" ? Y1 - CUBE_BADGE_R - 2 : Y0 + CUBE_BADGE_R + 2;
   return { x, y };
 }

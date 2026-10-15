@@ -144,21 +144,12 @@ describe("mirror toggles", () => {
     { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true },
   ];
 
-  // Every drawn stack as "row@column:side×count", sorted, where column is the
-  // stack's visual column (0 = leftmost) in its row. Absolute x shifts by
-  // 12u on a mirrored board (the 42u off-tray and the 30u cube gutter swap
-  // sides), so the visual column is what "stays put" means.
+  // Every drawn stack as "row@x:side×count", sorted, at its absolute x.
   function screen(o: SnapOrientation): string[] {
-    const homeLeft = Boolean(o.mirroredNumbers);
     const { position } = layoutToBuilderState(layout(), o);
-    const column = (p: number) => {
-      const row = p <= 12 ? Array.from({ length: 12 }, (_, i) => i + 1) : Array.from({ length: 12 }, (_, i) => i + 13);
-      const xs = row.map((q) => stackBase(q, homeLeft).cx).sort((m, n) => m - n);
-      return xs.indexOf(stackBase(p, homeLeft).cx);
-    };
     const out: string[] = [];
     for (let p = 1; p <= 24; p++) {
-      const x = column(p);
+      const x = stackBase(p, Boolean(o.mirroredNumbers)).cx;
       const row = p <= 12 ? "bottom" : "top";
       if (position.mine[p - 1]) out.push(`${row}@${x}:mine×${position.mine[p - 1]}`);
       if (position.opponent[p - 1]) out.push(`${row}@${x}:opponent×${position.opponent[p - 1]}`);
