@@ -9,7 +9,7 @@
 // mode on (the review pages and the navbar's write-mode items need it):
 //
 //   npm run build && ENABLE_WRITE_MODE=true npx next start -p 3300
-//   npx tsx scripts/design-screenshots.ts
+//   npx tsx scripts/screenshots/index.ts
 //
 // Navbar shots (since 2026-10-09): at 768, 1024, 1280 and 1440, light and
 // dark, the top of /matches, the open Menu at 768, and the Review › Cards
@@ -24,7 +24,7 @@
 // --nav-only:
 //
 //   ENABLE_WRITE_MODE=false npx next start -p 3301
-//   npx tsx scripts/design-screenshots.ts --base-url=http://localhost:3301 --nav-only
+//   npx tsx scripts/screenshots/index.ts --base-url=http://localhost:3301 --nav-only
 //
 // Options:
 //   --base-url=<url>          default http://localhost:3300
@@ -73,7 +73,7 @@
 //                             so leave it off for the read-only run:
 //
 //   DATABASE_URL_APP=<local mysql URL> AUTH_BYPASS=true ENABLE_WRITE_MODE=true npx next start -p 3300
-//   npx tsx scripts/design-screenshots.ts --set=forum --forum-posts=4,5 --forum-decision=1149340 --date=2026-10-13-forum
+//   npx tsx scripts/screenshots/index.ts --set=forum --forum-posts=4,5 --forum-decision=1149340 --date=2026-10-13-forum
 //
 //   --forum-posts=a,b         ForumPost ids for the /forum/<id> shots
 //   --forum-decision=<id>     a Decision id for the prefilled /forum/new shot
@@ -93,7 +93,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { chromium, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { isThemeId, serializeThemeCookie, THEME_COOKIE, THEMES } from "../lib/themes";
+import { isThemeId, serializeThemeCookie, THEME_COOKIE, THEMES } from "../../lib/themes";
 
 type Theme = "light" | "dark";
 interface Variant {

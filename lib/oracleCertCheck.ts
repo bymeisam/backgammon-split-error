@@ -14,7 +14,7 @@
 //
 // No Prisma-specific imports here on purpose — this is pure text
 // classification, reusable from lib/prisma.ts's extension, app/status's
-// ad-hoc client, lib/sync.ts, and the standalone scripts/check-oracle-cert.ts
+// ad-hoc client, lib/sync.ts, and the standalone scripts/db/check-oracle-cert.ts
 // (which doesn't touch Prisma at all).
 const CERT_FAILURE_SUBSTRINGS = [
   "self-signed certificate",

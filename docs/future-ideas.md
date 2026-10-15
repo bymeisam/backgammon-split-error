@@ -222,7 +222,7 @@ repetition remain future phases.
 ### Vercel deploy behind auth
 - **Idea:** deploy to Vercel as a read-only viewer behind an auth wall that admits only you.
 - **Status:** implemented with Clerk's invite-only sign-in, a local `AppUser` allowlist, and independent owner flags in Clerk private metadata and the local database. The app remains read-only unless `ENABLE_WRITE_MODE` and the regular write credential are deliberately enabled.
-- **Follow-up:** configure the Vercel Clerk keys, create the `bg_db_app` user (`scripts/sql/app-db-user.sql`, which covers AppUser provisioning and every in-app write) and set `DATABASE_URL_APP`, apply the AppUser migration, and set both owner flags for the approved account.
+- **Follow-up:** configure the Vercel Clerk keys, create the `bg_db_app` user (`scripts/db/sql/app-db-user.sql`, which covers AppUser provisioning and every in-app write) and set `DATABASE_URL_APP`, apply the AppUser migration, and set both owner flags for the approved account.
 - **Source:** user's idea list, 2026-10-06.
 
 ### Per-user permissions and an admin page

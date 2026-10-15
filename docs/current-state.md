@@ -17,7 +17,7 @@ _Last updated: 2026-10-15._
 
 - **`/snap-poc`** is a local-only review tool, kept on purpose. It 404s in production and isn't in the nav.
   - It has the summary table, the photo next to the builder pre-filled from Gemini, a bottom-colour toggle, and Mirror checkers / Mirror numbers / Rotate board.
-  - `scripts/snap-poc.ts` (gemini-3.8-flash, free tier, key only in the local `.env`) caches Gemini's answers in `snap-poc/results/`. The user's truths are in `snap-poc/truth/`. Both are gitignored.
+  - `scripts/snaps/snap-poc.ts` (gemini-3.8-flash, free tier, key only in the local `.env`) caches Gemini's answers in `snap-poc/results/`. The user's truths are in `snap-poc/truth/`. Both are gitignored.
 - **Result on the user's 10 photos:**
   - 4 boards perfect; 91% of points right on average.
   - Dice 8/10; cube and bar 10/10; no orientation errors.

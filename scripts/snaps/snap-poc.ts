@@ -6,7 +6,7 @@
 // x-goog-api-key header, never prints it.
 //
 // Usage:
-//   npx tsx scripts/snap-poc.ts [--force] [--model <id>] [--only <filename>]
+//   npx tsx scripts/snaps/snap-poc.ts [--force] [--model <id>] [--only <filename>]
 //
 // - Model: newest stable Flash model (no preview/exp/lite/Pro) from the
 //   models list that supports generateContent; --model overrides.
@@ -18,10 +18,10 @@
 import "dotenv/config";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { snapCheckerTotals, validateSnapLayout } from "../lib/snapPocLayout";
+import { snapCheckerTotals, validateSnapLayout } from "../../lib/snapPocLayout";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
-const SNAP_DIR = path.resolve(__dirname, "..", "snap-poc");
+const SNAP_DIR = path.resolve(__dirname, "..", "..", "snap-poc");
 const DELAY_MS = 7000;
 const IMAGE_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",

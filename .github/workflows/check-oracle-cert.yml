@@ -2,7 +2,7 @@ name: Check Oracle TLS cert
 
 # Catches Oracle HeatWave rotating its MySQL endpoint's self-signed CA (the
 # failure this project hit 2026-10-02 — see lib/prisma.ts's comment above
-# ORACLE_CA_PATH, and scripts/check-oracle-cert.ts's own header comment for
+# ORACLE_CA_PATH, and scripts/db/check-oracle-cert.ts's own header comment for
 # how this check works) before it breaks a real sync/deploy, not after. A
 # failing scheduled run shows as a red X and GitHub emails repo owners by
 # default — no separate notification setup needed.
@@ -33,6 +33,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npx tsx scripts/check-oracle-cert.ts
+      - run: npx tsx scripts/db/check-oracle-cert.ts
         env:
           ORACLE_DB_HOST: ${{ secrets.ORACLE_DB_HOST }}

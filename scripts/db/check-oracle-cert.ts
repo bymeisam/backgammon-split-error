@@ -18,7 +18,7 @@
 // already set in .env; in CI it's a repository secret of the same name.
 //
 // Usage:
-//   npx tsx scripts/check-oracle-cert.ts
+//   npx tsx scripts/db/check-oracle-cert.ts
 import "dotenv/config";
 import mariadb from "mariadb";
 import { buildConnectionConfig } from "@/lib/prisma";

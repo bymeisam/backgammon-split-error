@@ -60,7 +60,7 @@ const DB_COMMAND_PATTERNS = [
   /\bprisma\b/,
   /\bscripts\//,
   /\bprisma\/seed/,
-  /\bnpm\s+run\s+(dev|start|backfill|sync)/,
+  /\bnpm\s+run\s+(dev|start|backfill|sync|db|screenshots)/,
   /\bnext\s+(dev|start)\b/,
   /\bnpm\s+start\b/,
   // Interpreter at a command position (start, whitespace, ; & | ( / or a

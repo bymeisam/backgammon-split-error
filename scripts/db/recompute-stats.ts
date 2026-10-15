@@ -10,8 +10,8 @@
 // a new computedAt.
 //
 // Usage:
-//   npx tsx scripts/recompute-stats.ts --dry-run   # print current totals only
-//   npx tsx scripts/recompute-stats.ts             # recompute, print before/after
+//   npx tsx scripts/db/recompute-stats.ts --dry-run   # print current totals only
+//   npx tsx scripts/db/recompute-stats.ts             # recompute, print before/after
 //
 // Runs against whatever DATABASE_URL is currently configured in .env.
 import "dotenv/config";

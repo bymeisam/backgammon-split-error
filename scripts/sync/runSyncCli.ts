@@ -1,10 +1,10 @@
-// Shared by scripts/backfill.ts and scripts/incremental-sync.ts (those files
+// Shared by scripts/sync/backfill.ts and scripts/sync/incremental-sync.ts (those files
 // are only entry points that load .env, so this one can be imported by tests
 // without it). The type is more than a label since 2026-10-14: BACKFILL walks
 // every page of Galaxy's match list, INCREMENTAL stops at the first page
 // whose matches are all already in the DB (see lib/sync.ts step 1).
 //
-// Paced like scripts/retry-failed-matches.ts (since 2026-10-14): list pages
+// Paced like scripts/sync/retry-failed-matches.ts (since 2026-10-14): list pages
 // 1.5 s apart, then detail-ingest one match at a time with 5 s between
 // matches, one line per page and per match. A Galaxy rate limit that
 // outlasts the client's retries stops the run cleanly (lib/sync.ts).
@@ -16,9 +16,9 @@
 //
 // Don't run it while playing on Galaxy, or from another IP/VPN at the same
 // time: heavy API use alongside play got the account blocked (2026-10-14).
-import { runSync, type SyncDryRunResult, type SyncType } from "../lib/sync";
-import { prisma } from "../lib/prisma";
-import { SYNC_ERROR_LOG_RELATIVE_PATH } from "../lib/errorLog";
+import { runSync, type SyncDryRunResult, type SyncType } from "../../lib/sync";
+import { prisma } from "../../lib/prisma";
+import { SYNC_ERROR_LOG_RELATIVE_PATH } from "../../lib/errorLog";
 import { parseSyncCliArgs, printTarget, type SyncCliArgs } from "./syncCliShared";
 
 const PROGRESS_INTERVAL_MS = 15_000;

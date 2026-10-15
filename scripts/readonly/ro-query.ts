@@ -26,8 +26,8 @@
 // result, so Decision queries always come with timing.
 //
 // Usage:
-//   npx tsx scripts/ro-query.ts --target local "SELECT COUNT(*) FROM `Match`"
-//   npx tsx scripts/ro-query.ts --target oracle "EXPLAIN SELECT ..."
+//   npx tsx scripts/readonly/ro-query.ts --target local "SELECT COUNT(*) FROM `Match`"
+//   npx tsx scripts/readonly/ro-query.ts --target oracle "EXPLAIN SELECT ..."
 import "dotenv/config";
 import mariadb, { type Connection, type ConnectionConfig } from "mariadb";
 import { buildConnectionConfig } from "@/lib/prisma";

@@ -1,4 +1,4 @@
-// scripts/retryFailedCli.ts: argument parsing, the DB-target line, and that
+// scripts/sync/retryFailedCli.ts: argument parsing, the DB-target line, and that
 // --dry-run reads the DB only (no sync run, no Galaxy client, no token).
 // lib/sync and Prisma are mocked; no DB or network.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,19 +11,19 @@ const h = vi.hoisted(() => ({
   disconnect: vi.fn(async () => {}),
 }));
 
-vi.mock("../lib/sync", () => ({
+vi.mock("../../lib/sync", () => ({
   runDbOnlySync: h.runDbOnlySync,
   selectRetryCandidates: h.selectRetryCandidates,
   MissingSelfIdentityError: class extends Error {},
 }));
-vi.mock("../lib/prisma", () => ({
+vi.mock("../../lib/prisma", () => ({
   prisma: {
     playerIdentity: { findFirst: h.findFirst },
     match: { count: h.count },
     $disconnect: h.disconnect,
   },
 }));
-vi.mock("../lib/errorLog", () => ({ SYNC_ERROR_LOG_RELATIVE_PATH: "logs/sync-errors.log" }));
+vi.mock("../../lib/errorLog", () => ({ SYNC_ERROR_LOG_RELATIVE_PATH: "logs/sync-errors.log" }));
 
 import { describeDatabaseUrl, parseRetryArgs, runRetryFailedFromCli } from "./retryFailedCli";
 

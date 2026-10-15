@@ -19,18 +19,18 @@ const shapeRules = [
   [/\b(rm|rmdir|mv|cp|mkdir|touch|tee|truncate|chmod|chown|ln|install|dd|unlink)\b/, "file-modifying command"],
   [/\bsed\b[^|]*\s-i/, "in-place edit"],
   [/(^|[^0-9&>])>>?\s*(?!\/dev\/null|&)/, "output redirection to a file"],
-  [/\b(npm|pnpm|yarn|npx)\s+(i|install|add|remove|uninstall|update|ci|link|run\s+(backfill|sync|db|migrate|build|dev|start|test))\b/, "package install / write-capable npm script"],
+  [/\b(npm|pnpm|yarn|npx)\s+(i|install|add|remove|uninstall|update|ci|link|run\s+(backfill|sync|db|migrate|build|dev|start|test|screenshots))\b/, "package install / write-capable npm script"],
   [/\bprisma\s+(migrate|db|generate)\b/, "prisma schema/data command"],
-  [/scripts\/(backfill|incremental-sync|runSyncCli)/, "backfill/sync script"],
-  [/\b(mysql|mysqldump|mysqladmin|mariadb)\b/, "direct DB client (use scripts/ro-query.ts)"],
-  [/docker\s+(exec|run|compose|stop|rm|kill|restart)/, "docker command (use scripts/ro-query.ts)"],
+  [/scripts\/sync\/(backfill|incremental-sync|runSyncCli)/, "backfill/sync script"],
+  [/\b(mysql|mysqldump|mysqladmin|mariadb)\b/, "direct DB client (use scripts/readonly/ro-query.ts)"],
+  [/docker\s+(exec|run|compose|stop|rm|kill|restart)/, "docker command (use scripts/readonly/ro-query.ts)"],
   // Code execution only through the known read-only scripts: an ad-hoc
   // `tsx -e`/`node -e` could import the app's read-write `prisma` client.
   // The interpreter name must start a word at a command position (start,
   // whitespace, ; & | ( / or a quote/backtick) — not after a `.`, so file
   // paths like `app/x.tsx` aren't mistaken for running `tsx`. `node_modules`
   // never matches: `_` is a word char, so there's no \b after `node`.
-  [/(?:^|[\s;&|(\/"'`])(tsx|ts-node|node|bun|deno|python3?|ruby|perl)\b(?!\s+scripts\/(ro-query|galaxy-get|check-oracle-cert)\.ts\b)/, "code execution outside scripts/ro-query.ts, galaxy-get.ts, check-oracle-cert.ts"],
+  [/(?:^|[\s;&|(\/"'`])(tsx|ts-node|node|bun|deno|python3?|ruby|perl)\b(?!\s+scripts\/(readonly\/ro-query|readonly\/galaxy-get|db\/check-oracle-cert)\.ts\b)/, "code execution outside scripts/readonly/ro-query.ts, scripts/readonly/galaxy-get.ts, scripts/db/check-oracle-cert.ts"],
 ];
 const fullTextRules = [
   [/\bDATABASE_URL\b(?!_READONLY)/, "read-write DATABASE_URL"],

@@ -1,4 +1,4 @@
-// scripts/runSyncCli.ts (backfill and incremental): argument parsing, the
+// scripts/sync/runSyncCli.ts (backfill and incremental): argument parsing, the
 // pacing and DB-target line passed to a real run, and --dry-run's report.
 // lib/sync and Prisma are mocked; no DB or network.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,11 +9,11 @@ const h = vi.hoisted(() => ({
   disconnect: vi.fn(async () => {}),
 }));
 
-vi.mock("../lib/sync", () => ({ runSync: h.runSync }));
-vi.mock("../lib/prisma", () => ({
+vi.mock("../../lib/sync", () => ({ runSync: h.runSync }));
+vi.mock("../../lib/prisma", () => ({
   prisma: { match: { count: h.count }, $disconnect: h.disconnect },
 }));
-vi.mock("../lib/errorLog", () => ({ SYNC_ERROR_LOG_RELATIVE_PATH: "logs/sync-errors.log" }));
+vi.mock("../../lib/errorLog", () => ({ SYNC_ERROR_LOG_RELATIVE_PATH: "logs/sync-errors.log" }));
 
 import { parseSyncArgs, runSyncFromCli } from "./runSyncCli";
 

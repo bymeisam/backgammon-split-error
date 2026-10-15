@@ -453,14 +453,14 @@ the three selectors, every mapped variable defined, the fonts loaded (and
 
 ## 9. Screenshots and design review
 
-`scripts/design-screenshots.ts` shoots every main page at 1440 and 390,
+`scripts/screenshots/index.ts` shoots every main page at 1440 and 390,
 light and dark, into `design/screenshots/<date>/` (gitignored). It only
 talks HTTP to a running app; start one against the **local** database, in
 write mode:
 
 ```
 npm run build && ENABLE_WRITE_MODE=true npx next start -p 3300
-npx tsx scripts/design-screenshots.ts --theme=clubroom --date=2026-10-09-phase4
+npm run screenshots -- --theme=clubroom --date=2026-10-09-phase4
 ```
 
 The shots include `/sources` and `/sources/galaxy/matches` (its token

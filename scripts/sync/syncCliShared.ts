@@ -1,5 +1,5 @@
-// Helpers shared by the three sync CLIs (scripts/runSyncCli.ts for backfill
-// and incremental, scripts/retryFailedCli.ts for the DB-only retry):
+// Helpers shared by the three sync CLIs (scripts/sync/runSyncCli.ts for backfill
+// and incremental, scripts/sync/retryFailedCli.ts for the DB-only retry):
 // argument parsing, the target-DB line and the remote-DB warning.
 
 export interface SyncCliArgs {

@@ -5,8 +5,8 @@
 // the token. Needs a fresh GALAXY_TOKEN in .env (see .env.example).
 //
 // Usage:
-//   npx tsx scripts/galaxy-get.ts list <page>
-//   npx tsx scripts/galaxy-get.ts game <matchId> <gameIndex>
+//   npx tsx scripts/readonly/galaxy-get.ts list <page>
+//   npx tsx scripts/readonly/galaxy-get.ts game <matchId> <gameIndex>
 import "dotenv/config";
 import { createGalaxyClient } from "@/lib/galaxy-client";
 

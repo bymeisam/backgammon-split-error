@@ -84,27 +84,3 @@ export function attachNotes(decisions: Decision[], entries: MatchDecisionNoteEnt
     };
   });
 }
-
-// Natural key + content of one note, as scripts/notes-export.ts writes it
-// and scripts/notes-import.ts reads it. Decision ids differ between local
-// and Oracle, so a note travels by (source, sourceMatchId, gameIndex,
-// eventId) instead. eventId and the timestamps are strings (JSON).
-export interface ExportedNote {
-  source: string;
-  sourceMatchId: string;
-  gameIndex: number;
-  eventId: string;
-  note: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type ImportOutcome = "new" | "updated" | "skipped";
-
-// What notes-import does with one entry whose decision exists in the target
-// DB: create when there's no note yet, overwrite only when the incoming note
-// is strictly newer, otherwise leave the existing (same or newer) note alone.
-export function importOutcome(existingUpdatedAt: Date | null, incomingUpdatedAt: Date): ImportOutcome {
-  if (existingUpdatedAt === null) return "new";
-  return incomingUpdatedAt.getTime() > existingUpdatedAt.getTime() ? "updated" : "skipped";
-}

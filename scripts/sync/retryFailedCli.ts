@@ -1,10 +1,10 @@
-// The logic behind scripts/retry-failed-matches.ts (that file is only the
+// The logic behind scripts/sync/retry-failed-matches.ts (that file is only the
 // entry point, so this one can be imported by tests without loading .env).
-// Output style follows scripts/runSyncCli.ts: start line, progress timer,
+// Output style follows scripts/sync/runSyncCli.ts: start line, progress timer,
 // summary, errors, rateLimitNote.
-import { runDbOnlySync, selectRetryCandidates, MissingSelfIdentityError } from "../lib/sync";
-import { prisma } from "../lib/prisma";
-import { SYNC_ERROR_LOG_RELATIVE_PATH } from "../lib/errorLog";
+import { runDbOnlySync, selectRetryCandidates, MissingSelfIdentityError } from "../../lib/sync";
+import { prisma } from "../../lib/prisma";
+import { SYNC_ERROR_LOG_RELATIVE_PATH } from "../../lib/errorLog";
 import { describeDatabaseUrl, parseSyncCliArgs, printTarget } from "./syncCliShared";
 
 const PROGRESS_INTERVAL_MS = 15_000;

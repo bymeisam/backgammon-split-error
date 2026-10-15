@@ -8,7 +8,7 @@
 //     are copied from .claude/hooks/investigator-guard.mjs (keep the two in
 //     step when either changes). On top of those the designer may not run
 //     servers, scripts, interpreters or anything that touches a database —
-//     not even the investigator's read-only scripts/ro-query.ts.
+//     not even the investigator's read-only scripts/readonly/ro-query.ts.
 // A pattern list is not a sandbox; the agent's instructions are the primary
 // rule. Exit 2 = block (stderr is shown to the agent).
 import { readFileSync } from "node:fs";
@@ -69,7 +69,7 @@ const shapeRules = [
   // `playwright.config.ts` or `docker-compose.yml` with cat/grep is fine.
   [/(?:^|[;&|(`]\s*)(prisma|docker|docker-compose|next|playwright|mysql\w*)(?![\w.\/-])/, "running prisma, docker, next, playwright or a DB client"],
   [/\bnext\s+(dev|start|build)\b/, "Next.js server or build"],
-  // A script as the command itself (`./scripts/x.ts`, `scripts/x`), or a
+  // A script as the command itself (`./scripts/db/x.ts`, `scripts/x`, any subfolder), or a
   // shell told to run one. Reading scripts/ with cat/grep is fine.
   [/(?:^|[;&|(`]\s*)(\.\/)?scripts\/|\bcd\s+(\.\/)?scripts\b/, "running something under scripts/"],
   [/(?:^|[\s;&|(`])(sh|bash|zsh|source|exec|eval)\s/, "running a shell, script or eval"],

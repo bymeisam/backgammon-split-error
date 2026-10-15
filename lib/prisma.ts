@@ -122,7 +122,7 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 //
 //   prisma          -> DATABASE_URL. Read-write/admin (bg_db_rw) — ingest
 //                      (lib/ingest.ts), sync (lib/sync.ts,
-//                      scripts/backfill.ts, scripts/incremental-sync.ts,
+//                      scripts/sync/backfill.ts, scripts/sync/incremental-sync.ts,
 //                      /api/sync/incremental), Galaxy, and
 //                      `prisma migrate deploy` itself all read this same
 //                      var. Migrations need CREATE/ALTER/INDEX/REFERENCES
@@ -143,7 +143,7 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 //                      other than AppUser provisioning are gated by
 //                      lib/appWriteGate.ts's isAppWriteEnabled().
 //
-// The app credential's grants are in scripts/sql/app-db-user.sql (SELECT on
+// The app credential's grants are in scripts/db/sql/app-db-user.sql (SELECT on
 // the whole schema; INSERT/UPDATE/DELETE on the forum and study tables;
 // INSERT/UPDATE on AppUser; no writes on Match/Game/Decision and no DDL). It
 // must not be the ingest/migration credential.

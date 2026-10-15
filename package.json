@@ -10,10 +10,13 @@
     "test": "vitest run",
     "test:visual": "playwright test",
     "postinstall": "prisma generate",
-    "sync:backfill": "tsx scripts/backfill.ts",
-    "sync:incremental": "tsx scripts/incremental-sync.ts",
-    "sync:retry-failed": "tsx scripts/retry-failed-matches.ts",
-    "agents:sync": "tsx scripts/sync-agents.ts"
+    "sync:backfill": "tsx scripts/sync/backfill.ts",
+    "sync:incremental": "tsx scripts/sync/incremental-sync.ts",
+    "sync:retry-failed": "tsx scripts/sync/retry-failed-matches.ts",
+    "db:recompute-stats": "tsx scripts/db/recompute-stats.ts",
+    "db:check-cert": "tsx scripts/db/check-oracle-cert.ts",
+    "screenshots": "tsx scripts/screenshots/index.ts",
+    "agents:sync": "tsx scripts/agents/sync-agents.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",

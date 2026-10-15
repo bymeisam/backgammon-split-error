@@ -17,7 +17,7 @@ Production and Preview environments:
 | Variable                | Value |
 | ----------------------- | ----- |
 | `DATABASE_URL_READONLY` | `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
-| `DATABASE_URL_APP`      | `mysql://bg_db_app:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` — every in-app write: the forum, decision notes, tags, review, AppUser provisioning (grants in `scripts/sql/app-db-user.sql`) |
+| `DATABASE_URL_APP`      | `mysql://bg_db_app:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` — every in-app write: the forum, decision notes, tags, review, AppUser provisioning (grants in `scripts/db/sql/app-db-user.sql`) |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's publishable key |
 | `CLERK_SECRET_KEY`      | Clerk's server-only secret key |
 
@@ -85,7 +85,7 @@ this, not assumed.
 
 ## Syncing stays local
 
-`scripts/backfill.ts` and `scripts/incremental-sync.ts` are the only way
+`scripts/sync/backfill.ts` and `scripts/sync/incremental-sync.ts` are the only way
 new matches get into Oracle for now — run them from your own machine
 against `DATABASE_URL` (the read-write Oracle credential) and a fresh
 `GALAXY_TOKEN`, same as always. The deployed app never does this itself: see
@@ -104,7 +104,7 @@ request and writes nothing; it reports the pages walked, the matches seen,
 how many would be new and how many existing non-DONE matches would be
 retried.
 
-`npm run sync:retry-failed` (`scripts/retry-failed-matches.ts`) retries only
+`npm run sync:retry-failed` (`scripts/sync/retry-failed-matches.ts`) retries only
 the matches already in the DB that aren't DONE (FAILED, PENDING or stuck
 INGESTING), with no walk of Galaxy's match list: `--limit N` (default 10),
 `--match <sourceMatchId> ...`, and `--dry-run` to list what it would fetch
@@ -194,7 +194,7 @@ up automatically.
 2. **Set the env vars** above (`DATABASE_URL_READONLY`, `DATABASE_URL_APP`
    and the Clerk keys) for both Production and Preview — leave
    `DATABASE_URL` and `ENABLE_WRITE_MODE` unset on both. Create `bg_db_app`
-   first, with the owner's approval (`scripts/sql/app-db-user.sql`).
+   first, with the owner's approval (`scripts/db/sql/app-db-user.sql`).
 3. **Decide the Oracle port-3306 ingress.** Oracle HeatWave's firewall is
    currently scoped to your home IP only. Vercel Hobby functions don't have
    a fixed, allowlist-able outbound IP range (static outbound IPs / Secure
