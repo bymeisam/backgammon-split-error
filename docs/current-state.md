@@ -2,11 +2,11 @@
 
 Start each new session here. `PROGRESS.md` is the history log: grep it only when you need the history behind something. `/wrap-up` rewrites this file at the end of each batch of work. Keep it under about a page: it's a snapshot, not history.
 
-_Last updated: 2026-10-15 (scripts reorganised)._
+_Last updated: 2026-10-15 (omp engine 2-ply follow-up reviewed)._
 
 ## Code
 
-- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 19 commits since the user's last push.
+- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 21 commits since the user's last push (last: this wrap-up, after `2e4e0e5` queue update).
 - **Checks on master:** tsc and lint clean, vitest 937/937, guard-hook tests 19/19, build clean. The visual suite wasn't rerun (nothing that renders changed since it was last 24/24).
 - **Scripts are in folders by purpose** (`6964a9c`). `scripts/README.md` is the ledger, one section per folder, each opening with its rule:
   - `sync/`: the three sync commands (`sync:incremental`, `sync:backfill`, `sync:retry-failed`) and their shared code;
@@ -50,7 +50,7 @@ _Last updated: 2026-10-15 (scripts reorganised)._
   - optional: the sync backfill dry run.
   - optional: phase 2 of the scripts work, splitting `scripts/screenshots/index.ts` (914 lines) into `helpers.ts`, `nav.ts`, `fixtures.ts`, `shots/{app,forum,auth}.ts`; say go and the master plans it;
   - optional: block `npm run agents:sync` in the investigator guard (it writes files; one-line fix).
-- **omp:** engine phase 1 (`cb6c6cd`, `834329e`, `da26d5e` on `omp/main`) was reviewed and **not merged**: omp ran it at 0-ply, thinking `hint` couldn't go deeper. Master showed that 2-ply works; gnubg prints 0-ply only for moves its filter drops, and omp's parser rejected that mixed output. omp also hadn't merged master. Follow-up queued in `docs/omp-queue.md`: merge master, accept mixed-depth output, rerun the same 200 at 2-ply, compare error bands with Galaxy's `rawError` cut-offs, time Docker start-up separately, rename the image to `bg-gnubg`. The queue also tells omp, on its master merge, to move `gnubg-evaluation.ts` to `scripts/engine/` and add an `engine/` README section. When omp reports, review it and merge if good.
+- **omp (engine/gnubg), not merged:** phase 1 (`cb6c6cd`, `834329e`, `da26d5e`) and the 2-ply follow-up (`966f5dc`, `1809cce`, `7a1a4ac`) are on `omp/main`. The follow-up is good on mixed-depth parsing, the 2-ply rerun (152/170 best-move agreement), Galaxy severity bands (Galaxy errors 13/2/1 same/lower/none, blunders 12/1/1, 7/140 false alarms), start-up timing (~284 ms Docker) and the `bg-gnubg:1.07.001` rename. Still open, so it's queued again in `docs/omp-queue.md` (`1809cce` review task): 30/200 positions and the 21-roll run were rejected because rank 1 was 0-ply (cause unknown: bear-off DB, forced move, or filter?); the loss-difference median of 0 is over mostly non-errors; the report needs one clean rewrite; and the `scripts/engine/` move (omp merged master before the scripts reorg). **Waiting on omp**; when it reports, review and merge if good. omp's numbers aren't independently verified: the investigator's guard blocks `docker run` and tsx, so verifying needs the user to allow that (user's call, not asked for yet).
 - **Ideas parked** (`docs/future-ideas.md`, not approved):
   - a live on-camera detector like GammonSnap (later);
   - review bundles;
