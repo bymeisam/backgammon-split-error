@@ -4,37 +4,26 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Engine phase 1: drive GNU Backgammon (gnubg) from Node and test it against Galaxy (queued 2026-10-15)
-**First, merge `master` into `omp/main`**, then run `npx prisma generate`. There's no schema change, but master has these changes:
-- every agent role is on medium effort (`.omp/config.yml`);
-- four one-off backfill scripts are retired, and `scripts/README.md` is the new ledger;
-- `isGalaxyEnabled()` is renamed `isSyncEnabled()`;
-- AGENTS.md now gives you the analysis engine as a stream.
-Master is also building a local-only `/snap-poc` page that adds two optional props to `PositionBuilder` (`initialState`, `extraActions`). If you touch the builder, merge master again first.
+### Review notes at `834329e` (engine phase 1): 2-ply rerun, merge master, sharper error check (queued 2026-10-15)
+**First, merge `master` into `omp/main`**, then run `npx prisma generate` (no schema change). Your branch never merged master for phase 1: your `npm test` ran 874 tests, master has 939. On the merge, **keep master's `docs/current-state.md`** (yours edited a stale 2026-10-14 copy; master rewrites it at wrap-up, don't edit it on `omp/main`), and add your PROGRESS.md entry on top of master's.
 
-Background: `docs/future-ideas.md` § "Our own analysis engine (GNU Backgammon)". Today every analysis comes from Galaxy, only for the position and roll a game produced. This phase only finds out whether gnubg can answer "best move for any position and roll" well and fast enough. **No schema, no UI, no stored results.**
+The phase 1 work is sound (separate-process GPL boundary, fixture tests, read-only local-only harness, the 21-roll batch, the local-precompute recommendation, the proposal-only results table). What's left is the core question, because the run was at 0-ply.
 
-1. **Install gnubg locally.** Find the most reliable way to drive it from Node: command-line mode (`gnubg -t -q`, commands through stdin) or its Python interface. Write the install steps and the chosen approach in the report. gnubg is GPL: run it as a separate process only, and never copy its source into this repo.
-2. **Write the wrapper, `lib/engine/gnubg.ts`.**
-   - Given a GNU Position ID, a GNU Match ID (or score, match length and cube) and a roll, it returns the ranked candidate moves with equity, and the win/gammon/backgammon chances if available.
-   - Also `allRolls(position, match)`, which gives the best move and equity for each of the 21 rolls.
-   - Set the evaluation level (e.g. 2-ply) in one place, and record it in each result.
-   - Moves in standard notation (higher die first, as the app shows them). Reuse the existing decoders in `lib/gnuPositionId.ts` and `lib/gnuMatchId.ts`.
-   - Unit tests for the parsing and the move notation, run against saved gnubg output fixtures, so `npm test` doesn't need gnubg installed.
-3. **Compare with Galaxy on real data** (local DB, **read-only**: no writes of any kind). Take a sample of about 200 CHECKER decisions with analysis: a mix of opening, middle game and bear-off, and include the user's errors and blunders. Run gnubg on the same position and roll, and measure:
-   - how often gnubg's best move equals Galaxy's best move;
-   - the typical equity difference on the played move;
-   - how often gnubg also calls the user's error an error;
-   - the time per position, and the time for all 21 rolls.
-   Galaxy's analysis is read through `getDecisionAnalysis` (`lib/analysis/index.ts`), not straight from `raw`.
-4. **Report** in `reports/2026-10-<dd>-gnubg-engine-test.md`. It covers:
-   - the install and drive approach;
-   - the accuracy and speed numbers, with a few example disagreements;
-   - a recommendation: precompute locally vs a small service on the Oracle VM;
-   - what a results table would need. Write that last part as a proposal only; any schema goes through "Schema requests".
+1. **2-ply works through `hint`.** Master ran your image with `set evaluation chequerplay evaluation plies 2` then `hint` on the opening position with 5-4. It printed `Cubeful 2-ply` for the top 7 candidates and `Cubeful 0-ply` for ranks 8–9: gnubg's move filter keeps only moves within 0.16 of the best for the deeper pass, and the rest stay at 0-ply. So the output is **mixed-depth by design**, and `parseHints` rejects any row whose depth differs from `EVALUATION_PLIES`.
+   - Record each candidate's own depth on the `Candidate` (e.g. `plies`).
+   - Require only the rank-1 candidate to be at the configured depth; throw only if that one isn't.
+   - Set `EVALUATION_PLIES = 2`. Add a fixture with mixed 2-ply/0-ply output and test it. Also check the extra `2-ply cubeful prune [world class]` line under each candidate doesn't confuse the parser.
+   - Correct the report's "the CLI only gives 0-ply" section.
+2. **Rerun the same 200 decisions at 2-ply** (same seed and sample, so it's directly comparable with the 0-ply numbers; keep both in the report). Local DB, read-only, as before.
+3. **Sharper error check.** Drop the fixed 0.08 threshold. `errorSeverity` comes from Galaxy's own label (`mapSeverity` in `lib/ingest.ts`), not app thresholds. So:
+   - From the local DB (read-only), get the `rawError` range Galaxy uses for each severity (DOUBTFUL / ERROR / BLUNDER) on CHECKER decisions, and put those cut-offs in the report.
+   - Apply the same cut-offs to gnubg's loss on the played move (gnubg best equity − gnubg played equity) and report: for Galaxy's errors and blunders, how many gnubg puts in the same band, a lower band, or none; and for the sample's non-errors, how many gnubg would flag (false alarms).
+   - Report the median absolute difference between gnubg's loss and Galaxy's `rawError` on the played move.
+4. **Timing.** Split Docker start-up from gnubg's own work: time an empty run (`quit` only) and report it next to the per-position and 21-roll times, at 2-ply. If start-up dominates, say so and note that a long-lived gnubg process would remove it (proposal only, don't build it).
+5. **Rename the image** to `bg-gnubg:1.07.001` (constant, Dockerfile build command in the report, `scripts/README.md`).
+6. **Report:** update `reports/2026-10-15-gnubg-engine-test.md` in place (or a new dated one that links to it), and revisit the recommendation in the light of the 2-ply numbers. If 2-ply clearly falls short of Galaxy, say what you'd try next (e.g. 3-ply, or `analyse move`), with its timing, but don't build it.
 
-Checks: `npm test`, tsc, lint. No screenshots (no UI).
-
+Still **no schema, no UI, no stored results.** Checks: `npm test`, tsc, lint. No screenshots.
 
 ## Schema requests (omp → master)
 
@@ -48,6 +37,7 @@ _Use this shape:_
 
 ## Checked and done (master)
 
+- **Engine phase 1: GNU Backgammon local evaluation**: `cb6c6cd` + `834329e` + `da26d5e` (2026-10-15). Reviewed by the main session; not merged into master yet. The wrapper, tests and harness are sound, but the run was at 0-ply and the branch hadn't merged master. The follow-ups are in the `834329e` review task above. omp: drop your "to check" entry when you next merge master.
 - **Review notes at `fafd8c4` + screenshot capture correction (draft kept, post button row, preview spacing, caption test)**: `e90aeca`, `287ff4f`, `3aa5538` (2026-10-14). Checked: code by the main session; 390 shots by the visual reviewer; 1280 shots (`/mistakes`, replay, builder) by the main session. **Merged into master** with `omp/main` at `3aa5538`. Master untracked the force-added `design/screenshots/2026-10-14-forum-post-button/` (the folder is gitignored; don't `git add -f` screenshots). omp: drop your "to check" entries when you next merge master.
 - **Review notes at `04389bf` (stale board, shared button, caption, tests, screenshots)**: `fafd8c4` + `86769f4` (2026-10-14). Checked; merged into master with `omp/main` at `3aa5538`.
 - **Forum text-only posts and board handoff**: `04389bf` (2026-10-14). Checked; follow-ups were in the `04389bf` task, now done.
