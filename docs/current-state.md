@@ -2,15 +2,22 @@
 
 Start each new session here. `PROGRESS.md` is the history log: grep it only when you need the history behind something. `/wrap-up` rewrites this file at the end of each batch of work. Keep it under about a page: it's a snapshot, not history.
 
-_Last updated: 2026-10-15._
+_Last updated: 2026-10-15 (scripts reorganised)._
 
 ## Code
 
-- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 16 commits since the user's last push.
-- **Checks on master:** tsc and lint clean, vitest 939/939, build clean, visual suite 24/24 with no baseline changes.
-- **Scripts:** `scripts/README.md` is the ledger. It lists the remaining tools, the retired one-off backfills (with `git show` restore hashes) and the rule for data fixes: plain SQL goes in a migration, TypeScript fixes are scripts recorded in the ledger. Sync commands: `sync:incremental`, `sync:backfill`, `sync:retry-failed` (the old `npm run backfill` alias is gone).
+- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 19 commits since the user's last push.
+- **Checks on master:** tsc and lint clean, vitest 937/937, guard-hook tests 19/19, build clean. The visual suite wasn't rerun (nothing that renders changed since it was last 24/24).
+- **Scripts are in folders by purpose** (`6964a9c`). `scripts/README.md` is the ledger, one section per folder, each opening with its rule:
+  - `sync/`: the three sync commands (`sync:incremental`, `sync:backfill`, `sync:retry-failed`) and their shared code;
+  - `db/`: `recompute-stats`, `check-oracle-cert`, `sql/`; can write, so never run against Oracle without approval;
+  - `readonly/`: `ro-query`, `galaxy-get`, the investigator's tools;
+  - `screenshots/index.ts`, `agents/`, `snaps/`.
+  - New npm commands: `db:recompute-stats`, `db:check-cert`, `screenshots`. The guard hooks match the new exact paths.
+  - `notes-export`/`notes-import` are retired (local is test-only; notes never move local → Oracle). Restore hashes are in the README.
+- **Sync flow** (confirmed with the user): step 1 reads Galaxy's match list and adds or updates `Match` rows (incremental stops at the first known page; backfill reads every page). Then `detailIngestAndFinish` (`lib/sync.ts`) imports each unfinished match one at a time (INGESTING → games one by one → DONE or FAILED), rebuilds the stats and records the `SyncRun`. `sync:retry-failed` is that second part on its own.
 - **Gate rename:** `isGalaxyEnabled()` is now `isSyncEnabled()` (file `lib/galaxyGate.ts` and the env vars are unchanged).
-- **Agents:** every agent role, in Claude Code and omp, runs at medium effort. The Claude Code main session's default effort is medium too (`/effort`).
+- **Agents:** every agent role, in Claude Code and omp, runs at medium effort. The main session's default effort is medium too.
 - **`.env`:** last set by the user with `DATABASE_URL` on local. Never assume where it points, and never change it.
 
 ## Snaps (photo → position)
@@ -41,9 +48,10 @@ _Last updated: 2026-10-15._
   - inviting members, after presenting the app;
   - git housekeeping (merged branches, `test/pr-review-verification`, one stash), which the user does themselves;
   - optional: the sync backfill dry run.
-- **omp:** engine phase 1 (`cb6c6cd`, `834329e`, `da26d5e` on `omp/main`) was reviewed and **not merged**: omp ran it at 0-ply, thinking `hint` couldn't go deeper. Master showed that 2-ply works; gnubg prints 0-ply only for moves its filter drops, and omp's parser rejected that mixed output. omp also hadn't merged master. Follow-up queued in `docs/omp-queue.md`: merge master, accept mixed-depth output, rerun the same 200 at 2-ply, compare error bands with Galaxy's `rawError` cut-offs, time Docker start-up separately, rename the image to `bg-gnubg`. When omp reports, review it and merge if good.
+  - optional: phase 2 of the scripts work, splitting `scripts/screenshots/index.ts` (914 lines) into `helpers.ts`, `nav.ts`, `fixtures.ts`, `shots/{app,forum,auth}.ts`; say go and the master plans it;
+  - optional: block `npm run agents:sync` in the investigator guard (it writes files; one-line fix).
+- **omp:** engine phase 1 (`cb6c6cd`, `834329e`, `da26d5e` on `omp/main`) was reviewed and **not merged**: omp ran it at 0-ply, thinking `hint` couldn't go deeper. Master showed that 2-ply works; gnubg prints 0-ply only for moves its filter drops, and omp's parser rejected that mixed output. omp also hadn't merged master. Follow-up queued in `docs/omp-queue.md`: merge master, accept mixed-depth output, rerun the same 200 at 2-ply, compare error bands with Galaxy's `rawError` cut-offs, time Docker start-up separately, rename the image to `bg-gnubg`. The queue also tells omp, on its master merge, to move `gnubg-evaluation.ts` to `scripts/engine/` and add an `engine/` README section. When omp reports, review it and merge if good.
 - **Ideas parked** (`docs/future-ideas.md`, not approved):
-  - split the scripts into smaller ones (the user wants to talk this through);
   - a live on-camera detector like GammonSnap (later);
   - review bundles;
   - the progress dashboard;
