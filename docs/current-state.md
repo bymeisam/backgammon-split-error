@@ -6,7 +6,7 @@ _Last updated: 2026-10-15._
 
 ## Code
 
-- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 13 commits since the user's last push.
+- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 16 commits since the user's last push.
 - **Checks on master:** tsc and lint clean, vitest 939/939, build clean, visual suite 24/24 with no baseline changes.
 - **Scripts:** `scripts/README.md` is the ledger. It lists the remaining tools, the retired one-off backfills (with `git show` restore hashes) and the rule for data fixes: plain SQL goes in a migration, TypeScript fixes are scripts recorded in the ledger. Sync commands: `sync:incremental`, `sync:backfill`, `sync:retry-failed` (the old `npm run backfill` alias is gone).
 - **Gate rename:** `isGalaxyEnabled()` is now `isSyncEnabled()` (file `lib/galaxyGate.ts` and the env vars are unchanged).
@@ -24,14 +24,8 @@ _Last updated: 2026-10-15._
   - The misses are counts on tall stacks. The weakest were the one real phone photo (20/24) and a sideways shot.
   - Verdict: good enough as "Gemini pre-fills, the user corrects".
 - **`Board`** has an optional `homeLeft` mode, off by default. It changes only which number each column shows, so a later app-wide "home on the left" preference would be cheap.
-- **Next:** the user takes about 10 real phone photos, and we try one stack-counting prompt change. Then plan **Snaps v1** in the position builder:
-  - "From photo": upload or camera, then an API route that calls Gemini;
-  - the photo next to the pre-filled board, with the view toggles;
-  - no storage;
-  - `GEMINI_API_KEY` on Vercel (the user sets it);
-  - a "reading…" state and a check on Vercel's function duration;
-  - a one-line note that free-tier photos may be used by Google.
-  - **Master builds Snaps** (user decided 2026-10-15), including its "From photo" changes to the position builder. **On hold** until the user has new photos.
+- **Owner and status:** master builds Snaps (user decided 2026-10-15), including the "From photo" changes to the position builder. **On hold** until the user has new photos.
+- **When the photos come:** try one stack-counting prompt change on old and new photos (Gemini answers are cached), then plan **Snaps v1** for approval: a "From photo" button in the builder (upload or camera), an API route calling Gemini, the photo next to the pre-filled board with the view toggles, no storage, `GEMINI_API_KEY` on Vercel (the user sets it), a "reading…" state, a check on Vercel's function duration, and a one-line note that free-tier photos may be used by Google. Before touching the builder, add a note to omp's queue.
 
 ## Live site (Vercel + Oracle)
 
@@ -42,12 +36,12 @@ _Last updated: 2026-10-15._
 
 - **User:**
   - push;
-  - more real Snaps photos;
+  - new Snaps photos (Snaps is on hold until then);
   - the `/auth/complete` eyebrow, kept for later;
   - inviting members, after presenting the app;
   - git housekeeping (merged branches, `test/pr-review-verification`, one stash), which the user does themselves;
   - optional: the sync backfill dry run.
-- **omp:** engine phase 1 is queued in `docs/omp-queue.md`: drive gnubg from Node through Docker, compare with Galaxy on about 200 decisions, and report. No schema, no UI. omp must merge master first.
+- **omp:** engine phase 1 (`cb6c6cd`, `834329e`, `da26d5e` on `omp/main`) was reviewed and **not merged**: omp ran it at 0-ply, thinking `hint` couldn't go deeper. Master showed that 2-ply works; gnubg prints 0-ply only for moves its filter drops, and omp's parser rejected that mixed output. omp also hadn't merged master. Follow-up queued in `docs/omp-queue.md`: merge master, accept mixed-depth output, rerun the same 200 at 2-ply, compare error bands with Galaxy's `rawError` cut-offs, time Docker start-up separately, rename the image to `bg-gnubg`. When omp reports, review it and merge if good.
 - **Ideas parked** (`docs/future-ideas.md`, not approved):
   - split the scripts into smaller ones (the user wants to talk this through);
   - a live on-camera detector like GammonSnap (later);
