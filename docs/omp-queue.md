@@ -4,6 +4,15 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
+### Merge master for the `DB_TARGET` database-URL model (queued 2026-10-16)
+Master replaced `DATABASE_URL`, `DATABASE_URL_READONLY` and `DATABASE_URL_APP` with a `DB_TARGET` flag (`local` by default) and two URL sets, `LOCAL_DATABASE_URL*` and `ORACLE_DATABASE_URL*`, read only by the new `lib/databaseUrl.ts` (`dbUrl(kind)`, `localDbUrl(kind)`, `isLocalTarget()`). `lib/appDatabaseUrl.ts` is gone (`appDatabaseUrl()` now lives in `lib/databaseUrl.ts`; `lib/prisma.ts` still re-exports it). An ESLint rule and `lib/databaseUrlGuard.test.ts` fail on any other reader. No schema change.
+
+1. **Before merging, the user updates omp's `.env`** (only the user writes it): `DB_TARGET=local` plus `LOCAL_DATABASE_URL`, `LOCAL_DATABASE_URL_READONLY` (and optionally `LOCAL_DATABASE_URL_APP`) with the values its old `DATABASE_URL*` had, and the old names removed. **Local URLs only: never any `ORACLE_*` URL in omp's `.env`.** If omp's `.env.test` exists, it needs the same renames (see `e2e/README.md` § Setup). Don't start the merge until the user says this is done.
+2. **Merge `master` into `omp/main`**, then `npx prisma generate`.
+3. On `omp/main`, replace any `process.env.DATABASE_URL*` (or `env.DATABASE_URL*`) your branch added with `lib/databaseUrl.ts`'s helpers; `npm run lint` lists them. Never set `DB_TARGET=oracle` or name the `ORACLE_DATABASE_URL*` vars: Oracle runs are the user's.
+
+Checks: `npm test`, tsc, lint.
+
 ### Review notes at `1809cce` (engine 2-ply follow-up): explain the 0-ply rejections, sharper loss check, tidy report, scripts move (queued 2026-10-15)
 Not merged into master yet. The parser change, 2-ply rerun, Galaxy bands, timing split and rename are good. The open question is the 30/200 positions (and the 21-roll run) rejected because rank 1 came back `Cubeful 0-ply`: until we know why, "2-ply coverage" is unknown.
 

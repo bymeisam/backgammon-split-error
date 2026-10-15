@@ -11,34 +11,42 @@ only you can do (env vars, Oracle firewall, verifying the deploy).
 
 ## Required environment variables (production + preview)
 
-Set these on Vercel (Project Settings → Environment Variables), for both the
-Production and Preview environments:
+Database URLs follow one flag, `DB_TARGET` (`lib/databaseUrl.ts`): `local`
+(the default) reads the `LOCAL_DATABASE_URL*` vars, `oracle` reads the
+`ORACLE_DATABASE_URL*` vars. Vercel runs against Oracle, so it needs
+`DB_TARGET=oracle` and the Oracle read-only and app URLs.
 
-| Variable                | Value |
-| ----------------------- | ----- |
-| `DATABASE_URL_READONLY` | `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` |
-| `DATABASE_URL_APP`      | `mysql://bg_db_app:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` — every in-app write: the forum, decision notes, tags, review, AppUser provisioning (grants in `scripts/db/sql/app-db-user.sql`) |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's publishable key |
-| `CLERK_SECRET_KEY`      | Clerk's server-only secret key |
+### Checklist for Vercel (Project Settings → Environment Variables)
+
+Do this for both the Production and Preview environments:
+
+- [ ] Add `DB_TARGET` = `oracle`.
+- [ ] Add `ORACLE_DATABASE_URL_READONLY` = `mysql://bg_db_ro:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` (every read).
+- [ ] Add `ORACLE_DATABASE_URL_APP` = `mysql://bg_db_app:<password>@<oracle-host>:3306/backgammon?ssl=true&allowPublicKeyRetrieval=true` (every in-app write: the forum, decision notes, tags, review, AppUser provisioning; grants in `scripts/db/sql/app-db-user.sql`).
+- [ ] Remove the old `DATABASE_URL_READONLY` and `DATABASE_URL_APP` (and `DATABASE_URL`, if it was ever set). Nothing reads them any more.
+- [ ] Keep `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` (Clerk's publishable and server-only secret keys).
+- [ ] Leave `ORACLE_DATABASE_URL`, `ENABLE_WRITE_MODE`, `GALAXY_TOKEN`, `AUTH_BYPASS` and every `LOCAL_*` var unset.
+- [ ] Redeploy, then check `/status` connects and the navbar badge reads "Oracle · write".
 
 The Clerk sign-in and after-auth paths are set in code (`lib/clerkConfig.ts`), so Vercel needs only the two Clerk keys.
 
-**Never set `DATABASE_URL` on Vercel**, and **don't set `ENABLE_WRITE_MODE`
-on Vercel either — leave it unset.** The admin client (`prisma`, `bg_db_rw`)
-remains unconfigured, and the Galaxy/sync gate remains closed. Both stay
-local only, for sync, Galaxy and migrations. `DATABASE_URL_APP` is the one
-write credential on Vercel: `bg_db_app`, with SELECT on the schema and
-writes only on the forum, study (notes, tags, review) and `AppUser` tables —
-never on Match/Game/Decision, and no DDL. It must not be the
-ingest/migration credential.
+**Never set `ORACLE_DATABASE_URL` (the read-write/admin URL) on Vercel**, and
+**don't set `ENABLE_WRITE_MODE` on Vercel either — leave it unset.** The
+admin client (`prisma`, `bg_db_rw`) remains unconfigured, and the
+Galaxy/sync gate remains closed. Both stay local only, for sync, Galaxy and
+migrations. `ORACLE_DATABASE_URL_APP` is the one write credential on Vercel:
+`bg_db_app`, with SELECT on the schema and writes only on the forum, study
+(notes, tags, review) and `AppUser` tables — never on Match/Game/Decision,
+and no DDL. It must not be the ingest/migration credential.
 
-Three clients, three credentials (`lib/prisma.ts`):
+Three clients, three credentials (`lib/prisma.ts`, URLs from
+`lib/databaseUrl.ts`'s `dbUrl(kind)`):
 
 - `prisma` (the admin client, used by ingest, sync and Galaxy code) is lazy
-  and throws if used without `DATABASE_URL`, which Vercel never has.
-- `prismaReadOnly` uses `DATABASE_URL_READONLY` (`bg_db_ro`) for every read.
-- `prismaApp` uses `DATABASE_URL_APP` in production (it never falls back to
-  `DATABASE_URL` there; locally it does, through `appDatabaseUrl()`) and is
+  and throws if used without the read-write URL, which Vercel never has.
+- `prismaReadOnly` uses the read-only URL (`bg_db_ro`) for every read.
+- `prismaApp` uses the app URL in production (it never falls back to the
+  read-write URL there; locally it does, through `appDatabaseUrl()`) and is
   limited by the `bg_db_app` grants. AppUser provisioning at sign-in uses it
   whenever it has a URL; every other in-app write is also gated by
   `isAppWriteEnabled()` (see "The two write gates" below).
@@ -87,8 +95,9 @@ this, not assumed.
 
 `scripts/sync/backfill.ts` and `scripts/sync/incremental-sync.ts` are the only way
 new matches get into Oracle for now — run them from your own machine
-against `DATABASE_URL` (the read-write Oracle credential) and a fresh
-`GALAXY_TOKEN`, same as always. The deployed app never does this itself: see
+with `DB_TARGET=oracle` (so they use `ORACLE_DATABASE_URL`, the read-write
+Oracle credential) and a fresh `GALAXY_TOKEN`. That's the user's run alone:
+agents never set `DB_TARGET=oracle`. The deployed app never does this itself: see
 "The Galaxy gate" below for what that means concretely.
 
 There are three sync scripts: `npm run sync:backfill` (walks every page of
@@ -117,13 +126,13 @@ account blocked (2026-10-14).
 Two separate switches, each failing closed:
 
 - **Galaxy and sync**: `isSyncEnabled()` (`lib/galaxyGate.ts`), below. Needs
-  `DATABASE_URL` and `ENABLE_WRITE_MODE=true`, so it's local only. A rename to
+  the read-write URL and `ENABLE_WRITE_MODE=true`, so it's local only. A rename to
   `isSyncEnabled()` is planned.
 - **App writes**: `isAppWriteEnabled()` (`lib/appWriteGate.ts`), for the
   forum, decision notes, tags and review (cards, answers, bulk add). On when
-  `DATABASE_URL_APP` is set (Vercel), or, outside production, when
+  the app URL is set (Vercel), or, outside production, when
   `isSyncEnabled()` is (local write mode, where `prismaApp` falls back to
-  `DATABASE_URL`). Each write route checks it itself and returns 403 when it's
+  the read-write URL). Each write route checks it itself and returns 403 when it's
   off; the pages hide their write controls the same way. AppUser provisioning
   doesn't check it, so sign-in works wherever `prismaApp` has a URL.
 
@@ -134,19 +143,20 @@ rows is gated behind `isSyncEnabled()` (`lib/galaxyGate.ts`):
 
 ```ts
 export function isSyncEnabled(): boolean {
-  return Boolean(process.env.DATABASE_URL) && process.env.ENABLE_WRITE_MODE === "true";
+  return Boolean(dbUrl("rw")) && process.env.ENABLE_WRITE_MODE === "true";
 }
 ```
 
 It fails closed by construction — disabled is the *default* with zero env
 vars set, and enabling it requires two independent things to both be true:
-`DATABASE_URL` present, and `ENABLE_WRITE_MODE` set to exactly `"true"`.
-Either one being absent/wrong (a forgotten `ENABLE_WRITE_MODE`, or a stray
-`DATABASE_URL` in an environment that was never meant to have one) is
+the target's read-write URL present (`dbUrl("rw")`, `lib/databaseUrl.ts`),
+and `ENABLE_WRITE_MODE` set to exactly `"true"`. Either one being
+absent/wrong (a forgotten `ENABLE_WRITE_MODE`, or a stray read-write URL in
+an environment that was never meant to have one) is
 enough to keep Galaxy access off — the flag alone is never sufficient.
 
 In-app writes (the forum, notes, tags, review) are not behind this gate:
-they use `isAppWriteEnabled()` and `DATABASE_URL_APP` (see "The two write
+they use `isAppWriteEnabled()` and the app URL (see "The two write
 gates" above), so the live site can accept them while Galaxy and sync stay
 off there.
 
@@ -167,7 +177,7 @@ This is the single source of truth for Galaxy and sync, read in these places:
 
 `/matches`, `/matches/[matchId]`, `/mistakes`, `/repeated-positions`,
 `/matches/analysis`, and their own read-only `/api/matches/*` routes are
-**not** gated — they only ever read via `prismaReadOnly`/`DATABASE_URL_READONLY`
+**not** gated — they only ever read via `prismaReadOnly` (the read-only URL)
 and stay available regardless of the flag.
 
 ### Lifting the gate
@@ -176,11 +186,11 @@ Once the app sits behind a real auth wall that admits only you, lifting the
 gate is a **pure environment-variable change on Vercel — no code edit
 required**, because the call sites above already read `isSyncEnabled()`
 as their only source of truth (in-app writes don't depend on this; they're
-already on through `DATABASE_URL_APP`):
+already on through `ORACLE_DATABASE_URL_APP`):
 
-1. Set `DATABASE_URL` on Vercel again (a real read-write credential).
+1. Set `ORACLE_DATABASE_URL` on Vercel (a real read-write credential).
 2. Set `ENABLE_WRITE_MODE=true` on Vercel too — with the new default-off
-   polarity, both are required; setting `DATABASE_URL` alone still leaves
+   polarity, both are required; setting `ORACLE_DATABASE_URL` alone still leaves
    the gate shut.
 
 `isSyncEnabled()` starts returning `true` on the next request after that
@@ -191,9 +201,10 @@ up automatically.
 
 1. **Link the repo** to a new Vercel project (`vercel link`, or via the
    Vercel dashboard's "Import Project").
-2. **Set the env vars** above (`DATABASE_URL_READONLY`, `DATABASE_URL_APP`
-   and the Clerk keys) for both Production and Preview — leave
-   `DATABASE_URL` and `ENABLE_WRITE_MODE` unset on both. Create `bg_db_app`
+2. **Set the env vars** above (the checklist: `DB_TARGET=oracle`,
+   `ORACLE_DATABASE_URL_READONLY`, `ORACLE_DATABASE_URL_APP` and the Clerk
+   keys) for both Production and Preview — leave `ORACLE_DATABASE_URL` and
+   `ENABLE_WRITE_MODE` unset on both. Create `bg_db_app`
    first, with the owner's approval (`scripts/db/sql/app-db-user.sql`).
 3. **Decide the Oracle port-3306 ingress.** Oracle HeatWave's firewall is
    currently scoped to your home IP only. Vercel Hobby functions don't have
@@ -254,9 +265,9 @@ needed and shows the no-access state without exposing application
 data; a member on an owner page gets a 404. APIs return 401 for signed-out
 requests and 404 for a role that isn't allowed.
 
-The authenticated `/position-builder` route is a member page. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations, like the owner's notes, tags and review, use the app write gate, `isAppWriteEnabled()` (`lib/appWriteGate.ts`), and the app credential, `DATABASE_URL_APP` (`prismaApp`), so they work on the hosted deployment; locally, without `DATABASE_URL_APP`, they follow `ENABLE_WRITE_MODE` as before.
+The authenticated `/position-builder` route is a member page. It keeps edits in memory and can link to `/forum/new` with canonical GNU IDs; it does not create a database row until the forum post transaction. Forum mutations, like the owner's notes, tags and review, use the app write gate, `isAppWriteEnabled()` (`lib/appWriteGate.ts`), and the app credential, the app URL (`prismaApp`), so they work on the hosted deployment; locally, without `LOCAL_DATABASE_URL_APP`, they follow `ENABLE_WRITE_MODE` as before.
 
-`ENABLE_WRITE_MODE` remains the Galaxy/sync gate. Clerk ownership does not turn hosted Galaxy or sync on: hosted deployments should continue to leave `DATABASE_URL` and `ENABLE_WRITE_MODE` unset. `DATABASE_URL_APP` (`bg_db_app`) covers the `AppUser` allowlist and every in-app write, and has no write access to Match, Game or Decision.
+`ENABLE_WRITE_MODE` remains the Galaxy/sync gate. Clerk ownership does not turn hosted Galaxy or sync on: hosted deployments should continue to leave `ORACLE_DATABASE_URL` and `ENABLE_WRITE_MODE` unset. `ORACLE_DATABASE_URL_APP` (`bg_db_app`) covers the `AppUser` allowlist and every in-app write, and has no write access to Match, Game or Decision.
 
 ### Clerk domain (read this if sign-in breaks after a domain change)
 
@@ -280,9 +291,8 @@ for the role checks and when a write needs an author. The owner role is held in
 memory only: the `local-dev-owner` row is created with `role=NONE` (the single
 `OWNER` row belongs to the real Clerk owner) and the bypass never updates a
 row's role. It is an explicit opt-in (off unless exactly `true`), refuses to turn
-on and logs a warning when `DATABASE_URL`, `DATABASE_URL_READONLY` or
-`DATABASE_URL_APP` points anywhere but
-localhost, and does not disable `isSyncEnabled()`, `isAppWriteEnabled()`
+on and logs a warning unless `isLocalTarget()` (`lib/databaseUrl.ts`) is true
+(`DB_TARGET` local and every `LOCAL_*` URL in use is localhost), and does not disable `isSyncEnabled()`, `isAppWriteEnabled()`
 or their database/write-mode gates. Never set it on a deployed
 environment. Remove this
 bypass after local authenticated smoke and visual review are complete.

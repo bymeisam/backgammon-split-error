@@ -71,27 +71,39 @@ forum-only `bg_db_forum` plan):
   `INSERT`/`UPDATE` on `AppUser`. No writes on `Match`/`Game`/`Decision` and no
   DDL, on purpose.
 
-`lib/prisma.ts` exports one Prisma client per credential — `prisma` (reads
-`DATABASE_URL`), `prismaReadOnly` (reads `DATABASE_URL_READONLY`) and
-`prismaApp` (reads `DATABASE_URL_APP`) — via a shared client-construction
-helper, rather than each caller building its own adapter.
+**Which URLs (since 2026-10-16).** The environment holds two sets of three
+URLs side by side, `LOCAL_DATABASE_URL`/`_READONLY`/`_APP` and
+`ORACLE_DATABASE_URL`/`_READONLY`/`_APP`, and one flag, `DB_TARGET` (`local`,
+the default when unset or empty, or `oracle`; anything else throws), picks
+the set. `lib/databaseUrl.ts` is the only reader of these vars: `dbUrl(kind)`
+follows `DB_TARGET` (kind `rw`, `ro` or `app`), `localDbUrl(kind)` is always
+the local one, and `isLocalTarget()` is true only for the local target with
+every URL in use on localhost. An ESLint rule (`eslint.config.mjs`) and
+`lib/databaseUrlGuard.test.ts` keep the Oracle names out of every other file.
+The old single-set names (`DATABASE_URL`, `DATABASE_URL_READONLY`,
+`DATABASE_URL_APP`) are no longer read. Agents never set `DB_TARGET=oracle`.
+
+`lib/prisma.ts` exports one Prisma client per credential — `prisma`
+(`dbUrl("rw")`), `prismaReadOnly` (`dbUrl("ro")`) and `prismaApp`
+(`dbUrl("app")`) — via a shared client-construction helper, rather than each
+caller building its own adapter.
 
 `prismaApp` does every in-app write: the forum (posts, replies, edits,
 deletes, attached positions, move proposals), decision notes, tags, review
 cards and logs, and `AppUser` provisioning (`lib/app-auth.ts`, and
-`lib/forum.ts`'s `forumIdentity`). In production it needs `DATABASE_URL_APP`
-and never falls back to `DATABASE_URL`; outside production, when
-`DATABASE_URL_APP` is unset (or empty), it falls back to `DATABASE_URL`
-(`appDatabaseUrl()`, `lib/appDatabaseUrl.ts`). Every write except `AppUser`
+`lib/forum.ts`'s `forumIdentity`). In production it needs the app URL and
+never falls back to the read-write URL; outside production, when the app URL
+is unset (or empty), it falls back to the read-write URL (`appDatabaseUrl()`,
+`lib/databaseUrl.ts`). Every write except `AppUser`
 provisioning is gated by `isAppWriteEnabled()` (`lib/appWriteGate.ts`), not
 `isSyncEnabled()` (which is for Galaxy and sync only), so the live site,
-which has no `DATABASE_URL`, can accept them. Provisioning doesn't check the
+which has no read-write URL, can accept them. Provisioning doesn't check the
 gate, so sign-in works wherever the client has a URL.
 
 The local Docker MySQL has only `bg_db_rw`/`bg_db_ro` (same grant shapes, on
 `app_dev` and `bg_test`), and the local `.env` uses them, so the split can be
-tested locally; `prismaApp` falls back to `DATABASE_URL` there.
-`.env.example` still defaults both vars to the docker-compose `app` user
+tested locally; `prismaApp` falls back to `LOCAL_DATABASE_URL` there.
+`.env.example` still defaults both local URLs to the docker-compose `app` user
 for a fresh checkout. The split exists in the code regardless of
 environment, so production (`bg_db_rw`/`bg_db_ro`) is a config change, not
 a code change.
@@ -105,8 +117,9 @@ a code change.
 | `prismaApp` (in-app writes) | Forum: `app/api/forum/posts/route.ts` (POST), `app/api/forum/posts/[id]/route.ts` (PATCH, DELETE), `app/api/forum/posts/[id]/replies/route.ts` (POST), `app/api/forum/replies/[id]/route.ts` (PATCH, DELETE). Study: `app/api/decisions/[id]/note/route.ts` (saves/clears a `DecisionNote`), `app/api/tags/attach`, `app/api/tags/detach`, `app/api/review/cards` (POST), `app/api/review/cards/[id]` (PATCH, DELETE), `app/api/review/cards/[id]/answer`, `app/api/review/bulk`. All of these check `isAppWriteEnabled()`. AppUser (no gate check): `lib/app-auth.ts` (`provisionAppUser`, including the local `AUTH_BYPASS` upsert), `lib/forum.ts` (`forumIdentity`: looks up the viewer's `AppUser` row, or upserts the reserved bypass row under the local `AUTH_BYPASS`) |
 
 **`prisma migrate deploy` itself is a separate concern from these three app
-runtime clients.** It's configured in `prisma7.config.ts`, which reads
-`DATABASE_URL` — the same var the read-write app client uses — and stays
+runtime clients.** It's configured in `prisma7.config.ts` (found by name by
+Prisma 7's CLI, no `--config` needed), which reads `dbUrl("rw")` — the same
+URL the read-write app client uses, following `DB_TARGET` — and stays
 there deliberately: schema changes need `CREATE`/`ALTER`/`INDEX`/
 `REFERENCES`, privileges `bg_db_rw` already has but a narrower app-only
 user wouldn't. Don't point migrations at `bg_db_ro`, and don't invent a
@@ -119,15 +132,15 @@ grants ever turn out to be insufficient.
 `PlayerIdentity` rows — so it used the read-write client. The rule going forward: only
 a script that **exclusively reads** (verification/diagnostic scripts) gets
 the read-only client; anything that writes, even a one-time backfill, gets
-read-write. `app/api/db-check/route.ts` is the one other place that reads
-`DATABASE_URL` directly rather than either shared client — left as-is since
+read-write. `app/api/db-check/route.ts` is the one other place that builds
+its own client from `dbUrl("rw")` rather than using either shared client — left as-is since
 its specific job is verifying that exact connection string works (a
 narrower purpose than a general read-only health check), not because it's
 an oversight.
 
 `allowPublicKeyRetrieval=true` and `ssl=true` (as query params on the
-connection-string URL) are required for both `DATABASE_URL` and
-`DATABASE_URL_READONLY` in production, connecting to Oracle HeatWave's NLB
+connection-string URL) are required for all three `ORACLE_DATABASE_URL*`
+URLs, connecting to Oracle HeatWave's NLB
 public IP — see `.env.example` for the exact URL shape. Not needed locally
 (plain Docker MySQL, no SSL).
 
@@ -155,7 +168,8 @@ still fully applies. Any new code that needs to connect to Oracle directly
 (bypassing the shared `prisma`/`prismaReadOnly` clients) must go through
 `buildConnectionConfig`, not construct `new PrismaMariaDb(url)` from a bare
 URL string — `app/api/db-check/route.ts` and `prisma/seed.ts` are the two
-exceptions, and both are intentionally local-only (see above / their own
+exceptions, and both are intentionally local-only (`prisma/seed.ts` reads
+`localDbUrl("rw")` and refuses a non-localhost URL) (see above / their own
 header comments), never meant to run against Oracle.
 
 ## Match

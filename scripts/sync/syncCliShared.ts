@@ -1,6 +1,7 @@
 // Helpers shared by the three sync CLIs (scripts/sync/runSyncCli.ts for backfill
 // and incremental, scripts/sync/retryFailedCli.ts for the DB-only retry):
 // argument parsing, the target-DB line and the remote-DB warning.
+import { dbUrl, dbUrlVarName } from "../../lib/databaseUrl";
 
 export interface SyncCliArgs {
   // undefined = no limit.
@@ -65,9 +66,9 @@ export function describeDatabaseUrl(url: string | undefined): { host: string; da
 }
 
 export function printTarget(env: NodeJS.ProcessEnv): void {
-  const db = describeDatabaseUrl(env.DATABASE_URL);
+  const db = describeDatabaseUrl(dbUrl("rw", env));
   if (!db) {
-    console.log("Target DB: DATABASE_URL is not set or not a valid URL.");
+    console.log(`Target DB: ${dbUrlVarName("rw", env)} is not set or not a valid URL.`);
     return;
   }
   console.log(`Target DB: host ${db.host}, database ${db.database}`);

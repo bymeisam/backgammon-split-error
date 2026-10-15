@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DB_URL_VARS } from "./databaseUrl";
+
+// The LOCAL_* names (DB_TARGET is stubbed to local).
+const V = DB_URL_VARS.local;
 
 const LOCAL = "mysql://app:app@localhost:3306/app_dev";
 const ORACLE = "mysql://bg_db_rw:pw@203.0.113.7:3306/backgammon?ssl=true";
@@ -12,9 +16,10 @@ async function load() {
 describe("isLocalAuthBypass", () => {
   beforeEach(() => {
     vi.stubEnv("AUTH_BYPASS", undefined);
-    vi.stubEnv("DATABASE_URL", LOCAL);
-    vi.stubEnv("DATABASE_URL_READONLY", undefined);
-    vi.stubEnv("DATABASE_URL_APP", undefined);
+    vi.stubEnv("DB_TARGET", "local");
+    vi.stubEnv(V.rw, LOCAL);
+    vi.stubEnv(V.ro, undefined);
+    vi.stubEnv(V.app, undefined);
   });
 
   afterEach(() => {
@@ -32,14 +37,14 @@ describe("isLocalAuthBypass", () => {
 
   it("turns on with AUTH_BYPASS=true against a local database", async () => {
     vi.stubEnv("AUTH_BYPASS", "true");
-    vi.stubEnv("DATABASE_URL_READONLY", "mysql://bg_db_ro:pw@127.0.0.1:3306/app_dev");
+    vi.stubEnv(V.ro, "mysql://bg_db_ro:pw@127.0.0.1:3306/app_dev");
     const { isLocalAuthBypass } = await load();
     expect(isLocalAuthBypass()).toBe(true);
   });
 
-  it("refuses when DATABASE_URL points at Oracle, warning once", async () => {
+  it("refuses when the read-write URL points at Oracle, warning once", async () => {
     vi.stubEnv("AUTH_BYPASS", "true");
-    vi.stubEnv("DATABASE_URL", ORACLE);
+    vi.stubEnv(V.rw, ORACLE);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { isLocalAuthBypass } = await load();
     expect(isLocalAuthBypass()).toBe(false);
@@ -47,9 +52,9 @@ describe("isLocalAuthBypass", () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses when DATABASE_URL is missing", async () => {
+  it("refuses when the read-write URL is missing", async () => {
     vi.stubEnv("AUTH_BYPASS", "true");
-    vi.stubEnv("DATABASE_URL", undefined);
+    vi.stubEnv(V.rw, undefined);
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { isLocalAuthBypass } = await load();
     expect(isLocalAuthBypass()).toBe(false);
@@ -58,19 +63,26 @@ describe("isLocalAuthBypass", () => {
   it("refuses when the read-only URL points at Oracle", async () => {
     vi.stubEnv("AUTH_BYPASS", "true");
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.stubEnv("DATABASE_URL_READONLY", ORACLE);
+    vi.stubEnv(V.ro, ORACLE);
     expect((await load()).isLocalAuthBypass()).toBe(false);
   });
 
   it("refuses when the app URL points at Oracle, and allows a local or empty one", async () => {
     vi.stubEnv("AUTH_BYPASS", "true");
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.stubEnv("DATABASE_URL_APP", "mysql://bg_db_app:pw@203.0.113.7:3306/backgammon?ssl=true");
+    vi.stubEnv(V.app, "mysql://bg_db_app:pw@203.0.113.7:3306/backgammon?ssl=true");
     expect((await load()).isLocalAuthBypass()).toBe(false);
-    vi.stubEnv("DATABASE_URL_APP", LOCAL);
+    vi.stubEnv(V.app, LOCAL);
     expect((await load()).isLocalAuthBypass()).toBe(true);
-    vi.stubEnv("DATABASE_URL_APP", "");
+    vi.stubEnv(V.app, "");
     expect((await load()).isLocalAuthBypass()).toBe(true);
+  });
+
+  it("refuses when DB_TARGET is oracle, even with local URLs", async () => {
+    vi.stubEnv("AUTH_BYPASS", "true");
+    vi.stubEnv("DB_TARGET", "oracle");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect((await load()).isLocalAuthBypass()).toBe(false);
   });
 });
 

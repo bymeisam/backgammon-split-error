@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DB_URL_VARS } from "./databaseUrl";
 import { currentRuntimeModeLabel, databaseClass, isLocalDatabaseUrl, runtimeModeLabel } from "./runtimeMode";
 
 describe("isLocalDatabaseUrl", () => {
@@ -136,61 +137,67 @@ describe("runtimeModeLabel", () => {
   });
 });
 
+// The LOCAL_* names (DB_TARGET is stubbed to local unless a test says otherwise).
+const V = DB_URL_VARS.local;
+
 describe("currentRuntimeModeLabel", () => {
   beforeEach(() => {
-    vi.stubEnv("DATABASE_URL_APP", undefined);
+    vi.stubEnv("DB_TARGET", "local");
+    vi.stubEnv(V.app, undefined);
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("is Read-only with no DATABASE_URL and no DATABASE_URL_APP, even with the flag set", () => {
-    vi.stubEnv("DATABASE_URL", "");
+  it("is Read-only with no read-write URL and no app URL, even with the flag set", () => {
+    vi.stubEnv(V.rw, "");
     vi.stubEnv("ENABLE_WRITE_MODE", "true");
     expect(currentRuntimeModeLabel()).toBe("Read-only");
   });
 
-  it("is Read-only in production without DATABASE_URL_APP, even with DATABASE_URL and the flag", () => {
+  it("is Read-only in production without the app URL, even with the read-write URL and the flag", () => {
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("DATABASE_URL", LOCAL);
+    vi.stubEnv(V.rw, LOCAL);
     vi.stubEnv("ENABLE_WRITE_MODE", "true");
     expect(currentRuntimeModeLabel()).toBe("Read-only");
   });
 
-  it("writes through DATABASE_URL_APP on the live site (no DATABASE_URL, no flag)", () => {
+  it("writes through the Oracle app URL on the live site (DB_TARGET=oracle, no read-write URL, no flag)", () => {
+    const O = DB_URL_VARS.oracle;
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("DATABASE_URL", undefined);
+    vi.stubEnv("DB_TARGET", "oracle");
+    vi.stubEnv(O.rw, undefined);
     vi.stubEnv("ENABLE_WRITE_MODE", undefined);
-    vi.stubEnv("DATABASE_URL_APP", ORACLE);
-    vi.stubEnv("DATABASE_URL_READONLY", ORACLE);
+    vi.stubEnv(O.app, ORACLE);
+    vi.stubEnv(O.ro, ORACLE);
     expect(currentRuntimeModeLabel()).toBe("Oracle · write");
   });
 
-  it("classes the write side by DATABASE_URL_APP, not DATABASE_URL, when it's set", () => {
+  it("classes the write side by the app URL, not the read-write URL, when it's set", () => {
     vi.stubEnv("ENABLE_WRITE_MODE", "true");
-    vi.stubEnv("DATABASE_URL", ORACLE);
-    vi.stubEnv("DATABASE_URL_APP", LOCAL);
-    vi.stubEnv("DATABASE_URL_READONLY", LOCAL);
+    vi.stubEnv(V.rw, ORACLE);
+    vi.stubEnv(V.app, LOCAL);
+    vi.stubEnv(V.ro, LOCAL);
     expect(currentRuntimeModeLabel()).toBe("Local · write");
   });
 
   it("is Read-only when ENABLE_WRITE_MODE isn't exactly \"true\"", () => {
-    vi.stubEnv("DATABASE_URL", "mysql://u:p@localhost/db");
+    vi.stubEnv(V.rw, "mysql://u:p@localhost/db");
     vi.stubEnv("ENABLE_WRITE_MODE", "1");
     expect(currentRuntimeModeLabel()).toBe("Read-only");
   });
 
-  it("follows both env URLs' hosts in local write mode (no DATABASE_URL_APP)", () => {
+  it("follows both env URLs' hosts in local write mode (no app URL)", () => {
     vi.stubEnv("ENABLE_WRITE_MODE", "true");
-    vi.stubEnv("DATABASE_URL", LOCAL_IP);
-    vi.stubEnv("DATABASE_URL_READONLY", LOCAL);
+    vi.stubEnv(V.rw, LOCAL_IP);
+    vi.stubEnv(V.ro, LOCAL);
     expect(currentRuntimeModeLabel()).toBe("Local · write");
-    vi.stubEnv("DATABASE_URL_READONLY", ORACLE);
+    vi.stubEnv(V.ro, ORACLE);
     expect(currentRuntimeModeLabel()).toBe("Writes: Local · Reads: Oracle");
-    vi.stubEnv("DATABASE_URL", ORACLE);
+    vi.stubEnv(V.rw, ORACLE);
     expect(currentRuntimeModeLabel()).toBe("Oracle · write");
-    vi.stubEnv("DATABASE_URL_READONLY", LOCAL);
+    vi.stubEnv(V.ro, LOCAL);
     expect(currentRuntimeModeLabel()).toBe("Writes: Oracle · Reads: Local");
   });
 });

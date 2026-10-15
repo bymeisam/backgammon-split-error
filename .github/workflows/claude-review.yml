@@ -195,7 +195,7 @@ jobs:
               Prisma client where the read-only one would suffice, or any
               change that could weaken the Galaxy-gate's fail-closed
               guarantee (lib/galaxyGate.ts's isSyncEnabled() must require
-              BOTH DATABASE_URL present AND ENABLE_WRITE_MODE === "true" —
+              BOTH the read-write URL (dbUrl("rw")) present AND ENABLE_WRITE_MODE === "true" —
               flag an `&&` weakened to `||`, a default-to-enabled fallback,
               or a check that only tests one condition). Always HIGH — this
               app is specifically designed to deploy as a read-only,

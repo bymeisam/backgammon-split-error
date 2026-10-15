@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
+import { DB_URL_VARS, isLocalDatabaseUrl, localDbUrl } from "./lib/databaseUrl";
 
 // Visual regression only — a separate suite/runner from Vitest
 // (vitest.config.ts), run via `npm run test:visual`, not part of `npm test`.
@@ -13,6 +14,22 @@ import path from "node:path";
 // process.env; it's read into a plain object and passed only to the
 // dedicated webServer entry's own `env` below.
 const testDbEnv = dotenv.parse(fs.readFileSync(path.resolve(__dirname, ".env.test")));
+
+// The test server's database: DB_TARGET=local and the three LOCAL_* URLs from
+// .env.test (bg_test), pinned below after the .env.test spread. An unset one
+// is pinned to "" rather than left out: Next only fills a variable from the
+// real .env when it's undefined, so "" stops the real dev database's URL
+// leaking into the bg_test server.
+const testDbUrl = localDbUrl("rw", testDbEnv);
+if (!isLocalDatabaseUrl(testDbUrl)) {
+  throw new Error(`.env.test: ${DB_URL_VARS.local.rw} must be set and point at localhost (bg_test; see e2e/README.md).`);
+}
+const testDbVars: Record<string, string> = {
+  DB_TARGET: "local",
+  [DB_URL_VARS.local.rw]: testDbUrl ?? "",
+  [DB_URL_VARS.local.ro]: localDbUrl("ro", testDbEnv) ?? "",
+  [DB_URL_VARS.local.app]: localDbUrl("app", testDbEnv) ?? "",
+};
 
 export default defineConfig({
   testDir: "./e2e",
@@ -34,7 +51,7 @@ export default defineConfig({
     // the real dev server. All 12 tests run against it: the 8
     // /matches and /sources/galaxy/matches ones don't care (their fetches are fully
     // mocked, so which server/DB serves the page shell is irrelevant), and
-    // the 4 /mistakes ones need it specifically (DATABASE_URL pointed at
+    // the 4 /mistakes ones need it specifically (the LOCAL_* URLs pointed at
     // the seeded bg_test schema instead of whatever the real .env has).
     baseURL: "http://localhost:3100",
     viewport: { width: 1400, height: 900 },
@@ -72,7 +89,7 @@ export default defineConfig({
       },
     },
   ],
-  // One dedicated server, port 3100, DATABASE_URL/DATABASE_URL_READONLY
+  // One dedicated server, port 3100, DB_TARGET=local with the LOCAL_* URLs
   // overridden to the seeded bg_test schema (.env.test, e2e/README.md,
   // e2e/seed-test-db.ts) — never the real .env's values, and never the
   // real dev server on :3000 (a second `next dev` for the same project
@@ -104,8 +121,8 @@ export default defineConfig({
     // spread, so it always wins) so isSyncEnabled() is on for this server
     // regardless of what .env/.env.test say: decision-card-chromium-darwin.png
     // is captured with DecisionNote's editable textarea, which only renders
-    // when write mode is on. The other half of isSyncEnabled(),
-    // DATABASE_URL, comes from .env.test (bg_test). Writes from this server
+    // when write mode is on. The other half of isSyncEnabled(), the
+    // read-write URL, comes from .env.test (bg_test) through testDbVars. Writes from this server
     // can only reach bg_test, and the suite itself never saves a note.
     //
     // AUTH_BYPASS skips the Clerk owner wall for this server (it used to be
@@ -114,6 +131,7 @@ export default defineConfig({
     // URL is localhost, which bg_test is.
     env: {
       ...testDbEnv,
+      ...testDbVars,
       ENABLE_WRITE_MODE: "true",
       AUTH_BYPASS: "true",
       NEXT_DIST_DIR: ".next-test",

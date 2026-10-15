@@ -8,8 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Deliberately no DATABASE_URL / DATABASE_URL_READONLY here, not even a
-    # dummy value. lib/prisma.ts's clients are lazy (see the comment there) —
+    # Deliberately no DB_TARGET and no LOCAL_*/Oracle database URLs here
+    # (lib/databaseUrl.ts), not even a dummy value. lib/prisma.ts's clients are lazy (see the comment there) —
     # importing the module, and running a full `next build`, must succeed
     # with zero DB env vars set at all (confirmed locally in the same
     # session this workflow was added: a clean checkout with no .env file

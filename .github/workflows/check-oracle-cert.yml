@@ -9,7 +9,7 @@ name: Check Oracle TLS cert
 #
 # Needs the ORACLE_DB_HOST repository secret (Settings -> Secrets and
 # variables -> Actions) set to the real Oracle host — not committed
-# anywhere in this repo (same as DATABASE_URL's real value, which only
+# anywhere in this repo (same as the Oracle database URLs' real values, which only
 # ever lives in the gitignored .env). This check needs no DB credentials at
 # all, only the bare host — see the script's own header comment for why.
 

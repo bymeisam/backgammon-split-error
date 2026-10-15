@@ -9,7 +9,7 @@ with the rule for that folder.
 ## `sync/`
 
 Talks to Galaxy with the user's token; never while the user is playing.
-Writes the sync's results to whichever DB `DATABASE_URL` points at (see
+Writes the sync's results to `DB_TARGET`'s read-write database (`lib/databaseUrl.ts`; see
 `docs/deploy.md` § Syncing stays local).
 
 - `npm run sync:backfill -- [--limit N] [--dry-run]` (`backfill.ts`): first-run

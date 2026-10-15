@@ -67,12 +67,12 @@
 //                             local AUTH_BYPASS=true on its command line
 //                             (never in .env), against the local DB. Under
 //                             `next start` (production) prismaApp needs
-//                             DATABASE_URL_APP on the command line too
+//                             LOCAL_DATABASE_URL_APP on the command line too
 //                             (lib/prisma.ts), pointed at the local DB; it
 //                             also turns app writes on (lib/appWriteGate.ts),
 //                             so leave it off for the read-only run:
 //
-//   DATABASE_URL_APP=<local mysql URL> AUTH_BYPASS=true ENABLE_WRITE_MODE=true npx next start -p 3300
+//   LOCAL_DATABASE_URL_APP=<local mysql URL> AUTH_BYPASS=true ENABLE_WRITE_MODE=true npx next start -p 3300
 //   npx tsx scripts/screenshots/index.ts --set=forum --forum-posts=4,5 --forum-decision=1149340 --date=2026-10-13-forum
 //
 //   --forum-posts=a,b         ForumPost ids for the /forum/<id> shots

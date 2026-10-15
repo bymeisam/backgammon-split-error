@@ -11,16 +11,13 @@
 // --grant-check skips layers 2 and 3 (never layer 1) — it exists only to
 // prove the server-side grant itself refuses a write, and only on local.
 //
-// Both targets read the one read-only URL, DATABASE_URL_READONLY, which
-// points at whichever database the user has set in .env. --target doesn't
-// pick a database; it asserts which one you expect, and the script refuses
-// to run if .env says otherwise:
-//   local  → DATABASE_URL_READONLY must point at localhost/127.0.0.1
-//   oracle → DATABASE_URL_READONLY must NOT point at localhost/127.0.0.1
-//            (i.e. the user has switched .env to Oracle). TLS via the same
-//            pinned CA as the app, through lib/prisma.ts's
-//            buildConnectionConfig.
-// Only the user changes .env; this script never asks for or makes a switch.
+// --target picks the read-only URL, through lib/databaseUrl.ts's
+// targetDbUrl (DB_TARGET plays no part here):
+//   local  → the local read-only URL, which must point at localhost/127.0.0.1
+//   oracle → the Oracle read-only URL, which must NOT point at
+//            localhost/127.0.0.1. TLS via the same pinned CA as the app,
+//            through lib/prisma.ts's buildConnectionConfig.
+// Only the user writes .env; this script never asks for or makes a change.
 //
 // Never prints the connection URL or password. Prints elapsed time with every
 // result, so Decision queries always come with timing.
@@ -30,6 +27,7 @@
 //   npx tsx scripts/readonly/ro-query.ts --target oracle "EXPLAIN SELECT ..."
 import "dotenv/config";
 import mariadb, { type Connection, type ConnectionConfig } from "mariadb";
+import { DB_URL_VARS, targetDbUrl } from "@/lib/databaseUrl";
 import { buildConnectionConfig } from "@/lib/prisma";
 
 const READ_ONLY_USER = "bg_db_ro";
@@ -58,17 +56,15 @@ function parseArgs(argv: string[]): { target: "local" | "oracle"; grantCheck: bo
 }
 
 function resolveUrl(target: "local" | "oracle"): string {
-  const envName = "DATABASE_URL_READONLY";
-  const url = process.env[envName];
+  const envName = DB_URL_VARS[target].ro;
+  const url = targetDbUrl(target, "ro");
   if (!url) fail(`${envName} is not set.`);
   const parsed = new URL(url);
   const user = decodeURIComponent(parsed.username);
   if (user !== READ_ONLY_USER) fail(`${envName} is not the ${READ_ONLY_USER} user — refusing to connect.`);
   const isLocalHost = LOCAL_HOSTS.has(parsed.hostname);
-  if (target === "local" && !isLocalHost) fail(`${envName} doesn't point at localhost — refusing (.env may be switched to Oracle).`);
-  if (target === "oracle" && isLocalHost) {
-    fail(`${envName} in .env currently points at local, not Oracle — refusing. Querying Oracle needs the user to point .env's ${envName} at Oracle first.`);
-  }
+  if (target === "local" && !isLocalHost) fail(`${envName} doesn't point at localhost — refusing.`);
+  if (target === "oracle" && isLocalHost) fail(`${envName} points at localhost, not Oracle — refusing.`);
   return url;
 }
 

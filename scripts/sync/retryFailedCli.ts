@@ -53,7 +53,7 @@ export async function runRetryFailedFromCli(
   }
 }
 
-// Reads the DB only (DATABASE_URL, the same DB the real run would write), no
+// Reads the DB only (dbUrl("rw"), the same DB the real run would write), no
 // Galaxy call, no write.
 async function dryRun(args: RetryArgs, env: NodeJS.ProcessEnv): Promise<void> {
   console.log("Dry run of the DB-only retry: no Galaxy request, nothing written.");

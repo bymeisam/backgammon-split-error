@@ -85,7 +85,7 @@ describe("runRetryFailedFromCli", () => {
     });
 
     await runRetryFailedFromCli(["--dry-run", "--limit", "2"], {
-      DATABASE_URL: "mysql://u:p@db.example.com:3306/backgammon",
+      LOCAL_DATABASE_URL: "mysql://u:p@db.example.com:3306/backgammon",
     });
 
     expect(h.runDbOnlySync).not.toHaveBeenCalled();
@@ -102,7 +102,7 @@ describe("runRetryFailedFromCli", () => {
   });
 
   it("a real run needs GALAXY_TOKEN and starts nothing without it", async () => {
-    await runRetryFailedFromCli([], { DATABASE_URL: "mysql://u:p@localhost:3306/bg" });
+    await runRetryFailedFromCli([], { LOCAL_DATABASE_URL: "mysql://u:p@localhost:3306/bg" });
 
     expect(h.runDbOnlySync).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
@@ -124,7 +124,7 @@ describe("runRetryFailedFromCli", () => {
     });
 
     await runRetryFailedFromCli(["--limit", "4", "--match", "77"], {
-      DATABASE_URL: "mysql://u:p@localhost:3306/bg",
+      LOCAL_DATABASE_URL: "mysql://u:p@localhost:3306/bg",
       GALAXY_TOKEN: "t",
     });
 

@@ -17,8 +17,9 @@ vi.mock("../../lib/errorLog", () => ({ SYNC_ERROR_LOG_RELATIVE_PATH: "logs/sync-
 
 import { parseSyncArgs, runSyncFromCli } from "./runSyncCli";
 
-const REMOTE = { DATABASE_URL: "mysql://u:p@db.example.com:3306/backgammon", GALAXY_TOKEN: "t" };
-const LOCAL = { DATABASE_URL: "mysql://u:p@localhost:3306/bg", GALAXY_TOKEN: "t" };
+// REMOTE: DB_TARGET unset (local) but a mistyped non-localhost URL, which must still warn.
+const REMOTE = { LOCAL_DATABASE_URL: "mysql://u:p@db.example.com:3306/backgammon", GALAXY_TOKEN: "t" };
+const LOCAL = { LOCAL_DATABASE_URL: "mysql://u:p@localhost:3306/bg", GALAXY_TOKEN: "t" };
 
 describe("parseSyncArgs", () => {
   it("defaults to no limit and a real run", () => {
