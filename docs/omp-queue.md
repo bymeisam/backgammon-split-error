@@ -4,31 +4,21 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### Review notes at `834329e` (engine phase 1): 2-ply rerun, merge master, sharper error check (queued 2026-10-15)
-**First, merge `master` into `omp/main`**, then run `npx prisma generate` (no schema change). Your branch never merged master for phase 1: your `npm test` ran 874 tests, master has 937. On the merge, **keep master's `docs/current-state.md`** (yours edited a stale 2026-10-14 copy; master rewrites it at wrap-up, don't edit it on `omp/main`), and add your PROGRESS.md entry on top of master's.
+### Review notes at `1809cce` (engine 2-ply follow-up): explain the 0-ply rejections, sharper loss check, tidy report, scripts move (queued 2026-10-15)
+Not merged into master yet. The parser change, 2-ply rerun, Galaxy bands, timing split and rename are good. The open question is the 30/200 positions (and the 21-roll run) rejected because rank 1 came back `Cubeful 0-ply`: until we know why, "2-ply coverage" is unknown.
 
-**`scripts/` is now in folders on master** (commit `6964a9c`: `sync/`, `db/`, `readonly/`, `screenshots/`, `agents/`, `snaps/`; `notes-export`/`notes-import` retired). On the merge:
-- `git mv scripts/gnubg-evaluation.ts scripts/engine/gnubg-evaluation.ts`, and fix its relative imports (`../lib/` → `../../lib/`) and any `__dirname` paths.
-- `scripts/README.md` will conflict: keep master's version and add your entry as a new `engine/` section, with a one-line rule like the other sections have (e.g. "Local only, read-only DB; runs gnubg in Docker").
-- Update any `scripts/gnubg-evaluation.ts` mention in your report and docs to the new path. The regenerated `.omp/agents/` files come from master; don't hand-edit them.
+**First, merge `master` into `omp/main`** (no schema change; `npx prisma generate` anyway). Your last merge (`966f5dc`) was before master's scripts reorganisation (`6964a9c`). On this merge:
+- `git mv scripts/gnubg-evaluation.ts scripts/engine/gnubg-evaluation.ts`, fix its relative imports (`../lib/` → `../../lib/`) and any `__dirname` paths.
+- `scripts/README.md` will conflict: keep master's version and add your entry as a new `engine/` section with a one-line rule like the others (e.g. "Local only, read-only DB; runs gnubg in Docker").
+- Update path mentions in the report. Keep master's `docs/current-state.md`.
 
-The phase 1 work is sound (separate-process GPL boundary, fixture tests, read-only local-only harness, the 21-roll batch, the local-precompute recommendation, the proposal-only results table). What's left is the core question, because the run was at 0-ply.
+1. **Classify the rejections.** Log the 30 rejected positions (decision id, phase, GNU Position ID, Match ID, roll) and the 21-roll position/roll(s) that failed. For each, decide which it is: bear-off database answer (does gnubg's output say so?), only one legal move, only one candidate left after the move filter, or other. Give a table by phase (opening / middle / bear-off) and put 2–3 short raw `hint` excerpts in the report. Note the 21-roll case used sample position 100, a middle-game position, so bear-off alone may not explain it.
+2. **Try to get 2-ply where it's meaningful.** On a few rejected positions, try `set evaluation chequerplay evaluation prune off` and/or a wider move filter (`set evaluation movefilter …`), and report whether rank 1 becomes 2-ply and the time cost.
+3. **Parser rule from the evidence.** Where 0-ply is exact or harmless (forced move, a single candidate, bear-off database), accept it and mark the analysis (e.g. `exact: true` or keep `plies: 0` with a reason) instead of throwing. Keep throwing for any unexplained 0-ply rank 1. Fixture-test each accepted case. Then rerun the same 200 (same seed) and the 21-roll run, and report the new coverage.
+4. **Sharper loss check.** The reported "median absolute difference between GNU loss and Galaxy loss = 0" is over all positions, mostly non-errors where both are 0, so it says nothing. Report it for Galaxy ERROR + BLUNDER decisions only (and separately for DOUBTFUL), plus the mean. Recheck the 13/2/1, 12/1/1 and 7/140 splits after the rerun.
+5. **Tidy the report.** `reports/2026-10-15-gnubg-engine-test.md` currently has the old 0-ply table, the 0.08-threshold "also flagged" rows and a stale Verification line (874 tests) above the new section. Rewrite it so it reads as one current result: 2-ply numbers as the main table, the 0-ply numbers kept as a short "earlier 0-ply run" comparison, one Recommendation, one Verification section with the current checks.
 
-1. **2-ply works through `hint`.** Master ran your image with `set evaluation chequerplay evaluation plies 2` then `hint` on the opening position with 5-4. It printed `Cubeful 2-ply` for the top 7 candidates and `Cubeful 0-ply` for ranks 8–9: gnubg's move filter keeps only moves within 0.16 of the best for the deeper pass, and the rest stay at 0-ply. So the output is **mixed-depth by design**, and `parseHints` rejects any row whose depth differs from `EVALUATION_PLIES`.
-   - Record each candidate's own depth on the `Candidate` (e.g. `plies`).
-   - Require only the rank-1 candidate to be at the configured depth; throw only if that one isn't.
-   - Set `EVALUATION_PLIES = 2`. Add a fixture with mixed 2-ply/0-ply output and test it. Also check the extra `2-ply cubeful prune [world class]` line under each candidate doesn't confuse the parser.
-   - Correct the report's "the CLI only gives 0-ply" section.
-2. **Rerun the same 200 decisions at 2-ply** (same seed and sample, so it's directly comparable with the 0-ply numbers; keep both in the report). Local DB, read-only, as before.
-3. **Sharper error check.** Drop the fixed 0.08 threshold. `errorSeverity` comes from Galaxy's own label (`mapSeverity` in `lib/ingest.ts`), not app thresholds. So:
-   - From the local DB (read-only), get the `rawError` range Galaxy uses for each severity (DOUBTFUL / ERROR / BLUNDER) on CHECKER decisions, and put those cut-offs in the report.
-   - Apply the same cut-offs to gnubg's loss on the played move (gnubg best equity − gnubg played equity) and report: for Galaxy's errors and blunders, how many gnubg puts in the same band, a lower band, or none; and for the sample's non-errors, how many gnubg would flag (false alarms).
-   - Report the median absolute difference between gnubg's loss and Galaxy's `rawError` on the played move.
-4. **Timing.** Split Docker start-up from gnubg's own work: time an empty run (`quit` only) and report it next to the per-position and 21-roll times, at 2-ply. If start-up dominates, say so and note that a long-lived gnubg process would remove it (proposal only, don't build it).
-5. **Rename the image** to `bg-gnubg:1.07.001` (constant, Dockerfile build command in the report, `scripts/README.md`).
-6. **Report:** update `reports/2026-10-15-gnubg-engine-test.md` in place (or a new dated one that links to it), and revisit the recommendation in the light of the 2-ply numbers. If 2-ply clearly falls short of Galaxy, say what you'd try next (e.g. 3-ply, or `analyse move`), with its timing, but don't build it.
-
-Still **no schema, no UI, no stored results.** Checks: `npm test`, tsc, lint. No screenshots.
+Still **no schema, no UI, no stored results.** Local DB read-only only. Checks: `npm test`, tsc, lint. No screenshots.
 
 ## Schema requests (omp → master)
 
@@ -42,6 +32,7 @@ _Use this shape:_
 
 ## Checked and done (master)
 
+- **Engine phase 1 follow-up: 2-ply and local severity comparison**: `966f5dc` + `1809cce` + `7a1a4ac` (2026-10-15). Reviewed by the main session; not merged into master yet. Mixed-depth parsing, 2-ply rerun, Galaxy severity bands, start-up timing and the image rename are good. 30/200 rejections (0-ply rank 1) are unexplained, the loss-difference median is over mostly non-errors, and the report needs one clean pass. The follow-ups are in the `1809cce` review task above. omp: drop your "to check" entry when you next merge master.
 - **Engine phase 1: GNU Backgammon local evaluation**: `cb6c6cd` + `834329e` + `da26d5e` (2026-10-15). Reviewed by the main session; not merged into master yet. The wrapper, tests and harness are sound, but the run was at 0-ply and the branch hadn't merged master. The follow-ups are in the `834329e` review task above. omp: drop your "to check" entry when you next merge master.
 - **Review notes at `fafd8c4` + screenshot capture correction (draft kept, post button row, preview spacing, caption test)**: `e90aeca`, `287ff4f`, `3aa5538` (2026-10-14). Checked: code by the main session; 390 shots by the visual reviewer; 1280 shots (`/mistakes`, replay, builder) by the main session. **Merged into master** with `omp/main` at `3aa5538`. Master untracked the force-added `design/screenshots/2026-10-14-forum-post-button/` (the folder is gitignored; don't `git add -f` screenshots). omp: drop your "to check" entries when you next merge master.
 - **Review notes at `04389bf` (stale board, shared button, caption, tests, screenshots)**: `fafd8c4` + `86769f4` (2026-10-14). Checked; merged into master with `omp/main` at `3aa5538`.
