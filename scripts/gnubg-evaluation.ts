@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { localDbUrl } from "@/lib/databaseUrl";
 import { prismaReadOnly } from "@/lib/prisma";
 import { getDecisionAnalysis } from "@/lib/analysis";
 import { galaxyReview } from "@/lib/analysis/galaxyFields";
@@ -20,11 +21,11 @@ function errorBand(loss: number | null): "none" | "doubtful" | "error" | "blunde
 }
 
 async function main() {
-  const dbUrl = process.env.DATABASE_URL_READONLY;
-  if (!dbUrl) throw new Error("DATABASE_URL_READONLY is not configured");
+  const dbUrl = localDbUrl("ro");
+  if (!dbUrl) throw new Error("Local read-only database URL is not configured");
   const url = new URL(dbUrl);
   if (!["localhost", "127.0.0.1"].includes(url.hostname) || decodeURIComponent(url.username) !== "bg_db_ro") {
-    throw new Error("Evaluation requires local DATABASE_URL_READONLY using bg_db_ro");
+    throw new Error("Evaluation requires the local read-only database URL using bg_db_ro");
   }
 
   const strata = ["opening_game", "middle_game", "race"] as const;
