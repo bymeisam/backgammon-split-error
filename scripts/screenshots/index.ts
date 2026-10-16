@@ -96,6 +96,14 @@
 //   --set=auth                only /sign-in and /auth/complete, at 1280 and
 //                             390, light and dark. The started server runs
 //                             WITHOUT AUTH_BYPASS so the real screens show.
+//   --set=snaps               only /snap-poc (the dev-only Snaps review
+//                             page), at 1280 and 390, light and dark: one
+//                             photo with a saved truth, in step 1, and in
+//                             step 2 with the corner focused, plain, hovered
+//                             (1280) and Analyzing for Light. The started
+//                             server is `next dev` (the page 404s under
+//                             `next start`), so it needs no build; nothing
+//                             is saved (Save is never pressed).
 //
 // The review session's shots take the cards in queue order (new cards in the
 // order they were added): card 1 answered with the best option, card 2
@@ -122,6 +130,7 @@ import { navShots, type NavMetric } from "./nav";
 import { startLocalServer } from "./server";
 import { AUTH_SHOTS } from "./shots/auth";
 import { FORUM_SHOTS } from "./shots/forum";
+import { SNAPS_SHOTS } from "./shots/snaps";
 import { SHOTS } from "./shots/app";
 
 async function shootAll(): Promise<void> {
@@ -149,7 +158,16 @@ async function shootAll(): Promise<void> {
     browser = await chromium.launch({ args: ["--disable-gpu"] });
     if (!SET) metrics = await navShots(browser, addTheme, written, failures);
     const variants = SET ? SET_VARIANTS : NAV_ONLY ? [] : VARIANTS;
-    const shots = SET === "forum" ? FORUM_SHOTS : SET === "auth" ? AUTH_SHOTS : SET === "review" ? SHOTS.filter((shot) => shot.name === "review") : SHOTS;
+    const shots =
+      SET === "forum"
+        ? FORUM_SHOTS
+        : SET === "auth"
+          ? AUTH_SHOTS
+          : SET === "snaps"
+            ? SNAPS_SHOTS
+            : SET === "review"
+              ? SHOTS.filter((shot) => shot.name === "review")
+              : SHOTS;
     for (const variant of variants) {
       const context = await browser.newContext({
         viewport: { width: variant.width, height: variant.width === 390 ? 844 : 900 },

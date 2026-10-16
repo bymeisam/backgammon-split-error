@@ -111,14 +111,22 @@ export async function startLocalServer(opts: ServerOptions): Promise<LocalServer
     const names = Object.values(DB_URL_VARS.local).join(", ");
     throw new Error(`Refusing to start a server: ${names} must be set (the first one at least) and point at localhost.`);
   }
-  if (!existsSync(path.join(distDir(), "BUILD_ID"))) {
+  // The snaps set shoots /snap-poc, a dev-only page (404 under `next start`,
+  // lib/snapPocFiles.ts isSnapPocEnabled), so it runs `next dev` instead:
+  // no production build needed. Its own distDir (next.config.ts reads
+  // NEXT_DIST_DIR) so it runs beside a `next dev` already running here
+  // (next dev holds a lock file inside its distDir).
+  const dev = opts.set === "snaps";
+  if (dev) env.NEXT_DIST_DIR = path.join(".next", "screenshots-dev");
+  if (!dev && !existsSync(path.join(distDir(), "BUILD_ID"))) {
     throw new Error(`No production build in ${path.relative(process.cwd(), distDir())}/. Run \`npm run build\` first.`);
   }
 
   const port = await freePort();
   const baseUrl = `http://localhost:${port}`;
   const nextBin = path.resolve(process.cwd(), "node_modules", "next", "dist", "bin", "next");
-  const child = spawn(process.execPath, [nextBin, "start", "-p", String(port)], {
+  const command = dev ? "dev" : "start";
+  const child = spawn(process.execPath, [nextBin, command, "-p", String(port)], {
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -149,7 +157,7 @@ export async function startLocalServer(opts: ServerOptions): Promise<LocalServer
   };
 
   console.log(
-    `Starting next start on port ${port} (local DB, write mode ${env.ENABLE_WRITE_MODE === "true" ? "on" : "off"}${
+    `Starting next ${command} on port ${port} (local DB, write mode ${env.ENABLE_WRITE_MODE === "true" ? "on" : "off"}${
       env.AUTH_BYPASS === "true" ? ", AUTH_BYPASS" : ""
     })…`
   );

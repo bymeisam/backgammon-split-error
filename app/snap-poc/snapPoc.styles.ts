@@ -33,7 +33,7 @@ export const style = {
   // Function, 2 params -> passed directly. Step 2 is ruled off from step 1.
   step: (active: boolean, ruled: boolean): string =>
     clsx("flex flex-col gap-2.5", ruled && "border-t border-line pt-3.5", !active && "text-ink-muted"),
-  stepHead: "flex items-center gap-2 text-sm font-semibold",
+  stepHead: "flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold",
   // Function, 1 param -> passed directly. The step's number (✓ once done).
   stepNumber: (active: boolean): string =>
     clsx(
@@ -41,7 +41,7 @@ export const style = {
       active ? "bg-primary text-on-primary" : "bg-sunken text-ink-muted ring-1 ring-inset ring-line-strong"
     ),
   stepTitle: (active: boolean): string => (active ? "text-ink" : "text-ink-muted"),
-  stepTag: "ml-auto text-[11px] font-medium text-ink-faint",
+  stepTag: "ml-auto whitespace-nowrap text-[11px] font-medium text-ink-faint",
   // A labelled control in step 2: the name on the left, the control after it.
   fieldRow: "grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 text-sm",
   fieldName: "font-medium text-ink-muted",
