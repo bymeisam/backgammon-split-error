@@ -11,17 +11,21 @@ function parseRequest(value: unknown): EngineRequest | null {
   const body = value as Record<string, unknown>;
   if (typeof body.positionId !== "string" || !/^[A-Za-z0-9+/]{14}$/.test(body.positionId)) return null;
   if (typeof body.matchId !== "string" || !/^[A-Za-z0-9+/]{12}$/.test(body.matchId)) return null;
-  const position = decodeGnuPositionId(body.positionId);
-  if (position.mineOff < 0 || position.opponentOff < 0) return null;
-  const match = decodeGnuMatchId(body.matchId);
-  if (Object.keys(body).some((key) => !["kind", "positionId", "matchId", "dice"].includes(key))) return null;
-  if (!match || match.gameState !== 1) return null;
-  if (body.kind === "cube") {
-    if ("dice" in body || match.dice.some((die) => die !== 0)) return null;
-    return { kind: "cube", positionId: body.positionId, matchId: body.matchId };
-  }
-  if (body.kind === "checker" && Array.isArray(body.dice) && body.dice.length === 2 && body.dice.every((die) => Number.isInteger(die) && Number(die) >= 1 && Number(die) <= 6)) {
-    return { kind: "checker", positionId: body.positionId, matchId: body.matchId, dice: [Number(body.dice[0]), Number(body.dice[1])] };
+  try {
+    const position = decodeGnuPositionId(body.positionId);
+    if (position.mineOff < 0 || position.opponentOff < 0) return null;
+    const match = decodeGnuMatchId(body.matchId);
+    if (!match || match.gameState !== 1) return null;
+    if (Object.keys(body).some((key) => !["kind", "positionId", "matchId", "dice"].includes(key))) return null;
+    if (body.kind === "cube") {
+      if ("dice" in body || match.dice.some((die) => die !== 0)) return null;
+      return { kind: "cube", positionId: body.positionId, matchId: body.matchId };
+    }
+    if (body.kind === "checker" && Array.isArray(body.dice) && body.dice.length === 2 && body.dice.every((die) => Number.isInteger(die) && Number(die) >= 1 && Number(die) <= 6)) {
+      return { kind: "checker", positionId: body.positionId, matchId: body.matchId, dice: [Number(body.dice[0]), Number(body.dice[1])] };
+    }
+  } catch {
+    return null;
   }
   return null;
 }

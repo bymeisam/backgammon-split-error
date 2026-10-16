@@ -50,6 +50,11 @@ describe("POST /api/engine/analyze", () => {
     expect(h.analyze).not.toHaveBeenCalled();
   });
 
+  it("rejects semantically malformed Match IDs that pass the format checks", async () => {
+    expect((await POST(request({ ...cubeBody, matchId: "gAkAAAAAAAA" }))).status).toBe(400);
+    expect(h.analyze).not.toHaveBeenCalled();
+  });
+
   it("returns a stable unavailable response without leaking internal details", async () => {
     h.analyze.mockRejectedValue(new EngineUnavailableError());
     const response = await POST(request(checkerBody));

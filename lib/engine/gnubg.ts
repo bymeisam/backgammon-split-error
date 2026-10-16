@@ -19,6 +19,7 @@ export type CubeEquities = { noDouble: number; doubleTake: number; doublePass: n
 export type CubeAnalysis = { positionId: string; action: string; equities: CubeEquities };
 
 const cubeActionLine = /^\s*Proper cube action:\s*(.+?)\s*(?:\([^)]*\))?\s*$/i;
+const cubeDepthLine = /^\s*(\d+)-ply cubeless equity\b/i;
 const cubeEquityLine = /^\s*\d+\.\s*(No double|Double,\s*pass|Double,\s*take)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s+\([^)]*\))?\s*$/i;
 
 const candidateLine = /^\s*(\d+)\.\s+Cubeful\s+(\d+)-ply\s+(.+?)\s+Eq\.:\s*([+-]?[\d.]+)(?:\s+\([^)]+\))?\s*$/;
@@ -74,6 +75,8 @@ export function parseHint(output: string, expectedPlies = EVALUATION_PLIES, move
 export function parseCubeHint(output: string, positionId: string): CubeAnalysis {
   const actionLines = output.split(/\r?\n/).map((line) => cubeActionLine.exec(line)).filter((match) => match !== null);
   const equityLines = output.split(/\r?\n/).map((line) => cubeEquityLine.exec(line)).filter((match) => match !== null);
+  const depthLines = output.split(/\r?\n/).map((line) => cubeDepthLine.exec(line)).filter((match) => match !== null);
+  if (depthLines.length !== 1 || Number(depthLines[0][1]) !== 2) throw new Error("GNU cube hint must report exactly 2-ply cubeless equity");
   if (actionLines.length !== 1 || equityLines.length !== 3) throw new Error("Ambiguous GNU cube hint output");
   const values: Record<string, number> = {};
   for (const match of equityLines) {
@@ -96,6 +99,7 @@ export async function analyzeCube(positionId: string, matchId: string): Promise<
   const output = await run([
     "new game",
     `set matchid ${matchId}`,
+    "set evaluation cubedecision plies 2",
     `set board ${positionId}`,
     "hint",
     "quit",

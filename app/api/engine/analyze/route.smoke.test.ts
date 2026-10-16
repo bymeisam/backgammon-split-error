@@ -8,7 +8,7 @@ function request(body: unknown) {
   return new Request("http://localhost/api/engine/analyze", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 }
 
-describe("POST /api/engine/analyze live GNU smoke", () => {
+describe.skipIf(process.env.GNUBG_SMOKE !== "1")("POST /api/engine/analyze live GNU smoke", () => {
   it("returns top-four checker analysis for a game-state-one Match ID", async () => {
     const response = await POST(request({ kind: "checker", positionId: "4HPwATDgc/ABMA", matchId: "cIkKAAAAAAAA", dice: [5, 2] }));
     expect(response.status).toBe(200);

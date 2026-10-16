@@ -2,6 +2,8 @@
 
 ## Setup and method
 
+The route's live Docker smoke tests are skipped by default. Run them explicitly with `GNUBG_SMOKE=1 npm test -- app/api/engine/analyze/route.smoke.test.ts` when `bg-gnubg:1.07.001` is available.
+
 The local arm64 image is `bg-gnubg:1.07.001`, built from `engine/gnubg/Dockerfile` (Debian Bookworm, `gnubg` plus `gnubg-data`). The harness is `npx tsx scripts/engine/gnubg-evaluation.ts`. It reads only local `app_dev` through `prismaReadOnly` and `localDbUrl("ro")`, checks localhost and `bg_db_ro`, and makes no writes or Galaxy calls. It takes the same stratified 200 rows (55 opening, 75 middle game, 70 bear-off) from 6,000 eligible rows, with the deterministic seeded shuffle.
 
 GNU returns per-candidate depth. The 2-ply move-filter threshold is 0.16 (`show evaluation` in the image). The corrected parser accepts rank-1 0-ply only when all candidates are 0-ply, at least two candidates are listed, and the measured top-two equity gap is strictly greater than 0.16. A lone listed candidate is not proof that only one legal move exists, so no single-legal-move or singleton exception is accepted. The post-fix rerun below exercised this corrected parser.

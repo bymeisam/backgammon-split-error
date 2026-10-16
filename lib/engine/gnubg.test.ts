@@ -19,6 +19,9 @@ describe("parseHint", () => {
       equities: { noDouble: 0.099, doubleTake: -0.171, doublePass: 1 },
     });
   });
+  it("rejects cube output that reports the wrong evaluation depth", () => {
+    expect(() => parseCubeHint(cubeFixture.replace("2-ply cubeless equity", "0-ply cubeless equity"), "x")).toThrow(/exactly 2-ply/);
+  });
   it("fails closed on incomplete or ambiguous cube fields", () => {
     expect(() => parseCubeHint(cubeFixture.replace(/^2\..*Double, pass.*$/m, ""), "x")).toThrow();
     expect(() => parseCubeHint(`${cubeFixture}${String.fromCharCode(10)}Proper cube action: Double, take`, "x")).toThrow();
