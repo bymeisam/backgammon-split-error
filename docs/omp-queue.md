@@ -4,35 +4,25 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### gnubg analysis in the position builder, phase A: local, end to end (queued 2026-10-16)
-**Don't merge master first** (`app/position-builder/`, `lib/positionBuilder.ts`, `lib/gnuPositionId.ts`, `lib/gnuMatchId.ts` and `lib/snapPocLayout.ts` are the same on both branches), unless step 1 below says so. The user approved this plan. Phase B (hosting gnubg on an Oracle Always Free Arm server) comes as a separate task once this works locally; the browser (WASM) route is parked.
+### gnubg in the builder, phase A review fixes at `cb21f54` (queued 2026-10-17)
+**Merge master first** (this queue update), then fix these on `omp/main`. The user merges `omp/main` into master after this round. Phase B (Oracle) still comes after.
 
-**Goal:** an "Analyse" button in `/position-builder` (and so in `/snap-poc`, which embeds the builder) that asks gnubg for the top 4 moves of a checker decision or the cube action of a cube decision. There is no "played move": it's a question to gnubg. Nothing is stored.
+**Code (`app/position-builder/PositionBuilder.tsx`):**
+1. **Doubling cube card hidden for checker decisions** (`:463`, `!crawford && state.decisionType === "cube"`). Cube value and owner matter for checker play, the Match ID and forum posts, and a cube read from a photo on `/snap-poc` would stay in effect with no control. Show the card in both modes; hide it only when Crawford is on.
+2. **Crawford with an owned cube.** Turning Crawford on leaves an owned cube (e.g. 4, Top) in place and sends it to gnubg. On Crawford on, reset the cube to centred 1 (or add it to the missing-inputs list). Add a test.
+3. **Forum post drops Crawford.** `postToForum` (`:199`) calls `canonicalPositionForForum(state)` without `crawford`. Pass it.
+4. **Nit:** `crawfordEligible` (`:91`) is true when both sides are 1-away (post-Crawford). Require exactly one side at `matchLength - 1`.
 
-1. **Orientation and perspective: done on master. Merge master now** (`a4b6795`, 2026-10-16), then `npx prisma generate`. `canonicalPositionForForum` now flips the position for the top side to move (Match ID score and cube owner follow the on-roll player) and writes `gameState: 1`; checked against gnubg for both sides, checker and cube. Use its IDs for the Analyse button; drop any gameState-1 workaround. Master is also building a two-step orientation card on `/snap-poc` (it may add optional display props to `PositionBuilder.tsx`/`Board.tsx`); keep your builder changes in their own small components and merge master again before your screenshots to catch conflicts early. The rest of phase A (steps 2, 4, 5, 7) is unblocked.
-2. **Inputs in the builder.**
-   - Score and match length: already editable; keep.
-   - **Checker decision:** the dice colour shows whose move it is and replaces the "Switch decision side" button as the control.
-   - **Cube decision:** draw the cube offered on the board on the doubling side's half (the Board can already draw an offered cube), so the board shows who's deciding. gnubg's answer goes underneath it (step 5). No separate "double offered / accepted" state: one cube analysis from the doubler's side answers both players (e.g. "No double, take" = the doubler shouldn't double, and the taker should take). The Match ID stays `doubleOffered: false`.
-   - **Crawford:** a toggle shown only in match play when one side is exactly one point from winning. When on: cube decisions are disabled (dead cube), only checker decisions, and the Match ID's `crawford` bit is set. Post-Crawford needs no input (same score, Crawford off).
-   - Photos don't read score, match length or side: the user sets them.
-3. **Engine route** `POST /api/engine/analyze`, members only (same guard as the builder page). Body: the builder state (or its Position ID + Match ID + kind). It calls the engine through one small interface in `lib/engine/` so phase B can swap local Docker for a remote service without touching the builder. Phase A: local Docker only; if Docker or the image isn't available, the route answers "engine unavailable" and the button is hidden. No DB, no storage.
-4. **Check before analysing.** On click, list what's missing instead of calling gnubg: legal position (`validateBuilderState`); checker decision needs dice; cube decision needs the cube centred or owned by the doubler, and not a Crawford game. Show the side to move, score and match length in that summary so the user can confirm them.
-5. **Results.**
-   - Checker: top 4 moves with equity, difference from the best, and the depth gnubg used; label single-survivor (0-ply) rows. "No legal moves" when there are none.
-   - Cube: under the offered cube, gnubg's proper action (e.g. "No double / Take", "Double / Pass", "Too good / Pass"), and the No double, Double/take and Double/pass equities.
-   - Label the panel "GNU Backgammon 2-ply". Never mix it with Galaxy numbers. Reuse the replay's candidate-move list styling where it fits.
-6. **Wrapper (`lib/engine/gnubg.ts`).** Add a cube-decision call (gnubg's cube hint with no dice, read the cube action and the three equities) with fixture tests, fail-closed like the move parser, and a way to get the top 4 moves.
-7. **Design and screenshots.** The cube answer under the offered cube is a new kind of visible component: before building it, write a short note in your done entry of what you'll show, and the main session brings in the designer if needed. Screenshots (`scripts/screenshots/index.ts` into `design/screenshots/<date>-builder-engine/`, gitignored, don't `git add -f`): checker result, cube result, Crawford on, missing-dice message, at 390 and 1280. The visual-reviewer checks them from master.
+**Visual (visual-reviewer, 390 shots):**
+5. **Dice show "1–1" when no dice are set** (`:395`, `value={state.roll?.[index] ?? 1}`) while the panel says "Set both dice". Add an empty "–" option when `roll` is null.
+6. **Crawford checkbox** (`:454-460`) is unstyled, centred alone under its label, small tap target. Add a checkbox-row style in `positionBuilder.styles.ts` (or a shared checkbox if one exists).
+7. **Cube action line** (`:307`, "No double, take") is a bare `<p>` in a non-token size. Give it a style in the styles file.
+8. **Signed equities:** one helper for the sign and format (check `lib/` for an existing one), used by the checker and cube rows. Use the same minus everywhere (checker rows show `−`, cube rows `-`).
+9. **Nits:** diff/depth text uses `controlHint` (faint) and is low contrast in dark at 390, consider `text-ink-muted`; a small "Top 4 moves" / "Cube action" label above the results. Check whether the replay's candidate-list styling has a shared primitive before keeping local copies.
 
-Checks: `npm test`, tsc, lint, the new tests above, a live local run of the route for one checker and one cube position.
+Retake the full `builder` set (`design/screenshots/<date>-builder-engine/`, all 16, gitignored). The visual-reviewer checks all of them, including 1280 and both themes.
 
-**Review notes at `a6d9fcc` (add these to the rest of phase A):**
-- **The live smoke test runs in `npm test`.** `app/api/engine/analyze/route.smoke.test.ts` needs Docker and the image, so `npm test` fails or slows down wherever they're missing. Skip it unless an env flag such as `GNUBG_SMOKE=1` is set (`describe.skipIf`), and note the command in the report.
-- **Pin and check the cube depth.** `analyzeCube` relies on gnubg's default cube-decision depth. Set `set evaluation cubedecision plies 2` explicitly (check the syntax in the image), and fail closed unless the output's "N-ply cubeless equity" line says 2-ply, the same as the move parser. Add a fixture test for the wrong-depth case.
-- **Malformed IDs return a 500.** In `parseRequest`, `decodeGnuPositionId` and `decodeGnuMatchId` can throw on input that passes the regex (e.g. wrong checker totals). Wrap them in try/catch so the route answers 400. Add a route test.
-- **Unblocked:** see step 1 (merge master, `a4b6795`).
- No schema, no Oracle, no `.env*`, no stored results, no push.
+Checks: `npm test`, tsc, lint, `GNUBG_SMOKE=1` smoke. No schema, no Oracle, no `.env*`, no push.
 
 ## Schema requests (omp → master)
 
@@ -46,6 +36,7 @@ _Use this shape:_
 
 ## Checked and done (master)
 
+- **GNU analysis in the position builder, phase A (steps 2, 4, 5, 7) + screenshot fix**: `ece315c` + `636be3d` (2026-10-16). Checked by the main session (code) and the visual-reviewer (390 shots); not merged into master yet. Good: Analyse button and request, 503 hides the button, results tied to their input (`inputKey`), missing-inputs list, top 4 with single-survivor label, "GNU Backgammon 2-ply" label with no Galaxy numbers, offered cube drawn at double the value, sticky-navbar fix. Review fixes queued in the `cb21f54` task above. omp: drop your "to check" entries when you next merge master.
 - **GNU analysis phase A, steps 3 and 6 (route + wrapper)**: `a6d9fcc` + `64d22b5` (2026-10-16). Checked by the main session; not merged into master yet. Good: member-tier route with strict input checks, the engine interface in `lib/engine/index.ts` (ready for phase B's remote engine), a 503 when Docker or the image is missing, `--pull=never`, the gameState-1 guard, top 4, and a fail-closed cube parser with a real fixture. Review notes are added to the phase A task above. omp: drop your "to check" entry when you next merge master.
 - **Review notes at `3bcd4ed`: move-filter explanation for the 0-ply rank 1**: `718e59e` + `29d1ce7` + `fa989c3` + `9b4c5fe` + `68e2ac8` (2026-10-16). Checked by the main session; not merged into master yet. Hypothesis confirmed cleanly: all 35 rejects have exactly one move within gnubg's 0.16 filter (gap 0.161–2.000), all 165 accepted have ≥2 (max gap 0.155), and widening the filter brought rank 1 back to 2-ply on 3/3. Parser rule is right (≥2 listed, all 0-ply, gap > threshold; lone candidate still throws), with fixture tests. Rerun: 200/200, 183/200 agreement (35/35 single-survivor, 148/165 otherwise). Small notes for a later task, not blocking: the "to check" entry cites `9dbd075`, which isn't on `omp/main`; and in `evaluateMany` the no-legal-move empty groups are spliced in after `parseHints`, so a depth error's "roll index" can be off when an earlier roll had no legal move. omp: drop your "to check" entries when you next merge master.
 - **Review notes at `1809cce` (rejections classified, prune test, loss by severity, report rewrite, `scripts/engine/` move)**: `3bcd4ed` + `52edc8c` (2026-10-16). Checked by the main session; not merged into master yet. Good: honest fail-closed result, all 35 rejections logged, severity-split loss (ERROR+BLUNDER median 0.0156), clean report. The 0-ply pattern looks like gnubg's move filter leaving a single survivor; follow-up in the `3bcd4ed` task above. omp: drop your "to check" entries when you next merge master.
