@@ -54,6 +54,15 @@ export const SNAPS_SHOTS: Shot[] = [
       await shoot("snaps-step2-light", "full");
       await toWorkArea();
       await shoot("snaps-step2-light", "viewport");
+
+      // Light's home board on top corner 2: the point numbers count from
+      // Light's side (1 at the outer edge of corner 2).
+      await page.getByRole("radio", { name: "2 · Top-right" }).click();
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await settle(page);
+      await shoot("snaps-step2-light-corner2", "full");
+      await toWorkArea();
+      await shoot("snaps-step2-light-corner2", "viewport");
     },
   },
 ];

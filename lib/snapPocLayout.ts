@@ -260,6 +260,14 @@ export function boardHomeLeft(o: SnapOrientation): boolean {
   return viewHome(o) === "left";
 }
 
+/** The builder's `numbersFrom` in step 2: point numbering starts from the
+ * analysed colour's home board (point 1 at the outer edge of its corner), so
+ * it counts from the top player's side when the analysed colour is drawn at
+ * the top. Only the printed numbers change, never the position. */
+export function boardNumbersFrom(o: SnapOrientation): "mine" | "opponent" {
+  return playerToMove(o);
+}
+
 /** Board's `swapCheckerColors`: Board draws `mine` dark, so a light bottom
  * colour is swapped to draw the photo's colours; "Swap colours" flips that. */
 export function boardSwapColors(o: SnapOrientation, swapColors: boolean): boolean {

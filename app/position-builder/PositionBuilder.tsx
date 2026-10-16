@@ -53,6 +53,12 @@ function numberValue(value: string): number {
 // swapCheckerColors). Display only: the state, pips and sides don't change.
 // showPips: off hides the pip counts in the caption (app/snap-poc's step 1,
 // before the game is set). cornerGuide: Board's home board guide.
+// numbersFrom: whose home board the printed point numbers count from
+// (default "mine"; "opponent" prints 25 - point via Board's `flipped`, which
+// here changes only the numbers: rollSide is passed and there are no move
+// arrows). The hit areas' "Edit point N" labels follow the printed numbers;
+// clicks still report the logical point. app/snap-poc's step 2 numbers from
+// the analysed colour's side.
 export default function PositionBuilder({
   canPostToForum,
   initialState,
@@ -61,6 +67,7 @@ export default function PositionBuilder({
   swapCheckerColors = false,
   showPips = true,
   cornerGuide,
+  numbersFrom = "mine",
 }: {
   canPostToForum: boolean;
   initialState?: PositionBuilderState;
@@ -69,6 +76,7 @@ export default function PositionBuilder({
   swapCheckerColors?: boolean;
   showPips?: boolean;
   cornerGuide?: BoardCornerGuide;
+  numbersFrom?: Side;
 }) {
   const router = useRouter();
   const [state, setState] = useState<PositionBuilderState>(initialState ?? initialPositionBuilderState);
@@ -199,6 +207,10 @@ export default function PositionBuilder({
             rollSide={state.playerToMove}
             cube={cube}
             homeLeft={homeLeft}
+            flipped={numbersFrom === "opponent"}
+            interactivePointLabel={
+              numbersFrom === "opponent" ? (point) => `Edit point ${25 - point}` : undefined
+            }
             swapCheckerColors={swapCheckerColors}
             cornerGuide={cornerGuide}
             onPointClick={(point) => edit(point)}
