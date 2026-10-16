@@ -1,6 +1,6 @@
 import type { CubeOwner, Side } from "@/lib/boardGeometry";
 import { encodeGnuMatchId, type DecodedMatchId, type GnuPlayer } from "@/lib/gnuMatchId";
-import { encodeGnuPositionId, type DecodedPosition } from "@/lib/gnuPositionId";
+import { encodeGnuPositionId, flipPerspective, type DecodedPosition } from "@/lib/gnuPositionId";
 export type BuilderAction = "add" | "remove";
 export type BuilderLocation = number | "bar";
 export type DecisionType = "checker" | "cube";
@@ -191,23 +191,37 @@ export function canonicalPositionForForum(state: PositionBuilderState): {
 } {
   const errors = validateBuilderState(state);
   if (errors.length > 0) throw new Error(errors.join(" "));
-  const diceOwner: GnuPlayer = state.playerToMove === "mine" ? 1 : 0;
+  // Both IDs are written from the on-roll player's point of view: the
+  // Position ID's "mine" is the side on roll, and the Match ID numbers the
+  // players so diceOwner/turn is that side, score[diceOwner] is its score and
+  // the cube owner is relative to it. The builder always has bottom = mine,
+  // so a top-to-move position is flipped into the on-roll frame. (Bottom to
+  // move keeps diceOwner 1, as before.)
+  const bottomToMove = state.playerToMove === "mine";
+  const diceOwner: GnuPlayer = bottomToMove ? 1 : 0;
   const otherPlayer: GnuPlayer = diceOwner === 1 ? 0 : 1;
+  const [bottomScore, topScore] = state.score;
+  const onRollScore = bottomToMove ? bottomScore : topScore;
+  const otherScore = bottomToMove ? topScore : bottomScore;
+  const score: [number, number] = diceOwner === 1 ? [otherScore, onRollScore] : [onRollScore, otherScore];
   const match: DecodedMatchId = {
     cubeValue: state.cubeValue,
-    cubeOwner: state.cubeOwner === "center" ? null : state.cubeOwner === "mine" ? diceOwner : otherPlayer,
+    cubeOwner:
+      state.cubeOwner === "center" ? null : state.cubeOwner === state.playerToMove ? diceOwner : otherPlayer,
     diceOwner,
     crawford: false,
-    gameState: 0,
+    // 1 = game in progress. gnubg refuses to set a board from a Match ID
+    // whose game state is 0 ("no game").
+    gameState: 1,
     turn: diceOwner,
     doubleOffered: false,
     resignationOffered: 0,
     dice: state.decisionType === "checker" && state.roll ? state.roll : [0, 0],
     matchLength: state.matchLength,
-    score: state.playerToMove === "mine" ? [state.score[1], state.score[0]] : [state.score[0], state.score[1]],
+    score,
   };
   return {
-    positionId: encodeGnuPositionId(state.position),
+    positionId: encodeGnuPositionId(bottomToMove ? state.position : flipPerspective(state.position)),
     gnuMatchId: encodeGnuMatchId(match),
     kind: state.decisionType === "checker" ? "CHECKER" : "CUBE",
   };

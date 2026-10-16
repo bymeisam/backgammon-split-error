@@ -104,15 +104,9 @@ describe("canonicalPositionForForum side to move", () => {
     expect(match.dice).toEqual([3, 1]);
   });
 
-  // KNOWN BUG (left failing on purpose; the fix needs the user's approval):
-  // canonicalPositionForForum encodes state.position as is, so the bottom
-  // side always lands in the on-roll slot, and with playerToMove "opponent"
-  // the Match ID's player numbering follows it (score and cube owner make
-  // the on-roll player 0 = bottom). The top side is never the one on roll:
-  // GNU reads this as bottom to play 3-1 with 157 pips. Expected: the
-  // position flipped (flipPerspective) so top's checkers are in the on-roll
-  // slot, on roll 143 / other 157.
-  it.fails("top to move: top's checkers are on roll, on roll 143 / other 157", () => {
+  // The top side on roll: the position is flipped (flipPerspective) so
+  // top's checkers are in the on-roll slot.
+  it("top to move: top's checkers are on roll, on roll 143 / other 157", () => {
     const s = state("opponent");
     const { position, match } = decode(s);
     expect(match.diceOwner).toBe(match.turn);
@@ -120,10 +114,59 @@ describe("canonicalPositionForForum side to move", () => {
     expect(pipCounts(position)).toEqual({ mine: 143, opponent: 157 });
   });
 
-  // Same bug, seen through the score: the on-roll player's score in the
-  // Match ID should be top's (4), but is bottom's (2).
-  it.fails("top to move: the on-roll player's Match ID score is top's (4)", () => {
+  // The on-roll player's score in the Match ID is top's (4).
+  it("top to move: the on-roll player's Match ID score is top's (4)", () => {
     const { match } = decode(state("opponent"));
     expect(match.score[match.diceOwner]).toBe(4);
+  });
+
+  it("marks the game as in progress (gnubg refuses a Match ID with no game)", () => {
+    expect(decode(state("mine")).match.gameState).toBe(1);
+    expect(decode(state("opponent")).match.gameState).toBe(1);
+  });
+
+  // Pinned IDs, checked in gnubg 1.07.001. Bottom to move: the Position ID
+  // is unchanged from before the side-to-move fix; the Match ID differs from
+  // the old one (cIjlAEAAEAAA) only by gameState 0 -> 1.
+  it("pins the bottom-to-move and top-to-move IDs", () => {
+    expect(canonicalPositionForForum(state("mine"))).toEqual({
+      positionId: "sM/gABjMc/AAKA",
+      gnuMatchId: "cInlAEAAEAAA",
+      kind: "CHECKER",
+    });
+    expect(canonicalPositionForForum(state("opponent"))).toEqual({
+      positionId: "mOfgAVCwz+AAGA",
+      gnuMatchId: "MIHlAEAAEAAA",
+      kind: "CHECKER",
+    });
+  });
+
+  it("puts an owned cube with the right player for either side to move", () => {
+    for (const playerToMove of ["mine", "opponent"] as const) {
+      for (const cubeOwner of ["mine", "opponent"] as const) {
+        const s = state(playerToMove);
+        s.cubeValue = 2;
+        s.cubeOwner = cubeOwner;
+        const { match } = decode(s);
+        expect(match.cubeValue).toBe(2);
+        const ownerIsOnRoll = cubeOwner === playerToMove;
+        expect(match.cubeOwner).toBe(ownerIsOnRoll ? match.diceOwner : 1 - match.diceOwner);
+      }
+    }
+  });
+
+  it("encodes a cube decision (no dice) for either side to move", () => {
+    for (const playerToMove of ["mine", "opponent"] as const) {
+      const s = state(playerToMove);
+      s.decisionType = "cube";
+      s.roll = null;
+      const ids = canonicalPositionForForum(s);
+      expect(ids.kind).toBe("CUBE");
+      const { position, match } = decode(s);
+      expect(match.dice).toEqual([0, 0]);
+      expect(match.diceOwner).toBe(match.turn);
+      expect(pipCounts(position).mine).toBe(playerToMove === "mine" ? 157 : 143);
+      expect(match.score[match.diceOwner]).toBe(playerToMove === "mine" ? 2 : 4);
+    }
   });
 });
