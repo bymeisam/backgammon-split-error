@@ -10,6 +10,7 @@ import {
   BAR_COL,
   BOARD_H,
   BOARD_W,
+  CORNER_BADGE_R,
   CUBE_BADGE_R,
   DIE_SIZE,
   ROW_H,
@@ -28,6 +29,7 @@ import {
   barStackBase,
   colCenterX,
   colX,
+  cornerBadgeCenter,
   cubeBadgeCenter,
   diePips,
   diePosition,
@@ -40,9 +42,11 @@ import {
   offTrayRect,
   pointColumn,
   pointRow,
+  quadrantRect,
   stackBase,
   stackSlotY,
   trianglePoints,
+  type BoardCorner,
   type Side,
   type StackBase,
 } from "@/lib/boardGeometry";
@@ -62,7 +66,43 @@ import { style, type ArrowTier } from "./BoardPanel.styles";
 // (drawnPoint), which picks the label, the checkers' counts, the highlight
 // and the point the callbacks report. So with homeLeft on, the SVG differs
 // from the default only where the data differs, and a position re-mapped to
-// match (app/snap-poc's Mirror numbers) differs only in the label text.
+// match (app/snap-poc, which draws each photo column on its own screen
+// column) differs only in the label text.
+
+// The optional home board guide (app/snap-poc's step 2): the four corner
+// badges 1-4 in the frame corners, the selected one showing "H" with
+// `selectedTitle` as its tooltip, and a wash over the `highlighted` quadrant.
+export interface BoardCornerGuide {
+  selected: BoardCorner;
+  selectedTitle: string;
+  highlighted: BoardCorner | null;
+}
+
+const BOARD_CORNERS: readonly BoardCorner[] = [1, 2, 3, 4];
+
+function CornerGuide({ guide }: { guide: BoardCornerGuide }) {
+  const wash = guide.highlighted ? quadrantRect(guide.highlighted) : null;
+  return (
+    <>
+      {wash && (
+        <rect x={wash.x + 1} y={wash.y + 1} width={wash.width - 2} height={wash.height - 2} rx={2} className={style.cornerWash} />
+      )}
+      {BOARD_CORNERS.map((corner) => {
+        const { x, y } = cornerBadgeCenter(corner);
+        const selected = corner === guide.selected;
+        return (
+          <g key={corner}>
+            {selected && <title>{guide.selectedTitle}</title>}
+            <circle cx={x} cy={y} r={CORNER_BADGE_R} className={style.cornerBadge(selected)} />
+            <text x={x} y={y} textAnchor="middle" dominantBaseline="central" className={style.cornerBadgeText(selected)}>
+              {selected ? "H" : corner}
+            </text>
+          </g>
+        );
+      })}
+    </>
+  );
+}
 
 function OffTray({ side, count, swapColors }: { side: Side; count: number; swapColors: boolean }) {
   const { fill, contrast, rim } = checkerColors(side, swapColors);
@@ -313,6 +353,7 @@ export default function Board({
   flipped = false,
   homeLeft = false,
   swapCheckerColors = false,
+  cornerGuide,
   cube = null,
   onPointKeyDown,
   onBarKeyDown,
@@ -345,6 +386,8 @@ export default function Board({
   // other side's colours (app/snap-poc's "Swap colours"). The position,
   // sides and callbacks are unchanged.
   swapCheckerColors?: boolean;
+  // app/snap-poc's home board guide (see BoardCornerGuide); unset elsewhere.
+  cornerGuide?: BoardCornerGuide;
   cube?: BoardCube | null;
   onPointKeyDown?: (point: number) => void;
   onBarKeyDown?: (side: Side) => void;
@@ -489,6 +532,8 @@ export default function Board({
           />
         ))}
       </g>
+
+      {cornerGuide && <CornerGuide guide={cornerGuide} />}
 
       {/* landing markers, over the checkers (a hit lands on a blot) */}
       {interactivePointHighlight &&

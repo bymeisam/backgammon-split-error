@@ -39,13 +39,16 @@ export async function POST(req: Request) {
     image,
     model: run.model,
     promptVersion: run.version,
-    // mirroredNumbers and rotated are written only when on, so a default
-    // board saves the same shape as before they existed.
+    // rotated and layoutMirrored are written only when on, so a default
+    // board saves the same shape as before they existed; analyzingFor is
+    // written when sent (absent means bottomColor). The retired
+    // mirroredNumbers flag is no longer written (lib/snapPocLayout.ts).
     orientation: {
       bottomColor: body.orientation.bottomColor,
       bottomHome: body.orientation.bottomHome,
-      ...(body.orientation.mirroredNumbers ? { mirroredNumbers: true } : {}),
       ...(body.orientation.rotated ? { rotated: true } : {}),
+      ...(body.orientation.layoutMirrored ? { layoutMirrored: true } : {}),
+      ...(body.orientation.analyzingFor ? { analyzingFor: body.orientation.analyzingFor } : {}),
     },
     layout: layout.layout,
     savedAt: new Date().toISOString(),

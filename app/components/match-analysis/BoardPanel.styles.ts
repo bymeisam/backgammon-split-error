@@ -101,6 +101,19 @@ export const style = {
   // 15u there, and the mockup's 10u from sm up.
   pointNumber: "fill-board-number font-sans text-[15px] font-medium tabular-nums sm:text-[10px]",
   offSlotEmpty: "stroke-board-number/25",
+  // app/snap-poc's home board guide (Board's `cornerGuide`). The wash over a
+  // hovered or focused quadrant: the focus colour (neither a severity nor a
+  // checker colour), light enough that the checkers read through it.
+  cornerWash: "pointer-events-none fill-focus/16 stroke-focus [stroke-dasharray:6_4] [stroke-width:2]",
+  // Function, 1 param -> passed directly. The 1-4 badges in the frame
+  // corners: outlined, and filled for the selected home board ("H").
+  cornerBadge: (selected: boolean): string =>
+    clsx("stroke-board-number [stroke-width:1.2]", selected ? "fill-board-number" : "fill-none"),
+  cornerBadgeText: (selected: boolean): string =>
+    clsx(
+      "pointer-events-none font-sans text-[13px] font-bold sm:text-[11px]",
+      selected ? "fill-board-frame" : "fill-board-number"
+    ),
   // Function, 1 param -> passed directly. The faint inner ring that makes a
   // checker look turned.
   checkerRing: (side: "mine" | "opponent"): string =>

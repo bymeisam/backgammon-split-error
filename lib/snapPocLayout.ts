@@ -129,110 +129,147 @@ export function snapCheckerTotals(layout: SnapLayout): { light: number; dark: nu
 // ---------------------------------------------------------------------------
 // Layout <-> position builder state (step 2's review page).
 
-/** How the photo's visual layout maps onto the builder: which colour is
- * drawn along the bottom edge (the builder's "Bottom" side, `mine`), and on
- * which side of the photo the photo's bottom player's home board is.
- * `mirroredNumbers` only changes the drawing: the review page draws the board
- * mirrored (point 1 bottom-left, Board's `homeLeft`); it plays no part in the
- * layout mapping below. `rotated` is a view change only, as if the viewer
- * walked round the table: every checker stays on the same point for its own
- * colour, and only which colour is drawn at the bottom changes. toggleRotate
- * swaps `bottomColor`, so it always names the colour drawn at the bottom;
- * `bottomHome` keeps describing the photo as taken, and the mapping below
- * reads the layout turned 180 degrees (rotateLayout180) with the home side
- * swapped too (viewHome), and turns it back on the way out, so stored layouts
- * stay in the photo's own frame. Both flags are optional, and absent means
- * false, so truth files saved before they existed load unchanged.
+/** How the photo's layout maps onto the builder, in /snap-poc's two steps.
  *
- * `bottomColor` is set through the review page's "I am" control, which names
- * the user's colour in the photo: the near player, at the bottom of the photo
- * as taken. It changes who owns which checkers, so it changes the game and
- * the pip counts. Because Rotate flips `bottomColor`, the control reads and
- * writes it through myColor/setMyColor, so its value doesn't move with Rotate.
- * The "Swap colours" toggle is separate: a drawing-only swap (Board's
- * swapCheckerColors), outside this type. */
+ * Step 1, "Make the board match the photo", sets the view: `rotated` (read
+ * the layout turned 180 degrees, as if the viewer walked round the table)
+ * and `layoutMirrored` (read the layout mirrored left to right, for a
+ * reading that came out back to front). The builder draws the layout after
+ * those two transforms (orientedLayout) as it is: each photo column on the
+ * same screen column (Board's `homeLeft` follows the home side, boardHomeLeft)
+ * and each photo colour in its own colour (boardSwapColors). Rotate never
+ * changes the game; Mirror changes it (the checkers move relative to the
+ * home boards). "Swap colours" is a drawing-only flip, outside this type.
+ *
+ * Step 2, "Make the game right", sets the game on the board as drawn:
+ * `analyzingFor` (the player to move) and which drawn corner is that
+ * colour's home board (homeCorner / setHomeCorner). Stored as
+ * - `bottomColor`: the colour drawn along the bottom (the builder's `mine`);
+ *   toggleRotate swaps it, so it always names the colour drawn at the bottom;
+ * - `bottomHome`: the side of the bottom colour's home board in the layout
+ *   unrotated (after the mirror); viewHome gives the side as drawn;
+ * - `analyzingFor`: absent means `bottomColor` (the bottom player to move).
+ *
+ * Every flag is optional and absent means off, so truth files saved before
+ * they existed load as the game they always gave. `mirroredNumbers` is a
+ * retired drawing-only flag: still accepted in old files, ignored. Stored
+ * layouts stay in the photo's own frame: builderStateToLayout undoes the
+ * step 1 transforms, so scoring (lib/snapPocScore.ts) never sees them. */
 export interface SnapOrientation {
   bottomColor: "light" | "dark";
   bottomHome: "right" | "left";
+  /** Retired (old truth files only); ignored. */
   mirroredNumbers?: boolean;
   rotated?: boolean;
+  layoutMirrored?: boolean;
+  analyzingFor?: "light" | "dark";
 }
 
 export const DEFAULT_SNAP_ORIENTATION: SnapOrientation = { bottomColor: "dark", bottomHome: "right" };
+
+/** A corner of the board as drawn, in reading order: 1 top-left, 2 top-right,
+ * 3 bottom-left, 4 bottom-right. */
+export type SnapCorner = 1 | 2 | 3 | 4;
+export const SNAP_CORNERS: readonly SnapCorner[] = [1, 2, 3, 4];
+
+export function cornerRow(corner: SnapCorner): "top" | "bottom" {
+  return corner <= 2 ? "top" : "bottom";
+}
+
+export function cornerSide(corner: SnapCorner): "left" | "right" {
+  return corner % 2 === 1 ? "left" : "right";
+}
+
+function cornerAt(row: "top" | "bottom", side: "left" | "right"): SnapCorner {
+  return ((row === "top" ? 1 : 3) + (side === "left" ? 0 : 1)) as SnapCorner;
+}
+
+/** "Bottom-right" and so on. */
+export function cornerName(corner: SnapCorner): string {
+  const row = cornerRow(corner);
+  return `${row === "top" ? "Top" : "Bottom"}-${cornerSide(corner)}`;
+}
 
 function otherHome(home: SnapOrientation["bottomHome"]): SnapOrientation["bottomHome"] {
   return home === "right" ? "left" : "right";
 }
 
-/** "Mirror checkers": the checkers mirror left-right on screen and the point
- * numbers stay put. Only the layout mapping flips. */
+/** Step 1 "Mirror checkers": read the layout mirrored left to right, for a
+ * reading that came out back to front. The drawing mirrors, the drawn home
+ * corner stays, so the game changes (by design). Its own inverse. */
 export function toggleMirrorCheckers(o: SnapOrientation): SnapOrientation {
-  return { ...o, bottomHome: otherHome(o.bottomHome) };
+  return { ...o, layoutMirrored: !o.layoutMirrored };
 }
 
-/** "Mirror numbers": the point numbers mirror and the checkers stay where
- * they are on screen. The board is drawn mirrored and the layout mapping
- * flips with it, so each photo column still lands on the same screen column. */
-export function toggleMirrorNumbers(o: SnapOrientation): SnapOrientation {
-  return { ...o, bottomHome: otherHome(o.bottomHome), mirroredNumbers: !o.mirroredNumbers };
-}
-
-/** "Rotate board": view the board from the other side of the table. The
- * game doesn't change: each colour keeps its points, bar, tray and pip count,
- * and a cube owned by a colour stays with that colour. The colour drawn at
- * the bottom swaps (so the builder's Bottom/Top swap); `bottomHome` and
- * `mirroredNumbers` are untouched, so the two mirror toggles read the same.
- * Its own inverse. */
+/** Step 1 "Rotate board": view the board from the other side of the table.
+ * The game doesn't change: each colour keeps its points, bar, tray and pip
+ * count, and a cube owned by a colour stays with that colour. The colour
+ * drawn at the bottom swaps and the drawn home corner turns with the board
+ * (1<->4, 2<->3). Its own inverse. */
 export function toggleRotate(o: SnapOrientation): SnapOrientation {
   return { ...o, bottomColor: otherColor(o.bottomColor), rotated: !o.rotated };
 }
 
-/** "I am": the user's colour in the photo, i.e. the near player's (the one
- * at the bottom of the photo as taken). Independent of Rotate: rotated, the
- * colour drawn at the bottom is the other one. */
-export function myColor(o: SnapOrientation): SnapOrientation["bottomColor"] {
-  return o.rotated ? otherColor(o.bottomColor) : o.bottomColor;
+/** The colour step 2 analyses for (the player to move). */
+export function analyzingFor(o: SnapOrientation): "light" | "dark" {
+  return o.analyzingFor ?? o.bottomColor;
 }
 
-/** Set "I am" to `color`: picks `bottomColor` so that myColor gives `color`
- * back, with Rotate left as it is. Changes ownership (the game and pips). */
-export function setMyColor(o: SnapOrientation, color: SnapOrientation["bottomColor"]): SnapOrientation {
-  return { ...o, bottomColor: o.rotated ? otherColor(color) : color };
+/** Step 2 "Analyzing for": keeps the game (who owns which checkers), so the
+ * home corner moves to the other colour's home (other row, same side). */
+export function setAnalyzingFor(o: SnapOrientation, color: "light" | "dark"): SnapOrientation {
+  return { ...o, analyzingFor: color };
 }
 
-/** The /snap-poc orientation controls, by key. */
-export type SnapOrientationControl = "iAm" | "mirrorCheckers" | "mirrorNumbers" | "rotate" | "swapColors";
-
-/** The orientation the /snap-poc trial mode applies, with only the controls
- * in `active` free to change it. The controls that never change the game
- * (Rotate, and "swapColors", which isn't part of SnapOrientation and is
- * handled by the caller) are neutralised when inactive: Rotate off, keeping
- * "I am". Mirror numbers (being dropped) is neutralised to off. The
- * game-changing controls ("I am" and Mirror checkers) keep the saved values
- * when inactive (`myColor(o)` and `bottomHome` pass through), so the game
- * shown is the saved one and stays fixed. An active control's value passes
- * through. Used by /snap-poc's temporary trial mode, where the controls are
- * re-enabled in stages. */
-export function effectiveOrientation(
-  o: SnapOrientation,
-  active: ReadonlySet<SnapOrientationControl>
-): SnapOrientation {
-  let next: SnapOrientation = { ...o };
-  if (!active.has("rotate")) {
-    // Keep "I am" as it was: drop the rotation without changing myColor.
-    next = { ...next, bottomColor: myColor(next), rotated: false };
-  }
-  if (!active.has("mirrorNumbers")) next = { ...next, mirroredNumbers: false };
-  // Inactive "iAm" and "mirrorCheckers": nothing to do, myColor and
-  // bottomHome are the saved values and the steps above leave them alone.
-  return next;
-}
-
-/** The bottom player's home side in the view the builder maps: the photo's
- * own `bottomHome`, or the other side when rotated (turning the board 180
- * degrees moves the home boards to the other side of the view). */
-function viewHome(o: SnapOrientation): SnapOrientation["bottomHome"] {
+/** The bottom player's home side as drawn: `bottomHome`, or the other side
+ * when rotated (turning the board 180 degrees moves the home boards to the
+ * other side of the view). */
+export function viewHome(o: SnapOrientation): SnapOrientation["bottomHome"] {
   return o.rotated ? otherHome(o.bottomHome) : o.bottomHome;
+}
+
+/** The drawn corner of `color`'s home board (default: the analysed colour).
+ * The bottom colour's home is on the bottom row, the other's on the top row,
+ * both on the drawn home side. */
+export function homeCorner(o: SnapOrientation, color: "light" | "dark" = analyzingFor(o)): SnapCorner {
+  return cornerAt(color === o.bottomColor ? "bottom" : "top", viewHome(o));
+}
+
+/** Step 2 "Home board": the analysed colour's home is drawn corner `corner`.
+ * Keeps the step 1 view (rotated, layoutMirrored) and the analysed colour. */
+export function setHomeCorner(o: SnapOrientation, corner: SnapCorner): SnapOrientation {
+  const color = analyzingFor(o);
+  const side = cornerSide(corner);
+  return {
+    ...o,
+    analyzingFor: color,
+    bottomColor: cornerRow(corner) === "bottom" ? color : otherColor(color),
+    bottomHome: o.rotated ? otherHome(side) : side,
+  };
+}
+
+/** The builder's player to move: the analysed colour's side. */
+export function playerToMove(o: SnapOrientation): "mine" | "opponent" {
+  return analyzingFor(o) === o.bottomColor ? "mine" : "opponent";
+}
+
+/** Board's `homeLeft`: point 1 drawn on the left when the bottom home board
+ * is drawn on the left. With it, each column of the oriented layout lands on
+ * the same screen column (pointAt follows Board's drawing). */
+export function boardHomeLeft(o: SnapOrientation): boolean {
+  return viewHome(o) === "left";
+}
+
+/** Board's `swapCheckerColors`: Board draws `mine` dark, so a light bottom
+ * colour is swapped to draw the photo's colours; "Swap colours" flips that. */
+export function boardSwapColors(o: SnapOrientation, swapColors: boolean): boolean {
+  return (o.bottomColor === "light") !== swapColors;
+}
+
+/** The layout mirrored left to right: each row reversed. Bar, trays, dice
+ * and a cube's top/bottom don't change. Its own inverse. */
+export function mirrorLayout(layout: SnapLayout): SnapLayout {
+  return { ...layout, topRow: [...layout.topRow].reverse(), bottomRow: [...layout.bottomRow].reverse() };
 }
 
 /** The layout as seen with the photo turned 180 degrees: each row becomes
@@ -250,10 +287,12 @@ export function rotateLayout180(layout: SnapLayout): SnapLayout {
   };
 }
 
-/** Whether "Mirror checkers" reads as on: the bottom home board is on the
- * other side from where the drawn numbers put it. */
-export function isCheckersMirrored(o: SnapOrientation): boolean {
-  return (o.bottomHome === "left") !== Boolean(o.mirroredNumbers);
+/** The layout after step 1's transforms: what the builder draws. The two
+ * transforms commute and are each their own inverse, so this is its own
+ * inverse too (builderStateToLayout uses that). */
+export function orientedLayout(layout: SnapLayout, o: SnapOrientation): SnapLayout {
+  const mirrored = o.layoutMirrored ? mirrorLayout(layout) : layout;
+  return o.rotated ? rotateLayout180(mirrored) : mirrored;
 }
 
 /** Point number (1-24, in `mine`'s frame, as DecodedPosition indexes both
@@ -266,7 +305,7 @@ function pointAt(row: "top" | "bottom", i: number, bottomHome: SnapOrientation["
   return row === "bottom" ? 12 - col : 13 + col;
 }
 
-function otherColor(color: "light" | "dark"): "light" | "dark" {
+export function otherColor(color: "light" | "dark"): "light" | "dark" {
   return color === "light" ? "dark" : "light";
 }
 
@@ -276,18 +315,20 @@ function clampCubeValue(value: number): number {
   return best;
 }
 
-/** Visual layout -> builder state. The bottom colour is `mine`. When
- * `rotated`, the layout is read turned 180 degrees with the home side swapped
- * (viewHome); with toggleRotate's swapped `bottomColor` that leaves each
- * colour on the same points, only drawn on the other side. Each side's
+/** Visual layout -> builder state. The layout is read after step 1's
+ * transforms (orientedLayout), with the bottom colour as `mine`, its home on
+ * the drawn home side (viewHome), and the analysed colour to move. When
+ * `rotated`, toggleRotate's swapped `bottomColor` and the swapped home side
+ * leave each colour on the same points, only drawn on the other side. Each side's
  * borne-off count is 15 minus what's on its points and bar, so the builder's
  * checker totals stay at 15 (its add/remove edits keep each side's total
  * constant). When the layout's points and bar already hold 15 or fewer, that
  * equals the tray count; when they hold more, it goes negative and the
  * builder reports an invalid count until checkers are removed. */
 export function layoutToBuilderState(photoLayout: SnapLayout, orientation: SnapOrientation): PositionBuilderState {
-  const layout = orientation.rotated ? rotateLayout180(photoLayout) : photoLayout;
+  const layout = orientedLayout(photoLayout, orientation);
   const state = initialPositionBuilderState();
+  state.playerToMove = playerToMove(orientation);
   const mineColor = orientation.bottomColor;
   const oppColor = otherColor(mineColor);
   const home = viewHome(orientation);
@@ -339,13 +380,13 @@ export function layoutToBuilderState(photoLayout: SnapLayout, orientation: SnapO
 
 /** Builder state -> visual layout: the inverse of layoutToBuilderState, used
  * to store the user's corrected board as a layout comparable with Gemini's
- * (in the photo's own frame: a rotated reading is turned back). */
+ * (in the photo's own frame: step 1's rotate and mirror are undone). */
 export function builderStateToLayout(state: PositionBuilderState, orientation: SnapOrientation): SnapLayout {
-  const layout = viewLayout(state, orientation);
-  return orientation.rotated ? rotateLayout180(layout) : layout;
+  return orientedLayout(drawnLayout(state, orientation), orientation);
 }
 
-function viewLayout(state: PositionBuilderState, orientation: SnapOrientation): SnapLayout {
+/** The builder's board as drawn, as a layout (step 1's transforms applied). */
+function drawnLayout(state: PositionBuilderState, orientation: SnapOrientation): SnapLayout {
   const mineColor = orientation.bottomColor;
   const oppColor = otherColor(mineColor);
   const { position } = state;
