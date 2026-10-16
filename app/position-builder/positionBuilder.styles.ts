@@ -10,6 +10,9 @@ export const style = {
   boardDescription: "max-w-xl text-sm leading-6 text-ink-muted",
   boardWrap: "w-full",
   boardStatus: "flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-ink-muted",
+  // Each side's checker count and pip count, kept together so a pip count
+  // never reads as the other side's.
+  sideCounts: "flex flex-wrap gap-x-4 gap-y-1",
   counter: "tabular-nums text-ink",
   controls: "flex flex-col gap-4",
   controlCard: clsx(shared.card, "flex flex-col gap-4 p-4"),

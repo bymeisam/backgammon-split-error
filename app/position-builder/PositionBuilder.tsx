@@ -20,6 +20,7 @@ import {
   type BuilderLocation,
   type PositionBuilderState,
 } from "@/lib/positionBuilder";
+import { pipCounts } from "@/lib/pipCount";
 import Board from "@/app/components/match-analysis/Board";
 import PostToForumButton from "@/app/components/ui/PostToForumButton";
 import Button from "@/app/components/ui/Button";
@@ -65,6 +66,7 @@ export default function PositionBuilder({
   const [action, setAction] = useState<BuilderAction>("add");
   const [message, setMessage] = useState<string | null>(null);
   const errors = useMemo(() => validateBuilderState(state), [state]);
+  const pips = useMemo(() => pipCounts(state.position), [state.position]);
   const cube: BoardCube = { kind: "owned", value: state.cubeValue, owner: state.cubeOwner };
 
   function edit(location: BuilderLocation, side = editingSide) {
@@ -197,9 +199,15 @@ export default function PositionBuilder({
         </div>
 
         <div className={style.boardStatus}>
-          <span>
-            Bottom <b className={style.counter}>{15 - state.position.mineOff}/15</b> · Top{" "}
-            <b className={style.counter}>{15 - state.position.opponentOff}/15</b>
+          <span className={style.sideCounts}>
+            <span>
+              Bottom <b className={style.counter}>{15 - state.position.mineOff}/15</b> · Pips:{" "}
+              <b className={style.counter}>{pips.mine}</b>
+            </span>
+            <span>
+              Top <b className={style.counter}>{15 - state.position.opponentOff}/15</b> · Pips:{" "}
+              <b className={style.counter}>{pips.opponent}</b>
+            </span>
           </span>
           <span>{sideLabel(state.playerToMove)} {state.decisionType} decision</span>
         </div>
