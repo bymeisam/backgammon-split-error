@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  boardHomeLeft,
   builderStateToLayout,
-  isCheckersMirrored,
   layoutToBuilderState,
+  mirrorLayout,
   rotateLayout180,
   toggleMirrorCheckers,
-  toggleMirrorNumbers,
   toggleRotate,
   type SnapLayout,
   type SnapOrientation,
@@ -138,11 +138,13 @@ describe("builderStateToLayout", () => {
 });
 
 // Every drawn stack as "row@x:side×count", sorted, at its absolute x.
+// Board draws point p at stackBase(p, homeLeft).cx, with
+// homeLeft = boardHomeLeft(o) on /snap-poc.
 function screen(o: SnapOrientation): string[] {
   const { position } = layoutToBuilderState(layout(), o);
   const out: string[] = [];
   for (let p = 1; p <= 24; p++) {
-    const x = stackBase(p, Boolean(o.mirroredNumbers)).cx;
+    const x = stackBase(p, boardHomeLeft(o)).cx;
     const row = p <= 12 ? "bottom" : "top";
     if (position.mine[p - 1]) out.push(`${row}@${x}:mine×${position.mine[p - 1]}`);
     if (position.opponent[p - 1]) out.push(`${row}@${x}:opponent×${position.opponent[p - 1]}`);
@@ -150,56 +152,62 @@ function screen(o: SnapOrientation): string[] {
   return out.sort();
 }
 
-// The review page's two mirror buttons. Board draws point p at
-// stackBase(p, homeLeft).cx, with homeLeft = mirroredNumbers.
-describe("mirror toggles", () => {
+// Step 1's "Mirror checkers": the layout is read mirrored left to right.
+describe("mirror checkers", () => {
   const base: SnapOrientation[] = [
     { bottomColor: "dark", bottomHome: "right" },
     { bottomColor: "light", bottomHome: "left" },
-    { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true },
+    { bottomColor: "dark", bottomHome: "left", rotated: true },
   ];
 
+  it("mirrorLayout reverses both rows and keeps the rest; its own inverse", () => {
+    const m = mirrorLayout(layout());
+    expect(m.topRow).toEqual([...layout().topRow].reverse());
+    expect(m.bottomRow).toEqual([...layout().bottomRow].reverse());
+    expect({ ...m, topRow: [], bottomRow: [] }).toEqual({ ...layout(), topRow: [], bottomRow: [] });
+    expect(mirrorLayout(m)).toEqual(layout());
+  });
 
   for (const o of base) {
-    const label = `${o.bottomColor} bottom, home ${o.bottomHome}, numbers ${o.mirroredNumbers ? "mirrored" : "plain"}`;
+    const label = `${o.bottomColor} bottom, home ${o.bottomHome}${o.rotated ? ", rotated" : ""}`;
 
-    it(`Mirror numbers keeps the photo layout and the checkers' screen positions (${label})`, () => {
-      const next = toggleMirrorNumbers(o);
-      expect(next.mirroredNumbers).toBe(!o.mirroredNumbers);
-      expect(next.bottomHome).not.toBe(o.bottomHome);
-      const before = builderStateToLayout(layoutToBuilderState(layout(), o), o);
-      const after = builderStateToLayout(layoutToBuilderState(layout(), next), next);
-      expect(after).toEqual(before);
-      expect(screen(next)).toEqual(screen(o));
-      expect(isCheckersMirrored(next)).toBe(isCheckersMirrored(o));
+    it(`moves the checkers on screen, keeps the home side and colour (${label})`, () => {
+      const next = toggleMirrorCheckers(o);
+      expect(next.layoutMirrored).toBe(true);
+      expect(next.bottomHome).toBe(o.bottomHome);
+      expect(next.bottomColor).toBe(o.bottomColor);
+      expect(boardHomeLeft(next)).toBe(boardHomeLeft(o));
+      expect(screen(next)).not.toEqual(screen(o));
     });
 
-    it(`Mirror checkers moves the checkers but not the numbers (${label})`, () => {
+    it(`stores the layout in the photo's frame (${label})`, () => {
       const next = toggleMirrorCheckers(o);
-      expect(Boolean(next.mirroredNumbers)).toBe(Boolean(o.mirroredNumbers));
-      expect(isCheckersMirrored(next)).toBe(!isCheckersMirrored(o));
-      expect(screen(next)).not.toEqual(screen(o));
+      const back = builderStateToLayout(layoutToBuilderState(layout(), next), next);
+      expect(back.topRow).toEqual(layout().topRow);
+      expect(back.bottomRow).toEqual(layout().bottomRow);
     });
   }
 
-  it("reads a file saved without mirroredNumbers exactly as before", () => {
+  it("reads a file saved with the retired mirroredNumbers exactly as without it", () => {
     const old: SnapOrientation = { bottomColor: "dark", bottomHome: "left" };
     expect(isSnapOrientation(old)).toBe(true);
     expect(isSnapOrientation({ ...old, mirroredNumbers: true })).toBe(true);
     expect(isSnapOrientation({ ...old, mirroredNumbers: "yes" })).toBe(false);
-    expect(isCheckersMirrored(old)).toBe(true);
-    expect(layoutToBuilderState(layout(), old)).toEqual(
-      layoutToBuilderState(layout(), { ...old, mirroredNumbers: false })
+    expect(isSnapOrientation({ ...old, layoutMirrored: true, analyzingFor: "light" })).toBe(true);
+    expect(isSnapOrientation({ ...old, layoutMirrored: "yes" })).toBe(false);
+    expect(isSnapOrientation({ ...old, analyzingFor: "white" })).toBe(false);
+    expect(layoutToBuilderState(layout(), { ...old, mirroredNumbers: true })).toEqual(
+      layoutToBuilderState(layout(), old)
     );
   });
 });
 
-// "Rotate board": the photo read turned 180 degrees.
+// "Rotate board": the board viewed from the other side of the table.
 describe("rotate board", () => {
   const all: SnapOrientation[] = [];
   for (const bottomColor of ["dark", "light"] as const)
     for (const bottomHome of ["right", "left"] as const)
-      for (const mirroredNumbers of [false, true]) all.push({ bottomColor, bottomHome, mirroredNumbers });
+      for (const layoutMirrored of [false, true]) all.push({ bottomColor, bottomHome, layoutMirrored });
 
   it("rotateLayout180 swaps and reverses the rows and flips a top/bottom cube", () => {
     const r = rotateLayout180(layout());
@@ -219,7 +227,7 @@ describe("rotate board", () => {
 
   for (const o of all) {
     const rotated = toggleRotate(o);
-    const label = `${o.bottomColor} bottom, home ${o.bottomHome}, numbers ${o.mirroredNumbers ? "mirrored" : "plain"}`;
+    const label = `${o.bottomColor} bottom, home ${o.bottomHome}, ${o.layoutMirrored ? "mirrored" : "plain"}`;
 
     it(`round-trips the photo layout with rotation on (${label})`, () => {
       const back = builderStateToLayout(layoutToBuilderState(layout(), rotated), rotated);
@@ -231,22 +239,28 @@ describe("rotate board", () => {
       expect(back.cube).toEqual(original.cube);
     });
 
-    it(`reads the board as the upside-down photo and leaves the other toggles alone (${label})`, () => {
+    it(`reads the upside-down photo with colour and home side swapped, leaving Mirror checkers alone (${label})`, () => {
       expect(rotated.rotated).toBe(true);
+      expect(rotated.bottomColor).not.toBe(o.bottomColor);
       expect(rotated.bottomHome).toBe(o.bottomHome);
-      expect(rotated.mirroredNumbers).toBe(o.mirroredNumbers);
-      expect(toggleRotate(rotated).rotated).toBe(false);
-      expect(layoutToBuilderState(layout(), rotated)).toEqual(layoutToBuilderState(rotateLayout180(layout()), o));
-      // The checkers move: each stack goes to the other row's mirrored column.
+      expect(rotated.layoutMirrored).toBe(o.layoutMirrored);
+      expect(toggleRotate(rotated)).toEqual({ ...o, rotated: false });
+      expect(layoutToBuilderState(layout(), rotated)).toEqual(
+        layoutToBuilderState(rotateLayout180(layout()), {
+          ...o,
+          bottomColor: rotated.bottomColor,
+          bottomHome: o.bottomHome === "right" ? "left" : "right",
+        })
+      );
+      // The drawing changes: the other colour is now at the bottom, so each
+      // stack moves to the other row (same column, numbers unchanged).
       expect(screen(rotated)).not.toEqual(screen(o));
     });
 
-    it(`combines with Mirror numbers and Mirror checkers (${label})`, () => {
-      // Mirror numbers still moves nothing but the labels, rotated or not.
-      expect(screen(toggleMirrorNumbers(rotated))).toEqual(screen(rotated));
+    it(`combines with Mirror checkers (${label})`, () => {
       // The toggles commute, and the saved photo layout is the same whichever
       // order they were pressed in.
-      for (const toggle of [toggleMirrorNumbers, toggleMirrorCheckers]) {
+      for (const toggle of [toggleMirrorCheckers]) {
         const a = toggleRotate(toggle(o));
         const b = toggle(toggleRotate(o));
         expect(a).toEqual(b);

@@ -83,19 +83,28 @@ Dev tooling. Writes only the generated agent files; no DB, no network.
 
 Proof of concept. No DB; calls Gemini's API.
 
-- `npx tsx scripts/snaps/snap-poc.ts [--force] [--model <id>] [--only <filename>]`:
+- `npx tsx scripts/snaps/snap-poc.ts [--force] [--model <id>] [--prompt <version>] [--only <filename>]`:
   Snaps PoC, step 1. Asks Gemini's free tier to read the board in each photo
   in `snap-poc/` (gitignored) and caches the answers in
-  `snap-poc/results/<model>/<image>.json`. No DB. Needs `GEMINI_API_KEY`.
+  `snap-poc/results/<model>/<prompt-version>/<image>.json`. No DB. Needs `GEMINI_API_KEY`.
+  Prompt versions live in `snaps/prompts.ts` (`--prompt v1`, `v2`, ...;
+  default the newest); each answer records its `promptVersion`. Log every
+  version and its scores in `reports/snaps-prompt-eval.md`.
   Picks the newest stable Flash model unless `--model` is given, waits 7 s
   between calls and stops on HTTP 429. Layout type and validator are in
   `lib/snapPocLayout.ts`.
   Sideways photos (bar running horizontally): the prompt asks Gemini to
   rotate them 90° first and say which way in `notes`.
+- `npm run snaps:score` (`snaps/score.ts`): scores every cached answer that
+  has a truth file, per (model, version) folder, with `lib/snapPocScore.ts`,
+  and prints markdown tables per photo set (`snaps/photo-sets.ts`: set1,
+  set2, all) plus a per-photo table of which runs were perfect. Local files
+  only; aggregation in `snaps/scoreTable.ts` (tested).
 - `/snap-poc` (page, not a script): Snaps PoC, step 2. Dev only (404 in
   production, not in the nav). Run `npm run dev`, open `/snap-poc` (add
-  `?model=<folder>` to pick a results folder; default is the one with the most
-  answers). One photo at a time: the photo on the left, the position builder
+  `?model=<folder>&version=<v>` to pick a `results/<model>/<version>/` run;
+  default is the newest prompt version, then the most answers). Truth is
+  one file per photo, shared by all runs. One photo at a time: the photo on the left, the position builder
   on the right, pre-filled from Gemini's answer. Set "Bottom colour" (light
   or dark), then line the board up with the photo using three independent
   on/off toggles under "Board view", each moving one thing on screen: "Mirror checkers" mirrors the

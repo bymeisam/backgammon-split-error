@@ -20,7 +20,8 @@ import {
   type BuilderLocation,
   type PositionBuilderState,
 } from "@/lib/positionBuilder";
-import Board from "@/app/components/match-analysis/Board";
+import { pipCounts } from "@/lib/pipCount";
+import Board, { type BoardCornerGuide } from "@/app/components/match-analysis/Board";
 import PostToForumButton from "@/app/components/ui/PostToForumButton";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
@@ -48,16 +49,26 @@ function numberValue(value: string): number {
 // homeLeft: draw the board mirrored (point 1 bottom-left). Only the drawing
 // changes: Board's hit areas use the same mirrored geometry and still report
 // the logical point, so clicks edit the point drawn under the pointer.
+// swapCheckerColors: draw each side in the other side's colours (Board's
+// swapCheckerColors). Display only: the state, pips and sides don't change.
+// showPips: off hides the pip counts in the caption (app/snap-poc's step 1,
+// before the game is set). cornerGuide: Board's home board guide.
 export default function PositionBuilder({
   canPostToForum,
   initialState,
   extraActions,
   homeLeft = false,
+  swapCheckerColors = false,
+  showPips = true,
+  cornerGuide,
 }: {
   canPostToForum: boolean;
   initialState?: PositionBuilderState;
   extraActions?: (state: PositionBuilderState) => ReactNode;
   homeLeft?: boolean;
+  swapCheckerColors?: boolean;
+  showPips?: boolean;
+  cornerGuide?: BoardCornerGuide;
 }) {
   const router = useRouter();
   const [state, setState] = useState<PositionBuilderState>(initialState ?? initialPositionBuilderState);
@@ -65,6 +76,7 @@ export default function PositionBuilder({
   const [action, setAction] = useState<BuilderAction>("add");
   const [message, setMessage] = useState<string | null>(null);
   const errors = useMemo(() => validateBuilderState(state), [state]);
+  const pips = useMemo(() => pipCounts(state.position), [state.position]);
   const cube: BoardCube = { kind: "owned", value: state.cubeValue, owner: state.cubeOwner };
 
   function edit(location: BuilderLocation, side = editingSide) {
@@ -187,6 +199,8 @@ export default function PositionBuilder({
             rollSide={state.playerToMove}
             cube={cube}
             homeLeft={homeLeft}
+            swapCheckerColors={swapCheckerColors}
+            cornerGuide={cornerGuide}
             onPointClick={(point) => edit(point)}
             onBarClick={(side) => {
               setEditingSide(side);
@@ -197,9 +211,23 @@ export default function PositionBuilder({
         </div>
 
         <div className={style.boardStatus}>
-          <span>
-            Bottom <b className={style.counter}>{15 - state.position.mineOff}/15</b> · Top{" "}
-            <b className={style.counter}>{15 - state.position.opponentOff}/15</b>
+          <span className={style.sideCounts}>
+            <span>
+              Bottom <b className={style.counter}>{15 - state.position.mineOff}/15</b>
+              {showPips && (
+                <>
+                  {" "}· Pips: <b className={style.counter}>{pips.mine}</b>
+                </>
+              )}
+            </span>
+            <span>
+              Top <b className={style.counter}>{15 - state.position.opponentOff}/15</b>
+              {showPips && (
+                <>
+                  {" "}· Pips: <b className={style.counter}>{pips.opponent}</b>
+                </>
+              )}
+            </span>
           </span>
           <span>{sideLabel(state.playerToMove)} {state.decisionType} decision</span>
         </div>

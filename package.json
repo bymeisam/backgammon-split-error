@@ -16,7 +16,8 @@
     "db:recompute-stats": "tsx scripts/db/recompute-stats.ts",
     "db:check-cert": "tsx scripts/db/check-oracle-cert.ts",
     "screenshots": "tsx scripts/screenshots/index.ts",
-    "agents:sync": "tsx scripts/agents/sync-agents.ts"
+    "agents:sync": "tsx scripts/agents/sync-agents.ts",
+    "snaps:score": "tsx scripts/snaps/score.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.14",

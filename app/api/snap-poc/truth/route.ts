@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireMemberApi } from "@/lib/app-auth";
 import { validateSnapLayout } from "@/lib/snapPocLayout";
-import { allowedImage, allowedModel, isSnapOrientation, isSnapPocEnabled, writeSnapTruth } from "@/lib/snapPocFiles";
+import { allowedImage, allowedRun, isSnapOrientation, isSnapPocEnabled, writeSnapTruth } from "@/lib/snapPocFiles";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/snap-poc/truth   body: { image, layout, orientation, model }
+// POST /api/snap-poc/truth   body: { image, layout, orientation, model, promptVersion }
 // Dev-only (404 in production): saves the user's corrected board for one
 // Snaps proof-of-concept photo to snap-poc/truth/<image>.json. A local file,
 // not a DB write, so the app write gate (lib/appWriteGate.ts) doesn't apply.
 // 404 unless `image` is exactly one of the photos in snap-poc/; 400 unless
-// `model` is one of the result folders and the layout and orientation are valid.
+// (`model`, `promptVersion`) is one of the results/<model>/<version>/ folders and the layout and orientation are valid.
 export async function POST(req: Request) {
   if (!isSnapPocEnabled()) return new NextResponse("Not Found", { status: 404 });
   const denied = await requireMemberApi();
@@ -27,8 +27,8 @@ export async function POST(req: Request) {
 
   const image = allowedImage(body.image);
   if (!image) return new NextResponse("Not Found", { status: 404 });
-  const model = allowedModel(body.model);
-  if (!model) return NextResponse.json({ error: "Unknown model." }, { status: 400 });
+  const run = allowedRun(body.model, body.promptVersion);
+  if (!run) return NextResponse.json({ error: "Unknown model or prompt version." }, { status: 400 });
   if (!isSnapOrientation(body.orientation)) {
     return NextResponse.json({ error: "Orientation is invalid." }, { status: 400 });
   }
@@ -37,14 +37,18 @@ export async function POST(req: Request) {
 
   const truth = {
     image,
-    model,
-    // mirroredNumbers and rotated are written only when on, so a default
-    // board saves the same shape as before they existed.
+    model: run.model,
+    promptVersion: run.version,
+    // rotated and layoutMirrored are written only when on, so a default
+    // board saves the same shape as before they existed; analyzingFor is
+    // written when sent (absent means bottomColor). The retired
+    // mirroredNumbers flag is no longer written (lib/snapPocLayout.ts).
     orientation: {
       bottomColor: body.orientation.bottomColor,
       bottomHome: body.orientation.bottomHome,
-      ...(body.orientation.mirroredNumbers ? { mirroredNumbers: true } : {}),
       ...(body.orientation.rotated ? { rotated: true } : {}),
+      ...(body.orientation.layoutMirrored ? { layoutMirrored: true } : {}),
+      ...(body.orientation.analyzingFor ? { analyzingFor: body.orientation.analyzingFor } : {}),
     },
     layout: layout.layout,
     savedAt: new Date().toISOString(),

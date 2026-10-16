@@ -6,19 +6,22 @@
 // x-goog-api-key header, never prints it.
 //
 // Usage:
-//   npx tsx scripts/snaps/snap-poc.ts [--force] [--model <id>] [--only <filename>]
+//   npx tsx scripts/snaps/snap-poc.ts [--force] [--model <id>] [--prompt <version>] [--only <filename>]
 //
 // - Model: newest stable Flash model (no preview/exp/lite/Pro) from the
 //   models list that supports generateContent; --model overrides.
 // - Images: snap-poc/*.jpg|jpeg|png, top level only.
-// - Answers: snap-poc/results/<model-id>/<image>.json. Existing ones are
-//   skipped unless --force.
+// - Prompt: scripts/snaps/prompts.ts; --prompt picks a version (v1, v2, ...),
+//   default the newest.
+// - Answers: snap-poc/results/<model-id>/<prompt-version>/<image>.json, each
+//   recording its promptVersion. Existing ones are skipped unless --force.
 // - Pacing: 7 s between API calls. HTTP 429 stops the whole run; any other
 //   error for one image is logged and the run goes on.
 import "dotenv/config";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { snapCheckerTotals, validateSnapLayout } from "../../lib/snapPocLayout";
+import { LATEST_PROMPT_VERSION, PROMPTS, PROMPT_VERSIONS, isPromptVersion, type PromptVersion } from "./prompts";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
 const SNAP_DIR = path.resolve(__dirname, "..", "..", "snap-poc");
@@ -32,12 +35,24 @@ const IMAGE_TYPES: Record<string, string> = {
 class RateLimited extends Error {}
 
 function parseArgs(argv: string[]) {
-  const args = { force: false, model: undefined as string | undefined, only: undefined as string | undefined };
+  const args = {
+    force: false,
+    model: undefined as string | undefined,
+    prompt: LATEST_PROMPT_VERSION as PromptVersion,
+    only: undefined as string | undefined,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--force") args.force = true;
     else if (a === "--model") args.model = argv[++i];
     else if (a === "--only") args.only = argv[++i];
+    else if (a === "--prompt") {
+      const v = argv[++i];
+      if (v === undefined || !isPromptVersion(v)) {
+        throw new Error(`--prompt needs a version: ${PROMPT_VERSIONS.join(", ")}`);
+      }
+      args.prompt = v;
+    }
     else throw new Error(`Unknown argument: ${a}`);
   }
   if (args.model === "" || (args.model === undefined && argv.includes("--model"))) {
@@ -108,32 +123,6 @@ async function pickModel(key: string): Promise<string> {
   if (candidates.length === 0) throw new Error("No stable Flash model with generateContent in the models list");
   return candidates[0].m.name.replace(/^models\//, "");
 }
-
-const PROMPT = `You are reading a photo of a backgammon board. Describe the board exactly as it appears in the photo, purely visually. Do not reason about whose turn it is, which side is whose home board, or the direction of play.
-
-Board facts:
-- A backgammon board has 24 triangular points: 12 along the top edge of the photo and 12 along the bottom edge.
-- Each row of 12 is split 6 + 6 by the central bar.
-- Each side has 15 checkers in total (on points, on the bar, or borne off into a tray).
-- "light" means the lighter checker colour in the photo and "dark" means the darker one, whatever the actual colours are.
-
-Sideways photos:
-- If the board is photographed sideways, i.e. the central bar runs horizontally across the photo instead of vertically, first mentally rotate the photo 90° so that the bar runs vertically (top to bottom), as on a normal board.
-- Then report topRow and bottomRow left to right as seen in that rotated frame, never ordered by quadrant in the original photo. Everything else (bar, trays, dice, cube "top"/"bottom") is also described in the rotated frame.
-- Say in notes which way you rotated it (clockwise or counter-clockwise).
-
-What to return:
-- topRow: exactly 12 entries for the top points, left to right as seen in the photo. Each is { color, count }: the colour of the checkers on that point ("none" with count 0 if empty) and how many there are.
-- bottomRow: exactly 12 entries for the bottom points, left to right as seen in the photo, same shape.
-- bar: how many light and dark checkers sit on the central bar.
-- borneOff: how many light and dark checkers are in the bear-off trays. Use 0 when no tray is visible.
-- dice: the values (1-6) of the dice showing on the board, 0 to 2 entries. Empty if none are visible.
-- cube: whether the doubling cube is visible, its value (the number showing; 64 on a centred cube means 1, use 1 then), and where it is: "center" (on the bar), "top", "bottom", or "unknown".
-- barSide: "middle" when the bar is in the middle between the two 6-point halves, as on a normal board. Otherwise describe where it is.
-- confidence: "high", "medium" or "low" for the whole reading.
-- notes: any doubts, e.g. stacks cut off by the frame, tall stacks that are hard to count, glare, overlapping checkers.
-
-Count stacked checkers carefully, one by one, including stacks that overlap or run far toward the middle of the board. If a stack is cut off by the frame, estimate its count using the 15-per-colour total and say so in notes.`;
 
 const POINT_SCHEMA = {
   type: "OBJECT",
@@ -215,7 +204,8 @@ async function main() {
   }
 
   const model = args.model ?? (await pickModel(key));
-  console.log(`Model: ${model}${args.model ? " (from --model)" : " (auto-picked)"}`);
+  console.log(`Model: ${model}${args.model ? " (from --model)" : " (auto-picked)"}, prompt ${args.prompt}`);
+  const prompt = PROMPTS[args.prompt];
 
   const images = readdirSync(SNAP_DIR, { withFileTypes: true })
     .filter((d) => d.isFile() && IMAGE_TYPES[path.extname(d.name).toLowerCase()])
@@ -227,7 +217,7 @@ async function main() {
     process.exit(1);
   }
 
-  const outDir = path.join(SNAP_DIR, "results", model);
+  const outDir = path.join(SNAP_DIR, "results", model, args.prompt);
   mkdirSync(outDir, { recursive: true });
 
   const tally = { ok: 0, invalid: 0, skipped: 0, errors: 0 };
@@ -244,7 +234,7 @@ async function main() {
     const mimeType = IMAGE_TYPES[path.extname(image).toLowerCase()];
     const data = readFileSync(path.join(SNAP_DIR, image)).toString("base64");
     const body = {
-      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data } }, { text: PROMPT }] }],
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data } }, { text: prompt }] }],
       generationConfig: { responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
     };
 
@@ -274,6 +264,7 @@ async function main() {
     const { parsed, parseError } = extractLayout(raw);
     const record = {
       model,
+      promptVersion: args.prompt,
       image,
       createdAt: new Date().toISOString(),
       durationMs,
@@ -298,8 +289,8 @@ async function main() {
   }
 
   console.log(
-    `\nSummary (${model}): ${tally.ok} OK, ${tally.invalid} invalid, ${tally.skipped} skipped, ${tally.errors} errors` +
-      `${stoppedOn429 ? ", stopped on HTTP 429" : ""}. Results in snap-poc/results/${model}/`,
+    `\nSummary (${model}, prompt ${args.prompt}): ${tally.ok} OK, ${tally.invalid} invalid, ${tally.skipped} skipped, ${tally.errors} errors` +
+      `${stoppedOn429 ? ", stopped on HTTP 429" : ""}. Results in snap-poc/results/${model}/${args.prompt}/`,
   );
   if (stoppedOn429 || tally.errors > 0) process.exit(1);
 }

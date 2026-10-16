@@ -18,16 +18,19 @@
 // again (also on an error or Ctrl-C). The server always runs against the
 // LOCAL database: DB_TARGET=local is forced, and it refuses to start unless
 // the LOCAL_* URLs (after loading the env files the way `next start` does)
-// all point at localhost. The script itself never connects to a database;
-// it only talks HTTP to that server. The server's switches per set:
-//   default, --set=review     write mode on (the review pages and the
-//                             navbar's write-mode items need it)
-//   --set=auth                write mode on, AUTH_BYPASS off
-//   --set=forum               AUTH_BYPASS on, write mode on, and the local
-//                             app URL set (prismaApp needs it under
-//                             `next start`, lib/prisma.ts)
-//   --readonly                write mode off (and, with --set=forum, no app
-//                             URL, which would turn app writes on)
+// all point at localhost; the ORACLE_* URL variables are removed from its
+// env. The script itself never connects to a database; it only talks HTTP
+// to that server. The server's switches per set:
+//   default, --nav-only,      AUTH_BYPASS on (signed in as the owner, so
+//   --set=review,             Clerk's sign-in screen doesn't show), write
+//   --set=forum               mode on, and the local app URL set (prismaApp
+//                             needs it under `next start`, lib/prisma.ts,
+//                             for the review cards, the forum's writes and
+//                             the pages' write controls)
+//   --set=auth                AUTH_BYPASS off, write mode on, no app URL
+//                             added
+//   --readonly                write mode off and no app URL (it would turn
+//                             app writes on); AUTH_BYPASS as above
 //
 // --base-url=<url> opts out: no server is started, the shots go to that
 // URL, and the database behind it isn't checked.

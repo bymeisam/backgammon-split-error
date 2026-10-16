@@ -294,3 +294,27 @@ export function offeredCubeCenter(side: Side): { x: number; y: number } {
   const y = side === "mine" ? Y1 - CUBE_BADGE_R - 2 : Y0 + CUBE_BADGE_R + 2;
   return { x, y };
 }
+
+// The four quadrants of the board as drawn, in reading order: 1 top-left,
+// 2 top-right, 3 bottom-left, 4 bottom-right (app/snap-poc's home board
+// corners). Each is one half of a row: six points.
+export type BoardCorner = 1 | 2 | 3 | 4;
+
+function cornerParts(corner: BoardCorner): { top: boolean; left: boolean } {
+  return { top: corner <= 2, left: corner % 2 === 1 };
+}
+
+export function quadrantRect(corner: BoardCorner): { x: number; y: number; width: number; height: number } {
+  const { top, left } = cornerParts(corner);
+  const x0 = left ? colX(0) : colX(BAR_COL + 1);
+  const x1 = left ? colX(BAR_COL) : colX(OFF_COL);
+  return { x: x0, y: top ? Y0 : CENTER_Y, width: x1 - x0, height: ROW_H };
+}
+
+// A corner's badge: in the frame band, over the cube gutter on the left and
+// the tray on the right, clear of the point numbers.
+export const CORNER_BADGE_R = 9;
+export function cornerBadgeCenter(corner: BoardCorner): { x: number; y: number } {
+  const { top, left } = cornerParts(corner);
+  return { x: left ? colX(0) / 2 : OFF_TRAY_X + OFF_TRAY_W / 2, y: top ? NUMBER_TOP_Y : NUMBER_BOTTOM_Y };
+}
