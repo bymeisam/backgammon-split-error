@@ -38,22 +38,28 @@ function freePort(): Promise<number> {
 
 // The server's env: this process's env (with the env files loaded the way
 // `next start` loads them, so the check below sees the URLs the server will
-// use), DB_TARGET pinned to local, and each set's switches.
+// use), DB_TARGET pinned to local, the Oracle URLs removed, and each set's
+// switches.
 function serverEnv(opts: ServerOptions): NodeJS.ProcessEnv {
   // Next's production precedence, first file wins; never overrides a
   // variable already set in the shell.
   loadEnvFiles({ path: [".env.production.local", ".env.local", ".env.production", ".env"], quiet: true });
   const env: NodeJS.ProcessEnv = { ...process.env, DB_TARGET: "local" };
+  // The server must never see an Oracle URL, whatever the env files hold.
+  for (const name of Object.values(DB_URL_VARS.oracle)) delete env[name];
   env.ENABLE_WRITE_MODE = opts.readonly ? "false" : "true";
   if (opts.set === "auth") {
     // The real sign-in screens: the bypass off, whatever the env files say.
     env.AUTH_BYPASS = "false";
-  } else if (opts.set === "forum") {
-    // The forum's pages need a signed-in owner (lib/localAuthBypass.ts), and
-    // under `next start` prismaApp needs the app URL (lib/prisma.ts); that
-    // URL also turns app writes on (lib/appWriteGate.ts), so the read-only
-    // run goes without it.
+  } else {
+    // Every other set (default, --nav-only, review, forum) shoots signed-in
+    // pages, so it signs in as the owner through the local bypass
+    // (lib/localAuthBypass.ts); without it Clerk shows the sign-in screen.
     env.AUTH_BYPASS = "true";
+    // Under `next start` prismaApp needs the app URL (lib/prisma.ts): the
+    // review cards the default and review sets add, the forum's writes, and
+    // the pages' write controls (lib/appWriteGate.ts) all go through it. That
+    // URL also turns app writes on, so the read-only run goes without it.
     if (!opts.readonly) {
       const appUrl = localDbUrl("app", env) ?? localDbUrl("rw", env);
       if (appUrl) env[DB_URL_VARS.local.app] = appUrl;
