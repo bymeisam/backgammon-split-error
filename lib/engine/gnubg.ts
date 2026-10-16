@@ -43,9 +43,11 @@ export function parseHints(output: string): Candidate[][] {
       };
     }
   }
-  for (const group of groups) {
+  const hints = output.split(/(?=^\s*1\.\s+Cubeful)/m);
+  for (const [index, group] of groups.entries()) {
     if (group[0]?.plies !== EVALUATION_PLIES) {
-      throw new Error(`gnubg best candidate was ${group[0]?.plies ?? "missing"}-ply; expected ${EVALUATION_PLIES}-ply`);
+      const candidates = group.map(({ rank, plies, move }) => `${rank}:${plies}-ply ${move}`).join("; ");
+      throw new Error(`roll index ${index}; gnubg best candidate was ${group[0]?.plies ?? "missing"}-ply; expected ${EVALUATION_PLIES}-ply; candidates: ${candidates}; raw hint:\n${hints[index + 1] ?? output}`);
     }
   }
   return groups;

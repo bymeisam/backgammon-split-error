@@ -51,6 +51,13 @@ Never writes. Safe to run any time. These are the investigator's tools.
   `... game <matchId> <gameIndex>`: read-only Galaxy API fetch. Needs
   `GALAXY_TOKEN`.
 
+
+## `engine/`
+
+Local only, read-only DB; runs GNU Backgammon in Docker.
+
+- `npx tsx scripts/engine/gnubg-evaluation.ts`: deterministic Galaxy comparison harness.
+
 ## `screenshots/`
 
 Dev tooling. Starts its own `next start` against the local DB (it forces

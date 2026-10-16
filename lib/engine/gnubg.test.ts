@@ -18,6 +18,9 @@ describe("parseHint", () => {
     expect(() => parseHint(fixture)).toThrow(/best candidate was 0-ply; expected 2-ply/);
     expect(() => parseHint(mixedFixture.replace("1. Cubeful 2-ply", "1. Cubeful 0-ply"))).toThrow(/best candidate was 0-ply; expected 2-ply/);
   });
+  it("includes the failing batched hint and its roll index in depth errors", () => {
+    expect(() => parseHints(`${mixedFixture}\n${fixture}`)).toThrow(/roll index 1;.*raw hint:\n\s+1\. Cubeful 0-ply\s+8\/5 6\/5/);
+  });
 
   it("expands GNU repeated-checker shorthand", () => {
     expect(parseHint("1. Cubeful 2-ply 13/7(2) Eq.: +0.123")[0].move).toBe("13/7 13/7");

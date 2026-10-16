@@ -3,6 +3,7 @@ import { localDbUrl } from "@/lib/databaseUrl";
 import { prismaReadOnly } from "@/lib/prisma";
 import { getDecisionAnalysis } from "@/lib/analysis";
 import { galaxyReview } from "@/lib/analysis/galaxyFields";
+import { decodeGnuMatchId } from "@/lib/gnuMatchId";
 import { decodeGnuPositionId } from "@/lib/gnuPositionId";
 import { analyze, allRolls, timeEmptyRun, EVALUATION_PLIES } from "@/lib/engine/gnubg";
 
@@ -90,7 +91,7 @@ async function main() {
   const dockerStartupMs = startupRunsSorted[2];
 
   const outcomes = [];
-  const depthMismatches: { id: number; phase: string; severity: string; positionId: string; matchId: string; error: string }[] = [];
+  const depthMismatches: { id: number; phase: string; severity: string; positionId: string; matchId: string; roll: string; candidateCount: number; classification: string; error: string }[] = [];
   for (const row of sample) {
     const started = performance.now();
     let result;
@@ -99,7 +100,14 @@ async function main() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (!message.includes("best candidate was") || !message.includes(`expected ${EVALUATION_PLIES}-ply`)) throw error;
-      depthMismatches.push({ id: row.id, phase: row.phase, severity: row.errorSeverity, positionId: row.sourcePositionId!, matchId: row.matchId, error: message });
+      const match = decodeGnuMatchId(row.matchId)!;
+      const roll = [...match.dice].sort((a, b) => b - a).join("-");
+      const candidateCount = Number(/candidates: (.*?)(?:; raw hint:|$)/.exec(message)?.[1].split(";").length ?? 0);
+      depthMismatches.push({
+        id: row.id, phase: row.phase, severity: row.errorSeverity, positionId: row.sourcePositionId!,
+        matchId: row.matchId, roll, candidateCount,
+        classification: "other/unexplained", error: message,
+      });
       continue;
     }
     const elapsedMs = performance.now() - started;
@@ -150,6 +158,14 @@ async function main() {
   const knownPlayed = outcomes.filter((row) => row.playedEquityDifference !== null);
   const sortedDiff = knownPlayed.map((row) => Math.abs(row.playedEquityDifference!)).sort((a, b) => a - b);
   const sortedLossDiff = outcomes.flatMap((row) => row.absoluteLossDifference === null ? [] : [row.absoluteLossDifference]).sort((a, b) => a - b);
+  const lossSummary = (items: typeof outcomes) => {
+    const values = items.flatMap((row) => row.absoluteLossDifference === null ? [] : [row.absoluteLossDifference]).sort((a, b) => a - b);
+    return {
+      n: values.length,
+      median: values.length ? values[Math.floor(values.length / 2)] : null,
+      mean: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null,
+    };
+  };
   const bandSummary = Object.fromEntries(["ERROR", "BLUNDER"].map((severity) => {
     const items = outcomes.filter((row) => row.errorSeverity === severity);
     return [severity, {
@@ -161,9 +177,13 @@ async function main() {
     }];
   }));
   const nonErrors = outcomes.filter((row) => ["NONE", "DOUBTFUL"].includes(row.errorSeverity));
+  const phaseMismatchSummary = Object.fromEntries(["opening", "middle game", "bear-off"].map((phase) => [
+    phase, depthMismatches.filter((row) => row.phase === phase).length,
+  ]));
   console.log(JSON.stringify({
     db: { host: url.hostname, database: url.pathname.slice(1), candidateRows: rows.length, eligible: eligible.length },
     sampleCounts: Object.fromEntries(["opening", "middle game", "bear-off"].map((phase) => [phase, sample.filter((row) => row.phase === phase).length])),
+    rejectedByPhase: phaseMismatchSummary,
     rawErrorBands: {
       galaxy: { doubtful: "0.0001–0.02", error: ">0.02–0.0798", blunder: ">=0.0799" },
       note: "Galaxy loss is max(0, -rawError); positive NONE values are not treated as loss.",
@@ -181,6 +201,10 @@ async function main() {
       all21RollsTotalMs: allRollMs,
       all21RollsEngineEstimateMs: allRollMs - dockerStartupMs,
       all21RollsDepthError: allRollError,
+    },
+    lossDifferenceByGalaxySeverity: {
+      errorBlunder: lossSummary(outcomes.filter((row) => ["ERROR", "BLUNDER"].includes(row.errorSeverity))),
+      doubtful: lossSummary(outcomes.filter((row) => row.errorSeverity === "DOUBTFUL")),
     },
     severity: bandSummary,
     nonErrors: {
