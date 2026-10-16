@@ -200,6 +200,30 @@ export function setMyColor(o: SnapOrientation, color: SnapOrientation["bottomCol
   return { ...o, bottomColor: o.rotated ? otherColor(color) : color };
 }
 
+/** The /snap-poc orientation controls, by key. */
+export type SnapOrientationControl = "iAm" | "mirrorCheckers" | "mirrorNumbers" | "rotate" | "swapColors";
+
+/** The orientation with every control not in `active` neutralised, so only
+ * the active ones apply: Rotate off, Mirror numbers off (point 1 bottom-right),
+ * Mirror checkers off (bottom home where the drawn numbers put it), and
+ * "I am" Dark. An active control's value passes through. "swapColors" isn't
+ * part of SnapOrientation; the caller neutralises it. Used by /snap-poc's
+ * temporary trial mode, where the controls are re-enabled one by one. */
+export function effectiveOrientation(
+  o: SnapOrientation,
+  active: ReadonlySet<SnapOrientationControl>
+): SnapOrientation {
+  let next: SnapOrientation = { ...o };
+  if (!active.has("rotate")) {
+    // Keep "I am" as it was: drop the rotation without changing myColor.
+    next = { ...next, bottomColor: myColor(next), rotated: false };
+  }
+  if (!active.has("mirrorNumbers")) next = { ...next, mirroredNumbers: false };
+  if (!active.has("mirrorCheckers")) next = { ...next, bottomHome: next.mirroredNumbers ? "left" : "right" };
+  if (!active.has("iAm")) next = setMyColor(next, "dark");
+  return next;
+}
+
 /** The bottom player's home side in the view the builder maps: the photo's
  * own `bottomHome`, or the other side when rotated (turning the board 180
  * degrees moves the home boards to the other side of the view). */

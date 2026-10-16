@@ -14,6 +14,7 @@ import {
 import {
   DEFAULT_SNAP_ORIENTATION,
   builderStateToLayout,
+  effectiveOrientation,
   isCheckersMirrored,
   layoutToBuilderState,
   myColor,
@@ -23,6 +24,7 @@ import {
   toggleRotate,
   type SnapLayout,
   type SnapOrientation,
+  type SnapOrientationControl,
 } from "@/lib/snapPocLayout";
 import { SNAP_SYMMETRY_LABELS, scoreSnap, type SnapScore } from "@/lib/snapPocScore";
 import type { SnapTruth } from "@/lib/snapPocFiles";
@@ -36,6 +38,15 @@ export interface SnapPocItem {
 }
 
 type Source = "truth" | "gemini";
+
+// TEMPORARY TRIAL: the orientation controls the user is re-testing one by
+// one. Controls not in this set are shown disabled and have no effect on
+// what's drawn, mapped or saved (see effectiveOrientation). Adding a key
+// (iAm, mirrorCheckers, mirrorNumbers, rotate, swapColors) re-enables it.
+const ACTIVE_ORIENTATION_CONTROLS: ReadonlySet<SnapOrientationControl> = new Set<SnapOrientationControl>([
+  "mirrorCheckers",
+]);
+const isActive = (control: SnapOrientationControl): boolean => ACTIVE_ORIENTATION_CONTROLS.has(control);
 
 function itemScore(item: SnapPocItem): SnapScore | null {
   return item.gemini && item.truth ? scoreSnap(item.gemini, item.truth.layout) : null;
@@ -80,7 +91,13 @@ export default function SnapPocReview({
     return <p className={style.emptyNote}>No photos in snap-poc/.</p>;
   }
 
-  const orientation = orientations[item.image] ?? DEFAULT_SNAP_ORIENTATION;
+  // What the user sees: the saved/picked orientation with inactive controls
+  // neutralised. Drawn, mapped, toggled from and saved.
+  const orientation = effectiveOrientation(
+    orientations[item.image] ?? DEFAULT_SNAP_ORIENTATION,
+    ACTIVE_ORIENTATION_CONTROLS
+  );
+  const swapActive = swapColors && isActive("swapColors");
   const source: Source = sources[item.image] ?? (item.truth ? "truth" : "gemini");
   const sourceLayout = source === "truth" && item.truth ? item.truth.layout : item.gemini;
   const builderState = sourceLayout ? layoutToBuilderState(sourceLayout, orientation) : emptyBuilderState();
@@ -230,6 +247,7 @@ export default function SnapPocReview({
                     key={color}
                     type="button"
                     aria-pressed={me === color}
+                    disabled={!isActive("iAm")}
                     className={style.segmentOption(me === color)}
                     onClick={() => setOrientation(setMyColor(orientation, color))}
                   >
@@ -252,16 +270,17 @@ export default function SnapPocReview({
               <div className={style.toggleRow}>
                 {(
                   [
-                    ["Mirror checkers", checkersMirrored, toggleMirrorCheckers],
-                    ["Mirror numbers", numbersMirrored, toggleMirrorNumbers],
-                    ["Rotate board", rotated, toggleRotate],
+                    ["Mirror checkers", checkersMirrored, toggleMirrorCheckers, "mirrorCheckers"],
+                    ["Mirror numbers", numbersMirrored, toggleMirrorNumbers, "mirrorNumbers"],
+                    ["Rotate board", rotated, toggleRotate, "rotate"],
                   ] as const
-                ).map(([label, on, toggle]) => (
+                ).map(([label, on, toggle, control]) => (
                   <Button
                     key={label}
                     size="compact"
                     variant={on ? "primary" : "secondary"}
                     aria-pressed={on}
+                    disabled={!isActive(control)}
                     onClick={() => setOrientation(toggle(orientation))}
                   >
                     {label}
@@ -269,8 +288,9 @@ export default function SnapPocReview({
                 ))}
                 <Button
                   size="compact"
-                  variant={swapColors ? "primary" : "secondary"}
-                  aria-pressed={swapColors}
+                  variant={swapActive ? "primary" : "secondary"}
+                  aria-pressed={swapActive}
+                  disabled={!isActive("swapColors")}
                   onClick={() => setSwapColors((on) => !on)}
                 >
                   Swap colours
@@ -297,7 +317,7 @@ export default function SnapPocReview({
           canPostToForum={false}
           initialState={builderState}
           homeLeft={numbersMirrored}
-          swapCheckerColors={swapColors}
+          swapCheckerColors={swapActive}
           extraActions={(state) => {
             const errors = validateBuilderState(state);
             return (

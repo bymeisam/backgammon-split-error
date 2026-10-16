@@ -33,7 +33,7 @@ export const style = {
   segmented: "grid max-w-[16rem] grid-cols-2 gap-1 rounded-control bg-sunken p-[3px] ring-1 ring-inset ring-line",
   segmentOption: (selected: boolean): string =>
     clsx(
-      "rounded-inset px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+      "rounded-inset px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40",
       selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
     ),
   fieldHint: "text-xs leading-5 text-ink-faint",

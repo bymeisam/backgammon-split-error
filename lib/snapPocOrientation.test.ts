@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SNAP_ORIENTATION,
+  effectiveOrientation,
   isCheckersMirrored,
   layoutToBuilderState,
   myColor,
@@ -23,6 +24,7 @@ import {
   toggleRotate,
   type SnapLayout,
   type SnapOrientation,
+  type SnapOrientationControl,
   type SnapPoint,
 } from "./snapPocLayout";
 import { validateBuilderState } from "./positionBuilder";
@@ -341,4 +343,70 @@ describe("Snaps 'I am' (the near player's colour)", () => {
       }
     });
   }
+});
+
+describe("effectiveOrientation (the /snap-poc trial mode)", () => {
+  const ALL: SnapOrientationControl[] = ["iAm", "mirrorCheckers", "mirrorNumbers", "rotate", "swapColors"];
+  const without = (...off: SnapOrientationControl[]) => new Set(ALL.filter((c) => !off.includes(c)));
+  const busy: SnapOrientation = { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true, rotated: true };
+
+  it("passes everything through when every control is active", () => {
+    expect(effectiveOrientation(busy, new Set(ALL))).toEqual(busy);
+  });
+
+  it("rotate inactive: not rotated, I am unchanged", () => {
+    const o = effectiveOrientation(busy, without("rotate"));
+    expect(o.rotated).toBe(false);
+    expect(myColor(o)).toBe(myColor(busy));
+    expect(o.bottomHome).toBe("left");
+    expect(o.mirroredNumbers).toBe(true);
+  });
+
+  it("mirror numbers inactive: numbers not mirrored, the rest passes through", () => {
+    const o = effectiveOrientation(busy, without("mirrorNumbers"));
+    expect(o).toEqual({ ...busy, mirroredNumbers: false });
+  });
+
+  it("mirror checkers inactive: it reads as off", () => {
+    for (const mirroredNumbers of [false, true]) {
+      for (const bottomHome of ["left", "right"] as const) {
+        const o = effectiveOrientation({ ...busy, bottomHome, mirroredNumbers }, without("mirrorCheckers"));
+        expect(isCheckersMirrored(o)).toBe(false);
+        expect(o.mirroredNumbers).toBe(mirroredNumbers);
+      }
+    }
+  });
+
+  it("I am inactive: I am dark, whatever was saved and rotated or not", () => {
+    for (const rotated of [false, true]) {
+      for (const bottomColor of ["light", "dark"] as const) {
+        const o = effectiveOrientation({ ...busy, bottomColor, rotated }, without("iAm"));
+        expect(myColor(o)).toBe("dark");
+        expect(Boolean(o.rotated)).toBe(rotated);
+      }
+    }
+  });
+
+  describe("only Mirror checkers active", () => {
+    const active = new Set<SnapOrientationControl>(["mirrorCheckers"]);
+
+    it("neutralises the rest and keeps bottomHome; pressed means bottomHome left", () => {
+      for (const bottomHome of ["left", "right"] as const) {
+        const o = effectiveOrientation({ bottomColor: "light", bottomHome, mirroredNumbers: true, rotated: true }, active);
+        expect(o).toEqual({ bottomColor: "dark", bottomHome, mirroredNumbers: false, rotated: false });
+        expect(isCheckersMirrored(o)).toBe(bottomHome === "left");
+        expect(isCheckersMirrored(effectiveOrientation(toggleMirrorCheckers(o), active))).toBe(bottomHome !== "left");
+      }
+    });
+
+    it("the PXL photo's saved orientation: 269 / 314 mirrored, 214 / 241 not", () => {
+      const saved: SnapOrientation = { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true };
+      const on = effectiveOrientation(saved, active);
+      const off = effectiveOrientation(toggleMirrorCheckers(on), active);
+      expect(isCheckersMirrored(on)).toBe(true);
+      expect(pipCounts(layoutToBuilderState(pxlPhoto(), on).position)).toEqual({ mine: 269, opponent: 314 });
+      expect(isCheckersMirrored(off)).toBe(false);
+      expect(pipCounts(layoutToBuilderState(pxlPhoto(), off).position)).toEqual({ mine: 214, opponent: 241 });
+    });
+  });
 });
