@@ -66,6 +66,10 @@ export default function SnapPocReview({
   const [sources, setSources] = useState<Record<string, Source>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // "Swap colours": display only, kept across photos for the session. It
+  // only changes which colour Board draws each side in; it is not part of
+  // SnapOrientation, not saved with the truth and not used by the scoring.
+  const [swapColors, setSwapColors] = useState(false);
 
   const item = items[index];
   const scores = useMemo(() => items.map(itemScore), [items]);
@@ -210,29 +214,14 @@ export default function SnapPocReview({
 
           <Card as="section" className={style.infoCard} aria-label="Orientation">
             <p className={style.infoTitle}>Orientation</p>
-            <div className={style.fieldLabel}>
-              Bottom colour
-              <div className={style.segmented}>
-                {(["light", "dark"] as const).map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    aria-pressed={orientation.bottomColor === color}
-                    className={style.segmentOption(orientation.bottomColor === color)}
-                    onClick={() => setOrientation({ bottomColor: color })}
-                  >
-                    {color === "light" ? "Light" : "Dark"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {/* Three independent on/off toggles, each moving one thing on
-                screen: the checkers mirror (the layout mapping flips), the
-                point numbers mirror (Board's homeLeft, with the mapping
-                flipped too so the checkers stay put), or the board is viewed
-                from the other side of the table (the other colour at the
-                bottom, the game unchanged; toggleRotate). Each is its own
-                Button: primary when on, secondary when off. */}
+            {/* Independent on/off toggles, each moving one thing on screen:
+                the checkers mirror (the layout mapping flips), the point
+                numbers mirror (Board's homeLeft, with the mapping flipped too
+                so the checkers stay put), the board is viewed from the other
+                side of the table (the other colour at the bottom, the game
+                unchanged; toggleRotate), or the two checker colours swap
+                (drawing only, nothing else changes). Each is its own Button:
+                primary when on, secondary when off. */}
             <div className={style.fieldLabel} role="group" aria-label="Board view">
               Board view
               <div className={style.toggleRow}>
@@ -253,6 +242,14 @@ export default function SnapPocReview({
                     {label}
                   </Button>
                 ))}
+                <Button
+                  size="compact"
+                  variant={swapColors ? "primary" : "secondary"}
+                  aria-pressed={swapColors}
+                  onClick={() => setSwapColors((on) => !on)}
+                >
+                  Swap colours
+                </Button>
               </div>
             </div>
             <p className={style.infoText}>
@@ -275,6 +272,7 @@ export default function SnapPocReview({
           canPostToForum={false}
           initialState={builderState}
           homeLeft={numbersMirrored}
+          swapCheckerColors={swapColors}
           extraActions={(state) => {
             const errors = validateBuilderState(state);
             return (

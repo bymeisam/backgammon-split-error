@@ -25,6 +25,7 @@ import {
 } from "./snapPocLayout";
 import { validateBuilderState } from "./positionBuilder";
 import { pipCounts } from "./pipCount";
+import { CHECKER_PALETTE, checkerColors } from "./checkerPalette";
 
 const none: SnapPoint = { color: "none", count: 0 };
 const L = (count: number): SnapPoint => ({ color: "light", count });
@@ -149,24 +150,6 @@ const cases: Case[] = [
     opponentOff: 0,
     pips: { mine: 159, opponent: 195 },
   },
-  {
-    // Light is now the bottom side (`mine`), home still on the right, so the
-    // point numbers stay put and the sides swap roles: light keeps the
-    // point numbers it sat on in the photo but now moves towards point 1
-    // (its 5 on point 19 were 6 pips each, now 19), and dark, now the top
-    // side, keeps its point numbers but counts them as 25 - p.
-    // Light: 3*12 + 2*1 + 2*17 + 5*19 + 2*20 = 207 (1 borne off).
-    // Dark: 3*17 + 4*19 + 2*21 + 4*12 + 1*1 + 25 = 243.
-    name: "bottom colour swapped (light bottom): bottom 207 / top 243",
-    orientation: { ...DEFAULT, bottomColor: "light" },
-    mine: { 1: 2, 12: 3, 17: 2, 19: 5, 20: 2 },
-    opponent: { 4: 2, 6: 4, 8: 3, 13: 4, 24: 1 },
-    mineBar: 0,
-    opponentBar: 1,
-    mineOff: 1,
-    opponentOff: 0,
-    pips: { mine: 207, opponent: 243 },
-  },
 ];
 
 describe("Snaps orientation -> builder position and pip counts", () => {
@@ -261,6 +244,23 @@ describe("Snaps orientation -> builder position and pip counts", () => {
     expect(layoutToBuilderState(owned("bottom"), toggleRotate(DEFAULT)).cubeOwner).toBe("opponent");
     expect(layoutToBuilderState(owned("top"), toggleRotate(DEFAULT)).cubeValue).toBe(4);
     expect(layoutToBuilderState(photo(), toggleRotate(DEFAULT)).cubeOwner).toBe("center");
+  });
+
+  it("swap colours is drawing only: same builder state and pips, palettes flipped", () => {
+    // The swap isn't an input to the mapping at all: it is a separate
+    // display flag the review page passes to Board. The builder state and
+    // pip counts come from the orientation alone, so they match with the
+    // swap on or off; only the palette each side is drawn in flips.
+    for (const o of [DEFAULT, toggleRotate(DEFAULT), toggleMirrorNumbers(DEFAULT)]) {
+      const withoutSwap = layoutToBuilderState(photo(), o);
+      const withSwap = layoutToBuilderState(photo(), o);
+      expect(withSwap).toEqual(withoutSwap);
+      expect(pipCounts(withSwap.position)).toEqual(pipCounts(withoutSwap.position));
+    }
+    expect(checkerColors("mine", false)).toEqual(CHECKER_PALETTE.mine);
+    expect(checkerColors("opponent", false)).toEqual(CHECKER_PALETTE.opponent);
+    expect(checkerColors("mine", true)).toEqual(CHECKER_PALETTE.opponent);
+    expect(checkerColors("opponent", true)).toEqual(CHECKER_PALETTE.mine);
   });
 
   it("bottom colour swapped twice gives back the original", () => {

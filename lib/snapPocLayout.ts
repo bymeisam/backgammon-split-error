@@ -142,7 +142,15 @@ export function snapCheckerTotals(layout: SnapLayout): { light: number; dark: nu
  * reads the layout turned 180 degrees (rotateLayout180) with the home side
  * swapped too (viewHome), and turns it back on the way out, so stored layouts
  * stay in the photo's own frame. Both flags are optional, and absent means
- * false, so truth files saved before they existed load unchanged. */
+ * false, so truth files saved before they existed load unchanged.
+ *
+ * `bottomColor` is no longer a user control. Editing it changed who owns
+ * which checkers, so it changed the game and the pip counts, when all the
+ * user wanted was to see the photo's colours the way they read them. The
+ * review page's "Swap colours" toggle does that now as a drawing-only swap
+ * (Board's swapCheckerColors), outside this type. `bottomColor` stays as the
+ * mapping's input: every saved truth uses "dark" (darker colour = near
+ * player), and Rotate still flips it internally as a view change. */
 export interface SnapOrientation {
   bottomColor: "light" | "dark";
   bottomHome: "right" | "left";

@@ -27,12 +27,6 @@ export const style = {
   infoTitle: shared.overline,
   infoText: "text-sm leading-6 text-ink-muted",
   infoError: shared.errorText,
-  segmented: "grid grid-cols-2 gap-1 rounded-control bg-sunken p-[3px] ring-1 ring-inset ring-line",
-  segmentOption: (selected: boolean): string =>
-    clsx(
-      "rounded-inset px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
-      selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
-    ),
   fieldLabel: shared.filterField,
   // The board-view toggles: separate Buttons side by side, not a segmented
   // control, so each reads as on or off by itself.

@@ -46,7 +46,7 @@ import {
   type Side,
   type StackBase,
 } from "@/lib/boardGeometry";
-import { CHECKER_PALETTE, CUBE_CONTRAST, CUBE_FILL } from "@/lib/checkerPalette";
+import { CUBE_CONTRAST, CUBE_FILL, checkerColors, paletteSide } from "@/lib/checkerPalette";
 import { style, type ArrowTier } from "./BoardPanel.styles";
 
 // Drawn in the order of the Clubroom mockup's board() (design/mockups/
@@ -64,8 +64,8 @@ import { style, type ArrowTier } from "./BoardPanel.styles";
 // from the default only where the data differs, and a position re-mapped to
 // match (app/snap-poc's Mirror numbers) differs only in the label text.
 
-function OffTray({ side, count }: { side: Side; count: number }) {
-  const { fill, contrast, rim } = CHECKER_PALETTE[side];
+function OffTray({ side, count, swapColors }: { side: Side; count: number; swapColors: boolean }) {
+  const { fill, contrast, rim } = checkerColors(side, swapColors);
   const { topY, bottomY, badgeAtBottom } = offTrayBounds(side);
   const { badgeR, badgeCy, trackTop, slotSpan } = offColumnGeometry(topY, bottomY, badgeAtBottom);
   const slotH = Math.max(slotSpan - 1.5, 2);
@@ -102,10 +102,20 @@ function OffTray({ side, count }: { side: Side; count: number }) {
 
 // Up to MAX_STACK checkers, each with its turned ring; past that, "+N" on
 // the last one: N more than shown.
-function Stack({ base, count, side }: { base: StackBase; count: number; side: Side }) {
+function Stack({
+  base,
+  count,
+  side,
+  swapColors,
+}: {
+  base: StackBase;
+  count: number;
+  side: Side;
+  swapColors: boolean;
+}) {
   if (count <= 0) return null;
   const shown = Math.min(count, MAX_STACK);
-  const { fill, contrast, rim } = CHECKER_PALETTE[side];
+  const { fill, contrast, rim } = checkerColors(side, swapColors);
   const lastY = stackSlotY(base, shown - 1);
 
   return (
@@ -115,7 +125,7 @@ function Stack({ base, count, side }: { base: StackBase; count: number; side: Si
         return (
           <g key={i}>
             <circle cx={base.cx} cy={cy} r={R} fill={fill} stroke={rim} strokeWidth={1.2} />
-            <circle cx={base.cx} cy={cy} r={RING_R} className={style.checkerRing(side)} />
+            <circle cx={base.cx} cy={cy} r={RING_R} className={style.checkerRing(paletteSide(side, swapColors))} />
           </g>
         );
       })}
@@ -163,14 +173,17 @@ function BoardDie({
   value,
   index,
   side,
+  swapColors,
   onClick,
 }: {
   value: number;
   index: number;
   side: Side;
+  swapColors: boolean;
   onClick?: () => void;
 }) {
   const { x, y } = diePosition(index);
+  const colors = checkerColors(side, swapColors);
   const s = DIE_SIZE;
   const die = (
     <>
@@ -181,11 +194,11 @@ function BoardDie({
         width={s}
         height={s}
         rx={s * 0.2}
-        fill={CHECKER_PALETTE[side].fill}
+        fill={colors.fill}
         className={style.dieFrame}
       />
       {diePips(value).map(([px, py], i) => (
-        <circle key={i} cx={x + px * s} cy={y + py * s} r={s * 0.09} fill={CHECKER_PALETTE[side].contrast} />
+        <circle key={i} cx={x + px * s} cy={y + py * s} r={s * 0.09} fill={colors.contrast} />
       ))}
     </>
   );
@@ -299,6 +312,7 @@ export default function Board({
   rollSide,
   flipped = false,
   homeLeft = false,
+  swapCheckerColors = false,
   cube = null,
   onPointKeyDown,
   onBarKeyDown,
@@ -327,6 +341,10 @@ export default function Board({
   flipped?: boolean;
   // Mirror the point numbering only: point 1 bottom-left.
   homeLeft?: boolean;
+  // Display only: draw each side's checkers, bar, tray and dice in the
+  // other side's colours (app/snap-poc's "Swap colours"). The position,
+  // sides and callbacks are unchanged.
+  swapCheckerColors?: boolean;
   cube?: BoardCube | null;
   onPointKeyDown?: (point: number) => void;
   onBarKeyDown?: (side: Side) => void;
@@ -430,8 +448,8 @@ export default function Board({
         })}
 
       {/* off tray halves */}
-      <OffTray side="opponent" count={decoded.opponentOff} />
-      <OffTray side="mine" count={decoded.mineOff} />
+      <OffTray side="opponent" count={decoded.opponentOff} swapColors={swapCheckerColors} />
+      <OffTray side="mine" count={decoded.mineOff} swapColors={swapCheckerColors} />
 
       {/* point checkers */}
       {columns.map((column) => {
@@ -441,16 +459,16 @@ export default function Board({
         const base = stackBase(column);
         return (
           <g key={column}>
-            {mineCount > 0 && <Stack base={base} count={mineCount} side="mine" />}
-            {oppCount > 0 && <Stack base={base} count={oppCount} side="opponent" />}
+            {mineCount > 0 && <Stack base={base} count={mineCount} side="mine" swapColors={swapCheckerColors} />}
+            {oppCount > 0 && <Stack base={base} count={oppCount} side="opponent" swapColors={swapCheckerColors} />}
           </g>
         );
       })}
 
       {/* bar checkers */}
-      {decoded.mineBar > 0 && <Stack base={barStackBase("mine")} count={decoded.mineBar} side="mine" />}
+      {decoded.mineBar > 0 && <Stack base={barStackBase("mine")} count={decoded.mineBar} side="mine" swapColors={swapCheckerColors} />}
       {decoded.opponentBar > 0 && (
-        <Stack base={barStackBase("opponent")} count={decoded.opponentBar} side="opponent" />
+        <Stack base={barStackBase("opponent")} count={decoded.opponentBar} side="opponent" swapColors={swapCheckerColors} />
       )}
 
       {/* doubling cube — after the bar checkers, so an offered cube (drawn
@@ -558,6 +576,7 @@ export default function Board({
           value={value}
           index={i}
           side={drawnRollSide}
+          swapColors={swapCheckerColors}
           onClick={onRollDieClick ? () => onRollDieClick(i) : undefined}
         />
       ))}

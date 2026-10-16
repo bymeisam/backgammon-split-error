@@ -49,16 +49,20 @@ function numberValue(value: string): number {
 // homeLeft: draw the board mirrored (point 1 bottom-left). Only the drawing
 // changes: Board's hit areas use the same mirrored geometry and still report
 // the logical point, so clicks edit the point drawn under the pointer.
+// swapCheckerColors: draw each side in the other side's colours (Board's
+// swapCheckerColors). Display only: the state, pips and sides don't change.
 export default function PositionBuilder({
   canPostToForum,
   initialState,
   extraActions,
   homeLeft = false,
+  swapCheckerColors = false,
 }: {
   canPostToForum: boolean;
   initialState?: PositionBuilderState;
   extraActions?: (state: PositionBuilderState) => ReactNode;
   homeLeft?: boolean;
+  swapCheckerColors?: boolean;
 }) {
   const router = useRouter();
   const [state, setState] = useState<PositionBuilderState>(initialState ?? initialPositionBuilderState);
@@ -189,6 +193,7 @@ export default function PositionBuilder({
             rollSide={state.playerToMove}
             cube={cube}
             homeLeft={homeLeft}
+            swapCheckerColors={swapCheckerColors}
             onPointClick={(point) => edit(point)}
             onBarClick={(side) => {
               setEditingSide(side);
