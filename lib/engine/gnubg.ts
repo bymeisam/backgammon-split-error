@@ -15,6 +15,11 @@ export type Candidate = {
   probabilities: { win: number; winGammon: number; winBackgammon: number; lose: number; loseGammon: number; loseBackgammon: number } | null;
 };
 export type Analysis = { positionId: string; roll: [number, number]; plies: number; depthReason?: "single-survivor"; candidates: Candidate[] };
+export type CubeEquities = { noDouble: number; doubleTake: number; doublePass: number };
+export type CubeAnalysis = { positionId: string; action: string; equities: CubeEquities };
+
+const cubeActionLine = /^\s*Proper cube action:\s*(.+?)\s*(?:\([^)]*\))?\s*$/i;
+const cubeEquityLine = /^\s*\d+\.\s*(No double|Double,\s*pass|Double,\s*take)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s+\([^)]*\))?\s*$/i;
 
 const candidateLine = /^\s*(\d+)\.\s+Cubeful\s+(\d+)-ply\s+(.+?)\s+Eq\.:\s*([+-]?[\d.]+)(?:\s+\([^)]+\))?\s*$/;
 const probabilityLine = /^\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+-\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*$/;
@@ -66,9 +71,41 @@ export function parseHint(output: string, expectedPlies = EVALUATION_PLIES, move
   return parseHints(output, expectedPlies, moveFilterThreshold)[0] ?? [];
 }
 
-function commands(positionId: string, matchId: string, rolls: [number, number][], plies = EVALUATION_PLIES, moveFilterThreshold?: number): string {
+export function parseCubeHint(output: string, positionId: string): CubeAnalysis {
+  const actionLines = output.split(/\r?\n/).map((line) => cubeActionLine.exec(line)).filter((match) => match !== null);
+  const equityLines = output.split(/\r?\n/).map((line) => cubeEquityLine.exec(line)).filter((match) => match !== null);
+  if (actionLines.length !== 1 || equityLines.length !== 3) throw new Error("Ambiguous GNU cube hint output");
+  const values: Record<string, number> = {};
+  for (const match of equityLines) {
+    const key = match[1].toLowerCase().replace(/\s+/g, " ");
+    if (Object.hasOwn(values, key)) throw new Error("Ambiguous GNU cube hint equities");
+    values[key] = Number(match[2]);
+  }
+  if (!["no double", "double, take", "double, pass"].every((key) => Object.hasOwn(values, key))) throw new Error("Missing GNU cube hint equities");
+  return {
+    positionId,
+    action: actionLines[0][1].replace(/\s+/g, " ").trim(),
+    equities: { noDouble: values["no double"], doubleTake: values["double, take"], doublePass: values["double, pass"] },
+  };
+}
+
+export async function analyzeCube(positionId: string, matchId: string): Promise<CubeAnalysis> {
   decodeGnuPositionId(positionId);
-  if (!decodeGnuMatchId(matchId)) throw new Error("Invalid GNU Match ID");
+  const match = decodeGnuMatchId(matchId);
+  if (!match || match.gameState !== 1 || match.dice.some((die) => die !== 0)) throw new Error("Cube analysis requires a valid game-state-one Match ID without dice");
+  const output = await run([
+    "new game",
+    `set matchid ${matchId}`,
+    `set board ${positionId}`,
+    "hint",
+    "quit",
+    "",
+  ].join("\n"));
+  return parseCubeHint(output, positionId);
+}
+function commands(positionId: string, matchId: string, rolls: [number, number][], plies = EVALUATION_PLIES, moveFilterThreshold?: number): string {
+  const match = decodeGnuMatchId(matchId);
+  if (!match || match.gameState !== 1) throw new Error("GNU analysis requires a valid game-state-one Match ID");
   return [
     "new game",
     `set matchid ${matchId}`,
@@ -82,7 +119,7 @@ function commands(positionId: string, matchId: string, rolls: [number, number][]
 
 async function run(input: string): Promise<string> {
   const { promise, resolve, reject } = Promise.withResolvers<string>();
-  const child = spawn("docker", ["run", "--rm", "-i", GNUBG_IMAGE, "/usr/games/gnubg", "-t", "-q"], { stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn("docker", ["run", "--pull=never", "--rm", "-i", GNUBG_IMAGE, "/usr/games/gnubg", "-t", "-q"], { stdio: ["pipe", "pipe", "pipe"] });
   let stdout = "";
   let stderr = "";
   child.stdout.setEncoding("utf8").on("data", (chunk: string) => { stdout += chunk; });
@@ -134,11 +171,12 @@ export async function analyzeAtPlies(positionId: string, matchId: string, reques
 
 export async function analyze(positionId: string, matchId: string, requestedRoll?: [number, number]): Promise<Analysis> {
   const match = decodeGnuMatchId(matchId);
-  if (!match) throw new Error("Invalid GNU Match ID");
+  if (!match || match.gameState !== 1) throw new Error("Checker analysis requires a valid game-state-one Match ID");
   const inputRoll = requestedRoll ?? match.dice;
   if (inputRoll.some((die) => !Number.isInteger(die) || die < 1 || die > 6)) throw new Error("Roll must contain two dice from 1 to 6");
   const roll = [...inputRoll].sort((a, b) => b - a) as [number, number];
-  return (await evaluateMany(positionId, matchId, [roll]))[0];
+  const result = (await evaluateMany(positionId, matchId, [roll]))[0];
+  return { ...result, candidates: result.candidates.slice(0, 4) };
 }
 
 export async function allRolls(positionId: string, matchId: string): Promise<Analysis[]> {

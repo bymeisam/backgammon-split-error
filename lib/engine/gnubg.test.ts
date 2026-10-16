@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { analyze, parseHint, parseHints } from "@/lib/engine/gnubg";
+import { analyze, analyzeCube, parseCubeHint, parseHint, parseHints } from "@/lib/engine/gnubg";
+
 
 describe("parseHint", () => {
   const fixture = readFileSync(new URL("./fixtures/hint.txt", import.meta.url), "utf8");
@@ -9,6 +10,35 @@ describe("parseHint", () => {
   const mixedSingleSurvivorFixture = readFileSync(new URL("./fixtures/hint-single-survivor-mixed.txt", import.meta.url), "utf8");
   const narrowSingleSurvivorFixture = readFileSync(new URL("./fixtures/hint-single-survivor-narrow.txt", import.meta.url), "utf8");
   const loneCandidateFixture = readFileSync(new URL("./fixtures/hint-single-candidate.txt", import.meta.url), "utf8");
+  const cubeFixture = readFileSync(new URL("./fixtures/cube-hint.txt", import.meta.url), "utf8");
+
+  it("parses GNU cube action and all three equities from captured CLI output", () => {
+    expect(parseCubeHint(cubeFixture, "4HPwATDgc/ABMA")).toEqual({
+      positionId: "4HPwATDgc/ABMA",
+      action: "No double, beaver",
+      equities: { noDouble: 0.099, doubleTake: -0.171, doublePass: 1 },
+    });
+  });
+  it("fails closed on incomplete or ambiguous cube fields", () => {
+    expect(() => parseCubeHint(cubeFixture.replace(/^2\..*Double, pass.*$/m, ""), "x")).toThrow();
+    expect(() => parseCubeHint(`${cubeFixture}${String.fromCharCode(10)}Proper cube action: Double, take`, "x")).toThrow();
+  });
+  it("limits checker candidates to four while retaining parsed candidate depth and equities", async () => {
+    const result = await analyze("4HPwATDgc/ABMA", "cIkKAAAAAAAA", [5, 2]);
+    expect(result.candidates).toHaveLength(4);
+    expect(result.candidates[0].plies).toBe(2);
+    expect(result.candidates[0].equity).toEqual(expect.any(Number));
+  });
+  it("rejects game-state-zero Match IDs for live engine calls", async () => {
+    await expect(analyze("4HPwATDgc/ABMA", "cIgFAAAAAAAA", [3, 1])).rejects.toThrow(/game-state-one/);
+  });
+  it("runs a cube hint without dice using a game-state-one Match ID", async () => {
+    await expect(analyzeCube("4HPwATDgc/ABMA", "cAkAAAAAAAAA")).resolves.toMatchObject({
+      positionId: "4HPwATDgc/ABMA",
+      action: expect.any(String),
+      equities: { noDouble: expect.any(Number), doubleTake: expect.any(Number), doublePass: expect.any(Number) },
+    });
+  });
 
   it("parses mixed-depth candidates and ignores prune detail lines", () => {
     const candidates = parseHint(mixedFixture);
@@ -43,7 +73,7 @@ describe("parseHint", () => {
     expect(parseHints(`${mixedFixture}\n${mixedFixture}`)).toHaveLength(2);
   });
   it("rejects invalid caller-supplied dice before starting Docker", async () => {
-    await expect(analyze("AQAAhAAAAAAAAA", "Q4mmAAAAAAAE", [0, 1])).rejects.toThrow(/two dice from 1 to 6/);
+    await expect(analyze("AQAAhAAAAAAAAA", "cIkKAAAAAAAA", [0, 1])).rejects.toThrow(/two dice from 1 to 6/);
   });
 
   it("returns no candidates for non-hint output", () => {
