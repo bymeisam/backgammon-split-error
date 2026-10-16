@@ -2,15 +2,22 @@
 // can be unit-tested with in-memory strings (developer-guard-lib.test.mjs).
 // Everything here fails closed: when in doubt, "not local" and "connects".
 
-const DATABASE_URL_LINE = /^\s*(?:export\s+)?DATABASE_URL\s*=\s*(.*)$/;
+// The database variables lib/databaseUrl.ts reads. DB_TARGET picks the set
+// ("local" when unset or empty); only the LOCAL_* URLs are checked here,
+// because any target other than local already means "not local".
+export const DB_TARGET_VAR = "DB_TARGET";
+export const LOCAL_URL_VARS = ["LOCAL_DATABASE_URL", "LOCAL_DATABASE_URL_READONLY", "LOCAL_DATABASE_URL_APP"];
+// Every name developer-guard.mjs reads from the shell.
+export const GUARD_ENV_VARS = [DB_TARGET_VAR, ...LOCAL_URL_VARS];
 
-// Every DATABASE_URL value in one env file's text, in file order. Duplicates
+// Every value of `name` in one env file's text, in file order. Duplicates
 // are all returned (dotenv uses the last one; the caller checks them all).
-export function parseDatabaseUrls(text) {
+export function parseEnvValues(text, name) {
+  const line = new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=\\s*(.*)$`);
   const values = [];
-  for (const line of String(text ?? "").split(/\r?\n/)) {
-    if (/^\s*#/.test(line)) continue;
-    const m = line.match(DATABASE_URL_LINE);
+  for (const raw of String(text ?? "").split(/\r?\n/)) {
+    if (/^\s*#/.test(raw)) continue;
+    const m = raw.match(line);
     if (!m) continue;
     const rest = m[1].trim();
     const quoted = rest.match(/^(["'])(.*?)\1/);
@@ -31,29 +38,59 @@ export function isLocalUrl(url) {
   }
 }
 
-// shellValue: process.env.DATABASE_URL (string | undefined).
+// Every value of `name` that could reach a process: the shell's, then each
+// file's. dotenv and Next never override a variable already set in the
+// shell, so the shell value stands in for .env's own (and counts even when
+// .env doesn't exist). The other .env* files are all checked (Playwright
+// reads .env.test, Next reads .env.local etc.).
+function candidates(name, shell, files) {
+  const out = []; // { source, value }
+  const shellSet = typeof shell?.[name] === "string";
+  if (shellSet) out.push({ source: "shell", value: shell[name] });
+  for (const f of files ?? []) {
+    if (f.name === ".env" && shellSet) continue;
+    for (const value of parseEnvValues(f.text, name)) out.push({ source: f.name, value });
+  }
+  return out;
+}
+
+// shell: { DB_TARGET, LOCAL_DATABASE_URL, LOCAL_DATABASE_URL_READONLY,
+//          LOCAL_DATABASE_URL_APP } from process.env (string | undefined each).
 // files: [{ name, text }] for every .env* file (except .env.example);
 // text === null means the file exists but couldn't be read.
-// Returns { local, reason }. `reason` names sources, never URL values.
-export function databaseIsLocal({ shellValue, files }) {
+// Local means: no DB_TARGET anywhere other than "local" or empty, at least
+// one non-empty LOCAL_DATABASE_URL, and every non-empty LOCAL_* URL on
+// localhost. Returns { local, reason }. `reason` names sources and
+// variables, never values.
+export function databaseIsLocal({ shell, files }) {
   const unreadable = (files ?? []).filter((f) => f.text === null).map((f) => f.name);
   if (unreadable.length) return { local: false, reason: `could not read ${unreadable.join(", ")}` };
 
-  const candidates = []; // { source, url }
-  const shellSet = typeof shellValue === "string";
-  // dotenv never overrides a variable already set in the shell, so the shell
-  // value stands in for .env's own (and counts even when .env doesn't exist).
-  if (shellSet) candidates.push({ source: "shell", url: shellValue });
-  for (const f of files ?? []) {
-    if (f.name === ".env" && shellSet) continue;
-    for (const url of parseDatabaseUrls(f.text)) candidates.push({ source: f.name, url });
+  const badTarget = candidates(DB_TARGET_VAR, shell, files).filter((c) => c.value !== "" && c.value !== "local");
+  if (badTarget.length) {
+    return { local: false, reason: `DB_TARGET is not local in: ${[...new Set(badTarget.map((c) => c.source))].join(", ")}` };
   }
 
-  if (candidates.length === 0) return { local: false, reason: "no DATABASE_URL found" };
+  const rw = candidates(LOCAL_URL_VARS[0], shell, files).filter((c) => c.value !== "");
+  if (rw.length === 0) return { local: false, reason: "no LOCAL_DATABASE_URL found" };
 
-  const failing = [...new Set(candidates.filter((c) => !isLocalUrl(c.url)).map((c) => c.source))];
-  if (failing.length) return { local: false, reason: `DATABASE_URL is not localhost in: ${failing.join(", ")}` };
-  return { local: true, reason: "every DATABASE_URL is localhost" };
+  const failing = [];
+  for (const name of LOCAL_URL_VARS) {
+    for (const c of candidates(name, shell, files)) {
+      if (c.value !== "" && !isLocalUrl(c.value)) failing.push(`${name} (${c.source})`);
+    }
+  }
+  if (failing.length) return { local: false, reason: `not localhost: ${[...new Set(failing)].join(", ")}` };
+  return { local: true, reason: "DB_TARGET is local and every LOCAL_* URL is localhost" };
+}
+
+// Commands that name Oracle: its host secret, ro-query's oracle target, the
+// target flag set to oracle, or the Oracle URL variables. Blocked outright,
+// whatever the env says.
+const ORACLE_COMMAND = /\b(ORACLE_DB_HOST|awesomebg)\b|--target\s+oracle|\bDB_TARGET\s*=\s*["']?oracle\b|ORACLE_DATABASE_URL/i;
+
+export function namesOracle(command) {
+  return ORACLE_COMMAND.test(String(command ?? ""));
 }
 
 const DB_COMMAND_PATTERNS = [

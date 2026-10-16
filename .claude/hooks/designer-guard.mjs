@@ -77,7 +77,7 @@ const shapeRules = [
 ];
 const fullTextRules = [
   // --- from investigator-guard.mjs ---
-  [/\bDATABASE_URL/, "database connection string"],
+  [/(?:\b|_)DATABASE_URL|\bDB_TARGET\s*=/, "database connection string or DB_TARGET"],
   [/(^|[\s'"=\/<])\.env(?!\.example\b)(\.[\w-]+)?\b/, "access to .env (credentials)"],
   [/\b(printenv|env)\s*($|\||;)|\bset\s*($|\|)|\bexport\s+-p\b/, "dumping environment variables"],
   [/\bcurl\b.*\s-(X\s*(POST|PUT|PATCH|DELETE)|d|F|T|o|O)\b|--data\b|--output\b|--remote-name\b/, "non-GET HTTP request or download to a file"],

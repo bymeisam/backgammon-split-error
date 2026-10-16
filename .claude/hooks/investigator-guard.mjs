@@ -19,7 +19,7 @@ const shapeRules = [
   [/\b(rm|rmdir|mv|cp|mkdir|touch|tee|truncate|chmod|chown|ln|install|dd|unlink)\b/, "file-modifying command"],
   [/\bsed\b[^|]*\s-i/, "in-place edit"],
   [/(^|[^0-9&>])>>?\s*(?!\/dev\/null|&)/, "output redirection to a file"],
-  [/\b(npm|pnpm|yarn|npx)\s+(i|install|add|remove|uninstall|update|ci|link|run\s+(backfill|sync|db|migrate|build|dev|start|test|screenshots))\b/, "package install / write-capable npm script"],
+  [/\b(npm|pnpm|yarn|npx)\s+(i|install|add|remove|uninstall|update|ci|link|run\s+(backfill|sync|db|migrate|build|dev|start|test|screenshots|agents))\b/, "package install / write-capable npm script"],
   [/\bprisma\s+(migrate|db|generate)\b/, "prisma schema/data command"],
   [/scripts\/sync\/(backfill|incremental-sync|runSyncCli)/, "backfill/sync script"],
   [/\b(mysql|mysqldump|mysqladmin|mariadb)\b/, "direct DB client (use scripts/readonly/ro-query.ts)"],
@@ -33,7 +33,14 @@ const shapeRules = [
   [/(?:^|[\s;&|(\/"'`])(tsx|ts-node|node|bun|deno|python3?|ruby|perl)\b(?!\s+scripts\/(readonly\/ro-query|readonly\/galaxy-get|db\/check-oracle-cert)\.ts\b)/, "code execution outside scripts/readonly/ro-query.ts, scripts/readonly/galaxy-get.ts, scripts/db/check-oracle-cert.ts"],
 ];
 const fullTextRules = [
-  [/\bDATABASE_URL\b(?!_READONLY)/, "read-write DATABASE_URL"],
+  // Any database URL variable but LOCAL_DATABASE_URL_READONLY (ro-query.ts
+  // reads the URLs itself; the investigator never needs to name them), any
+  // Oracle URL at all, and setting DB_TARGET (Oracle runs are the user's).
+  // `\b` doesn't match inside LOCAL_DATABASE_URL (`_` is a word char), hence
+  // the explicit prefixes.
+  [/\b(?:LOCAL_|ORACLE_)?DATABASE_URL(?!_READONLY\b)/, "read-write or app database URL"],
+  [/ORACLE_DATABASE_URL/, "Oracle database URL"],
+  [/\bDB_TARGET\s*=/, "setting DB_TARGET"],
   [/(^|[\s'"=\/])\.env(?!\.example\b)(\.[\w-]+)?\b/, "access to .env (credentials)"],
   [/\b(printenv|env)\s*($|\||;)|\bset\s*($|\|)|\bexport\s+-p\b/, "dumping environment variables"],
   [/\bcurl\b.*\s-(X\s*(POST|PUT|PATCH|DELETE)|d|F|T)\b|--data\b/, "non-GET HTTP request"],
