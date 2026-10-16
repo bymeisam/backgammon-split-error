@@ -9,7 +9,7 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 **Goal:** an "Analyse" button in `/position-builder` (and so in `/snap-poc`, which embeds the builder) that asks gnubg for the top 4 moves of a checker decision or the cube action of a cube decision. There is no "played move": it's a question to gnubg. Nothing is stored.
 
-1. **Orientation and perspective: master does this, not omp** (user, 2026-10-16). Master is adding tests (with pip counts, cross-checked against gnubg) for the Snaps mirror/rotate options and for the side-to-move frame in `canonicalPositionForForum` (the suspected wrong frame when `playerToMove = "opponent"`). If master changes `lib/positionBuilder.ts`, `lib/gnuPositionId.ts` or `lib/snapPocLayout.ts`, a note here will say to merge master; until then, start with steps 3 and 6 (route and wrapper), which don't depend on it, and don't touch those three files.
+1. **Orientation and perspective: done on master. Merge master now** (`a4b6795`, 2026-10-16), then `npx prisma generate`. `canonicalPositionForForum` now flips the position for the top side to move (Match ID score and cube owner follow the on-roll player) and writes `gameState: 1`; checked against gnubg for both sides, checker and cube. Use its IDs for the Analyse button; drop any gameState-1 workaround. Master is also building a two-step orientation card on `/snap-poc` (it may add optional display props to `PositionBuilder.tsx`/`Board.tsx`); keep your builder changes in their own small components and merge master again before your screenshots to catch conflicts early. The rest of phase A (steps 2, 4, 5, 7) is unblocked.
 2. **Inputs in the builder.**
    - Score and match length: already editable; keep.
    - **Checker decision:** the dice colour shows whose move it is and replaces the "Switch decision side" button as the control.
@@ -31,7 +31,7 @@ Checks: `npm test`, tsc, lint, the new tests above, a live local run of the rout
 - **The live smoke test runs in `npm test`.** `app/api/engine/analyze/route.smoke.test.ts` needs Docker and the image, so `npm test` fails or slows down wherever they're missing. Skip it unless an env flag such as `GNUBG_SMOKE=1` is set (`describe.skipIf`), and note the command in the report.
 - **Pin and check the cube depth.** `analyzeCube` relies on gnubg's default cube-decision depth. Set `set evaluation cubedecision plies 2` explicitly (check the syntax in the image), and fail closed unless the output's "N-ply cubeless equity" line says 2-ply, the same as the move parser. Add a fixture test for the wrong-depth case.
 - **Malformed IDs return a 500.** In `parseRequest`, `decodeGnuPositionId` and `decodeGnuMatchId` can throw on input that passes the regex (e.g. wrong checker totals). Wrap them in try/catch so the route answers 400. Add a route test.
-- **Still blocked on master:** the builder's IDs (wrong frame when the top side is to move, and `gameState: 0`) are master's fixes, waiting on the user. Don't start the builder UI (steps 2, 4, 5, 7) until a note here says to merge master; the three items above can go ahead now.
+- **Unblocked:** see step 1 (merge master, `a4b6795`).
  No schema, no Oracle, no `.env*`, no stored results, no push.
 
 ## Schema requests (omp → master)
