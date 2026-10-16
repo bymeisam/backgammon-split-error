@@ -127,6 +127,7 @@ async function main() {
       positionId: row.sourcePositionId,
       matchId: row.matchId,
       roll: result.roll.join("-"),
+      depthReason: result.depthReason ?? null,
       galaxyBest: row.galaxyBest,
       gnubgBest: bestMove,
       bestAgrees: normalize(row.galaxyBest) === normalize(bestMove),
@@ -155,6 +156,8 @@ async function main() {
     allRollError = message;
   }
   const allRollMs = performance.now() - rollTimer;
+  const singleSurvivorOutcomes = outcomes.filter((row) => row.depthReason === "single-survivor");
+  const verified2PlyOutcomes = outcomes.filter((row) => row.depthReason === null);
   const knownPlayed = outcomes.filter((row) => row.playedEquityDifference !== null);
   const sortedDiff = knownPlayed.map((row) => Math.abs(row.playedEquityDifference!)).sort((a, b) => a - b);
   const sortedLossDiff = outcomes.flatMap((row) => row.absoluteLossDifference === null ? [] : [row.absoluteLossDifference]).sort((a, b) => a - b);
@@ -201,6 +204,16 @@ async function main() {
       all21RollsTotalMs: allRollMs,
       all21RollsEngineEstimateMs: allRollMs - dockerStartupMs,
       all21RollsDepthError: allRollError,
+      withSingleSurvivors: {
+        n: singleSurvivorOutcomes.length,
+        bestAgrees: singleSurvivorOutcomes.filter((row) => row.bestAgrees).length,
+        lossDifference: lossSummary(singleSurvivorOutcomes),
+      },
+      withoutSingleSurvivors: {
+        n: verified2PlyOutcomes.length,
+        bestAgrees: verified2PlyOutcomes.filter((row) => row.bestAgrees).length,
+        lossDifference: lossSummary(verified2PlyOutcomes),
+      },
     },
     lossDifferenceByGalaxySeverity: {
       errorBlunder: lossSummary(outcomes.filter((row) => ["ERROR", "BLUNDER"].includes(row.errorSeverity))),
