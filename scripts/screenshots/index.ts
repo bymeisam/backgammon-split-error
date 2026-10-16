@@ -4,12 +4,33 @@
 // (with its token prompt) and /sources/galaxy/matches too. Written to
 // design/screenshots/<YYYY-MM-DD>/ (gitignored).
 //
-// It only talks HTTP to an already-running app; it never connects to a
-// database itself. Start one first, against the LOCAL database, with write
-// mode on (the review pages and the navbar's write-mode items need it):
+// Usage (it needs a production build; it never builds one itself):
 //
-//   npm run build && ENABLE_WRITE_MODE=true npx next start -p 3300
-//   npx tsx scripts/screenshots/index.ts
+//   npm run build
+//   npm run screenshots
+//   npm run screenshots -- --set=review --review-decisions=a,b,c
+//   npm run screenshots -- --set=auth
+//   npm run screenshots -- --set=forum --forum-posts=4,5 --forum-decision=1149340
+//   npm run screenshots -- --nav-only --readonly
+//
+// It starts its own `next start` (server.ts) on port 3300, or a free port
+// when 3300 is taken, waits until it answers, shoots, and always stops it
+// again (also on an error or Ctrl-C). The server always runs against the
+// LOCAL database: DB_TARGET=local is forced, and it refuses to start unless
+// the LOCAL_* URLs (after loading the env files the way `next start` does)
+// all point at localhost. The script itself never connects to a database;
+// it only talks HTTP to that server. The server's switches per set:
+//   default, --set=review     write mode on (the review pages and the
+//                             navbar's write-mode items need it)
+//   --set=auth                write mode on, AUTH_BYPASS off
+//   --set=forum               AUTH_BYPASS on, write mode on, and the local
+//                             app URL set (prismaApp needs it under
+//                             `next start`, lib/prisma.ts)
+//   --readonly                write mode off (and, with --set=forum, no app
+//                             URL, which would turn app writes on)
+//
+// --base-url=<url> opts out: no server is started, the shots go to that
+// URL, and the database behind it isn't checked.
 //
 // Navbar shots (since 2026-10-09): at 768, 1024, 1280 and 1440, light and
 // dark, the top of /matches, the open Menu at 768, and the Review › Cards
@@ -19,15 +40,13 @@
 // "Game Review" wordmark and the Menu button show) and prints a
 // table, written to nav-metrics-<write|readonly>.json too. The
 // file names carry the server's mode (nav-write-… / nav-readonly-…), read
-// from the page's mode badge. For the read-only shots start a second
-// server with write mode off on the command line only, and pass
-// --nav-only:
-//
-//   ENABLE_WRITE_MODE=false npx next start -p 3301
-//   npx tsx scripts/screenshots/index.ts --base-url=http://localhost:3301 --nav-only
+// from the page's mode badge. For the read-only shots pass --nav-only
+// --readonly.
 //
 // Options:
-//   --base-url=<url>          default http://localhost:3300
+//   --base-url=<url>          shoot a server that is already running (not
+//                             started or checked by the script)
+//   --readonly                start the server with write mode off
 //   --nav-only                only the navbar shots (no review cards are
 //                             added, so it works on a read-only server)
 //   --date=<YYYY-MM-DD>       output folder name; default today (local time)
@@ -60,20 +79,9 @@
 //                             tally, checker modal, and open checker/cube drafts.
 //                             no navbar shots, no review cards. File names
 //                             carry the server's mode (forum-write-… /
-//                             forum-readonly-…), so run it once against a
-//                             write-mode server and once against a
-//                             read-only one. The forum's pages need a
-//                             signed-in owner: start the server with the
-//                             local AUTH_BYPASS=true on its command line
-//                             (never in .env), against the local DB. Under
-//                             `next start` (production) prismaApp needs
-//                             LOCAL_DATABASE_URL_APP on the command line too
-//                             (lib/prisma.ts), pointed at the local DB; it
-//                             also turns app writes on (lib/appWriteGate.ts),
-//                             so leave it off for the read-only run:
-//
-//   LOCAL_DATABASE_URL_APP=<local mysql URL> AUTH_BYPASS=true ENABLE_WRITE_MODE=true npx next start -p 3300
-//   npx tsx scripts/screenshots/index.ts --set=forum --forum-posts=4,5 --forum-decision=1149340 --date=2026-10-13-forum
+//                             forum-readonly-…), so run it once as is and
+//                             once with --readonly. The started server signs
+//                             in through the local AUTH_BYPASS (see above).
 //
 //   --forum-posts=a,b         ForumPost ids for the /forum/<id> shots
 //   --forum-decision=<id>     a Decision id for the prefilled /forum/new shot
@@ -83,7 +91,7 @@
 //                             browser-stubbed. Captures note reason, retry,
 //                             Hard-only and Hard/Good states.
 //   --set=auth                only /sign-in and /auth/complete, at 1280 and
-//                             390, light and dark. Point it at a server
+//                             390, light and dark. The started server runs
 //                             WITHOUT AUTH_BYPASS so the real screens show.
 //
 // The review session's shots take the cards in queue order (new cards in the
@@ -94,14 +102,26 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext } from "@playwright/test";
 import { isThemeId, serializeThemeCookie, THEME_COOKIE } from "../../lib/themes";
-import { BASE_URL, NAV_ONLY, OUT_DIR, SET, SET_VARIANTS, THEME, VARIANTS } from "./config";
+import {
+  BASE_URL,
+  EXTERNAL_BASE_URL,
+  NAV_ONLY,
+  OUT_DIR,
+  READONLY,
+  SET,
+  SET_VARIANTS,
+  setBaseUrl,
+  THEME,
+  VARIANTS,
+} from "./config";
 import { addReviewCards, removeReviewCards } from "./fixtures";
 import { navShots, type NavMetric } from "./nav";
+import { startLocalServer } from "./server";
 import { AUTH_SHOTS } from "./shots/auth";
 import { FORUM_SHOTS } from "./shots/forum";
 import { SHOTS } from "./shots/app";
 
-async function main(): Promise<void> {
+async function shootAll(): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true });
   console.log(
     `Screenshots of ${BASE_URL}${THEME ? ` (theme ${THEME})` : ""} → ${path.relative(process.cwd(), OUT_DIR)}/`
@@ -171,6 +191,31 @@ async function main(): Promise<void> {
   if (failures.length) {
     console.error(`${failures.length} shot(s) failed:\n  ${failures.join("\n  ")}`);
     process.exitCode = 1;
+  }
+}
+
+// Starts the local server (server.ts) unless --base-url names one, shoots,
+// and always stops the server it started.
+async function main(): Promise<void> {
+  if (EXTERNAL_BASE_URL) {
+    console.warn(`--base-url: no server started; the database behind ${EXTERNAL_BASE_URL} isn't checked.`);
+    await shootAll();
+    return;
+  }
+  let server;
+  try {
+    server = await startLocalServer({ set: SET, readonly: READONLY });
+  } catch (err) {
+    // A refusal (no build, a non-local URL) or a server that never came up.
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exitCode = 1;
+    return;
+  }
+  try {
+    setBaseUrl(server.baseUrl);
+    await shootAll();
+  } finally {
+    await server.stop();
   }
 }
 

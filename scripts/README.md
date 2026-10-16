@@ -53,12 +53,17 @@ Never writes. Safe to run any time. These are the investigator's tools.
 
 ## `screenshots/`
 
-Dev tooling. Only talks HTTP to an app you have already started against the
-local DB.
+Dev tooling. Starts its own `next start` against the local DB (it forces
+`DB_TARGET=local` and refuses unless the `LOCAL_*` URLs are localhost) and
+only talks HTTP to it.
 
 - `npm run screenshots` (`index.ts`): screenshots of the main pages for design
-  review. Needs an app already running on port 3300 against the local DB (see
-  its header and `docs/design-system.md`).
+  review. Run `npm run build` first; it never builds. `--set=review|auth|forum`
+  and `--nav-only --readonly` set the server's switches themselves;
+  `--base-url=<url>` shoots an already-running server instead (unchecked). See
+  its header and `docs/design-system.md`. The code is split into `config.ts`
+  (flags), `server.ts` (the local server), `helpers.ts`, `nav.ts`,
+  `fixtures.ts` and `shots/`.
 
 ## `agents/`
 

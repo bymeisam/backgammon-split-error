@@ -14,7 +14,17 @@ function today(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export const BASE_URL = (arg("base-url") ?? "http://localhost:3300").replace(/\/$/, "");
+// --base-url: shoot an already-running server instead of starting one.
+export const EXTERNAL_BASE_URL = arg("base-url")?.replace(/\/$/, "");
+// The app's URL: the external one, or (set by main() once the server is up)
+// the local server server.ts starts. A live binding, so every module sees
+// the value main() sets.
+export let BASE_URL = EXTERNAL_BASE_URL ?? "http://localhost:3300";
+export function setBaseUrl(url: string): void {
+  BASE_URL = url.replace(/\/$/, "");
+}
+// --readonly: the started server runs with write mode off.
+export const READONLY = process.argv.includes("--readonly");
 export const DATE = arg("date") ?? today();
 export const THEME = arg("theme");
 if (THEME !== undefined && !isThemeId(THEME)) {
