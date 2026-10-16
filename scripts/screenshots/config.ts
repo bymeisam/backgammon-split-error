@@ -40,8 +40,8 @@ export const REVIEW_DECISIONS = (arg("review-decisions") ?? "")
   .map(Number);
 
 export const SET = arg("set");
-if (SET !== undefined && SET !== "forum" && SET !== "auth" && SET !== "review" && SET !== "snaps") {
-  console.error(`Unknown --set=${SET}; known: forum, auth, review, snaps`);
+if (SET !== undefined && SET !== "forum" && SET !== "auth" && SET !== "review" && SET !== "snaps" && SET !== "builder") {
+  console.error(`Unknown --set=${SET}; known: forum, auth, review, snaps, builder`);
 }
 export const FORUM_POSTS = (arg("forum-posts") ?? "")
   .split(",")

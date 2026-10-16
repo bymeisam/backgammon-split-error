@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { decodeForumPosition, forumPositionCaption } from "@/lib/forumPosition";
@@ -26,6 +25,12 @@ import PostToForumButton from "@/app/components/ui/PostToForumButton";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import { style } from "./positionBuilder.styles";
+import type { Analysis, CubeAnalysis } from "@/lib/engine/gnubg";
+
+type BuilderAnalysis = (
+  | { kind: "checker"; analysis: Analysis }
+  | { kind: "cube"; analysis: CubeAnalysis }
+) & { inputKey: string };
 
 function sideLabel(side: Side): string {
   return side === "mine" ? "Bottom" : "Top";
@@ -75,9 +80,56 @@ export default function PositionBuilder({
   const [editingSide, setEditingSide] = useState<Side>("mine");
   const [action, setAction] = useState<BuilderAction>("add");
   const [message, setMessage] = useState<string | null>(null);
+  const [crawford, setCrawford] = useState(false);
+  const [analysis, setAnalysis] = useState<BuilderAnalysis | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [engineUnavailable, setEngineUnavailable] = useState(false);
+  const analysisInputKey = JSON.stringify([state, crawford]);
   const errors = useMemo(() => validateBuilderState(state), [state]);
   const pips = useMemo(() => pipCounts(state.position), [state.position]);
-  const cube: BoardCube = { kind: "owned", value: state.cubeValue, owner: state.cubeOwner };
+  const crawfordEligible = state.matchLength > 0 && state.score.some((score) => score === state.matchLength - 1);
+  const cube: BoardCube =
+    state.decisionType === "cube"
+      ? { kind: "offered", value: state.cubeValue * 2, side: state.playerToMove }
+      : { kind: "owned", value: state.cubeValue, owner: state.cubeOwner };
+  const missing = [
+    ...errors,
+    ...(state.decisionType === "checker" && !state.roll ? ["Set both dice for the checker decision."] : []),
+    ...(state.decisionType === "cube" && (crawford || (state.cubeOwner !== "center" && state.cubeOwner !== state.playerToMove))
+      ? ["Cube analysis needs a centered cube or a cube owned by the doubling side, outside Crawford."]
+      : []),
+  ];
+
+  async function analyzeBuilderPosition() {
+    setAnalyzing(true);
+    setAnalysis(null);
+    setAnalysisError(null);
+    try {
+      const canonical = canonicalPositionForForum(state, crawford);
+      const response = await fetch("/api/engine/analyze", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: state.decisionType,
+          positionId: canonical.positionId,
+          matchId: canonical.gnuMatchId,
+          ...(state.decisionType === "checker" ? { dice: state.roll } : {}),
+        }),
+      });
+      if (response.status === 503) {
+        setEngineUnavailable(true);
+        setAnalysisError(null);
+        return;
+      }
+      if (!response.ok) throw new Error("GNU analysis could not be completed.");
+      setAnalysis({ ...await response.json() as BuilderAnalysis, inputKey: JSON.stringify([state, crawford]) });
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : "GNU analysis could not be completed.");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   function edit(location: BuilderLocation, side = editingSide) {
     const result = editChecker(state.position, side, action, location);
@@ -112,14 +164,8 @@ export default function PositionBuilder({
     }));
   }
 
-  function toggleRollSide() {
-    setState((previous) => ({
-      ...previous,
-      playerToMove: previous.playerToMove === "mine" ? "opponent" : "mine",
-    }));
-  }
-
   function updateMatchLength(value: string) {
+    setCrawford(false);
     const matchLength = numberValue(value);
     setState((previous) => {
       const maximumScore = matchLength > 0 ? matchLength - 1 : Number.MAX_SAFE_INTEGER;
@@ -232,6 +278,39 @@ export default function PositionBuilder({
           <span>{sideLabel(state.playerToMove)} {state.decisionType} decision</span>
         </div>
       </Card>
+        <Card as="section" className={style.controlCard} aria-labelledby="gnu-analysis-title">
+          <h2 id="gnu-analysis-title" className={style.controlTitle}>GNU Backgammon 2-ply</h2>
+          <p className={style.controlHint}>
+            {sideLabel(state.playerToMove)} to move · Score {state.score[0]}–{state.score[1]} · {state.matchLength === 0 ? "Money game" : `${state.matchLength}-point match`}
+          </p>
+          {missing.length > 0 && <ul className={style.error}>{missing.map((item) => <li key={item}>{item}</li>)}</ul>}
+          {analysisError && <p className={style.error} role="alert">{analysisError}</p>}
+          {!engineUnavailable && (
+            <Button variant="primary" disabled={missing.length > 0 || analyzing} onClick={analyzeBuilderPosition}>
+              {analyzing ? "Analysing…" : "Analyse with GNU"}
+            </Button>
+          )}
+          {analysis?.inputKey === analysisInputKey && analysis.kind === "checker" && (
+            <div className={style.analysisList}>
+              {analysis.analysis.candidates.length === 0 ? <p className={style.controlHint}>No legal moves</p> : analysis.analysis.candidates.slice(0, 4).map((candidate) => (
+                <div key={`${candidate.rank}-${candidate.move}`} className={style.analysisRow}>
+                  <span className={style.analysisMove}>{candidate.move}</span>
+                  <span className={style.analysisEquity}>{candidate.equity >= 0 ? "+" : ""}{candidate.equity.toFixed(3)}</span>
+                  <span className={style.controlHint}>{candidate.rank === 1 ? "best" : `−${(analysis.analysis.candidates[0].equity - candidate.equity).toFixed(3)}`}</span>
+                  <span className={style.controlHint}>{candidate.plies === 0 && analysis.analysis.depthReason === "single-survivor" ? "0-ply · single survivor" : `${candidate.plies}-ply`}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {analysis?.inputKey === analysisInputKey && analysis.kind === "cube" && (
+            <div className={style.analysisList}>
+              <p>{analysis.analysis.action}</p>
+              <div className={style.analysisRow}><span>No double</span><b className={style.analysisEquity}>{analysis.analysis.equities.noDouble >= 0 ? "+" : ""}{analysis.analysis.equities.noDouble.toFixed(3)}</b></div>
+              <div className={style.analysisRow}><span>Double / take</span><b className={style.analysisEquity}>{analysis.analysis.equities.doubleTake >= 0 ? "+" : ""}{analysis.analysis.equities.doubleTake.toFixed(3)}</b></div>
+              <div className={style.analysisRow}><span>Double / pass</span><b className={style.analysisEquity}>{analysis.analysis.equities.doublePass >= 0 ? "+" : ""}{analysis.analysis.equities.doublePass.toFixed(3)}</b></div>
+            </div>
+          )}
+        </Card>
 
       <div className={style.controls}>
         <Card as="section" className={style.controlCard} aria-labelledby="position-builder-edit-title">
@@ -289,16 +368,23 @@ export default function PositionBuilder({
                 key={type}
                 type="button"
                 aria-pressed={state.decisionType === type}
-                className={style.segmentOption(state.decisionType === type)}
+                disabled={type === "cube" && crawford}
+                className={style.segmentOption(state.decisionType === type, type === "cube" && crawford)}
                 onClick={() => updateDecisionType(type)}
               >
                 {type === "checker" ? "Checker decision" : "Cube decision"}
               </button>
             ))}
           </div>
-          <Button variant="secondary" size="compact" onClick={toggleRollSide}>
-            Switch decision side ({sideLabel(state.playerToMove)})
-          </Button>
+          <div className={style.segmented} aria-label="Side to move">
+            {(["mine", "opponent"] as const).map((side) => (
+              <button key={side} type="button" aria-pressed={state.playerToMove === side}
+                className={style.segmentOption(state.playerToMove === side)}
+                onClick={() => setState((previous) => ({ ...previous, playerToMove: side }))}>
+                {sideLabel(side)} to move
+              </button>
+            ))}
+          </div>
           {state.decisionType === "checker" && (
             <div className={style.fieldGrid}>
               {[0, 1].map((index) => (
@@ -319,6 +405,9 @@ export default function PositionBuilder({
               ))}
             </div>
           )}
+          {state.decisionType === "checker" && (
+            <Button variant="quiet" onClick={() => setState((previous) => ({ ...previous, roll: null }))}>Clear dice</Button>
+          )}
 
           <fieldset className={style.fieldset}>
             <legend className={style.legend}>Score</legend>
@@ -333,6 +422,7 @@ export default function PositionBuilder({
                     max={state.matchLength > 0 ? state.matchLength - 1 : undefined}
                     value={state.score[index]}
                     onChange={(event) => {
+                      setCrawford(false);
                       const score = numberValue(event.target.value);
                       setState((previous) => {
                         const next: [number, number] = [...previous.score];
@@ -360,8 +450,17 @@ export default function PositionBuilder({
               ))}
             </select>
           </label>
+          {crawfordEligible && (
+            <label className={style.field}>
+              Crawford game
+              <input type="checkbox" checked={crawford} onChange={(event) => {
+                setCrawford(event.target.checked);
+                if (event.target.checked) updateDecisionType("checker");
+              }} />
+            </label>
+          )}
         </Card>
-
+        {!crawford && state.decisionType === "cube" && (
         <Card as="section" className={style.controlCard} aria-labelledby="position-builder-cube-title">
           <h2 id="position-builder-cube-title" className={style.controlTitle}>Doubling cube</h2>
           <div className={style.fieldGrid}>
@@ -396,6 +495,7 @@ export default function PositionBuilder({
           </div>
           <p className={style.controlHint}>A cube at 1 is centered. A cube above 1 must belong to Bottom or Top.</p>
         </Card>
+        )}
 
         <Card as="section" className={style.controlCard} aria-labelledby="position-builder-status-title">
           <h2 id="position-builder-status-title" className={style.controlTitle}>Position status</h2>

@@ -105,6 +105,11 @@
 //                             `next start`), so it needs no build; nothing
 //                             is saved (Save is never pressed).
 //
+//   --set=builder             capture checker result, cube result, Crawford-on
+//                             and missing-dice states at 390/1280 light/dark;
+//                             requires the local production build and uses
+//                             the read-only app server.
+//
 // The review session's shots take the cards in queue order (new cards in the
 // order they were added): card 1 answered with the best option, card 2
 // answered wrong, card 3 (if any) answered right but not best (a Good
@@ -130,6 +135,7 @@ import { navShots, type NavMetric } from "./nav";
 import { startLocalServer } from "./server";
 import { AUTH_SHOTS } from "./shots/auth";
 import { FORUM_SHOTS } from "./shots/forum";
+import { BUILDER_SHOTS } from "./shots/builder";
 import { SNAPS_SHOTS } from "./shots/snaps";
 import { SHOTS } from "./shots/app";
 
@@ -159,15 +165,17 @@ async function shootAll(): Promise<void> {
     if (!SET) metrics = await navShots(browser, addTheme, written, failures);
     const variants = SET ? SET_VARIANTS : NAV_ONLY ? [] : VARIANTS;
     const shots =
-      SET === "forum"
-        ? FORUM_SHOTS
-        : SET === "auth"
-          ? AUTH_SHOTS
-          : SET === "snaps"
-            ? SNAPS_SHOTS
-            : SET === "review"
-              ? SHOTS.filter((shot) => shot.name === "review")
-              : SHOTS;
+      SET === "builder"
+        ? BUILDER_SHOTS
+        : SET === "forum"
+          ? FORUM_SHOTS
+          : SET === "auth"
+            ? AUTH_SHOTS
+            : SET === "snaps"
+              ? SNAPS_SHOTS
+              : SET === "review"
+                ? SHOTS.filter((shot) => shot.name === "review")
+                : SHOTS;
     for (const variant of variants) {
       const context = await browser.newContext({
         viewport: { width: variant.width, height: variant.width === 390 ? 844 : 900 },
