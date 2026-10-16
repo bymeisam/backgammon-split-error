@@ -229,8 +229,9 @@ export default function SnapPocReview({
             {/* Three independent on/off toggles, each moving one thing on
                 screen: the checkers mirror (the layout mapping flips), the
                 point numbers mirror (Board's homeLeft, with the mapping
-                flipped too so the checkers stay put), or the checkers turn
-                180 degrees (the photo read upside down). Each is its own
+                flipped too so the checkers stay put), or the board is viewed
+                from the other side of the table (the other colour at the
+                bottom, the game unchanged; toggleRotate). Each is its own
                 Button: primary when on, secondary when off. */}
             <div className={style.fieldLabel} role="group" aria-label="Board view">
               Board view

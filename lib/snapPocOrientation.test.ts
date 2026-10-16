@@ -4,13 +4,17 @@
 // comments in lib/snapPocLayout.ts:
 // - pointAt: home right -> bottom row reads 12..1 left to right, top row
 //   13..24; home left mirrors both rows (bottom 1..12, top 24..13).
-// - rotateLayout180: each row becomes the other row reversed.
+// - Rotate is a view change only (walking round the table): each colour
+//   keeps its own points, bar, tray and pip count; only which colour is
+//   Bottom (`mine`) swaps. `opponent` is indexed in `mine`'s frame, so a
+//   colour's own point p shows as 25 - p when it is the top side.
 // - Mirror numbers changes bottomHome (and the drawing), so it changes the
 //   position, exactly as Mirror checkers does.
 
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SNAP_ORIENTATION,
+  isCheckersMirrored,
   layoutToBuilderState,
   toggleMirrorCheckers,
   toggleMirrorNumbers,
@@ -113,39 +117,37 @@ const cases: Case[] = [
     pips: { mine: 195, opponent: 159 },
   },
   {
-    // The photo turned 180 degrees: each row becomes the other row reversed,
-    // so photo bottom index i lands on top index 11 - i. With home still on
-    // the right, every stack moves 12 points: p -> p + 12 (1-12) or p - 12
-    // (13-24). Dark's 8 -> 20, 6 -> 18, 4 -> 16, 13 -> 1, 24 -> 12; light's
-    // 1 -> 13, 12 -> 24, 17 -> 5, 19 -> 7, 20 -> 8.
-    // Dark: 12 + 4*1 + 3*20 + 4*18 + 2*16 + 25 = 205.
-    // Light: 2*12 + 3*1 + 2*20 + 5*18 + 2*17 = 191.
-    name: "rotate: bottom 205 / top 191",
+    // Walking round the table: light is now drawn at the bottom and dark at
+    // the top, but neither colour's checkers move in its own frame. Light's
+    // own points (25 - p from the default case): 24, 13, 8, 6, 5; dark's own
+    // 24, 13, 8, 6, 4 now show in light's frame as 1, 12, 17, 19, 21.
+    // Light: 2*24 + 3*13 + 2*8 + 5*6 + 2*5 = 143 (1 borne off).
+    // Dark: 1 + 4*12 + 3*17 + 4*19 + 2*21 + bar 25 = 157 (as in default).
+    name: "rotate: bottom 143 / top 157 (default with Bottom/Top swapped)",
     orientation: toggleRotate(DEFAULT),
-    mine: { 1: 4, 12: 1, 16: 2, 18: 4, 20: 3 },
-    opponent: { 5: 2, 7: 5, 8: 2, 13: 2, 24: 3 },
-    mineBar: 1,
-    opponentBar: 0,
-    mineOff: 0,
-    opponentOff: 1,
-    pips: { mine: 205, opponent: 191 },
+    mine: { 24: 2, 13: 3, 8: 2, 6: 5, 5: 2 },
+    opponent: { 1: 1, 12: 4, 17: 3, 19: 4, 21: 2 },
+    mineBar: 0,
+    opponentBar: 1,
+    mineOff: 1,
+    opponentOff: 0,
+    pips: { mine: 143, opponent: 157 },
   },
   {
-    // Rotate (p -> p +/- 12) then home on the left (p -> 13 - p / 37 - p):
-    // together p -> 25 - p, i.e. both sides now run the other way round the
-    // board. Dark's 24 -> 1, 13 -> 12, 8 -> 17, 6 -> 19, 4 -> 21; light's
-    // 1 -> 24, 12 -> 13, 17 -> 8, 19 -> 6, 20 -> 5.
-    // Dark: 1 + 4*12 + 3*17 + 4*19 + 2*21 + 25 = 243.
-    // Light: 2*1 + 3*12 + 2*17 + 5*19 + 2*20 = 207.
-    name: "mirror numbers + rotate: bottom 243 / top 207",
+    // The mirror-numbers game with Bottom/Top swapped. Light's own points
+    // there (25 - p): 24, 13, 8, 7, 5; dark's own 24, 13, 9, 7, 5 show in
+    // light's frame as 1, 12, 16, 18, 20.
+    // Light: 3*24 + 2*13 + 2*8 + 5*7 + 2*5 = 159.
+    // Dark (as in mirror numbers): 4*24 + 13 + 2*9 + 4*7 + 3*5 + 25 = 195.
+    name: "mirror numbers + rotate: bottom 159 / top 195",
     orientation: toggleRotate(toggleMirrorNumbers(DEFAULT)),
-    mine: { 1: 1, 12: 4, 17: 3, 19: 4, 21: 2 },
-    opponent: { 5: 2, 6: 5, 8: 2, 13: 3, 24: 2 },
-    mineBar: 1,
-    opponentBar: 0,
-    mineOff: 0,
-    opponentOff: 1,
-    pips: { mine: 243, opponent: 207 },
+    mine: { 24: 3, 13: 2, 8: 2, 7: 5, 5: 2 },
+    opponent: { 1: 4, 12: 1, 16: 2, 18: 4, 20: 3 },
+    mineBar: 0,
+    opponentBar: 1,
+    mineOff: 1,
+    opponentOff: 0,
+    pips: { mine: 159, opponent: 195 },
   },
   {
     // Light is now the bottom side (`mine`), home still on the right, so the
@@ -205,6 +207,61 @@ describe("Snaps orientation -> builder position and pip counts", () => {
       expect(layoutToBuilderState(photo(), twice)).toEqual(layoutToBuilderState(photo(), DEFAULT));
     });
   }
+
+  // Each colour's checkers in its own frame (index = own point - 1), plus
+  // its bar and tray, and which side of the builder it is on.
+  function perColour(o: SnapOrientation) {
+    const { position } = layoutToBuilderState(photo(), o);
+    const ownOpponent = [...position.opponent].reverse(); // p -> 25 - p
+    const mineSide = { points: position.mine, bar: position.mineBar, off: position.mineOff };
+    const oppSide = { points: ownOpponent, bar: position.opponentBar, off: position.opponentOff };
+    const pips = pipCounts(position);
+    return o.bottomColor === "dark"
+      ? { bottom: "dark", dark: { ...mineSide, pips: pips.mine }, light: { ...oppSide, pips: pips.opponent } }
+      : { bottom: "light", light: { ...mineSide, pips: pips.mine }, dark: { ...oppSide, pips: pips.opponent } };
+  }
+
+  for (const [name, base] of [
+    ["default", DEFAULT],
+    ["mirror checkers", toggleMirrorCheckers(DEFAULT)],
+    ["mirror numbers", toggleMirrorNumbers(DEFAULT)],
+  ] as const) {
+    it(`rotate keeps each colour's points, bar, tray and pips, and swaps Bottom/Top (${name})`, () => {
+      const before = perColour(base);
+      const after = perColour(toggleRotate(base));
+      expect(after.dark).toEqual(before.dark);
+      expect(after.light).toEqual(before.light);
+      expect(after.bottom).not.toBe(before.bottom);
+      const a = layoutToBuilderState(photo(), base);
+      const b = layoutToBuilderState(photo(), toggleRotate(base));
+      expect(pipCounts(b.position)).toEqual({
+        mine: pipCounts(a.position).opponent,
+        opponent: pipCounts(a.position).mine,
+      });
+      expect(b.roll).toEqual(a.roll);
+    });
+
+    it(`rotate leaves the mirror toggles reading the same (${name})`, () => {
+      const r = toggleRotate(base);
+      expect(isCheckersMirrored(r)).toBe(isCheckersMirrored(base));
+      expect(Boolean(r.mirroredNumbers)).toBe(Boolean(base.mirroredNumbers));
+    });
+  }
+
+  it("rotate moves an owned cube with its colour and leaves a centred cube centred", () => {
+    const owned = (location: "top" | "bottom"): SnapLayout => ({
+      ...photo(),
+      cube: { visible: true, value: 4, location },
+    });
+    // Photo cube at the top: owned by light (top in the photo). Rotated,
+    // light is Bottom (`mine`), so it is still light's cube.
+    expect(layoutToBuilderState(owned("top"), DEFAULT).cubeOwner).toBe("opponent");
+    expect(layoutToBuilderState(owned("top"), toggleRotate(DEFAULT)).cubeOwner).toBe("mine");
+    expect(layoutToBuilderState(owned("bottom"), DEFAULT).cubeOwner).toBe("mine");
+    expect(layoutToBuilderState(owned("bottom"), toggleRotate(DEFAULT)).cubeOwner).toBe("opponent");
+    expect(layoutToBuilderState(owned("top"), toggleRotate(DEFAULT)).cubeValue).toBe(4);
+    expect(layoutToBuilderState(photo(), toggleRotate(DEFAULT)).cubeOwner).toBe("center");
+  });
 
   it("bottom colour swapped twice gives back the original", () => {
     const swap = (o: SnapOrientation): SnapOrientation => ({

@@ -129,17 +129,20 @@ export function snapCheckerTotals(layout: SnapLayout): { light: number; dark: nu
 // ---------------------------------------------------------------------------
 // Layout <-> position builder state (step 2's review page).
 
-/** How the photo's visual layout maps onto the builder: which colour sits
- * along the bottom edge (the builder's "Bottom" side, `mine`), and on which
- * side of the photo the bottom player's home board is. `mirroredNumbers`
- * only changes the drawing: the review page draws the board mirrored (point
- * 1 bottom-left, Board's `homeLeft`); it plays no part in the layout mapping
- * below. `rotated` reads the photo turned 180 degrees (taken from the other
- * side of the table): the mapping below rotates the layout first
- * (rotateLayout180), and back on the way out, so bottomColor and bottomHome
- * describe the rotated view and stored layouts stay in the photo's own
- * frame. Both are optional, and absent means false, so truth files saved
- * before they existed load unchanged. */
+/** How the photo's visual layout maps onto the builder: which colour is
+ * drawn along the bottom edge (the builder's "Bottom" side, `mine`), and on
+ * which side of the photo the photo's bottom player's home board is.
+ * `mirroredNumbers` only changes the drawing: the review page draws the board
+ * mirrored (point 1 bottom-left, Board's `homeLeft`); it plays no part in the
+ * layout mapping below. `rotated` is a view change only, as if the viewer
+ * walked round the table: every checker stays on the same point for its own
+ * colour, and only which colour is drawn at the bottom changes. toggleRotate
+ * swaps `bottomColor`, so it always names the colour drawn at the bottom;
+ * `bottomHome` keeps describing the photo as taken, and the mapping below
+ * reads the layout turned 180 degrees (rotateLayout180) with the home side
+ * swapped too (viewHome), and turns it back on the way out, so stored layouts
+ * stay in the photo's own frame. Both flags are optional, and absent means
+ * false, so truth files saved before they existed load unchanged. */
 export interface SnapOrientation {
   bottomColor: "light" | "dark";
   bottomHome: "right" | "left";
@@ -166,10 +169,21 @@ export function toggleMirrorNumbers(o: SnapOrientation): SnapOrientation {
   return { ...o, bottomHome: otherHome(o.bottomHome), mirroredNumbers: !o.mirroredNumbers };
 }
 
-/** "Rotate board": the photo read turned 180 degrees. The checkers move
- * (top<->bottom, left<->right); the numbers and the board itself don't. */
+/** "Rotate board": view the board from the other side of the table. The
+ * game doesn't change: each colour keeps its points, bar, tray and pip count,
+ * and a cube owned by a colour stays with that colour. The colour drawn at
+ * the bottom swaps (so the builder's Bottom/Top swap); `bottomHome` and
+ * `mirroredNumbers` are untouched, so the two mirror toggles read the same.
+ * Its own inverse. */
 export function toggleRotate(o: SnapOrientation): SnapOrientation {
-  return { ...o, rotated: !o.rotated };
+  return { ...o, bottomColor: otherColor(o.bottomColor), rotated: !o.rotated };
+}
+
+/** The bottom player's home side in the view the builder maps: the photo's
+ * own `bottomHome`, or the other side when rotated (turning the board 180
+ * degrees moves the home boards to the other side of the view). */
+function viewHome(o: SnapOrientation): SnapOrientation["bottomHome"] {
+  return o.rotated ? otherHome(o.bottomHome) : o.bottomHome;
 }
 
 /** The layout as seen with the photo turned 180 degrees: each row becomes
@@ -213,7 +227,10 @@ function clampCubeValue(value: number): number {
   return best;
 }
 
-/** Visual layout -> builder state. The bottom colour is `mine`. Each side's
+/** Visual layout -> builder state. The bottom colour is `mine`. When
+ * `rotated`, the layout is read turned 180 degrees with the home side swapped
+ * (viewHome); with toggleRotate's swapped `bottomColor` that leaves each
+ * colour on the same points, only drawn on the other side. Each side's
  * borne-off count is 15 minus what's on its points and bar, so the builder's
  * checker totals stay at 15 (its add/remove edits keep each side's total
  * constant). When the layout's points and bar already hold 15 or fewer, that
@@ -224,6 +241,7 @@ export function layoutToBuilderState(photoLayout: SnapLayout, orientation: SnapO
   const state = initialPositionBuilderState();
   const mineColor = orientation.bottomColor;
   const oppColor = otherColor(mineColor);
+  const home = viewHome(orientation);
   const mine = new Array(24).fill(0);
   const opponent = new Array(24).fill(0);
 
@@ -231,7 +249,7 @@ export function layoutToBuilderState(photoLayout: SnapLayout, orientation: SnapO
     const points = row === "top" ? layout.topRow : layout.bottomRow;
     points.slice(0, 12).forEach((p, i) => {
       if (p.count <= 0 || p.color === "none") return;
-      const point = pointAt(row, i, orientation.bottomHome);
+      const point = pointAt(row, i, home);
       if (p.color === mineColor) mine[point - 1] = p.count;
       else opponent[point - 1] = p.count;
     });
@@ -284,7 +302,7 @@ function viewLayout(state: PositionBuilderState, orientation: SnapOrientation): 
   const { position } = state;
   const rowOf = (row: "top" | "bottom"): SnapPoint[] =>
     Array.from({ length: 12 }, (_, i) => {
-      const point = pointAt(row, i, orientation.bottomHome);
+      const point = pointAt(row, i, viewHome(orientation));
       const m = position.mine[point - 1];
       const o = position.opponent[point - 1];
       if (m > 0) return { color: mineColor, count: m };

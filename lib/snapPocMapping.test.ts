@@ -194,7 +194,7 @@ describe("mirror toggles", () => {
   });
 });
 
-// "Rotate board": the photo read turned 180 degrees.
+// "Rotate board": the board viewed from the other side of the table.
 describe("rotate board", () => {
   const all: SnapOrientation[] = [];
   for (const bottomColor of ["dark", "light"] as const)
@@ -231,13 +231,21 @@ describe("rotate board", () => {
       expect(back.cube).toEqual(original.cube);
     });
 
-    it(`reads the board as the upside-down photo and leaves the other toggles alone (${label})`, () => {
+    it(`reads the upside-down photo with colour and home side swapped, leaving the mirror toggles alone (${label})`, () => {
       expect(rotated.rotated).toBe(true);
+      expect(rotated.bottomColor).not.toBe(o.bottomColor);
       expect(rotated.bottomHome).toBe(o.bottomHome);
       expect(rotated.mirroredNumbers).toBe(o.mirroredNumbers);
-      expect(toggleRotate(rotated).rotated).toBe(false);
-      expect(layoutToBuilderState(layout(), rotated)).toEqual(layoutToBuilderState(rotateLayout180(layout()), o));
-      // The checkers move: each stack goes to the other row's mirrored column.
+      expect(toggleRotate(rotated)).toEqual({ ...o, rotated: false });
+      expect(layoutToBuilderState(layout(), rotated)).toEqual(
+        layoutToBuilderState(rotateLayout180(layout()), {
+          ...o,
+          bottomColor: rotated.bottomColor,
+          bottomHome: o.bottomHome === "right" ? "left" : "right",
+        })
+      );
+      // The drawing changes: the other colour is now at the bottom, so each
+      // stack moves to the other row (same column, numbers unchanged).
       expect(screen(rotated)).not.toEqual(screen(o));
     });
 
