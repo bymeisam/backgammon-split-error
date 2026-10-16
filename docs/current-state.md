@@ -2,34 +2,37 @@
 
 Start each new session here. `PROGRESS.md` is the history log: grep it only when you need the history behind something. `/wrap-up` rewrites this file at the end of each batch of work. Keep it under about a page: it's a snapshot, not history.
 
-_Last updated: 2026-10-16 (screenshot auth-bypass fix, Snaps prompt eval set-up, omp engine review)._
+_Last updated: 2026-10-16 (gnubg-in-builder plan, builder ID fixes, pip counts, Snaps two-step orientation card)._
 
 ## Code
 
-- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 7 commits since the user's last push (`9f9908e` screenshots auth bypass, `ce9461d` Snaps prompt versions + `snaps:score`, `623f069` / `ce83b8a` eval report, `6b9522f` omp queue, `9b440ff` PROGRESS, plus this wrap-up).
-- **Checks on master:** tsc and lint clean, vitest 962 (after `ce9461d`), build clean. Visual suite not rerun (no app rendering change).
-- **Screenshots:** `npm run build`, then `npm run screenshots [--set=forum|auth|review] [--readonly] [--nav-only]`. Every set but `auth` now signs in through `AUTH_BYPASS` and (outside `--readonly`) gets the local app URL; the spawned server never sees `ORACLE_*`. Latest shots in `design/screenshots/2026-10-16/`.
+- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** ~25 commits since the user's last push (latest `3ecb3a6` numbering from the analysed home, plus this wrap-up).
+- **Checks on master:** tsc, lint, vitest 1217, build and the visual suite (24) all pass after `3ecb3a6`.
+- **Screenshots:** `npm run build`, then `npm run screenshots [--set=forum|auth|review|snaps] [--readonly] [--nav-only]`. The `snaps` set runs its own `next dev` (`/snap-poc` 404s under `next start`). Latest Snaps shots: `design/screenshots/2026-10-16-snaps-numbering/`.
 - **Database URLs:** `DB_TARGET` model (`lib/databaseUrl.ts` is the only reader). `.env` is the user's; never assume or change it.
 
-## Snaps (prompt eval)
+## gnubg in the position builder
 
-- Prompts in `scripts/snaps/prompts.ts` (v1, v2 = v1 + stack counting). Run `npx tsx scripts/snaps/snap-poc.ts --model gemini-3.8-flash --prompt <v>`; answers in `snap-poc/results/<model>/<version>/` (gitignored, cached, re-run to continue). Score with `npm run snaps:score`. Log: `reports/snaps-prompt-eval.md`.
-- Photos: set1 = 10 originals, set2 = 19 stream frames from 2026-10-16. Truth entered for 28 (all but `Screenshot 2026-10-16 at 11.41.53 am.png`, which has no v1 answer yet).
-- v1: set1 4/10 all points right, 91%; set2 16/18, 99%; dice the main miss on set2 (9/18).
-- Free Gemini quota ran out after ~22 calls on 2026-10-16.
-- **Waiting on the quota reset (user or a developer run):** v1 on the missing photo, v2 on all 29 (likely two days), `snaps:score`, fill v2 into the log.
-- **Then (plan with the user first):** v3 = dice rules + new cube format. User's rule: cube in the middle showing 2+ or on the playing area = offered double (take/pass decision, no owner); on the rail/tray = owned by that side; middle showing 64 = centred. Needs answer-format change, an "offered" toggle on `/snap-poc` (Board can draw an offered cube; builder's `doubleOffered` is always false), truths rechecked (e.g. `11.37.11`). Details in the eval log.
+- Plan approved 2026-10-16. Phase A (omp, local): Analyse button in `/position-builder`, input checks, top 4 moves or the cube action, members-only `POST /api/engine/analyze`, nothing stored. Phase B (omp): host gnubg on an Oracle Always Free Arm server; the user approves every Oracle step. Browser/WASM parked (`docs/future-ideas.md`).
+- Done on master: `canonicalPositionForForum` flips the position for the top side to move and writes `gameState: 1` (`a4b6795`, checked with gnubg). Pip counts in the builder caption (`0dfd80b`, `lib/pipCount.ts`).
+- omp: route + wrapper done (`a6d9fcc`, reviewed, not merged into master). Queue tells it to merge master and finish phase A, plus three review notes (gate the Docker smoke test, pin the cube depth to 2-ply, 400 on malformed IDs).
+
+## Snaps (`/snap-poc` and prompt eval)
+
+- **Orientation card is now two steps** (`9c29356`, `2cf4f31`, `3ecb3a6`; design `reports/2026-10-16-snaps-direction-arrows.md`): step 1 "Make the board match the photo" (Rotate board, Swap colours, Mirror checkers; pips hidden, Save off), step 2 "Make the game right" (Analyzing for Dark/Light, Home board 1–4 with an "H" badge on the board; point 1 in that corner; "← Not like the photo" back link). Old truths load as the same game; new saves add `analyzingFor`/`layoutMirrored`.
+- **Waiting on the user:** try the card (Save and arrow keys untested), then re-save the miscorrected truths: `reports/2026-10-16-snaps-truth-orientation-audit.md` lists 10 wrong, 7 probably wrong, 2 unclear. Decide whether the `/snap-poc` caption should name colours ("Dark · Pips … · Light to play") instead of Bottom/Top (proposed, not built). Possible follow-ups: bigger corner badges at 390; whether a back-to-front reading fixed with Mirror checkers should score as wrong.
+- **Prompt eval:** prompts in `scripts/snaps/prompts.ts`; run `npx tsx scripts/snaps/snap-poc.ts --model gemini-3.8-flash --prompt <v>`; score `npm run snaps:score`; log `reports/snaps-prompt-eval.md`. Waiting on the Gemini quota: v1 on `11.41.53 am`, v2 on all 29. Then plan v3 with the user (dice rules, cube format: centred / owned / offered).
 
 ## Open threads
 
-- **User:** push; the `/auth/complete` eyebrow (later); inviting members after presenting the app; git housekeeping.
-- **omp:** queue task "Review notes at `3bcd4ed`": test whether the 35/200 0-ply rank-1 rejections are gnubg's move filter leaving a single survivor (0-ply gap above the threshold), confirm by widening the filter, and only then accept them as `single-survivor`. Waiting on the user to start omp. `omp/main` (engine harness, report, `lib/engine/`) is reviewed but not merged; merge after that task unless the user wants it sooner.
-- **Ideas parked** (`docs/future-ideas.md`): live on-camera detector, review bundles, progress dashboard, glossary page, app-wide "home on the left".
-- **Local test data (local DB only):** forum posts 1–3 and 5–7; proposal replies 8–10; AppUsers 1 (owner), 2 (`local-dev-owner`, NONE), 3 (`local-dev-member`).
+- **User:** push; try `/snap-poc`; the `/auth/complete` eyebrow (later); inviting members after presenting the app.
+- **omp:** phase A of gnubg in the builder (see above); paste "Re-read `git show master:docs/omp-queue.md`" to start it. Then phase B.
+- **Ideas parked** (`docs/future-ideas.md`): analyse all 21/36 rolls for a builder position, gnubg in the browser, live on-camera detector, review bundles, progress dashboard, glossary.
+- **Local test data (local DB only):** forum posts 1–3 and 5–7 (post 6 has an old top-to-move position, left as is); proposal replies 8–10; AppUsers 1 (owner), 2 (`local-dev-owner`, NONE), 3 (`local-dev-member`).
 
 ## Live site (Vercel + Oracle)
 
-- Oracle has 25/25 migrations. **No Oracle steps prepared or pending.** After pushing, check `/status` on the live site to confirm the Vercel env vars connect.
+- Oracle has 25/25 migrations. **No Oracle steps prepared or pending.** Oracle has no builder-made forum positions, so the encoding fix needs no data correction.
 - Clerk dev instance on `*.vercel.app`, invitation-only sign-up, Deployment Protection on until launch.
 
 ## Rules to remember
