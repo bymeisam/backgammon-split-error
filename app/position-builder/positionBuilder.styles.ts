@@ -17,7 +17,7 @@ export const style = {
   controls: "flex flex-col gap-4",
   controlCard: clsx(shared.card, "flex flex-col gap-4 p-4"),
   controlTitle: shared.overline,
-  controlHint: "text-xs leading-5 text-ink-faint",
+  controlHint: "text-xs leading-5 text-ink-muted",
   fieldset: "flex flex-col gap-2",
   // A legend sits outside the fieldset's flex flow, so the gap doesn't reach
   // it: its own margin separates "Score" from the Bottom/Top labels below.
@@ -50,4 +50,8 @@ export const style = {
   analysisRow: "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]",
   analysisMove: "min-w-0 truncate font-mono text-ink",
   analysisEquity: "font-mono tabular-nums text-ink",
+  analysisMeta: "text-xs text-ink-muted",
+  analysisLabel: "border-b border-line py-2 text-xs font-medium text-ink-muted",
+  cubeAction: "py-2 text-sm font-medium text-ink",
+  crawfordRow: "flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-line px-3 text-sm text-ink transition-colors hover:bg-sunken focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus [&_input]:size-5 [&_input]:shrink-0 [&_input]:accent-primary [&_input]:focus-visible:outline-2 [&_input]:focus-visible:outline-offset-2 [&_input]:focus-visible:outline-focus",
 } as const;

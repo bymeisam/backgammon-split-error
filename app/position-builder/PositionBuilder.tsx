@@ -15,10 +15,13 @@ import {
   normalizeRoll,
   validateBuilderState,
   canonicalPositionForForum,
+  crawfordEligible as isCrawfordEligible,
+  withCrawfordCubeReset,
   type BuilderAction,
   type BuilderLocation,
   type PositionBuilderState,
 } from "@/lib/positionBuilder";
+import { formatEquity } from "@/lib/review/format";
 import { pipCounts } from "@/lib/pipCount";
 import Board, { type BoardCornerGuide } from "@/app/components/match-analysis/Board";
 import PostToForumButton from "@/app/components/ui/PostToForumButton";
@@ -96,7 +99,7 @@ export default function PositionBuilder({
   const analysisInputKey = JSON.stringify([state, crawford]);
   const errors = useMemo(() => validateBuilderState(state), [state]);
   const pips = useMemo(() => pipCounts(state.position), [state.position]);
-  const crawfordEligible = state.matchLength > 0 && state.score.some((score) => score === state.matchLength - 1);
+  const canPlayCrawford = isCrawfordEligible(state);
   const cube: BoardCube =
     state.decisionType === "cube"
       ? { kind: "offered", value: state.cubeValue * 2, side: state.playerToMove }
@@ -172,6 +175,13 @@ export default function PositionBuilder({
     }));
   }
 
+  function updateCrawford(enabled: boolean) {
+    setCrawford(enabled);
+    if (enabled) {
+      updateDecisionType("checker");
+      setState((previous) => withCrawfordCubeReset(previous));
+    }
+  }
   function updateMatchLength(value: string) {
     setCrawford(false);
     const matchLength = numberValue(value);
@@ -204,7 +214,7 @@ export default function PositionBuilder({
 
   function postToForum() {
     try {
-      const canonical = canonicalPositionForForum(state);
+      const canonical = canonicalPositionForForum(state, crawford);
       const decoded = decodeForumPosition(canonical.positionId, canonical.gnuMatchId, canonical.kind);
       if (!decoded) throw new Error("The position is not valid.");
       const stored = storeForumHandoff({
@@ -304,22 +314,24 @@ export default function PositionBuilder({
           )}
           {analysis?.inputKey === analysisInputKey && analysis.kind === "checker" && (
             <div className={style.analysisList}>
+              <p className={style.analysisLabel}>Top 4 moves</p>
               {analysis.analysis.candidates.length === 0 ? <p className={style.controlHint}>No legal moves</p> : analysis.analysis.candidates.slice(0, 4).map((candidate) => (
                 <div key={`${candidate.rank}-${candidate.move}`} className={style.analysisRow}>
                   <span className={style.analysisMove}>{candidate.move}</span>
-                  <span className={style.analysisEquity}>{candidate.equity >= 0 ? "+" : ""}{candidate.equity.toFixed(3)}</span>
-                  <span className={style.controlHint}>{candidate.rank === 1 ? "best" : `−${(analysis.analysis.candidates[0].equity - candidate.equity).toFixed(3)}`}</span>
-                  <span className={style.controlHint}>{candidate.plies === 0 && analysis.analysis.depthReason === "single-survivor" ? "0-ply · single survivor" : `${candidate.plies}-ply`}</span>
+                  <span className={style.analysisEquity}>{formatEquity(candidate.equity)}</span>
+                  <span className={style.analysisMeta}>{candidate.rank === 1 ? "best" : formatEquity(candidate.equity - analysis.analysis.candidates[0].equity)}</span>
+                  <span className={style.analysisMeta}>{candidate.plies === 0 && analysis.analysis.depthReason === "single-survivor" ? "0-ply · single survivor" : `${candidate.plies}-ply`}</span>
                 </div>
               ))}
             </div>
           )}
           {analysis?.inputKey === analysisInputKey && analysis.kind === "cube" && (
             <div className={style.analysisList}>
-              <p>{analysis.analysis.action}</p>
-              <div className={style.analysisRow}><span>No double</span><b className={style.analysisEquity}>{analysis.analysis.equities.noDouble >= 0 ? "+" : ""}{analysis.analysis.equities.noDouble.toFixed(3)}</b></div>
-              <div className={style.analysisRow}><span>Double / take</span><b className={style.analysisEquity}>{analysis.analysis.equities.doubleTake >= 0 ? "+" : ""}{analysis.analysis.equities.doubleTake.toFixed(3)}</b></div>
-              <div className={style.analysisRow}><span>Double / pass</span><b className={style.analysisEquity}>{analysis.analysis.equities.doublePass >= 0 ? "+" : ""}{analysis.analysis.equities.doublePass.toFixed(3)}</b></div>
+              <p className={style.analysisLabel}>Cube action</p>
+              <p className={style.cubeAction}>{analysis.analysis.action}</p>
+              <div className={style.analysisRow}><span>No double</span><b className={style.analysisEquity}>{formatEquity(analysis.analysis.equities.noDouble)}</b></div>
+              <div className={style.analysisRow}><span>Double / take</span><b className={style.analysisEquity}>{formatEquity(analysis.analysis.equities.doubleTake)}</b></div>
+              <div className={style.analysisRow}><span>Double / pass</span><b className={style.analysisEquity}>{formatEquity(analysis.analysis.equities.doublePass)}</b></div>
             </div>
           )}
         </Card>
@@ -404,9 +416,10 @@ export default function PositionBuilder({
                   Die {index + 1}
                   <select
                     className={style.select}
-                    value={state.roll?.[index] ?? 1}
-                    onChange={(event) => updateDie(index as 0 | 1, numberValue(event.target.value))}
+                    value={state.roll?.[index] ?? ""}
+                    onChange={(event) => updateDie(index as 0 | 1, event.target.value === "" ? undefined : numberValue(event.target.value))}
                   >
+                    {!state.roll && <option value="">–</option>}
                     {[1, 2, 3, 4, 5, 6].map((value) => (
                       <option key={value} value={value}>
                         {value}
@@ -462,17 +475,13 @@ export default function PositionBuilder({
               ))}
             </select>
           </label>
-          {crawfordEligible && (
-            <label className={style.field}>
+          {canPlayCrawford && (
+            <label className={style.crawfordRow}>
+              <input type="checkbox" checked={crawford} onChange={(event) => updateCrawford(event.target.checked)} />
               Crawford game
-              <input type="checkbox" checked={crawford} onChange={(event) => {
-                setCrawford(event.target.checked);
-                if (event.target.checked) updateDecisionType("checker");
-              }} />
             </label>
           )}
         </Card>
-        {!crawford && state.decisionType === "cube" && (
         <Card as="section" className={style.controlCard} aria-labelledby="position-builder-cube-title">
           <h2 id="position-builder-cube-title" className={style.controlTitle}>Doubling cube</h2>
           <div className={style.fieldGrid}>
@@ -507,7 +516,6 @@ export default function PositionBuilder({
           </div>
           <p className={style.controlHint}>A cube at 1 is centered. A cube above 1 must belong to Bottom or Top.</p>
         </Card>
-        )}
 
         <Card as="section" className={style.controlCard} aria-labelledby="position-builder-status-title">
           <h2 id="position-builder-status-title" className={style.controlTitle}>Position status</h2>

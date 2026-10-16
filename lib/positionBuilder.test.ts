@@ -4,6 +4,7 @@ import { decodeGnuPositionId, flipPerspective } from "./gnuPositionId";
 import { pipCounts } from "./pipCount";
 import {
   canonicalPositionForForum,
+  crawfordEligible,
   editChecker,
   emptyPosition,
   initialPositionBuilderState,
@@ -11,6 +12,7 @@ import {
   normalizeRoll,
   startingPosition,
   validateBuilderState,
+  withCrawfordCubeReset,
   type PositionBuilderState,
 } from "./positionBuilder";
 
@@ -62,6 +64,45 @@ describe("position builder state", () => {
     ]);
   });
 });
+
+describe("Crawford builder state", () => {
+  it("is eligible when exactly one side is one-away", () => {
+    const state = initialPositionBuilderState();
+    state.matchLength = 7;
+    state.score = [6, 3];
+    expect(crawfordEligible(state)).toBe(true);
+    state.score = [3, 6];
+    expect(crawfordEligible(state)).toBe(true);
+  });
+
+  it("is not eligible when both sides are one-away or neither is", () => {
+    const state = initialPositionBuilderState();
+    state.matchLength = 7;
+    state.score = [6, 6];
+    expect(crawfordEligible(state)).toBe(false);
+    state.score = [3, 4];
+    expect(crawfordEligible(state)).toBe(false);
+  });
+
+  it("does not offer Crawford in money games or 1-point matches", () => {
+    const state = initialPositionBuilderState();
+    state.matchLength = 0;
+    state.score = [0, 0];
+    expect(crawfordEligible(state)).toBe(false);
+    state.matchLength = 1;
+    expect(crawfordEligible(state)).toBe(false);
+  });
+
+  it("resets an owned cube to centered 1 without mutating the prior state", () => {
+    const state = initialPositionBuilderState();
+    state.cubeValue = 4;
+    state.cubeOwner = "opponent";
+    const reset = withCrawfordCubeReset(state);
+    expect(reset).toMatchObject({ cubeValue: 1, cubeOwner: "center" });
+    expect(state).toMatchObject({ cubeValue: 4, cubeOwner: "opponent" });
+  });
+});
+
 
 // Which side canonicalPositionForForum puts on roll. A GNU Position ID is
 // written from the on-roll player's point of view (decodeGnuPositionId's
@@ -140,6 +181,16 @@ describe("canonicalPositionForForum side to move", () => {
       kind: "CHECKER",
     });
   });
+  it("preserves Crawford in the forum handoff Match ID", () => {
+    const input = state("mine");
+    input.score = [6, 3];
+    input.matchLength = 7;
+    const ids = canonicalPositionForForum(input, true);
+    const match = decodeGnuMatchId(ids.gnuMatchId);
+    expect(match?.crawford).toBe(true);
+    expect(match?.score).toEqual([3, 6]);
+  });
+
 
   it("puts an owned cube with the right player for either side to move", () => {
     for (const playerToMove of ["mine", "opponent"] as const) {

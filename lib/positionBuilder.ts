@@ -183,6 +183,15 @@ export function validateBuilderState(state: PositionBuilderState): string[] {
 
   return errors;
 }
+export function crawfordEligible(state: PositionBuilderState): boolean {
+  if (state.matchLength <= 1) return false;
+  const oneAway = state.score.filter((score) => score === state.matchLength - 1).length;
+  return oneAway === 1;
+}
+
+export function withCrawfordCubeReset(state: PositionBuilderState): PositionBuilderState {
+  return { ...state, cubeValue: 1, cubeOwner: "center" };
+}
 
 export function canonicalPositionForForum(state: PositionBuilderState, crawford = false): {
   positionId: string;
