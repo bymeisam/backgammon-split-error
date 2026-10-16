@@ -28,6 +28,17 @@ export const style = {
   infoText: "text-sm leading-6 text-ink-muted",
   infoError: shared.errorText,
   fieldLabel: shared.filterField,
+  // "I am": a two-way choice (a fact about the photo), so a segmented
+  // control, set apart from the on/off board-view toggles below it.
+  segmented: "grid max-w-[16rem] grid-cols-2 gap-1 rounded-control bg-sunken p-[3px] ring-1 ring-inset ring-line",
+  segmentOption: (selected: boolean): string =>
+    clsx(
+      "rounded-inset px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+      selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
+    ),
+  fieldHint: "text-xs leading-5 text-ink-faint",
+  // The board-view group, ruled off from "I am" above it.
+  viewGroup: clsx(shared.filterField, "border-t border-line pt-3"),
   // The board-view toggles: separate Buttons side by side, not a segmented
   // control, so each reads as on or off by itself.
   toggleRow: "flex flex-wrap gap-2",

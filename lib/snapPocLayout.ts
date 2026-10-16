@@ -144,13 +144,13 @@ export function snapCheckerTotals(layout: SnapLayout): { light: number; dark: nu
  * stay in the photo's own frame. Both flags are optional, and absent means
  * false, so truth files saved before they existed load unchanged.
  *
- * `bottomColor` is no longer a user control. Editing it changed who owns
- * which checkers, so it changed the game and the pip counts, when all the
- * user wanted was to see the photo's colours the way they read them. The
- * review page's "Swap colours" toggle does that now as a drawing-only swap
- * (Board's swapCheckerColors), outside this type. `bottomColor` stays as the
- * mapping's input: every saved truth uses "dark" (darker colour = near
- * player), and Rotate still flips it internally as a view change. */
+ * `bottomColor` is set through the review page's "I am" control, which names
+ * the user's colour in the photo: the near player, at the bottom of the photo
+ * as taken. It changes who owns which checkers, so it changes the game and
+ * the pip counts. Because Rotate flips `bottomColor`, the control reads and
+ * writes it through myColor/setMyColor, so its value doesn't move with Rotate.
+ * The "Swap colours" toggle is separate: a drawing-only swap (Board's
+ * swapCheckerColors), outside this type. */
 export interface SnapOrientation {
   bottomColor: "light" | "dark";
   bottomHome: "right" | "left";
@@ -185,6 +185,19 @@ export function toggleMirrorNumbers(o: SnapOrientation): SnapOrientation {
  * Its own inverse. */
 export function toggleRotate(o: SnapOrientation): SnapOrientation {
   return { ...o, bottomColor: otherColor(o.bottomColor), rotated: !o.rotated };
+}
+
+/** "I am": the user's colour in the photo, i.e. the near player's (the one
+ * at the bottom of the photo as taken). Independent of Rotate: rotated, the
+ * colour drawn at the bottom is the other one. */
+export function myColor(o: SnapOrientation): SnapOrientation["bottomColor"] {
+  return o.rotated ? otherColor(o.bottomColor) : o.bottomColor;
+}
+
+/** Set "I am" to `color`: picks `bottomColor` so that myColor gives `color`
+ * back, with Rotate left as it is. Changes ownership (the game and pips). */
+export function setMyColor(o: SnapOrientation, color: SnapOrientation["bottomColor"]): SnapOrientation {
+  return { ...o, bottomColor: o.rotated ? otherColor(color) : color };
 }
 
 /** The bottom player's home side in the view the builder maps: the photo's

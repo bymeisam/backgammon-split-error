@@ -16,6 +16,8 @@ import {
   DEFAULT_SNAP_ORIENTATION,
   isCheckersMirrored,
   layoutToBuilderState,
+  myColor,
+  setMyColor,
   toggleMirrorCheckers,
   toggleMirrorNumbers,
   toggleRotate,
@@ -271,4 +273,72 @@ describe("Snaps orientation -> builder position and pip counts", () => {
     expect(swap(swap(DEFAULT))).toEqual(DEFAULT);
     expect(layoutToBuilderState(photo(), swap(swap(DEFAULT)))).toEqual(layoutToBuilderState(photo(), DEFAULT));
   });
+});
+
+// "I am" (myColor / setMyColor) on a real photo: PXL_20260927_142233229.jpg's
+// saved layout, copied from snap-poc/truth/ (not read from the file). The real
+// game is light 61 / dark 106, reachable only with light as the near player.
+// Home left: bottom row reads 1..12 left to right, top row 24..13.
+// Light (bottom): 4*1 + 2*2 + 3*3 + 2*4 + 2*6 + 2*12 = 61.
+// Dark (top, own point = 25 - p): D1 on 5 -> 20, D2 on 9 -> 2*16, D2 on 24 -> 2*1,
+// D1 on 23 -> 2, D2 on 22 -> 2*3, D2 on 20 -> 2*5, D3 on 19 -> 3*6, D2 on 17 -> 2*8 = 106.
+function pxlPhoto(): SnapLayout {
+  return {
+    topRow: [D(2), D(1), D(2), none, D(2), D(3), none, D(2), none, none, none, none],
+    bottomRow: [L(4), L(2), L(3), L(2), D(1), L(2), none, none, D(2), none, none, L(2)],
+    bar: { light: 0, dark: 0 },
+    borneOff: { light: 0, dark: 0 },
+    dice: [3, 3],
+    cube: { visible: true, value: 1, location: "center" },
+    barSide: "middle",
+    confidence: "high",
+    notes: "",
+  };
+}
+
+describe("Snaps 'I am' (the near player's colour)", () => {
+  const saved: SnapOrientation = { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true };
+
+  it("the saved orientation (I am dark) gives 269 / 314", () => {
+    expect(myColor(saved)).toBe("dark");
+    expect(pipCounts(layoutToBuilderState(pxlPhoto(), saved).position)).toEqual({ mine: 269, opponent: 314 });
+  });
+
+  it("I am light, home left: bottom 61 / top 106", () => {
+    const o = setMyColor(saved, "light");
+    expect(myColor(o)).toBe("light");
+    const state = layoutToBuilderState(pxlPhoto(), o);
+    expect(pipCounts(state.position)).toEqual({ mine: 61, opponent: 106 });
+    expect(validateBuilderState(state)).toEqual([]);
+  });
+
+  it("rotate keeps I am unchanged and swaps to 106 / 61", () => {
+    const o = toggleRotate(setMyColor(saved, "light"));
+    expect(myColor(o)).toBe("light");
+    expect(pipCounts(layoutToBuilderState(pxlPhoto(), o).position)).toEqual({ mine: 106, opponent: 61 });
+  });
+
+  it("swap colours still changes nothing", () => {
+    // Swap colours is a Board display flag, not an orientation input: the
+    // state and pips depend on the orientation alone, rotated or not.
+    for (const o of [setMyColor(saved, "light"), toggleRotate(setMyColor(saved, "light"))]) {
+      expect(layoutToBuilderState(pxlPhoto(), o)).toEqual(layoutToBuilderState(pxlPhoto(), { ...o }));
+      expect(myColor(o)).toBe("light");
+    }
+  });
+
+  for (const rotated of [false, true]) {
+    it(`setMyColor then myColor round-trips (${rotated ? "rotated" : "not rotated"})`, () => {
+      for (const start of ["light", "dark"] as const) {
+        const base: SnapOrientation = { ...saved, bottomColor: start, rotated };
+        for (const color of ["light", "dark"] as const) {
+          const o = setMyColor(base, color);
+          expect(myColor(o)).toBe(color);
+          expect(Boolean(o.rotated)).toBe(rotated);
+          expect(o.bottomHome).toBe(base.bottomHome);
+          expect(o.mirroredNumbers).toBe(base.mirroredNumbers);
+        }
+      }
+    });
+  }
 });

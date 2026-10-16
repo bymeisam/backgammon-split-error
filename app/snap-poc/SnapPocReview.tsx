@@ -16,6 +16,8 @@ import {
   builderStateToLayout,
   isCheckersMirrored,
   layoutToBuilderState,
+  myColor,
+  setMyColor,
   toggleMirrorCheckers,
   toggleMirrorNumbers,
   toggleRotate,
@@ -98,6 +100,7 @@ export default function SnapPocReview({
   const checkersMirrored = isCheckersMirrored(orientation);
   const numbersMirrored = Boolean(orientation.mirroredNumbers);
   const rotated = Boolean(orientation.rotated);
+  const me = myColor(orientation);
 
   async function save(state: PositionBuilderState) {
     if (!model) return;
@@ -214,6 +217,28 @@ export default function SnapPocReview({
 
           <Card as="section" className={style.infoCard} aria-label="Orientation">
             <p className={style.infoTitle}>Orientation</p>
+            {/* "I am": the user's colour in the photo, i.e. the near player's.
+                A fact about the photo, not a view setting: it decides who
+                owns which checkers, so it changes the game and the pips.
+                Read and written through myColor/setMyColor so Rotate doesn't
+                move it. */}
+            <div className={style.fieldLabel} role="group" aria-label="I am">
+              I am
+              <div className={style.segmented}>
+                {(["light", "dark"] as const).map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    aria-pressed={me === color}
+                    className={style.segmentOption(me === color)}
+                    onClick={() => setOrientation(setMyColor(orientation, color))}
+                  >
+                    {color === "light" ? "Light" : "Dark"}
+                  </button>
+                ))}
+              </div>
+              <span className={style.fieldHint}>Your colour in the photo (the near player).</span>
+            </div>
             {/* Independent on/off toggles, each moving one thing on screen:
                 the checkers mirror (the layout mapping flips), the point
                 numbers mirror (Board's homeLeft, with the mapping flipped too
@@ -222,7 +247,7 @@ export default function SnapPocReview({
                 unchanged; toggleRotate), or the two checker colours swap
                 (drawing only, nothing else changes). Each is its own Button:
                 primary when on, secondary when off. */}
-            <div className={style.fieldLabel} role="group" aria-label="Board view">
+            <div className={style.viewGroup} role="group" aria-label="Board view">
               Board view
               <div className={style.toggleRow}>
                 {(
