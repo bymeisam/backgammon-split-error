@@ -4,25 +4,15 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-### gnubg in the builder, phase A review fixes at `cb21f54` (queued 2026-10-17)
-**Merge master first** (this queue update), then fix these on `omp/main`. The user merges `omp/main` into master after this round. Phase B (Oracle) still comes after.
+### Builder analysis polish, after the phase A merge (queued 2026-10-17)
+**Merge master first** (the user is merging `omp/main` at `1ec7aae` into master, and this queue update), then fix these on `omp/main`. Small; do it before or alongside phase B.
 
-**Code (`app/position-builder/PositionBuilder.tsx`):**
-1. **Doubling cube card hidden for checker decisions** (`:463`, `!crawford && state.decisionType === "cube"`). Cube value and owner matter for checker play, the Match ID and forum posts, and a cube read from a photo on `/snap-poc` would stay in effect with no control. Show the card in both modes; hide it only when Crawford is on.
-2. **Crawford with an owned cube.** Turning Crawford on leaves an owned cube (e.g. 4, Top) in place and sends it to gnubg. On Crawford on, reset the cube to centred 1 (or add it to the missing-inputs list). Add a test.
-3. **Forum post drops Crawford.** `postToForum` (`:199`) calls `canonicalPositionForForum(state)` without `crawford`. Pass it.
-4. **Nit:** `crawfordEligible` (`:91`) is true when both sides are 1-away (post-Crawford). Require exactly one side at `matchLength - 1`.
+1. **Results columns don't line up at 1280** (visual-reviewer). `positionBuilder.styles.ts:50`: each `analysisRow` is its own `sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]` grid, so the `auto` columns size per row: in Top 4 moves the equities' right edges and the "best" / difference tags sit at different x positions, and cube rows (2 cells) leave about 24px of empty trailing columns. Use fixed-width, right-aligned columns for equity and meta (or one grid for the whole list), and a 2-column variant for cube rows.
+2. **Setting one die makes the other a silent 1.** `updateDie` (`PositionBuilder.tsx:160`) starts from `[1, 1]` when `roll` is null, so picking die 1 = 5 gives 5-1 and die 2's "–" option disappears. Keep the unset die unset (e.g. a partial roll in the component until both are chosen, so "Set both dice" still fires), or another way that doesn't invent a die. Add a test.
+3. **Nit:** `inputCompact` (`positionBuilder.styles.ts:37`) hand-writes a control; extend `shared.input` if it can take the height override.
+4. **Queue housekeeping:** your copy still lists "to check" entries that master moved to "Checked and done" days ago. On this merge, drop every entry master has marked checked.
 
-**Visual (visual-reviewer, 390 shots):**
-5. **Dice show "1–1" when no dice are set** (`:395`, `value={state.roll?.[index] ?? 1}`) while the panel says "Set both dice". Add an empty "–" option when `roll` is null.
-6. **Crawford checkbox** (`:454-460`) is unstyled, centred alone under its label, small tap target. Add a checkbox-row style in `positionBuilder.styles.ts` (or a shared checkbox if one exists).
-7. **Cube action line** (`:307`, "No double, take") is a bare `<p>` in a non-token size. Give it a style in the styles file.
-8. **Signed equities:** one helper for the sign and format (check `lib/` for an existing one), used by the checker and cube rows. Use the same minus everywhere (checker rows show `−`, cube rows `-`).
-9. **Nits:** diff/depth text uses `controlHint` (faint) and is low contrast in dark at 390, consider `text-ink-muted`; a small "Top 4 moves" / "Cube action" label above the results. Check whether the replay's candidate-list styling has a shared primitive before keeping local copies.
-
-Retake the full `builder` set (`design/screenshots/<date>-builder-engine/`, all 16, gitignored). The visual-reviewer checks all of them, including 1280 and both themes.
-
-Checks: `npm test`, tsc, lint, `GNUBG_SMOKE=1` smoke. No schema, no Oracle, no `.env*`, no push.
+Retake the `checker-result` and `cube-result` builder shots at 1280 (both themes) and one missing-dice shot after setting one die. Checks: `npm test`, tsc, lint. No schema, no Oracle, no `.env*`, no push.
 
 ## Schema requests (omp → master)
 
@@ -35,6 +25,8 @@ _Use this shape:_
 ## Done by omp (to check)
 
 ## Checked and done (master)
+
+- **gnubg in the builder, phase A review fixes**: `38f4336` + `5bedef7` + `7f9ee6d` (2026-10-17). Checked by the main session (code) and the visual-reviewer (all 16 shots, both themes, 390 and 1280). Good: cube card in both modes and hidden only for Crawford; Crawford resets the cube to centred 1 and reaches the forum Match ID; eligibility needs exactly one side 1-away; score changes clear Crawford; "–" dice; styled Crawford row, cube action and labels; one `formatEquity` with `−` everywhere; styles file passes the conventions check. Ready for the user to merge `omp/main` (`1ec7aae`) into master. Polish follow-ups in the task above. omp: drop your "to check" entries when you next merge master.
 
 - **GNU analysis in the position builder, phase A (steps 2, 4, 5, 7) + screenshot fix**: `ece315c` + `636be3d` (2026-10-16). Checked by the main session (code) and the visual-reviewer (390 shots); not merged into master yet. Good: Analyse button and request, 503 hides the button, results tied to their input (`inputKey`), missing-inputs list, top 4 with single-survivor label, "GNU Backgammon 2-ply" label with no Galaxy numbers, offered cube drawn at double the value, sticky-navbar fix. Review fixes queued in the `cb21f54` task above. omp: drop your "to check" entries when you next merge master.
 - **GNU analysis phase A, steps 3 and 6 (route + wrapper)**: `a6d9fcc` + `64d22b5` (2026-10-16). Checked by the main session; not merged into master yet. Good: member-tier route with strict input checks, the engine interface in `lib/engine/index.ts` (ready for phase B's remote engine), a 503 when Docker or the image is missing, `--pull=never`, the gameState-1 guard, top 4, and a fail-closed cube parser with a real fixture. Review notes are added to the phase A task above. omp: drop your "to check" entry when you next merge master.
