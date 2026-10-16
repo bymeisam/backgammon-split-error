@@ -367,22 +367,35 @@ describe("effectiveOrientation (the /snap-poc trial mode)", () => {
     expect(o).toEqual({ ...busy, mirroredNumbers: false });
   });
 
-  it("mirror checkers inactive: it reads as off", () => {
+  it("mirror checkers inactive: keeps the saved bottomHome", () => {
     for (const mirroredNumbers of [false, true]) {
       for (const bottomHome of ["left", "right"] as const) {
         const o = effectiveOrientation({ ...busy, bottomHome, mirroredNumbers }, without("mirrorCheckers"));
-        expect(isCheckersMirrored(o)).toBe(false);
-        expect(o.mirroredNumbers).toBe(mirroredNumbers);
+        expect(o).toEqual({ ...busy, bottomHome, mirroredNumbers });
       }
     }
   });
 
-  it("I am inactive: I am dark, whatever was saved and rotated or not", () => {
+  it("I am inactive: keeps the saved I am, rotated or not", () => {
     for (const rotated of [false, true]) {
       for (const bottomColor of ["light", "dark"] as const) {
-        const o = effectiveOrientation({ ...busy, bottomColor, rotated }, without("iAm"));
-        expect(myColor(o)).toBe("dark");
-        expect(Boolean(o.rotated)).toBe(rotated);
+        const saved: SnapOrientation = { ...busy, bottomColor, rotated };
+        const o = effectiveOrientation(saved, without("iAm"));
+        expect(o).toEqual(saved);
+        expect(myColor(o)).toBe(myColor(saved));
+      }
+    }
+  });
+
+  it("I am, Mirror checkers and Mirror numbers inactive: keeps I am and bottomHome, numbers not mirrored", () => {
+    for (const rotated of [false, true]) {
+      for (const bottomColor of ["light", "dark"] as const) {
+        for (const bottomHome of ["left", "right"] as const) {
+          const saved: SnapOrientation = { bottomColor, bottomHome, mirroredNumbers: true, rotated };
+          const o = effectiveOrientation(saved, new Set<SnapOrientationControl>(["rotate", "swapColors"]));
+          expect(o).toEqual({ ...saved, mirroredNumbers: false });
+          expect(myColor(o)).toBe(myColor(saved));
+        }
       }
     }
   });
@@ -390,7 +403,7 @@ describe("effectiveOrientation (the /snap-poc trial mode)", () => {
   describe("only Mirror checkers active", () => {
     const active = new Set<SnapOrientationControl>(["mirrorCheckers"]);
 
-    it("neutralises the rest and keeps bottomHome; pressed means bottomHome left", () => {
+    it("drops Rotate and Mirror numbers, keeps I am and bottomHome; pressed means bottomHome left", () => {
       for (const bottomHome of ["left", "right"] as const) {
         const o = effectiveOrientation({ bottomColor: "light", bottomHome, mirroredNumbers: true, rotated: true }, active);
         expect(o).toEqual({ bottomColor: "dark", bottomHome, mirroredNumbers: false, rotated: false });
@@ -407,6 +420,28 @@ describe("effectiveOrientation (the /snap-poc trial mode)", () => {
       expect(pipCounts(layoutToBuilderState(pxlPhoto(), on).position)).toEqual({ mine: 269, opponent: 314 });
       expect(isCheckersMirrored(off)).toBe(false);
       expect(pipCounts(layoutToBuilderState(pxlPhoto(), off).position)).toEqual({ mine: 214, opponent: 241 });
+    });
+  });
+
+  describe("stage 1: only Rotate and Swap colours active", () => {
+    const active = new Set<SnapOrientationControl>(["rotate", "swapColors"]);
+
+    it("the PXL photo: every Rotate x Swap colours state keeps the saved game's pips", () => {
+      // The saved game (known-wrong, used only as an invariance check):
+      // 269 bottom / 314 top unrotated. Rotate swaps Bottom/Top; Swap colours
+      // is a Board display flag, not an input to the mapping.
+      const saved: SnapOrientation = { bottomColor: "dark", bottomHome: "left", mirroredNumbers: true };
+      const unrotated = effectiveOrientation(saved, active);
+      const rotated = effectiveOrientation(toggleRotate(unrotated), active);
+      expect(myColor(unrotated)).toBe(myColor(saved));
+      expect(myColor(rotated)).toBe(myColor(saved));
+      // Swap colours: the same orientation goes to the mapping either way
+      // (the page passes the swap to Board only), so each Rotate state is
+      // checked once and holds for both Swap colours states.
+      expect(pipCounts(layoutToBuilderState(pxlPhoto(), unrotated).position)).toEqual({ mine: 269, opponent: 314 });
+      expect(pipCounts(layoutToBuilderState(pxlPhoto(), rotated).position)).toEqual({ mine: 314, opponent: 269 });
+      const back = effectiveOrientation(toggleRotate(rotated), active);
+      expect({ ...back, rotated: Boolean(back.rotated) }).toEqual({ ...unrotated, rotated: false });
     });
   });
 });

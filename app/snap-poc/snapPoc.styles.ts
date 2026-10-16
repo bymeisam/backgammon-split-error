@@ -46,6 +46,7 @@ export const style = {
   // The builder's extra actions card.
   saveCard: "flex flex-col gap-3 p-4",
   saveError: shared.errorText,
+  saveTrialNote: "text-sm leading-6 text-ink-muted",
   scoreList: "grid grid-cols-2 gap-x-4 gap-y-1 text-sm",
   scoreLabel: "text-ink-faint",
   scoreValue: "tabular-nums text-ink",

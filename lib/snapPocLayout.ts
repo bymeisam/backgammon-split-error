@@ -203,12 +203,16 @@ export function setMyColor(o: SnapOrientation, color: SnapOrientation["bottomCol
 /** The /snap-poc orientation controls, by key. */
 export type SnapOrientationControl = "iAm" | "mirrorCheckers" | "mirrorNumbers" | "rotate" | "swapColors";
 
-/** The orientation with every control not in `active` neutralised, so only
- * the active ones apply: Rotate off, Mirror numbers off (point 1 bottom-right),
- * Mirror checkers off (bottom home where the drawn numbers put it), and
- * "I am" Dark. An active control's value passes through. "swapColors" isn't
- * part of SnapOrientation; the caller neutralises it. Used by /snap-poc's
- * temporary trial mode, where the controls are re-enabled one by one. */
+/** The orientation the /snap-poc trial mode applies, with only the controls
+ * in `active` free to change it. The controls that never change the game
+ * (Rotate, and "swapColors", which isn't part of SnapOrientation and is
+ * handled by the caller) are neutralised when inactive: Rotate off, keeping
+ * "I am". Mirror numbers (being dropped) is neutralised to off. The
+ * game-changing controls ("I am" and Mirror checkers) keep the saved values
+ * when inactive (`myColor(o)` and `bottomHome` pass through), so the game
+ * shown is the saved one and stays fixed. An active control's value passes
+ * through. Used by /snap-poc's temporary trial mode, where the controls are
+ * re-enabled in stages. */
 export function effectiveOrientation(
   o: SnapOrientation,
   active: ReadonlySet<SnapOrientationControl>
@@ -219,8 +223,8 @@ export function effectiveOrientation(
     next = { ...next, bottomColor: myColor(next), rotated: false };
   }
   if (!active.has("mirrorNumbers")) next = { ...next, mirroredNumbers: false };
-  if (!active.has("mirrorCheckers")) next = { ...next, bottomHome: next.mirroredNumbers ? "left" : "right" };
-  if (!active.has("iAm")) next = setMyColor(next, "dark");
+  // Inactive "iAm" and "mirrorCheckers": nothing to do, myColor and
+  // bottomHome are the saved values and the steps above leave them alone.
   return next;
 }
 

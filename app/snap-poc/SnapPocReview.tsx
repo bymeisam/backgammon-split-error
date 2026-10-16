@@ -39,14 +39,27 @@ export interface SnapPocItem {
 
 type Source = "truth" | "gemini";
 
-// TEMPORARY TRIAL: the orientation controls the user is re-testing one by
-// one. Controls not in this set are shown disabled and have no effect on
-// what's drawn, mapped or saved (see effectiveOrientation). Adding a key
-// (iAm, mirrorCheckers, mirrorNumbers, rotate, swapColors) re-enables it.
-const ACTIVE_ORIENTATION_CONTROLS: ReadonlySet<SnapOrientationControl> = new Set<SnapOrientationControl>([
+// TEMPORARY TRIAL: the orientation controls the user is re-testing in
+// stages. Controls not in this set are shown disabled: inactive "I am" and
+// Mirror checkers keep the photo's saved values (so the game is the saved
+// one), inactive Rotate, Mirror numbers and Swap colours are off (see
+// effectiveOrientation). Adding a key (iAm, mirrorCheckers, mirrorNumbers,
+// rotate, swapColors) re-enables it. Stage 1: only the controls that never
+// change the game. Saving is off while any control is inactive.
+const ALL_ORIENTATION_CONTROLS: readonly SnapOrientationControl[] = [
+  "iAm",
   "mirrorCheckers",
+  "mirrorNumbers",
+  "rotate",
+  "swapColors",
+];
+const ACTIVE_ORIENTATION_CONTROLS: ReadonlySet<SnapOrientationControl> = new Set<SnapOrientationControl>([
+  "rotate",
+  "swapColors",
 ]);
 const isActive = (control: SnapOrientationControl): boolean => ACTIVE_ORIENTATION_CONTROLS.has(control);
+// Saved corrections mustn't be overwritten with trial values.
+const TRIAL_MODE = ALL_ORIENTATION_CONTROLS.some((control) => !isActive(control));
 
 function itemScore(item: SnapPocItem): SnapScore | null {
   return item.gemini && item.truth ? scoreSnap(item.gemini, item.truth.layout) : null;
@@ -91,8 +104,8 @@ export default function SnapPocReview({
     return <p className={style.emptyNote}>No photos in snap-poc/.</p>;
   }
 
-  // What the user sees: the saved/picked orientation with inactive controls
-  // neutralised. Drawn, mapped, toggled from and saved.
+  // What the user sees: the saved/picked orientation as the trial's active
+  // controls allow (see effectiveOrientation). Drawn, mapped and toggled from.
   const orientation = effectiveOrientation(
     orientations[item.image] ?? DEFAULT_SNAP_ORIENTATION,
     ACTIVE_ORIENTATION_CONTROLS
@@ -325,10 +338,11 @@ export default function SnapPocReview({
                 <Button
                   variant="primary"
                   onClick={() => save(state)}
-                  disabled={errors.length > 0 || saving || !model}
+                  disabled={TRIAL_MODE || errors.length > 0 || saving || !model}
                 >
                   {saving ? "Saving…" : "Save as correct"}
                 </Button>
+                {TRIAL_MODE && <p className={style.saveTrialNote}>Saving is off during the controls trial.</p>}
                 {saveError && <p className={style.saveError}>{saveError}</p>}
                 {score && (
                   <dl className={style.scoreList}>
