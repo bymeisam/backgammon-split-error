@@ -4,7 +4,30 @@ Hand-offs between Claude Code (on `master`) and omp (on `omp/main` in `../backga
 
 ## Tasks for omp
 
-_None queued._
+### gnubg analysis in the position builder, phase A: local, end to end (queued 2026-10-16)
+**Don't merge master first** (`app/position-builder/`, `lib/positionBuilder.ts`, `lib/gnuPositionId.ts`, `lib/gnuMatchId.ts` and `lib/snapPocLayout.ts` are the same on both branches). The user approved this plan. Phase B (hosting gnubg on an Oracle Always Free Arm server) comes as a separate task once this works locally; the browser (WASM) route is parked.
+
+**Goal:** an "Analyse" button in `/position-builder` (and so in `/snap-poc`, which embeds the builder) that asks gnubg for the top 4 moves of a checker decision or the cube action of a cube decision. There is no "played move": it's a question to gnubg. Nothing is stored.
+
+1. **Orientation and perspective first (tests, then fix if needed).**
+   - The investigator flagged (untested): `canonicalPositionForForum` (`lib/positionBuilder.ts:187-215`) encodes `state.position` as is, with "mine" (bottom) as the side on roll, but sets `diceOwner`/`turn` from `playerToMove`. With `playerToMove = "opponent"` the Position ID may be in the wrong frame (`flipPerspective` exists at `lib/gnuPositionId.ts:144` and isn't called). Test against gnubg: the same position with the top side to move must give gnubg the top side's moves. Fix in the shared helper if wrong; that also fixes forum posts, so add a forum round-trip test.
+   - Snaps orientation (`lib/snapPocLayout.ts`: `toggleMirrorCheckers`, `toggleMirrorNumbers`, `rotated`, `bottomColor`, `bottomHome`, `layoutToBuilderState`). **Mirror numbers changes the home board, so it changes the position** (user, 2026-10-16); it is not a display-only option. Write a few tests that pin the expected effect of each option on a fixed photo layout: mirror checkers, mirror numbers, rotate, and a combination. Assert the resulting builder position and **both sides' pip counts** (write a small pip-count helper in `lib/` if none exists; none found), and that the Position ID gnubg gets matches that position. Put the expected pip counts in the test names or comments so a reader sees the effect. Snaps is master's area: in `lib/snapPocLayout.ts` limit yourself to tests and, if a test exposes a bug, the minimal fix (say so in the done entry).
+2. **Inputs in the builder.**
+   - Score and match length: already editable; keep.
+   - **Checker decision:** the dice colour shows whose move it is and replaces the "Switch decision side" button as the control.
+   - **Cube decision:** draw the cube offered on the board on the doubling side's half (the Board can already draw an offered cube), so the board shows who's deciding. gnubg's answer goes underneath it (step 5). No separate "double offered / accepted" state: one cube analysis from the doubler's side answers both players (e.g. "No double, take" = the doubler shouldn't double, and the taker should take). The Match ID stays `doubleOffered: false`.
+   - **Crawford:** a toggle shown only in match play when one side is exactly one point from winning. When on: cube decisions are disabled (dead cube), only checker decisions, and the Match ID's `crawford` bit is set. Post-Crawford needs no input (same score, Crawford off).
+   - Photos don't read score, match length or side: the user sets them.
+3. **Engine route** `POST /api/engine/analyze`, members only (same guard as the builder page). Body: the builder state (or its Position ID + Match ID + kind). It calls the engine through one small interface in `lib/engine/` so phase B can swap local Docker for a remote service without touching the builder. Phase A: local Docker only; if Docker or the image isn't available, the route answers "engine unavailable" and the button is hidden. No DB, no storage.
+4. **Check before analysing.** On click, list what's missing instead of calling gnubg: legal position (`validateBuilderState`); checker decision needs dice; cube decision needs the cube centred or owned by the doubler, and not a Crawford game. Show the side to move, score and match length in that summary so the user can confirm them.
+5. **Results.**
+   - Checker: top 4 moves with equity, difference from the best, and the depth gnubg used; label single-survivor (0-ply) rows. "No legal moves" when there are none.
+   - Cube: under the offered cube, gnubg's proper action (e.g. "No double / Take", "Double / Pass", "Too good / Pass"), and the No double, Double/take and Double/pass equities.
+   - Label the panel "GNU Backgammon 2-ply". Never mix it with Galaxy numbers. Reuse the replay's candidate-move list styling where it fits.
+6. **Wrapper (`lib/engine/gnubg.ts`).** Add a cube-decision call (gnubg's cube hint with no dice, read the cube action and the three equities) with fixture tests, fail-closed like the move parser, and a way to get the top 4 moves.
+7. **Design and screenshots.** The cube answer under the offered cube is a new kind of visible component: before building it, write a short note in your done entry of what you'll show, and the main session brings in the designer if needed. Screenshots (`scripts/screenshots/index.ts` into `design/screenshots/<date>-builder-engine/`, gitignored, don't `git add -f`): checker result, cube result, Crawford on, missing-dice message, at 390 and 1280. The visual-reviewer checks them from master.
+
+Checks: `npm test`, tsc, lint, the new tests above, a live local run of the route for one checker and one cube position. No schema, no Oracle, no `.env*`, no stored results, no push.
 
 ## Schema requests (omp → master)
 
