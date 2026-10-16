@@ -4,22 +4,23 @@
 
 The local arm64 image is `bg-gnubg:1.07.001`, built from `engine/gnubg/Dockerfile` (Debian Bookworm, `gnubg` plus `gnubg-data`). The harness is `npx tsx scripts/engine/gnubg-evaluation.ts`. It reads only local `app_dev` through `prismaReadOnly` and `localDbUrl("ro")`, checks localhost and `bg_db_ro`, and makes no writes or Galaxy calls. It takes the same stratified 200 rows (55 opening, 75 middle game, 70 bear-off) from 6,000 eligible rows, with the deterministic seeded shuffle.
 
-GNU returns per-candidate depth. The 2-ply move-filter threshold is 0.16 (`show evaluation` in the image). The parser accepts rank-1 0-ply only when all candidates are 0-ply and the measured top-two equity gap is strictly greater than 0.16. A lone listed candidate is not proof that only one legal move exists, so no single-legal-move exception is accepted. The current sample's 35 accepted former rejects all have measured gaps >0.16; no full sample rerun was needed for this safety correction.
+GNU returns per-candidate depth. The 2-ply move-filter threshold is 0.16 (`show evaluation` in the image). The corrected parser accepts rank-1 0-ply only when all candidates are 0-ply, at least two candidates are listed, and the measured top-two equity gap is strictly greater than 0.16. A lone listed candidate is not proof that only one legal move exists, so no single-legal-move or singleton exception is accepted. The post-fix rerun below exercised this corrected parser.
 
 ## Current 2-ply rerun
 
 | Measure | Result |
 |---|---:|
 | Attempted / analyzed / rejected | 200 / 200 / 0 |
-| Prior 2-ply rank-1 cases / newly accepted single-survivors | 165 / 35 |
-| Best-move agreement (all / with / without single-survivor rows) | 183/200 (91.5%) / 35/35 (100%) / 148/165 (89.7%) |
+| Prior 2-ply rank-1 cases / newly accepted rows | 165 / 35 |
+| Best-move agreement (all / with / without the 35 rows) | 183/200 (91.5%) / 35/35 (100%) / 148/165 (89.7%) |
 | Median absolute played-equity difference | 0.0027 (200 measured) |
 | Absolute played-loss difference (all / with / without) | n=200, median 0; n=35, median 0 / mean 0; n=165, median 0 / mean 0.004145 |
-| Empty Docker run median (5 runs) | 277.7 ms |
-| Single-position total / estimated engine work (median) | 346.9 / 69.2 ms |
-| All 21 rolls total / estimated engine work | 928.5 / 650.8 ms; no depth error; 20 legal rolls plus 6–6 with no legal move |
+| Empty Docker run median (5 runs; prior measurement) | 277.7 ms |
+| Single-position total / estimated engine work (median; prior measurement) | 346.9 / 69.2 ms |
+| Post-fix all-21-roll run total / estimated engine work | 942.02075 / 675.04554 ms; no depth mismatch |
+| Post-fix empty startup median | 266.975208 ms |
 
-The 200 rows, 6,000 eligible records and deterministic phase strata (55 opening, 75 middle game, 70 bear-off) are unchanged. The former 35 rejects became accepted `single-survivor` rows, raising coverage from 165/200 to 200/200. With those rows excluded, best-move agreement remains 148/165; they add 35 agreements and no loss difference. The historical 170/200 result still has no per-row IDs/raw outputs and its five-position discrepancy remains unexplained.
+The corrected parser was exercised on a full rerun of the same 200 rows after removing the one-listed-candidate acceptance path: all 200 were analyzed, including 35 accepted rows, with zero depth mismatches. The diagnostic gap table below shows that every one of those 35 has rank 1 and rank 2 listed (at least two candidates), a strict top-two gap greater than 0.16 (minimum 0.161), and exactly one candidate within the 0.16 filter. Thus the acceptance uses the measured gap and multiple listed candidates, not a singleton exception. Best-move agreement is 183/200 overall, 35/35 for those rows, and 148/165 without them. The historical 170/200 result still has no per-row IDs/raw outputs and its five-position discrepancy remains unexplained. Timings vary between runs.
 
 The deterministic row sampler and the historical baseline are unchanged. The 170/200 phase-1 result remains unreconciled: no per-row IDs or raw GNU output for that run were found in the committed reports, scripts, docs, progress notes or Git history. The five-position difference is not explained or inferred here.
 
@@ -81,7 +82,7 @@ Times include Docker startup. For the 21-roll sample's 2–2 hint, the default-f
 
 ### The 21-roll sample
 
-The same sample-100 position (`4HPkoQCzGfAAUg`, match `sAGlAEAAEAAE`) now returns all 21 roll results without a depth error. Twenty rolls have legal moves and candidates; 6–6 has no legal move and is represented as an empty candidate list. Total wall time was 928.5 ms (650.8 ms estimated engine time after Docker startup). The 2–2 roll is accepted with `depthReason: "single-survivor"` and its candidate plies remain 0 at the default filter; widening the filter makes it 2-ply as above.
+In the post-fix run, the same sample-100 position (`4HPkoQCzGfAAUg`, match `sAGlAEAAEAAE`) returned all 21 roll results without a depth mismatch: 20 rolls have legal moves and candidates; 6–6 has no legal move and is represented as an empty candidate list. Total wall time was 942.02075 ms (675.04554 ms estimated engine time after Docker startup). These run timings vary. The 2–2 roll retains 0-ply candidate plies under the default filter; widening the filter makes it 2-ply as above.
 
 ## Loss severity comparison
 
@@ -104,10 +105,8 @@ Keep GNU Backgammon as an offline, read-only comparison tool. The 35 newly cover
 
 ## Verification
 
-- Deterministic local read-only 0-ply gap run: 200 positions (165 previously accepted, 35 previous rejects); every previous reject gap exceeded 0.16, minimum 0.161, and each had one listed candidate within threshold; all 165 others had at least two (gap min/median/max 0.000/0.023/0.155).
+- Deterministic local read-only 0-ply gap run: 200 positions (165 previously accepted, 35 previous rejects); each of those 35 has rank 1 and rank 2 listed, gap >0.16 (minimum 0.161), and exactly one candidate within threshold; all 165 others had at least two (gap min/median/max 0.000/0.023/0.155).
 - Widened 2-ply filter (`set evaluation movefilter 2 0 0 8 1.0`) on three rejects: 2-ply rank 1 returned on all; Docker wall times 0.405 / 0.335 / 0.490 s.
-- Parser rerun: 200/200 analyzed, 35 labeled `single-survivor`; 183/200 best-move agreement. Without those rows: 148/165 agreement, loss-difference median/mean 0 / 0.004145. With them: 35/35 agreement, median/mean 0 / 0.
-- All 21 rolls on the sample-100 position: 20 legal-roll analyses plus 6–6 no legal move; no depth error, 928.5 ms total / 650.8 ms estimated engine time.
-- `npm test`: 79 files / 967 tests passed.
-- `npx tsc --noEmit`: passed.
-- `npm run lint`: passed.
+- **Post-fix parser rerun, after removal of one-listed-candidate acceptance:** 200/200 analyzed, 0 depth mismatches, 183/200 best-move agreement; 35/35 agreement for the rows whose gap table lists at least two candidates and strict gap >0.16; without those rows 148/165 agreement. Loss-difference median/mean 0 / 0.004145 without them and 0 / 0 for the 35.
+- Post-fix all-21-roll batch: all 21 returned (20 legal rolls plus 6–6 no legal move), no depth mismatch; 942.02075 ms total / 675.04554 ms estimated engine time. Timing differs from prior run.
+- Earlier checks after the code fix: `npm test` 79 files / 967 tests passed; `npx tsc --noEmit` and `npm run lint` passed. These checks were not rerun for this documentation update.
