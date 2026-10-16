@@ -26,6 +26,9 @@ export const BUILDER_SHOTS: Shot[] = [
       await open(page, "/position-builder");
       await page.getByLabel("Bottom", { exact: true }).last().fill("6");
       await page.getByLabel("Crawford game").check();
+      // The checked state is the subject of this shot; avoid capturing the
+      // pointer-induced focus ring while preserving the app's keyboard ring.
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       await shoot("builder-crawford-on", "full");
     },
   },
