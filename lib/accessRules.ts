@@ -44,6 +44,7 @@ export const ACCESS_RULES: readonly Rule[] = [
 
   // Member APIs. Everything else under /api (decision notes, decisions,
   // review, tags, sync, galaxy, check-existence, db-check) is owner.
+  { pattern: "/api/engine/analyze", tier: "member" },
   { pattern: "/api/forum/**", tier: "member" },
   { pattern: "/api/matches/list/**", tier: "member" },
   { pattern: "/api/matches/*/*", tier: "member" },

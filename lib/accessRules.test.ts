@@ -42,6 +42,7 @@ describe("accessTierFor: APIs", () => {
     ["/api/matches/list/1", "member"],
     ["/api/matches/123/2", "member"],
     ["/api/player-identities", "member"],
+    ["/api/engine/analyze", "member"],
     ["/api/matches/check-existence", "owner"],
     ["/api/decision-notes", "owner"],
     ["/api/decisions/5/note", "owner"],

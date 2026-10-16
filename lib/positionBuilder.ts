@@ -183,8 +183,17 @@ export function validateBuilderState(state: PositionBuilderState): string[] {
 
   return errors;
 }
+export function crawfordEligible(state: PositionBuilderState): boolean {
+  if (state.matchLength <= 1) return false;
+  const oneAway = state.score.filter((score) => score === state.matchLength - 1).length;
+  return oneAway === 1;
+}
 
-export function canonicalPositionForForum(state: PositionBuilderState): {
+export function withCrawfordCubeReset(state: PositionBuilderState): PositionBuilderState {
+  return { ...state, cubeValue: 1, cubeOwner: "center" };
+}
+
+export function canonicalPositionForForum(state: PositionBuilderState, crawford = false): {
   positionId: string;
   gnuMatchId: string;
   kind: "CHECKER" | "CUBE";
@@ -209,7 +218,7 @@ export function canonicalPositionForForum(state: PositionBuilderState): {
     cubeOwner:
       state.cubeOwner === "center" ? null : state.cubeOwner === state.playerToMove ? diceOwner : otherPlayer,
     diceOwner,
-    crawford: false,
+    crawford,
     // 1 = game in progress. gnubg refuses to set a board from a Match ID
     // whose game state is 0 ("no game").
     gameState: 1,

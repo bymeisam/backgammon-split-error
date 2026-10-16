@@ -17,18 +17,18 @@ export const style = {
   controls: "flex flex-col gap-4",
   controlCard: clsx(shared.card, "flex flex-col gap-4 p-4"),
   controlTitle: shared.overline,
-  controlHint: "text-xs leading-5 text-ink-faint",
+  controlHint: "text-xs leading-5 text-ink-muted",
   fieldset: "flex flex-col gap-2",
   // A legend sits outside the fieldset's flex flow, so the gap doesn't reach
   // it: its own margin separates "Score" from the Bottom/Top labels below.
   legend: "mb-2 text-xs font-medium text-ink-faint",
   segmented: "grid grid-cols-2 gap-1 rounded-control bg-sunken p-[3px] ring-1 ring-inset ring-line",
-  // Function, 1 param -> passed directly. One option in a segmented control
-  // (side, action, decision type): the picked one lifts onto the surface.
-  segmentOption: (selected: boolean): string =>
+  // One option in a segmented control (side, action, decision type).
+  segmentOption: (selected: boolean, disabled = false): string =>
     clsx(
       "rounded-inset px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
-      selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink"
+      selected ? "bg-surface text-ink shadow-card ring-1 ring-inset ring-line-strong" : "text-ink-muted hover:text-ink",
+      disabled && "cursor-not-allowed opacity-50"
     ),
   fieldGrid: "grid grid-cols-2 gap-3",
   field: shared.filterField,
@@ -46,4 +46,12 @@ export const style = {
   // Mono is for numbers (notation, equities, IDs): the off counts use it, a
   // word like "Center" doesn't.
   statValue: (numeric: boolean): string => clsx("text-sm text-ink", numeric && "font-mono tabular-nums"),
+  analysisList: "flex flex-col divide-y divide-line border-y border-line",
+  analysisRow: "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]",
+  analysisMove: "min-w-0 truncate font-mono text-ink",
+  analysisEquity: "font-mono tabular-nums text-ink",
+  analysisMeta: "text-xs text-ink-muted",
+  analysisLabel: "border-b border-line py-2 text-xs font-medium text-ink-muted",
+  cubeAction: "py-2 text-sm font-medium text-ink",
+  crawfordRow: "flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-line px-3 text-sm text-ink transition-colors hover:bg-sunken focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus [&_input]:size-5 [&_input]:shrink-0 [&_input]:accent-primary [&_input]:focus-visible:outline-2 [&_input]:focus-visible:outline-offset-2 [&_input]:focus-visible:outline-focus",
 } as const;
