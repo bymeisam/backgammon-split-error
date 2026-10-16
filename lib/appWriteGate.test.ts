@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DB_URL_VARS } from "./databaseUrl";
+
+// The LOCAL_* names (DB_TARGET is stubbed to local).
+const V = DB_URL_VARS.local;
 
 const gate = vi.hoisted(() => ({ galaxy: false }));
 vi.mock("@/lib/galaxyGate", () => ({ isSyncEnabled: () => gate.galaxy }));
@@ -8,12 +12,16 @@ import { isAppWriteEnabled } from "./appWriteGate";
 const APP_URL = "mysql://bg_db_app:pw@203.0.113.7:3306/backgammon?ssl=true";
 
 describe("isAppWriteEnabled", () => {
+  beforeEach(() => {
+    vi.stubEnv("DB_TARGET", "local");
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     gate.galaxy = false;
   });
 
-  // [DATABASE_URL_APP set, NODE_ENV, isSyncEnabled] -> expected
+  // [app URL set, NODE_ENV, isSyncEnabled] -> expected
   const cases: Array<[boolean, "production" | "development", boolean, boolean]> = [
     [true, "production", true, true],
     [true, "production", false, true],
@@ -26,13 +34,13 @@ describe("isAppWriteEnabled", () => {
   ];
 
   it.each(cases)("app URL set=%s, NODE_ENV=%s, galaxy=%s -> %s", (appSet, nodeEnv, galaxy, expected) => {
-    vi.stubEnv("DATABASE_URL_APP", appSet ? APP_URL : undefined);
+    vi.stubEnv(V.app, appSet ? APP_URL : undefined);
     vi.stubEnv("NODE_ENV", nodeEnv);
     gate.galaxy = galaxy;
     expect(isAppWriteEnabled()).toBe(expected);
   });
 
-  // An empty DATABASE_URL_APP behaves exactly like an unset one.
+  // An empty app URL behaves exactly like an unset one.
   const emptyCases: Array<["production" | "development", boolean, boolean]> = [
     ["production", true, false],
     ["production", false, false],
@@ -41,7 +49,7 @@ describe("isAppWriteEnabled", () => {
   ];
 
   it.each(emptyCases)("empty app URL, NODE_ENV=%s, galaxy=%s -> %s", (nodeEnv, galaxy, expected) => {
-    vi.stubEnv("DATABASE_URL_APP", "");
+    vi.stubEnv(V.app, "");
     vi.stubEnv("NODE_ENV", nodeEnv);
     gate.galaxy = galaxy;
     expect(isAppWriteEnabled()).toBe(expected);

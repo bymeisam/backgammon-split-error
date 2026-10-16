@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   NOTE_MAX_LENGTH,
   attachNotes,
-  importOutcome,
   normalizeNote,
   parseDecisionId,
   type MatchDecisionNoteEntry,
@@ -81,19 +80,5 @@ describe("attachNotes", () => {
 
   it("with no entries (match not ingested) nothing gets a DB id", () => {
     expect(attachNotes([liveDecision(1, "100")], [])[0].dbDecisionId).toBeNull();
-  });
-});
-
-describe("importOutcome", () => {
-  const t = (iso: string) => new Date(iso);
-
-  it("is new when the decision has no note yet", () => {
-    expect(importOutcome(null, t("2026-10-06T10:00:00Z"))).toBe("new");
-  });
-
-  it("updates only when the incoming note is strictly newer", () => {
-    expect(importOutcome(t("2026-10-06T10:00:00Z"), t("2026-10-06T10:00:01Z"))).toBe("updated");
-    expect(importOutcome(t("2026-10-06T10:00:00Z"), t("2026-10-06T10:00:00Z"))).toBe("skipped");
-    expect(importOutcome(t("2026-10-06T10:00:01Z"), t("2026-10-06T10:00:00Z"))).toBe("skipped");
   });
 });

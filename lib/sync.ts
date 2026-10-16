@@ -1,7 +1,7 @@
 // Shared multi-match sync: walks the analyses/list index (upserting Match
 // rows, never touching ingestStatus), then detail-ingests every match that
 // isn't already DONE, sequentially, one at a time. Used by both the
-// unbounded local scripts (scripts/backfill.ts, scripts/incremental-sync.ts)
+// unbounded local scripts (scripts/sync/backfill.ts, scripts/sync/incremental-sync.ts)
 // and the capped Vercel route (app/api/sync/incremental/route.ts). The type
 // decides how much of the index is walked (BACKFILL: every page;
 // INCREMENTAL: stops after the first page whose matches are all already
@@ -21,7 +21,7 @@
 //
 // DB-only retry (since 2026-10-14, runDbOnlySync below): step 2 alone, with
 // the same SyncRun bookkeeping and recomputes, for matches taken from our DB
-// instead of from the analyses/list walk (scripts/retry-failed-matches.ts).
+// instead of from the analyses/list walk (scripts/sync/retry-failed-matches.ts).
 // It makes no list request at all, which matters when Galaxy is rate
 // limiting or blocking the account.
 import { prisma } from "@/lib/prisma";
@@ -642,8 +642,8 @@ async function detailIngestAndFinish(ctx: DetailIngestContext): Promise<SyncRunR
   });
 
   // Once, after every match in this run has finished processing — not
-  // per-match, not per-decision. Both scripts/backfill.ts and
-  // scripts/incremental-sync.ts/api/sync/incremental route through this
+  // per-match, not per-decision. Both scripts/sync/backfill.ts and
+  // scripts/sync/incremental-sync.ts/api/sync/incremental route through this
   // shared runSync, so hooking in here keeps MistakeStat current after both
   // the full historical backfill and every day-to-day incremental sync,
   // with no separate scheduling needed. Own try/catch, same as the other

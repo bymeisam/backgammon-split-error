@@ -1,31 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { appDatabaseUrl } from "./prisma";
+import { DB_URL_VARS } from "./databaseUrl";
 
 const APP = "mysql://bg_db_app:pw@203.0.113.7:3306/backgammon?ssl=true";
 const ADMIN = "mysql://bg_db_rw:pw@203.0.113.7:3306/backgammon?ssl=true";
 
-function env(vars: Record<string, string | undefined>): NodeJS.ProcessEnv {
-  return vars as NodeJS.ProcessEnv;
-}
+// Target-agnostic: run every case against both URL sets.
+describe.each([["local"], ["oracle"]] as const)("appDatabaseUrl (DB_TARGET=%s)", (target) => {
+  const V = DB_URL_VARS[target];
+  function env(vars: { NODE_ENV: string; app?: string; rw?: string }): NodeJS.ProcessEnv {
+    return { DB_TARGET: target, NODE_ENV: vars.NODE_ENV, [V.app]: vars.app, [V.rw]: vars.rw } as NodeJS.ProcessEnv;
+  }
 
-describe("appDatabaseUrl", () => {
-  it("uses DATABASE_URL_APP when set, in any environment", () => {
-    expect(appDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL_APP: APP, DATABASE_URL: ADMIN }))).toBe(APP);
-    expect(appDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL_APP: APP, DATABASE_URL: ADMIN }))).toBe(APP);
+  it("uses the app URL when set, in any environment", () => {
+    expect(appDatabaseUrl(env({ NODE_ENV: "production", app: APP, rw: ADMIN }))).toBe(APP);
+    expect(appDatabaseUrl(env({ NODE_ENV: "development", app: APP, rw: ADMIN }))).toBe(APP);
   });
 
-  it("falls back to DATABASE_URL outside production", () => {
-    expect(appDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL: ADMIN }))).toBe(ADMIN);
-    expect(appDatabaseUrl(env({ NODE_ENV: "test", DATABASE_URL: ADMIN }))).toBe(ADMIN);
+  it("falls back to the read-write URL outside production", () => {
+    expect(appDatabaseUrl(env({ NODE_ENV: "development", rw: ADMIN }))).toBe(ADMIN);
+    expect(appDatabaseUrl(env({ NODE_ENV: "test", rw: ADMIN }))).toBe(ADMIN);
   });
 
-  it("treats an empty DATABASE_URL_APP as unset", () => {
-    expect(appDatabaseUrl(env({ NODE_ENV: "development", DATABASE_URL_APP: "", DATABASE_URL: ADMIN }))).toBe(ADMIN);
-    expect(appDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL_APP: "", DATABASE_URL: ADMIN }))).toBeUndefined();
+  it("treats an empty app URL as unset", () => {
+    expect(appDatabaseUrl(env({ NODE_ENV: "development", app: "", rw: ADMIN }))).toBe(ADMIN);
+    expect(appDatabaseUrl(env({ NODE_ENV: "production", app: "", rw: ADMIN }))).toBeUndefined();
   });
 
-  it("never falls back to the admin DATABASE_URL in production", () => {
-    expect(appDatabaseUrl(env({ NODE_ENV: "production", DATABASE_URL: ADMIN }))).toBeUndefined();
+  it("never falls back to the admin read-write URL in production", () => {
+    expect(appDatabaseUrl(env({ NODE_ENV: "production", rw: ADMIN }))).toBeUndefined();
   });
 
   it("is undefined when nothing is set", () => {

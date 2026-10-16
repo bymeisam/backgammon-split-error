@@ -453,15 +453,21 @@ the three selectors, every mapped variable defined, the fonts loaded (and
 
 ## 9. Screenshots and design review
 
-`scripts/design-screenshots.ts` shoots every main page at 1440 and 390,
-light and dark, into `design/screenshots/<date>/` (gitignored). It only
-talks HTTP to a running app; start one against the **local** database, in
-write mode:
+`scripts/screenshots/index.ts` shoots every main page at 1440 and 390,
+light and dark, into `design/screenshots/<date>/` (gitignored). It starts
+its own `next start` (port 3300, or a free one), always against the
+**local** database (it forces `DB_TARGET=local` and refuses unless the
+`LOCAL_*` URLs are localhost), and stops it when done. It needs a
+production build and never builds one itself:
 
 ```
-npm run build && ENABLE_WRITE_MODE=true npx next start -p 3300
-npx tsx scripts/design-screenshots.ts --theme=clubroom --date=2026-10-09-phase4
+npm run build
+npm run screenshots -- --theme=clubroom --date=2026-10-09-phase4
 ```
+
+`--set=review`, `--set=auth` (no auth bypass, the real sign-in screens) and
+`--set=forum` (signed in through the local auth bypass) pick the server's
+switches themselves; see the script's header.
 
 The shots include `/sources` and `/sources/galaxy/matches` (its token
 prompt, since the script has no token), and the review session's checker
@@ -476,11 +482,12 @@ wrong, card 3 with a Good option when it has one.
   `/review` shots, added through the API first and removed afterwards (also
   on failure). Answers are stubbed in the browser, so no `ReviewLog` rows.
   Check afterwards that the review tables are back to where they were.
-- `--nav-only`: only the navbar shots (768, 1024, 1280, 1440), for a read-only
-  server (`ENABLE_WRITE_MODE=false npx next start -p 3301`, then
-  `--base-url=http://localhost:3301 --nav-only`).
-- `--base-url=<url>` (default `http://localhost:3300`), `--date=<name>`
-  (the folder; default today).
+- `--nav-only`: only the navbar shots (768, 1024, 1280, 1440). With
+  `--readonly` the started server runs with write mode off, for the
+  read-only navbar.
+- `--date=<name>`: the folder; default today.
+- `--base-url=<url>`: shoot a server that is already running instead. No
+  server is started, and the database behind it isn't checked.
 
 **When the designer reviews:** a change that adds a new page or a new kind
 of visible component (a new screen, card type or panel) gets a screenshot

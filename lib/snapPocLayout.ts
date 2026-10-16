@@ -1,5 +1,5 @@
 // Snaps proof-of-concept: the board layout Gemini reads from a photo
-// (scripts/snap-poc.ts), and a light validator for it. Purely visual: rows
+// (scripts/snaps/snap-poc.ts), and a light validator for it. Purely visual: rows
 // are left to right as seen in the photo, colours are "light"/"dark" as they
 // look, with no backgammon perspective (whose home board, direction of play).
 // Step 2 (the local review page, app/snap-poc) reuses these types and the

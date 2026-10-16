@@ -4,8 +4,8 @@ Ideas parked for later review. These are not planned work. Each entry says where
 
 ## To review later
 
-### Split scripts into smaller ones (user, 2026-10-15)
-The user wants to divide the scripts into smaller ones. It's still only an idea, to be talked through before any plan. Bring it up after the scripts cleanup (retired backfills, `scripts/README.md` ledger) has landed.
+### Split the screenshots script (phase 2 of the scripts work, 2026-10-15)
+Phase 1 (folders by purpose) landed in `6964a9c`. Phase 2, not yet approved: split `scripts/screenshots/index.ts` (914 lines) into `index.ts` (arguments and `main()`), `helpers.ts`, `nav.ts`, `fixtures.ts` and `shots/{app,forum,auth}.ts`. Same command, same output. Forum shots in their own file let omp add shots without touching the rest.
 
 ### Cube UI review (user, 2026-10-07)
 The user accepted the Galaxy-style cube display for now but wants to look at it again. Open points:
@@ -222,7 +222,7 @@ repetition remain future phases.
 ### Vercel deploy behind auth
 - **Idea:** deploy to Vercel as a read-only viewer behind an auth wall that admits only you.
 - **Status:** implemented with Clerk's invite-only sign-in, a local `AppUser` allowlist, and independent owner flags in Clerk private metadata and the local database. The app remains read-only unless `ENABLE_WRITE_MODE` and the regular write credential are deliberately enabled.
-- **Follow-up:** configure the Vercel Clerk keys, create the `bg_db_app` user (`scripts/sql/app-db-user.sql`, which covers AppUser provisioning and every in-app write) and set `DATABASE_URL_APP`, apply the AppUser migration, and set both owner flags for the approved account.
+- **Follow-up:** configure the Vercel Clerk keys, create the `bg_db_app` user (`scripts/db/sql/app-db-user.sql`, which covers AppUser provisioning and every in-app write) and set `DATABASE_URL_APP`, apply the AppUser migration, and set both owner flags for the approved account.
 - **Source:** user's idea list, 2026-10-06.
 
 ### Per-user permissions and an admin page

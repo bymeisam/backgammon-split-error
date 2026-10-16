@@ -3,9 +3,15 @@
 What's in `scripts/`, what has been retired from it, and where future data
 fixes go. Each script's header comment has the full details.
 
-## Tools
+Scripts are grouped into one folder per purpose. Each section below opens
+with the rule for that folder.
 
-Sync (Galaxy to the database; see `docs/deploy.md` § Syncing stays local):
+## `sync/`
+
+Talks to Galaxy with the user's token; never while the user is playing.
+Writes the sync's results to `DB_TARGET`'s read-write database (`lib/databaseUrl.ts`; see
+`docs/deploy.md` § Syncing stays local).
+
 - `npm run sync:backfill -- [--limit N] [--dry-run]` (`backfill.ts`): first-run
   sync. Walks every page of Galaxy's match list, then syncs every match not
   yet DONE.
@@ -18,35 +24,59 @@ Sync (Galaxy to the database; see `docs/deploy.md` § Syncing stays local):
 - `runSyncCli.ts`, `retryFailedCli.ts` and `syncCliShared.ts` are the shared
   CLI logic behind those three, with their tests.
 
-Run directly:
-- `npx tsx scripts/recompute-stats.ts [--dry-run]`: rebuilds `MistakeStat`
-  and `RepeatedPosition` from the current `Decision` rows. Use it after a data
-  fix that changes decisions without a sync.
-- `npx tsx scripts/ro-query.ts --target local|oracle "SELECT ..."`:
-  read-only SQL as `bg_db_ro`, for the investigator.
-- `npx tsx scripts/galaxy-get.ts list <page>` or
-  `... game <matchId> <gameIndex>`: read-only Galaxy API fetch, for the
-  investigator. Needs `GALAXY_TOKEN`.
-- `npx tsx scripts/check-oracle-cert.ts`: checks the pinned Oracle CA still
-  verifies (also run by `.github/workflows/check-oracle-cert.yml`).
-- `npx tsx scripts/notes-export.ts --out notes-export.json`: exports every
-  decision note by its natural key, read-only.
-- `npx tsx scripts/notes-import.ts --in notes-export.json [--dry-run]`:
-  imports that file into whichever DB `DATABASE_URL` points at.
-- `npx tsx scripts/gnubg-evaluation.ts`: read-only local comparison of GNU
-  Backgammon with Galaxy. Requires the `bg-gnubg:1.07.001` Docker image and
-  `DATABASE_URL_READONLY` pointing to local `bg_db_ro`; results are described
-  in `reports/2026-10-15-gnubg-engine-test.md`.
+## `db/`
 
-Dev tooling:
-- `npx tsx scripts/design-screenshots.ts`: screenshots of the main pages for
-  design review. Needs an app already running on port 3300 against the local
-  DB (see its header).
-- `npm run agents:sync` (`sync-agents.ts`): generates the agent files from
-  `agents/roles/`.
+Can write to a database. Never run against Oracle without the user's
+explicit approval.
 
-Proof of concept:
-- `npx tsx scripts/snap-poc.ts [--force] [--model <id>] [--only <filename>]`:
+- `npm run db:recompute-stats -- [--dry-run]` (`recompute-stats.ts`): rebuilds
+  `MistakeStat` and `RepeatedPosition` from the current `Decision` rows. Use it
+  after a data fix that changes decisions without a sync.
+- `npm run db:check-cert` (`check-oracle-cert.ts`): checks the pinned Oracle CA
+  still verifies (also run by `.github/workflows/check-oracle-cert.yml`).
+  It writes nothing; it lives here because it is about the database
+  connection.
+- `sql/app-db-user.sql`: creates the `bg_db_app` write user and its grants on
+  Oracle. Run by hand, as the HeatWave admin, only with the owner's approval
+  (see its header and `docs/deploy.md`).
+- Future TypeScript data fixes go here too (see "Future data fixes" below).
+
+## `readonly/`
+
+Never writes. Safe to run any time. These are the investigator's tools.
+
+- `npx tsx scripts/readonly/ro-query.ts --target local|oracle "SELECT ..."`:
+  read-only SQL as `bg_db_ro`.
+- `npx tsx scripts/readonly/galaxy-get.ts list <page>` or
+  `... game <matchId> <gameIndex>`: read-only Galaxy API fetch. Needs
+  `GALAXY_TOKEN`.
+
+## `screenshots/`
+
+Dev tooling. Starts its own `next start` against the local DB (it forces
+`DB_TARGET=local` and refuses unless the `LOCAL_*` URLs are localhost) and
+only talks HTTP to it.
+
+- `npm run screenshots` (`index.ts`): screenshots of the main pages for design
+  review. Run `npm run build` first; it never builds. `--set=review|auth|forum`
+  and `--nav-only --readonly` set the server's switches themselves;
+  `--base-url=<url>` shoots an already-running server instead (unchecked). See
+  its header and `docs/design-system.md`. The code is split into `config.ts`
+  (flags), `server.ts` (the local server), `helpers.ts`, `nav.ts`,
+  `fixtures.ts` and `shots/`.
+
+## `agents/`
+
+Dev tooling. Writes only the generated agent files; no DB, no network.
+
+- `npm run agents:sync` (`sync-agents.ts`): generates `.claude/agents/` and
+  `.omp/agents/` from `agents/roles/`, with its test.
+
+## `snaps/`
+
+Proof of concept. No DB; calls Gemini's API.
+
+- `npx tsx scripts/snaps/snap-poc.ts [--force] [--model <id>] [--only <filename>]`:
   Snaps PoC, step 1. Asks Gemini's free tier to read the board in each photo
   in `snap-poc/` (gitignored) and caches the answers in
   `snap-poc/results/<model>/<image>.json`. No DB. Needs `GEMINI_API_KEY`.
@@ -79,16 +109,15 @@ Proof of concept:
   `lib/snapPocLayout.ts`, scoring in `lib/snapPocScore.ts`, file access in
   `lib/snapPocFiles.ts`.
 
-SQL:
-- `sql/app-db-user.sql`: creates the `bg_db_app` write user and its grants on
-  Oracle. Run by hand, as the HeatWave admin, only with the owner's approval
-  (see its header and `docs/deploy.md`).
 
 ## Retired one-offs
 
 These filled values for rows ingested before `lib/ingest.ts` computed them.
 Every one has run on both databases, and ingest now computes the value, so
 they were deleted on 2026-10-15. To read or rerun one, restore it from git.
+They were deleted before `scripts/` was split into folders, so each
+`git show` below restores to the old top-level path (`scripts/<name>.ts`);
+move a restored fix into `db/` before running it.
 
 | Script | What it did | Local | Oracle | Restore |
 |---|---|---|---|---|
@@ -97,11 +126,21 @@ they were deleted on 2026-10-15. To read or rerun one, restore it from git.
 | `backfill-played-at.ts` | Recomputed `Match.playedAt` from stored `raw` (the first analysed decision's timestamp) | by 2026-09-28; 2026-10-07 dry run: 0 to change | by 2026-09-28 (0 to change) | `git show 59a3513:scripts/backfill-played-at.ts` |
 | `backfill-opponent-identities.ts` | Upserted a `PlayerIdentity` row for every opponent in stored decisions | 2026-09-22 (2,111 created) | Arrived with the 2026-09-23 data dump | `git show 2767b3d:scripts/backfill-opponent-identities.ts` |
 
+Retired tools (deleted 2026-10-15, as part of the folder split, so they
+restore to the old top-level path too). Reason for both: local is test-only;
+notes never move local → Oracle.
+
+| Script | What it did | Restore |
+|---|---|---|
+| `notes-export.ts` | Exported every decision note by its natural key to a JSON file, read-only | `git show 6a94c5e:scripts/notes-export.ts` |
+| `notes-import.ts` | Imported that file into whichever DB `DATABASE_URL` pointed at (new / newer-wins update / skip). Its `ExportedNote`/`importOutcome` helpers were removed from `lib/decisionNotes.ts` with it | `git show 6a94c5e:scripts/notes-import.ts` (helpers: `git show 6a94c5e:lib/decisionNotes.ts`) |
+
 ## Future data fixes
 
 - A fix that's plain SQL goes in a Prisma migration, so `_prisma_migrations`
   records where it ran.
-- A fix that needs TypeScript (for example, parsing `raw`) is a script here.
+- A fix that needs TypeScript (for example, parsing `raw`) is a script in
+  `db/`.
   It has a `--dry-run` mode, makes no live Galaxy calls, and gets a line in
   this file with its local and Oracle run dates.
 - Once it has run on both, delete it and move it to "Retired one-offs" with

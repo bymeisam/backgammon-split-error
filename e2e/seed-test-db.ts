@@ -21,10 +21,10 @@
 // each row's own raw.
 //
 // Standalone by design: builds its own MySQL connection directly from
-// .env.test rather than importing lib/prisma.ts (which throws at import
-// time if the real .env's DATABASE_URL happens to be unset, and always
-// prefers process.env over an explicit path) — this script never depends
-// on the real .env's state at all.
+// .env.test rather than importing lib/prisma.ts (which reads process.env,
+// i.e. the real .env) — this script never depends on the real .env's state
+// at all. It reads .env.test's LOCAL_* URL through lib/databaseUrl.ts's
+// localDbUrl, and refuses anything but localhost.
 //
 // Usage: npx tsx e2e/seed-test-db.ts   (idempotent — safe to re-run)
 import fs from "node:fs";
@@ -32,6 +32,7 @@ import path from "node:path";
 import dotenv from "dotenv";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "../lib/generated/prisma/client";
+import { DB_URL_VARS, isLocalDatabaseUrl, localDbUrl } from "../lib/databaseUrl";
 
 interface SeedDecision {
   id: number;
@@ -63,7 +64,11 @@ interface SeedData {
 async function main() {
   const envPath = path.join(__dirname, "..", ".env.test");
   const testEnv = dotenv.parse(fs.readFileSync(envPath, "utf8"));
-  const url = new URL(testEnv.DATABASE_URL);
+  const rawUrl = localDbUrl("rw", testEnv);
+  if (!rawUrl || !isLocalDatabaseUrl(rawUrl)) {
+    throw new Error(`.env.test: ${DB_URL_VARS.local.rw} must be set and point at localhost (bg_test).`);
+  }
+  const url = new URL(rawUrl);
 
   const prisma = new PrismaClient({
     adapter: new PrismaMariaDb({

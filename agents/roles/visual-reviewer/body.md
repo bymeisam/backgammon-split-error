@@ -27,7 +27,7 @@ This is a personal backgammon training tool, now also shared read-only with invi
 
 ## Review method
 
-- Review only the screenshots the main session names. They are under `design/screenshots/<YYYY-MM-DD>-<slug>/`, made by `scripts/design-screenshots.ts`. Each file name gives the page, state, width (for example 1440, 1280 or 390) and theme (light or dark).
+- Review only the screenshots the main session names. They are under `design/screenshots/<YYYY-MM-DD>-<slug>/`, made by `scripts/screenshots/index.ts`. Each file name gives the page, state, width (for example 1440, 1280 or 390) and theme (light or dark).
 - Read the responsible `*.styles.ts`, the component, and `lib/styles/shared.styles.ts` as far as you need to explain each finding.
 - Compare light and dark, and desktop and narrow, where both exist.
 - Check layout, spacing, alignment, hierarchy, type, contrast, focus visibility, overflow, touch-target size, and loading or error states when shown.

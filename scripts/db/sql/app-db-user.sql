@@ -1,8 +1,8 @@
 -- App write credential (bg_db_app) for Oracle MySQL, database `backgammon`.
 --
--- Used by prismaApp (lib/prisma.ts) through DATABASE_URL_APP, which is set on
+-- Used by prismaApp (lib/prisma.ts) through the app URL (lib/databaseUrl.ts), set on
 -- Vercel so the live site can do every in-app write without the admin
--- credential (bg_db_rw / DATABASE_URL): the forum, decision notes, tags,
+-- credential (bg_db_rw / the read-write URL): the forum, decision notes, tags,
 -- review cards and logs, and AppUser provisioning. Galaxy and sync stay local
 -- only. See docs/field-mapping.md § Credential scoping and docs/deploy.md.
 --

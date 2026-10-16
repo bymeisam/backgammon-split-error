@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 //
 // The one write path for decision notes: create, update and clear, keyed by
 // the real Decision.id. An empty or whitespace-only note deletes the row.
-// App write client (`prismaApp`, DATABASE_URL_APP or locally DATABASE_URL).
+// App write client (`prismaApp`: the app URL, or locally the read-write URL; lib/databaseUrl.ts).
 //
 // Owner only, and only with app writes on (isAppWriteEnabled(),
 // lib/appWriteGate.ts, the same gate as the forum and review writes): 403

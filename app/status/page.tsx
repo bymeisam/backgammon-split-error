@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { buildConnectionConfig } from "@/lib/prisma";
+import { dbUrl } from "@/lib/databaseUrl";
 import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
 import PageShell from "@/app/components/ui/PageShell";
 import Card from "@/app/components/ui/Card";
@@ -31,7 +32,7 @@ async function getDbStatus(): Promise<DbStatus> {
   // own short-lived client rather than importing the shared singleton from
   // lib/prisma.ts, so a status check can't be misled by the shared pool's
   // own state.
-  const url = process.env.DATABASE_URL_READONLY;
+  const url = dbUrl("ro");
   const engine = url ? new URL(url).protocol.replace(":", "") : "unknown";
 
   // buildConnectionConfig (from lib/prisma.ts) pins Oracle's private CA for

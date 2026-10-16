@@ -4,7 +4,7 @@
 // (lib/sync.ts runDbOnlySync). Recorded as an INCREMENTAL SyncRun (the
 // SyncType enum has no DB-only value; adding one would be a schema change).
 //
-// How it differs from scripts/incremental-sync.ts: no walk of Galaxy's
+// How it differs from scripts/sync/incremental-sync.ts: no walk of Galaxy's
 // analyses/list pages (up to ~150 requests), so it never discovers new
 // matches; it only fetches the matches already in the DB that need it, at
 // most --limit of them (default 10), 5 s apart.

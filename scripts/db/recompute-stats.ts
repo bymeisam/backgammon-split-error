@@ -10,11 +10,13 @@
 // a new computedAt.
 //
 // Usage:
-//   npx tsx scripts/recompute-stats.ts --dry-run   # print current totals only
-//   npx tsx scripts/recompute-stats.ts             # recompute, print before/after
+//   npx tsx scripts/db/recompute-stats.ts --dry-run   # print current totals only
+//   npx tsx scripts/db/recompute-stats.ts             # recompute, print before/after
 //
-// Runs against whatever DATABASE_URL is currently configured in .env.
+// Runs against DB_TARGET's read-write URL (lib/databaseUrl.ts; local unless
+// the user has set DB_TARGET=oracle).
 import "dotenv/config";
+import { dbUrl } from "@/lib/databaseUrl";
 import { prisma } from "@/lib/prisma";
 import { recomputeMistakeStats } from "@/lib/recompute-mistake-stats";
 import { recomputeRepeatedPositions } from "@/lib/recompute-repeated-positions";
@@ -49,7 +51,7 @@ function print(label: string, t: Awaited<ReturnType<typeof totals>>) {
 }
 
 async function main() {
-  const host = new URL(process.env.DATABASE_URL ?? "mysql://unset").host;
+  const host = new URL(dbUrl("rw") ?? "mysql://unset").host;
   console.log(`${DRY_RUN ? "DRY RUN — nothing will be written." : "LIVE RUN — will recompute both tables."} Target: ${host}`);
 
   print("Before", await totals());

@@ -1,6 +1,6 @@
 // File-based full-detail error log for the local sync scripts
-// (scripts/backfill.ts, scripts/incremental-sync.ts, both via
-// scripts/runSyncCli.ts) — appended to from runSync's existing per-match
+// (scripts/sync/backfill.ts, scripts/sync/incremental-sync.ts, both via
+// scripts/sync/runSyncCli.ts) — appended to from runSync's existing per-match
 // FAILED path, purely additive to the short console.error line that's
 // already there. Terminal scrollback truncates on a long run; this is
 // where the full detail (stack trace included) survives.

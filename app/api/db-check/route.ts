@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { requireOwnerApi } from "@/lib/app-auth";
+import { dbUrl } from "@/lib/databaseUrl";
 
 // Throwaway smoke test for the local MySQL + Prisma infra setup — not a
 // feature. Visit /api/db-check with the Docker MySQL container running to
@@ -14,7 +15,7 @@ export async function GET() {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const adapter = new PrismaMariaDb(process.env.DATABASE_URL as string);
+  const adapter = new PrismaMariaDb(dbUrl("rw") as string);
   const prisma = new PrismaClient({ adapter });
 
   try {

@@ -285,10 +285,9 @@ model RepeatedPosition {
 //
 // Keyed by the internal Decision.id, which is stable across re-syncs
 // (ingest upserts decisions in place on (gameId, eventId), never deletes)
-// but NOT the same between local and Oracle — scripts/notes-export.ts /
-// notes-import.ts move notes between databases by the natural key
-// (Match.source, Match.sourceMatchId, Game.gameIndex, Decision.eventId)
-// instead. Default (RESTRICT) on delete, same as every other FK here, so a
+// but NOT the same between local and Oracle; a decision's stable identity
+// across databases is its natural key (Match.source, Match.sourceMatchId,
+// Game.gameIndex, Decision.eventId). Default (RESTRICT) on delete, same as every other FK here, so a
 // decision with a note can't be silently deleted out from under it.
 //
 // No utf8mb4_bin collation needed: decisionId is an internal Int and note

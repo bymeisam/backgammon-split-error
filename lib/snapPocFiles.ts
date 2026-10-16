@@ -1,6 +1,6 @@
 // Snaps proof-of-concept: the local files behind app/snap-poc (a dev-only
 // review page). Photos are snap-poc/*.jpg|jpeg|png (gitignored), Gemini's
-// cached answers snap-poc/results/<model>/<image>.json (scripts/snap-poc.ts),
+// cached answers snap-poc/results/<model>/<image>.json (scripts/snaps/snap-poc.ts),
 // and the user's corrected boards snap-poc/truth/<image>.json.
 //
 // Every name that reaches the filesystem is first matched exactly against a

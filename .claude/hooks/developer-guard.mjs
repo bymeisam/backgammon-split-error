@@ -4,22 +4,24 @@
 // the project-wide `git push` deny rules in .claude/settings.json:
 //   - no git push in any spelling (`git -C . push` etc. slip past the
 //     settings rule's prefix match; this catches them)
-//   - nothing that reaches Oracle: Oracle credentials/host, the admin user,
-//     and any command that could connect to a database (prisma, scripts/,
-//     seed, tsx/ts-node/node/bun/deno, dev/start servers, backfill/sync,
-//     Playwright/e2e, curl/wget to localhost) unless every DATABASE_URL in
-//     every .env* file (.env.example excepted) and in the shell is
-//     localhost. It fails closed: an unreadable env file, an unlistable
-//     project dir or no DATABASE_URL at all counts as "not local". The
-//     logic lives in developer-guard-lib.mjs (tested). The user decides
-//     when .env points where, and a non-local .env never counts as
-//     approval to change Oracle. Pattern-based, not a sandbox.
+//   - nothing that reaches Oracle: Oracle credentials/host, DB_TARGET=oracle
+//     or the ORACLE_DATABASE_URL* vars anywhere in a command, the admin
+//     user, and any command that could connect to a database (prisma,
+//     scripts/, seed, tsx/ts-node/node/bun/deno, dev/start servers,
+//     backfill/sync, Playwright/e2e, curl/wget to localhost) unless DB_TARGET
+//     is local (unset or empty counts) and every LOCAL_DATABASE_URL* is
+//     localhost, in every .env* file (.env.example excepted) and in the
+//     shell. It fails closed: an unreadable env file, an unlistable project
+//     dir or no LOCAL_DATABASE_URL at all counts as "not local". The logic
+//     lives in developer-guard-lib.mjs (tested). The user decides when .env
+//     targets what, and DB_TARGET=oracle never counts as approval to change
+//     Oracle. Pattern-based, not a sandbox.
 //   - no touching .env* at all (Edit/Write or any Bash command naming it,
 //     .env.example excepted) — the user makes every .env change by hand
 // Never prints a URL or any env value. Exit 2 = block (stderr is shown to the agent).
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { connectsToDb, databaseIsLocal } from "./developer-guard-lib.mjs";
+import { connectsToDb, databaseIsLocal, GUARD_ENV_VARS, namesOracle } from "./developer-guard-lib.mjs";
 
 const input = JSON.parse(readFileSync(0, "utf8"));
 const tool = input?.tool_name;
@@ -55,11 +57,11 @@ try {
   // No .env: no Oracle host to look for (the DB check below fails closed on its own).
 }
 
-if (/\b(ORACLE_DB_HOST|awesomebg)\b|--target\s+oracle/.test(command)) block("this touches Oracle or its credentials");
+if (namesOracle(command)) block("this touches Oracle or its credentials (DB_TARGET=oracle and the Oracle URLs are the user's alone)");
 if (oracleHost && command.includes(oracleHost)) block("this references the Oracle host");
 
 // Every .env* file Next.js, Playwright or dotenv could load, plus the shell's
-// DATABASE_URL. Unreadable or undiscoverable means "not local".
+// DB_TARGET and LOCAL_DATABASE_URL*. Unreadable or undiscoverable means "not local".
 function currentDatabase() {
   let names;
   try {
@@ -74,7 +76,8 @@ function currentDatabase() {
       return { name, text: null };
     }
   });
-  return databaseIsLocal({ shellValue: process.env.DATABASE_URL, files });
+  const shell = Object.fromEntries(GUARD_ENV_VARS.map((name) => [name, process.env[name]]));
+  return databaseIsLocal({ shell, files });
 }
 
 if (connectsToDb(command)) {

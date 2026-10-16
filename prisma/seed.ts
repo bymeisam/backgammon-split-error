@@ -12,6 +12,7 @@
 // doesn't need to reflect the literal move, only to decode without error.
 import "dotenv/config";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { isLocalDatabaseUrl, localDbUrl } from "../lib/databaseUrl";
 import {
   PrismaClient,
   DecisionKind,
@@ -25,7 +26,13 @@ import type {
   AnalysisEnvelope,
 } from "../lib/gameReviewsTypes";
 
-const adapter = new PrismaMariaDb(process.env.DATABASE_URL as string);
+// Seeding is never for Oracle: always the LOCAL_* URL, whatever DB_TARGET
+// says, and only when it really is localhost.
+const seedUrl = localDbUrl("rw");
+if (!isLocalDatabaseUrl(seedUrl)) {
+  throw new Error("prisma/seed.ts: LOCAL_DATABASE_URL is unset or not localhost; seeding only runs against the local database.");
+}
+const adapter = new PrismaMariaDb(seedUrl as string);
 const prisma = new PrismaClient({ adapter });
 
 const YOU_USER_ID = "seed-user-you";

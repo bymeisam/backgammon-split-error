@@ -56,7 +56,7 @@ Local development uses a MySQL 8.4 LTS container (via Docker Compose, pinned in 
 
 ### If this doesn't work
 
-- **Port 3306 already in use** — common if you also have a native MySQL install. Either stop the native instance, or remap the host port in `docker-compose.yml` (e.g. `"3307:3306"`) and update `DATABASE_URL` in `.env` to match.
+- **Port 3306 already in use** — common if you also have a native MySQL install. Either stop the native instance, or remap the host port in `docker-compose.yml` (e.g. `"3307:3306"`) and update the `LOCAL_DATABASE_URL*` URLs in `.env` to match.
 - **Docker daemon not running** — `docker compose up -d` will fail with a connection error to the Docker daemon/socket. Start Docker Desktop, or on Linux, `sudo systemctl start docker`.
 - **Line endings (CRLF/LF)** — no shell scripts exist in this setup yet, so this isn't an issue today; if one gets added later, make sure it's checked in with LF endings (e.g. via `.gitattributes`) so it still runs under WSL2/Git Bash on Windows.
 

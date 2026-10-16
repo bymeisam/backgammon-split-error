@@ -4,7 +4,7 @@
 // match list (newest first) after the first page whose matches are all
 // already in the DB, so it only fetches the pages with new matches.
 //
-// Paced (scripts/runSyncCli.ts): list pages 1.5 s apart, then one match at a
+// Paced (scripts/sync/runSyncCli.ts): list pages 1.5 s apart, then one match at a
 // time with a 5 s pause between matches, one line per page and per match.
 //
 // Don't run it while playing on Galaxy, or from another IP/VPN at the same

@@ -36,7 +36,7 @@ async function DueBadge() {
 // Status and "?". Rendered per request: the mode badge and the Sources item
 // depend on the running server's env (not the build's), so connection()
 // keeps it out of build-time prerendering. Only labels reach the client:
-// the mode label, never DATABASE_URL or its host. (The sync line moved to
+// the mode label, never a database URL or its host. (The sync line moved to
 // the Galaxy card on /sources on 2026-10-09.)
 // role (from the root layout): Review, Sources, Status, the due badge and the
 // review shortcuts are the owner's only (lib/accessRules.ts).

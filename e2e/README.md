@@ -74,7 +74,9 @@ a separate local MySQL schema, `bg_test` (same Docker container as the
 normal `app_dev`), seeded from the checked-in visual decisions and
 repeated-position fixture (`e2e/seed-test-db.ts`), and the whole suite runs against a dedicated dev
 server (`playwright.config.ts`'s `webServer`, port 3100) whose
-`DATABASE_URL`/`DATABASE_URL_READONLY` point at `bg_test` instead of
+`DB_TARGET=local` and `LOCAL_DATABASE_URL`/`LOCAL_DATABASE_URL_READONLY`/
+`LOCAL_DATABASE_URL_APP` point at `bg_test` (pinned after the `.env.test`
+spread, an unset one as `""`, so the real dev URLs can't leak in) instead of
 whatever the real `.env` has configured. Reached via `/mistakes`'s own
 classification/category/severity filters (real query params, the same UI
 a visitor uses), then a click by exact move-label text — the same
@@ -168,8 +170,8 @@ Needs Chromium installed once: `npx playwright install chromium`.
    `app_dev`. Local can also mirror production's privilege split: the
    existing local container has hand-created `bg_db_rw`/`bg_db_ro` users
    with production's grant shapes on both `app_dev` and `bg_test` (see
-   `.env.example`), and `.env.test` can point `DATABASE_URL`/
-   `DATABASE_URL_READONLY` at those instead:
+   `.env.example`), and `.env.test` can point `LOCAL_DATABASE_URL`/
+   `LOCAL_DATABASE_URL_READONLY` at those instead:
    ```sql
    CREATE DATABASE IF NOT EXISTS bg_test CHARACTER SET utf8mb4;
    GRANT ALL PRIVILEGES ON bg_test.* TO 'app'@'%';
@@ -179,10 +181,16 @@ Needs Chromium installed once: `npx playwright install chromium`.
    from `.env.test` itself if it's still on your machine — it's gitignored,
    like every other `.env*` file, so a fresh checkout needs it recreated):
    ```
-   DATABASE_URL="mysql://app:app@localhost:3306/bg_test"
-   DATABASE_URL_READONLY="mysql://app:app@localhost:3306/bg_test"
+   DB_TARGET=local
+   LOCAL_DATABASE_URL="mysql://app:app@localhost:3306/bg_test"
+   LOCAL_DATABASE_URL_READONLY="mysql://app:app@localhost:3306/bg_test"
+   LOCAL_DATABASE_URL_APP="mysql://app:app@localhost:3306/bg_test"
    ```
-3. Apply the schema: `DATABASE_URL="mysql://app:app@localhost:3306/bg_test" npx prisma migrate deploy`
+   Local URLs only: never an `ORACLE_DATABASE_URL*` in `.env.test`.
+   `playwright.config.ts` and `e2e/seed-test-db.ts` refuse a
+   `LOCAL_DATABASE_URL` that isn't localhost.
+3. Apply the schema: `DB_TARGET=local LOCAL_DATABASE_URL="mysql://app:app@localhost:3306/bg_test" npx prisma migrate deploy`
+   (the shell values win over `.env`'s, and `prisma7.config.ts` follows them)
 4. Seed it: `npx tsx e2e/seed-test-db.ts` (idempotent — safe to re-run any
    time; re-run it whenever `e2e/fixtures/seed-data.json` changes).
 

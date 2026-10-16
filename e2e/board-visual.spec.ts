@@ -30,8 +30,8 @@
 //     serve the exact fixture JSON in e2e/fixtures/, so which DB (if any)
 //     the server is connected to is irrelevant to these 8.
 //   - /mistakes: a server component reading Prisma directly — no fetch to
-//     mock, so it needs the dedicated server's DATABASE_URL/
-//     DATABASE_URL_READONLY (overridden to a separate local schema,
+//     mock, so it needs the dedicated server's DB_TARGET=local LOCAL_*
+//     URLs (overridden to a separate local schema,
 //     bg_test — see .env.test, e2e/README.md) actually pointed somewhere
 //     deterministic. Seeded with exactly these decisions by
 //     e2e/seed-test-db.ts (run once, or whenever the seed data changes).

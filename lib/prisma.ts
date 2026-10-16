@@ -3,7 +3,7 @@ import { PrismaClient } from "@/lib/generated/prisma/client";
 import fs from "node:fs";
 import path from "node:path";
 import { isCertVerificationError, ORACLE_CERT_FAILURE_HINT } from "@/lib/oracleCertCheck";
-import { appDatabaseUrl } from "@/lib/appDatabaseUrl";
+import { appDatabaseUrl, appDatabaseUrlVarName, dbUrl, dbUrlVarName } from "@/lib/databaseUrl";
 
 // @prisma/adapter-mariadb bundles its own copy of the `mariadb` package
 // (distinct from the top-level one), so its PoolConfig type must come from
@@ -39,7 +39,7 @@ const ORACLE_CA_PATH = path.join(process.cwd(), "certs", "oracle-mysql-ca.pem");
 // fails against Oracle's private CA. Parsing the URL ourselves lets us swap
 // in `ssl: { ca }` for real validation against our pinned cert instead —
 // only when the URL actually requests SSL (i.e. never for local dev, which
-// has no query params on its DATABASE_URL).
+// has no query params on its URL).
 export function buildConnectionConfig(url: string): MariaDbConnectionConfig {
   const parsed = new URL(url);
   const config: Record<string, unknown> = {
@@ -120,30 +120,33 @@ function withOracleCertCheck(client: PrismaClient): PrismaClient {
 // actually need — see docs/field-mapping.md's "Credential scoping" section
 // for the full call-site list and rationale.
 //
-//   prisma          -> DATABASE_URL. Read-write/admin (bg_db_rw) — ingest
+// Each URL comes from lib/databaseUrl.ts, following DB_TARGET (LOCAL_* or
+// ORACLE_* vars; see .env.example).
+//
+//   prisma          -> dbUrl("rw"). Read-write/admin (bg_db_rw) — ingest
 //                      (lib/ingest.ts), sync (lib/sync.ts,
-//                      scripts/backfill.ts, scripts/incremental-sync.ts,
+//                      scripts/sync/backfill.ts, scripts/sync/incremental-sync.ts,
 //                      /api/sync/incremental), Galaxy, and
-//                      `prisma migrate deploy` itself all read this same
-//                      var. Migrations need CREATE/ALTER/INDEX/REFERENCES
+//                      `prisma migrate deploy` itself (prisma7.config.ts)
+//                      all read this same URL. Migrations need CREATE/ALTER/INDEX/REFERENCES
 //                      beyond plain app read-write, so this intentionally
 //                      stays on full admin credentials. Local only: never
 //                      set on Vercel.
-//   prismaReadOnly  -> DATABASE_URL_READONLY. SELECT-only (bg_db_ro in
+//   prismaReadOnly  -> dbUrl("ro"). SELECT-only (bg_db_ro in
 //                      production) — anything that only ever queries:
 //                      lib/local-client.ts, app/api/player-identities,
 //                      app/status, the forum's read paths, and read-only
 //                      diagnostic scripts.
-//   prismaApp       -> DATABASE_URL_APP (bg_db_app). Every in-app write:
+//   prismaApp       -> dbUrl("app") (bg_db_app). Every in-app write:
 //                      forum posts/replies/positions/proposals, decision
 //                      notes, tags, review cards and logs, and AppUser
 //                      provisioning (lib/app-auth.ts, lib/forum.ts). Local
-//                      development falls back to DATABASE_URL
+//                      development falls back to dbUrl("rw")
 //                      (appDatabaseUrl()); production never does. Writes
 //                      other than AppUser provisioning are gated by
 //                      lib/appWriteGate.ts's isAppWriteEnabled().
 //
-// The app credential's grants are in scripts/sql/app-db-user.sql (SELECT on
+// The app credential's grants are in scripts/db/sql/app-db-user.sql (SELECT on
 // the whole schema; INSERT/UPDATE/DELETE on the forum and study tables;
 // INSERT/UPDATE on AppUser; no writes on Match/Game/Decision and no DDL). It
 // must not be the ingest/migration credential.
@@ -161,9 +164,9 @@ const globalForPrisma = globalThis as unknown as {
 // lib/local-client.ts, app/status/page.tsx, app/api/player-identities). ES
 // module evaluation runs every top-level statement in a file regardless of
 // which export the importer actually uses, so an eager `new PrismaClient(...)`
-// here for `prisma` would throw the instant DATABASE_URL is unset — which is
-// the normal, expected state in production/preview (DATABASE_URL_READONLY
-// and DATABASE_URL_APP are set there, not DATABASE_URL; see docs/deploy.md)
+// here for `prisma` would throw the instant the read-write URL is unset — which
+// is the normal, expected state in production/preview (only the read-only and
+// app URLs are set there; see docs/deploy.md)
 // and in CI (no real DB credentials at all, see .github/workflows/ci.yml).
 // A Proxy defers both the env-var check and the actual PrismaClient/pool
 // construction until the first real property access (e.g.
@@ -171,12 +174,15 @@ const globalForPrisma = globalThis as unknown as {
 // client without ever calling a method on it — never throws. Real usage of
 // an unconfigured client still throws immediately and loudly; nothing about
 // a client actually being used without its env var is silently tolerated.
-function createLazyClient(url: string | undefined, envVarName: string): PrismaClient {
+// The URL is resolved on first use too, so an invalid DB_TARGET throws there
+// (with lib/databaseUrl.ts's message), not at import.
+function createLazyClient(resolveUrl: () => string | undefined, envVarName: () => string): PrismaClient {
   let client: PrismaClient | undefined;
   function get(): PrismaClient {
     if (!client) {
+      const url = resolveUrl();
       if (!url) {
-        throw new Error(`${envVarName} is not set — see .env.example.`);
+        throw new Error(`${envVarName()} is not set — see .env.example.`);
       }
       client = withOracleCertCheck(
         new PrismaClient({ adapter: new PrismaMariaDb(buildConnectionConfig(url)) })
@@ -195,20 +201,18 @@ function createLazyClient(url: string | undefined, envVarName: string): PrismaCl
 }
 
 export const prisma =
-  globalForPrisma.prisma ?? createLazyClient(process.env.DATABASE_URL, "DATABASE_URL");
+  globalForPrisma.prisma ?? createLazyClient(() => dbUrl("rw"), () => dbUrlVarName("rw"));
 
 export const prismaReadOnly =
   globalForPrisma.prismaReadOnly ??
-  createLazyClient(process.env.DATABASE_URL_READONLY, "DATABASE_URL_READONLY");
+  createLazyClient(() => dbUrl("ro"), () => dbUrlVarName("ro"));
 
-// prismaApp's URL: DATABASE_URL_APP, or DATABASE_URL outside production
-// (lib/appDatabaseUrl.ts).
+// prismaApp's URL: the target's app URL, or its read-write URL outside
+// production (lib/databaseUrl.ts).
 export { appDatabaseUrl };
-const appDatabaseEnvName =
-  process.env.NODE_ENV === "production" ? "DATABASE_URL_APP" : "DATABASE_URL_APP or DATABASE_URL";
 
 export const prismaApp =
-  globalForPrisma.prismaApp ?? createLazyClient(appDatabaseUrl(), appDatabaseEnvName);
+  globalForPrisma.prismaApp ?? createLazyClient(() => appDatabaseUrl(), () => appDatabaseUrlVarName());
 
 // Standard Next.js dev singleton: without this, hot reload creates new
 // PrismaClients (and connection pools) on every edit.

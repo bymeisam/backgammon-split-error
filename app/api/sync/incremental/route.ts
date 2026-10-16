@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const message = result.rateLimitNote
       ? result.rateLimitNote
       : result.stillPending > 0
-        ? `${result.matchesProcessed} matches processed, ${result.stillPending} still pending — run scripts/incremental-sync.ts locally to finish.`
+        ? `${result.matchesProcessed} matches processed, ${result.stillPending} still pending — run scripts/sync/incremental-sync.ts locally to finish.`
         : `${result.matchesProcessed} matches processed, all caught up.`;
 
     return NextResponse.json({ ...result, message });
