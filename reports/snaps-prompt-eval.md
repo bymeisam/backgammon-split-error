@@ -54,11 +54,20 @@ clocks, score cards, cube on the bar), **all** = every photo.
 | Set | Photos scored | Perfect board | All 24 points | Points avg /24 | Dice | Bar | Cube | Tray | Parse errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | set1 | 10 | 2/10 | 4/10 | 21.9 (91%) | 8/10 | 10/10 | 10/10 | 9/10 | 0 |
-| set2 | pending truth for set2 (user enters it on /snap-poc) | | | | | | | | |
-| all | pending truth for set2 (user enters it on /snap-poc) | | | | | | | | |
+| set2 | 18 | 6/18 | 16/18 | 23.8 (99%) | 9/18 | 18/18 | 17/18 | 16/18 | 0 |
+| all | 28 | 8/28 | 20/28 | 23.1 (96%) | 17/28 | 28/28 | 27/28 | 25/28 | 0 |
 
 set2 answers: 18 of 19 (`Screenshot 2026-10-16 at 11.41.53 am.png` missing:
 the run hit HTTP 429 on it), no parse errors, every one "high" confidence.
+Truth for set2 entered by the user on 2026-10-16.
+
+Reading (2026-10-16): set2 is much easier than set1 for the same prompt.
+These are clean, square-on stream frames with few tall stacks, while set1
+has the real phone photo, sideways shots and taller stacks. On set2 the
+points are nearly solved (16/18 with all 24 right; the two misses are
+22/24); the main miss is dice (9/18), then tray (16/18). So a better score
+on set2 says little about stack counting; compare prompt versions per set,
+and treat set1 (and future real phone photos) as the test that matters.
 
 ## v2
 
