@@ -71,7 +71,9 @@ and treat set1 (and future real phone photos) as the test that matters.
 
 ## v2
 
-- Date: 2026-10-16 (prompt written; not run yet).
+- Date: 2026-10-16 (prompt written); partial runs 2026-10-16 evening (6
+  answers) and 2026-10-17 07:14 (2 answers, then HTTP 429). 8 of 28 photos
+  answered so far.
 - Model: gemini-3.8-flash.
 - What changed vs v1: v1 plus a "Counting stacks" section, nothing else:
   - If a checker in a stack shows a printed number (as many apps and stream
@@ -87,9 +89,53 @@ and treat set1 (and future real phone photos) as the test that matters.
 
 | Set | Photos scored | Perfect board | All 24 points | Points avg /24 | Dice | Bar | Cube | Tray | Parse errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| set1 | pending: not run yet (Gemini free-tier quota hit HTTP 429 on 2026-10-16) | | | | | | | | |
-| set2 | pending truth for set2 (user enters it on /snap-poc) | | | | | | | | |
-| all | pending truth for set2 (user enters it on /snap-poc) | | | | | | | | |
+| set1 | 1 | 0/1 | 0/1 | 20.0 (83%) | 1/1 | 1/1 | 1/1 | 1/1 | 0 |
+| set2 | 7 | 3/7 | 5/7 | 23.6 (98%) | 5/7 | 7/7 | 6/7 | 6/7 | 0 |
+| all | 8 | 3/8 | 5/8 | 23.1 (96%) | 6/8 | 8/8 | 7/8 | 7/8 | 0 |
+
+Partial: the set totals above aren't comparable with v1's full tables. The
+fair comparison is the same 8 photos under both versions (`snaps:score`
+per-photo table, 2026-10-17):
+
+| Photo | v1 points | v2 points | v1 perfect | v2 perfect |
+| --- | ---: | ---: | :---: | :---: |
+| `PXL_20260927_142233229.jpg` (set1, real phone photo) | 20 | 20 | | |
+| `11.37.11` | 24 | 24 | | |
+| `11.38.43` | 22 | 22 | | |
+| `11.43.00` | 24 | 24 | ✓ | ✓ |
+| `11.43.23` | 24 | 23 | | |
+| `11.44.39` | 24 | 24 | | ✓ |
+| `11.47.48` | 24 | 24 | ✓ | |
+| `11.49.57` | 24 | 24 | | ✓ |
+| **Total** | **186/192** | **185/192** | **2/8** | **3/8** |
+
+Reading (2026-10-17, 8 photos, too few to decide):
+- **Stack counting, the thing v2 targets, hasn't moved.** Points are the
+  same on 7 of 8 photos, and one lost a point (`11.43.23`, 24 → 23). The
+  hard photo that matters (the real phone photo, `PXL_…`) is still 20/24.
+- **The 15-checker self-check doesn't catch the errors.** On `PXL_…` v2's
+  notes say "both sets of 15 checkers are accounted for", yet 4 points are
+  wrong. Miscounts that move checkers between points still add up to 15,
+  and the borne-off count is derived as 15 minus the board, so a missed
+  checker becomes "borne off" without any warning. A sum check can't see
+  either kind of error. Next step: check the borne-off tray as read against
+  15 minus the board (already a v3 idea).
+- **Perfect boards went 2 → 3**, from the non-point fields (dice, cube,
+  tray). `11.47.48` lost its perfect board on dice (v1 read 5-2 correctly;
+  v2 says "approximately 4 and 1"). That's noise from dice reading, not
+  from the counting rules.
+- **Latency:** two calls took 116 s and 129 s, against v1's 60 s and 23 s
+  on the same photos. The other six took about the same time as under v1.
+  Possibly slow responses on a congested free tier rather than the prompt;
+  watch it in the full run.
+
+**Quota (operational lesson).** The 2026-10-17 run hit HTTP 429 after 2
+calls, and Gemini said "retry in 3h43m". So the free tier's 20 requests a
+day is a rolling ~24 h window, not a midnight reset, and the previous
+evening's calls (including the 13 HTTP 503 "high demand" failures, which
+count) were still in it. From now on the run is wrapped so it stops after 3
+503s in a row as well as on a 429. With 20 requests a day and 20 photos
+left, finishing v2 needs either billing on the key or one clean full day.
 
 ## Findings for the next versions (2026-10-16, from v1 vs truth)
 
