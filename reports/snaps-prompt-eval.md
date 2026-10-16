@@ -90,3 +90,20 @@ and treat set1 (and future real phone photos) as the test that matters.
 | set1 | pending: not run yet (Gemini free-tier quota hit HTTP 429 on 2026-10-16) | | | | | | | | |
 | set2 | pending truth for set2 (user enters it on /snap-poc) | | | | | | | | |
 | all | pending truth for set2 (user enters it on /snap-poc) | | | | | | | | |
+
+## Findings for the next versions (2026-10-16, from v1 vs truth)
+
+### Dice (v1 missed 11 of 28)
+
+- **A single loose die read as a roll (4):** `11.37.11`, `11.38.18`, `11.47.15`, `11.48.05`. The truth has no dice. A lone die (in a cup or tray, or left on the board) isn't a roll to play.
+- **Pips misread (7):** 5-5 read as 3-1, 6-6 as 6-3, 6-3 as 6-1, 5-2 as 5-1, 3-2 as 4-3, 4-4 as 3-1 and 4-1 as 3-1. Doubles were read as non-doubles twice. These are mostly small, angled or stylised dice.
+- Ideas for a dice version: a roll is two dice together on the playing area; ignore a single die anywhere; count the pips one by one on each die; if the two dice look alike, check whether it's a double.
+
+### Cube (user's rule, 2026-10-16)
+
+Where the cube sits says who owns it and whether a double is pending:
+- **In the middle on the bar showing 64 (or 1):** centred, nobody owns it, value 1.
+- **On the playing area (on a player's side of the board, not the rail or tray), or in the middle showing 2, 4, 8 …:** a double has been **offered** and not yet answered. Nobody owns it yet; the receiver must take or pass. So the photo is a cube decision, not a checker move.
+- **On the side (the rail or bear-off tray) by one player:** that player owns it at that value.
+
+Neither the answer format (`center` / `top` / `bottom` / `unknown`) nor the truth can express "offered" or a rail or tray position yet. Some truths may record an offered cube as centred (e.g. `11.37.11`: Gemini saw an 8 near the centre bar, truth says centred 1). The scoring counts any centred cube as 1. This needs a format change (cube state: centred / owned + side / offered + receiver side), a toggle on `/snap-poc` (the board can already draw an offered cube; the builder's `doubleOffered` is always false today), and the truths rechecked. It's a schema change to the answer, so it goes into a new prompt version, not v2.
