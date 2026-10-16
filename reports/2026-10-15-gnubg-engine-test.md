@@ -4,7 +4,7 @@
 
 The local arm64 image is `bg-gnubg:1.07.001`, built from `engine/gnubg/Dockerfile` (Debian Bookworm, `gnubg` plus `gnubg-data`). The harness is `npx tsx scripts/engine/gnubg-evaluation.ts`. It reads only local `app_dev` through `prismaReadOnly` and `localDbUrl("ro")`, checks localhost and `bg_db_ro`, and makes no writes or Galaxy calls. It takes the same stratified 200 rows (55 opening, 75 middle game, 70 bear-off) from 6,000 eligible rows, with the deterministic seeded shuffle.
 
-GNU returns per-candidate depth. This update tests the single-survivor move-filter hypothesis on the same seeded sample. The configured 2-ply filter threshold is 0.16 (`show evaluation` in the image). All 35 previous rank-1 0-ply rejects had only one 0-ply move within that threshold; all 165 previously accepted positions had at least two. Three representative rejects returned rank 1 at 2-ply after widening the 2-ply filter to 1.0. The parser now accepts rank-1 0-ply only when every listed candidate is 0-ply and the rank1-rank2 gap exceeds the filter threshold, or only one candidate is listed. It labels these analyses `depthReason: "single-survivor"` while retaining candidate plies 0; mixed-depth and below-threshold cases still throw.
+GNU returns per-candidate depth. The 2-ply move-filter threshold is 0.16 (`show evaluation` in the image). The parser accepts rank-1 0-ply only when all candidates are 0-ply and the measured top-two equity gap is strictly greater than 0.16. A lone listed candidate is not proof that only one legal move exists, so no single-legal-move exception is accepted. The current sample's 35 accepted former rejects all have measured gaps >0.16; no full sample rerun was needed for this safety correction.
 
 ## Current 2-ply rerun
 

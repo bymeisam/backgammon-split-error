@@ -52,7 +52,8 @@ export function parseHints(output: string, expectedPlies = EVALUATION_PLIES, mov
       expectedPlies === EVALUATION_PLIES &&
       group[0]?.plies === 0 &&
       group.every(({ plies }) => plies === 0) &&
-      (group.length === 1 || (group[0].equity - group[1].equity > moveFilterThreshold));
+      group.length >= 2 &&
+      (group[0].equity - group[1].equity > moveFilterThreshold);
     if (group[0]?.plies !== expectedPlies && !singleSurvivor) {
       const candidates = group.map(({ rank, plies, move }) => `${rank}:${plies}-ply ${move}`).join("; ");
       throw new Error(`roll index ${index}; gnubg best candidate was ${group[0]?.plies ?? "missing"}-ply; expected ${expectedPlies}-ply; candidates: ${candidates}; raw hint:\n${hints[index + 1] ?? output}`);

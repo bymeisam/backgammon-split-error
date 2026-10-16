@@ -8,6 +8,7 @@ describe("parseHint", () => {
   const singleSurvivorFixture = readFileSync(new URL("./fixtures/hint-single-survivor.txt", import.meta.url), "utf8");
   const mixedSingleSurvivorFixture = readFileSync(new URL("./fixtures/hint-single-survivor-mixed.txt", import.meta.url), "utf8");
   const narrowSingleSurvivorFixture = readFileSync(new URL("./fixtures/hint-single-survivor-narrow.txt", import.meta.url), "utf8");
+  const loneCandidateFixture = readFileSync(new URL("./fixtures/hint-single-candidate.txt", import.meta.url), "utf8");
 
   it("parses mixed-depth candidates and ignores prune detail lines", () => {
     const candidates = parseHint(mixedFixture);
@@ -19,10 +20,11 @@ describe("parseHint", () => {
   it("parses zero-ply diagnostic hints when explicitly requested", () => {
     expect(parseHint(fixture, 0).map(({ plies }) => plies)).toEqual(Array(7).fill(0));
   });
-  it("accepts a zero-ply single survivor only when the top-two gap exceeds the filter threshold", () => {
+  it("accepts zero-ply candidates only when the measured top-two gap exceeds the filter threshold", () => {
     expect(parseHint(singleSurvivorFixture).map(({ plies }) => plies)).toEqual([0, 0]);
     expect(() => parseHint(mixedSingleSurvivorFixture)).toThrow(/best candidate was 0-ply; expected 2-ply/);
     expect(() => parseHint(narrowSingleSurvivorFixture)).toThrow(/best candidate was 0-ply; expected 2-ply/);
+    expect(() => parseHint(loneCandidateFixture)).toThrow(/best candidate was 0-ply; expected 2-ply/);
   });
 
   it("requires the best candidate to match configured depth unless it is a safe single survivor", () => {
