@@ -482,40 +482,42 @@ export default function PositionBuilder({
             </label>
           )}
         </Card>
-        <Card as="section" className={style.controlCard} aria-labelledby="position-builder-cube-title">
-          <h2 id="position-builder-cube-title" className={style.controlTitle}>Doubling cube</h2>
-          <div className={style.fieldGrid}>
-            <label className={style.field}>
-              Value
-              <select
-                className={style.select}
-                value={state.cubeValue}
-                onChange={(event) => updateCubeValue(event.target.value)}
-              >
-                {CUBE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={style.field}>
-              Owner
-              <select
-                className={style.select}
-                value={state.cubeOwner}
-                onChange={(event) => updateCubeOwner(event.target.value as CubeOwner)}
-              >
-                {(["center", "mine", "opponent"] as const).map((owner) => (
-                  <option key={owner} value={owner}>
-                    {cubeOwnerLabel(owner)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <p className={style.controlHint}>A cube at 1 is centered. A cube above 1 must belong to Bottom or Top.</p>
-        </Card>
+        {!crawford && (
+          <Card as="section" className={style.controlCard} aria-labelledby="position-builder-cube-title">
+            <h2 id="position-builder-cube-title" className={style.controlTitle}>Doubling cube</h2>
+            <div className={style.fieldGrid}>
+              <label className={style.field}>
+                Value
+                <select
+                  className={style.select}
+                  value={state.cubeValue}
+                  onChange={(event) => updateCubeValue(event.target.value)}
+                >
+                  {CUBE_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={style.field}>
+                Owner
+                <select
+                  className={style.select}
+                  value={state.cubeOwner}
+                  onChange={(event) => updateCubeOwner(event.target.value as CubeOwner)}
+                >
+                  {(["center", "mine", "opponent"] as const).map((owner) => (
+                    <option key={owner} value={owner}>
+                      {cubeOwnerLabel(owner)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className={style.controlHint}>A cube at 1 is centered. A cube above 1 must belong to Bottom or Top.</p>
+          </Card>
+        )}
 
         <Card as="section" className={style.controlCard} aria-labelledby="position-builder-status-title">
           <h2 id="position-builder-status-title" className={style.controlTitle}>Position status</h2>
