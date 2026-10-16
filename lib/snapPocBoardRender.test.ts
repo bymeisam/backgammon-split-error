@@ -6,6 +6,9 @@ import { style } from "@/app/components/match-analysis/BoardPanel.styles";
 import {
   SNAP_CORNERS,
   boardHomeLeft,
+  boardNumbersFrom,
+  cornerRow,
+  cornerSide,
   boardSwapColors,
   layoutToBuilderState,
   setAnalyzingFor,
@@ -44,9 +47,12 @@ function layout(): SnapLayout {
   };
 }
 
-// The board as /snap-poc's builder draws it for this orientation.
+// The board as /snap-poc's step 2 builder draws it for this orientation
+// (PositionBuilder's numbersFrom = boardNumbersFrom(o): Board's flipped, and
+// hit area labels that follow the printed numbers).
 function render(o: SnapOrientation, opts: { onPointClick?: (point: number) => void; cornerGuide?: BoardCornerGuide } = {}): string {
   const state = layoutToBuilderState(layout(), o);
+  const flipped = boardNumbersFrom(o) === "opponent";
   return renderToStaticMarkup(
     createElement(Board, {
       decoded: state.position,
@@ -55,6 +61,8 @@ function render(o: SnapOrientation, opts: { onPointClick?: (point: number) => vo
       cube: { kind: "owned", value: state.cubeValue, owner: state.cubeOwner },
       homeLeft: boardHomeLeft(o),
       swapCheckerColors: boardSwapColors(o, false),
+      flipped,
+      interactivePointLabel: flipped ? (point: number) => `Edit point ${25 - point}` : undefined,
       onPointClick: opts.onPointClick,
       cornerGuide: opts.cornerGuide,
     })
@@ -64,6 +72,13 @@ function render(o: SnapOrientation, opts: { onPointClick?: (point: number) => vo
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const labelRe = new RegExp(`(<text[^>]*class="${escapeRe(style.pointNumber)}"[^>]*>)(\\d+)(</text>)`, "g");
 const labels = (svg: string) => [...svg.matchAll(labelRe)].map((m) => Number(m[2]));
+// Each printed point number with where it is drawn.
+const placedLabels = (svg: string) =>
+  [...svg.matchAll(labelRe)].map((m) => ({
+    n: Number(m[2]),
+    x: Number(/\sx="([\d.]+)"/.exec(m[1])![1]),
+    y: Number(/\sy="([\d.]+)"/.exec(m[1])![1]),
+  }));
 const withoutLabels = (svg: string) => svg.replace(labelRe, "$1#$3");
 // Hit areas' aria-labels ("Edit point N"), in drawing (column) order.
 const hitPoints = (svg: string) => [...svg.matchAll(/aria-label="Edit point (\d+)"/g)].map((m) => Number(m[1]));
@@ -92,8 +107,24 @@ describe("Home board corner rendering", () => {
           // Labels come out column by column (bottom row first in point order).
           const plain = Array.from({ length: 24 }, (_, i) => i + 1);
           const mirrored = [...plain.slice(0, 12).reverse(), ...plain.slice(12).reverse()];
-          expect(labels(before)).toEqual(boardHomeLeft(o) ? mirrored : plain);
+          const expected = boardHomeLeft(o) ? mirrored : plain;
+          expect(labels(before)).toEqual(boardNumbersFrom(o) === "opponent" ? expected.map((p) => 25 - p) : expected);
         });
+
+        it(`numbering starts from the analysed colour's home board (${label})`, () => {
+          const placed = placedLabels(render(o));
+          const ys = placed.map((l) => l.y);
+          const rowY = cornerRow(corner) === "top" ? Math.min(...ys) : Math.max(...ys);
+          const row = placed.filter((l) => l.y === rowY);
+          expect(row).toHaveLength(12);
+          // Outer column first: rightmost for a right corner, leftmost for a left one.
+          const outward = [...row].sort((a, b) => (cornerSide(corner) === "right" ? b.x - a.x : a.x - b.x));
+          expect(outward.slice(0, 6).map((l) => l.n)).toEqual([1, 2, 3, 4, 5, 6]);
+          expect(outward.slice(6).map((l) => l.n)).toEqual([7, 8, 9, 10, 11, 12]);
+          const otherRow = placed.filter((l) => l.y !== rowY).map((l) => l.n).sort((a, b) => a - b);
+          expect(otherRow).toEqual(Array.from({ length: 12 }, (_, i) => i + 13));
+        });
+
 
         it(`a click edits the point whose label is shown (${label})`, () => {
           const svg = render(o, { onPointClick: () => {} });

@@ -128,6 +128,13 @@ repetition remain future phases.
 - **Decision (user, 2026-10-13):** start with **Google's Gemini API free tier** (a general vision model asked for the position as JSON), not a trained detector. Check the free tier's current limits and data-use terms before building (free tiers have been used for training). It needs an API key on Vercel (the user sets it). A trained detector (e.g. from the public Roboflow backgammon datasets) stays the fallback if accuracy is poor.
 - **First step:** a small test, about 10 real photos of the user's board scored against the true positions, before any UI. This is omp's area (forum and builder); queue it there when the user says.
 - **Source:** user, 2026-10-13.
+- **Accuracy tracking once it's live (user, 2026-10-16; parked while the prompt is still being improved on `/snap-poc`):**
+  - **Free truth:** each snap ends with a corrected board. Gemini's reading is the guess, and the board at "use this position" is the truth (not later edits; abandoned snaps don't count).
+  - **Log each snap:** a small `SnapLog` table (model, prompt version, raw answer, latency, confirmed position, `scoreSnap` score). It meets schema rule 1, since accuracy is averaged by prompt version.
+  - **Keep the photos** (owner-only, on disk on Oracle, not in the DB) so real photos plus confirmed boards join the eval set. This reverses the "photos aren't stored" line above.
+  - **Prompt changes are tested on the saved photos first,** with the same `snap-poc.ts` → `snaps:score` loop, and go live only if they beat the current version. No live A/B, because the volume is too low.
+  - **Owner-only accuracy panel** per prompt version (points, dice, cube, perfect boards) over time.
+  - **Open questions:** do we log members' snaps too (privacy, and the free tier's data use)? Build the logging into Snaps v1 from the start, so early real use isn't lost.
 
 ### Forum
 - **Idea:** a position-centered discussion space for questions, explanations, and future review. The core loop is:

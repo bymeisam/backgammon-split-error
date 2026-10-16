@@ -16,6 +16,7 @@ import {
   SNAP_CORNERS,
   analyzingFor,
   boardHomeLeft,
+  boardNumbersFrom,
   boardSwapColors,
   builderStateToLayout,
   cornerName,
@@ -499,6 +500,7 @@ export default function SnapPocReview({
           homeLeft={boardHomeLeft(orientation)}
           swapCheckerColors={boardSwapColors(orientation, swapColors)}
           showPips={!inStep1}
+          numbersFrom={inStep1 ? "mine" : boardNumbersFrom(orientation)}
           cornerGuide={
             inStep1
               ? undefined

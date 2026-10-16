@@ -2,34 +2,37 @@
 
 Start each new session here. `PROGRESS.md` is the history log: grep it only when you need the history behind something. `/wrap-up` rewrites this file at the end of each batch of work. Keep it under about a page: it's a snapshot, not history.
 
-_Last updated: 2026-10-16 (screenshot auth-bypass fix, Snaps prompt eval set-up, omp engine review)._
+_Last updated: 2026-10-17 (phase A review of gnubg in the builder, Snaps v2 partial run, Snaps accuracy-tracking idea)._
 
 ## Code
 
-- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** 7 commits since the user's last push (`9f9908e` screenshots auth bypass, `ce9461d` Snaps prompt versions + `snaps:score`, `623f069` / `ce83b8a` eval report, `6b9522f` omp queue, `9b440ff` PROGRESS, plus this wrap-up).
-- **Checks on master:** tsc and lint clean, vitest 962 (after `ce9461d`), build clean. Visual suite not rerun (no app rendering change).
-- **Screenshots:** `npm run build`, then `npm run screenshots [--set=forum|auth|review] [--readonly] [--nav-only]`. Every set but `auth` now signs in through `AUTH_BYPASS` and (outside `--readonly`) gets the local app URL; the spawned server never sees `ORACLE_*`. Latest shots in `design/screenshots/2026-10-16/`.
+- **Branch:** `master`, clean after this wrap-up commit. **Not pushed:** ~27 commits since the user's last push (latest `8ea1efc` omp queue, plus this wrap-up).
+- **Checks on master:** tsc, lint, vitest 1217, build and the visual suite (24) passed at `3ecb3a6`; nothing in app code has changed on master since.
+- **Screenshots:** `npm run build`, then `npm run screenshots [--set=forum|auth|review|snaps|builder] [--readonly] [--nav-only]`. The `snaps` set runs its own `next dev`.
 - **Database URLs:** `DB_TARGET` model (`lib/databaseUrl.ts` is the only reader). `.env` is the user's; never assume or change it.
 
-## Snaps (prompt eval)
+## gnubg in the position builder (omp)
 
-- Prompts in `scripts/snaps/prompts.ts` (v1, v2 = v1 + stack counting). Run `npx tsx scripts/snaps/snap-poc.ts --model gemini-3.8-flash --prompt <v>`; answers in `snap-poc/results/<model>/<version>/` (gitignored, cached, re-run to continue). Score with `npm run snaps:score`. Log: `reports/snaps-prompt-eval.md`.
-- Photos: set1 = 10 originals, set2 = 19 stream frames from 2026-10-16. Truth entered for 28 (all but `Screenshot 2026-10-16 at 11.41.53 am.png`, which has no v1 answer yet).
-- v1: set1 4/10 all points right, 91%; set2 16/18, 99%; dice the main miss on set2 (9/18).
-- Free Gemini quota ran out after ~22 calls on 2026-10-16.
-- **Waiting on the quota reset (user or a developer run):** v1 on the missing photo, v2 on all 29 (likely two days), `snaps:score`, fill v2 into the log.
-- **Then (plan with the user first):** v3 = dice rules + new cube format. User's rule: cube in the middle showing 2+ or on the playing area = offered double (take/pass decision, no owner); on the rail/tray = owned by that side; middle showing 64 = centred. Needs answer-format change, an "offered" toggle on `/snap-poc` (Board can draw an offered cube; builder's `doubleOffered` is always false), truths rechecked (e.g. `11.37.11`). Details in the eval log.
+- Phase A is built on `omp/main` (`ece315c` + `636be3d`, at `cb21f54`) and reviewed by master: Analyse button, local Docker gnubg (`bg-gnubg:1.07.001`), top 4 moves / cube action, nothing stored. **Not merged into master.**
+- **Waiting on omp:** the review-fix task in `docs/omp-queue.md` (cube card hidden for checker decisions, Crawford with an owned cube, forum post drops Crawford, dice show 1–1 when unset, Crawford checkbox and cube action styling, one signed-equity helper, nits), then retake all 16 `builder` shots. Start it with "Re-read `git show master:docs/omp-queue.md`".
+- **Then master:** visual-reviewer on all 16 shots (last time only the four 390 ones were checked), then the **user** merges `omp/main`. Phase B (gnubg on Oracle) after that.
+
+## Snaps (`/snap-poc` and prompt eval)
+
+- **Gemini quota:** the free tier is 20 requests a day for `gemini-3.8-flash`, HTTP 503 "high demand" failures count against it, and the window looks rolling (~24 h), not a midnight reset. The v2 run on 2026-10-17 got 6 of 29 (13 × 503, then 429). v1 still lacks `Screenshot 2026-10-16 at 11.41.53 am.png`.
+- **Waiting on the user:** free tier (2–3 more days) or billing on the key. Suggested either way: stop `snap-poc.ts` after a few 503s in a row so it doesn't burn the quota. Reruns skip cached answers: `npx tsx scripts/snaps/snap-poc.ts --model gemini-3.8-flash --prompt v2`, then `npm run snaps:score`, log in `reports/snaps-prompt-eval.md`.
+- **Then plan v3 with the user:** dice rules, cube format (centred / owned / offered), a `photoIssues` field (cut off, glare, blur). Ideas discussed, not saved yet: on-camera blur/light/tilt checks; warn when Gemini's borne-off tray reading contradicts the checker count (borne-off is derived as 15 minus the board, so a missed checker shows up silently as "off").
+- **Still open from before:** user re-saves the miscorrected truths (`reports/2026-10-16-snaps-truth-orientation-audit.md`); caption by colour on `/snap-poc` (proposed, not built).
 
 ## Open threads
 
-- **User:** push; the `/auth/complete` eyebrow (later); inviting members after presenting the app; git housekeeping.
-- **omp:** queue task "Review notes at `3bcd4ed`": test whether the 35/200 0-ply rank-1 rejections are gnubg's move filter leaving a single survivor (0-ply gap above the threshold), confirm by widening the filter, and only then accept them as `single-survivor`. Waiting on the user to start omp. `omp/main` (engine harness, report, `lib/engine/`) is reviewed but not merged; merge after that task unless the user wants it sooner.
-- **Ideas parked** (`docs/future-ideas.md`): live on-camera detector, review bundles, progress dashboard, glossary page, app-wide "home on the left".
+- **User:** push; Gemini billing decision; try `/snap-poc`; inviting members after presenting the app.
+- **Ideas parked** (`docs/future-ideas.md`): Snaps accuracy tracking once live (log each snap, keep photos for offline evals), analyse all 21/36 rolls, gnubg in the browser, live on-camera detector, review bundles, progress dashboard, glossary.
 - **Local test data (local DB only):** forum posts 1–3 and 5–7; proposal replies 8–10; AppUsers 1 (owner), 2 (`local-dev-owner`, NONE), 3 (`local-dev-member`).
 
 ## Live site (Vercel + Oracle)
 
-- Oracle has 25/25 migrations. **No Oracle steps prepared or pending.** After pushing, check `/status` on the live site to confirm the Vercel env vars connect.
+- Oracle has 25/25 migrations. **No Oracle steps prepared or pending.**
 - Clerk dev instance on `*.vercel.app`, invitation-only sign-up, Deployment Protection on until launch.
 
 ## Rules to remember
