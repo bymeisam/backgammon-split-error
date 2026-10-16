@@ -188,7 +188,9 @@ async function shootAll(): Promise<void> {
         const page = await context.newPage();
         const shoot = async (name: string, mode: "full" | "viewport") => {
           const file = `${name}--${variant.width}-${variant.theme}--${mode}.png`;
-          await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+          await page.addStyleTag({
+            content: "nextjs-portal { display: none !important; } header[data-app-nav] { position: static !important; }",
+          });
           await page.screenshot({ path: path.join(OUT_DIR, file), fullPage: mode === "full" });
           written.push(file);
         };
