@@ -47,7 +47,15 @@ function emptyBuilderState(): PositionBuilderState {
   return { ...initialPositionBuilderState(), position: emptyPosition() };
 }
 
-export default function SnapPocReview({ items: initialItems, model }: { items: SnapPocItem[]; model: string | null }) {
+export default function SnapPocReview({
+  items: initialItems,
+  model,
+  promptVersion,
+}: {
+  items: SnapPocItem[];
+  model: string | null;
+  promptVersion: string | null;
+}) {
   const [items, setItems] = useState(initialItems);
   const [index, setIndex] = useState(0);
   // Per photo: the orientation picked and whether the builder shows the
@@ -95,7 +103,7 @@ export default function SnapPocReview({ items: initialItems, model }: { items: S
       const res = await fetch("/api/snap-poc/truth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: item.image, model, orientation, layout: builderStateToLayout(state, orientation) }),
+        body: JSON.stringify({ image: item.image, model, promptVersion, orientation, layout: builderStateToLayout(state, orientation) }),
       });
       const json = (await res.json().catch(() => null)) as (SnapTruth & { error?: string }) | null;
       if (!res.ok || !json || json.error) throw new Error(json?.error ?? `HTTP ${res.status}`);

@@ -1,6 +1,7 @@
 // Snaps proof-of-concept: the local files behind app/snap-poc (a dev-only
 // review page). Photos are snap-poc/*.jpg|jpeg|png (gitignored), Gemini's
-// cached answers snap-poc/results/<model>/<image>.json (scripts/snaps/snap-poc.ts),
+// cached answers snap-poc/results/<model>/<prompt-version>/<image>.json
+// (scripts/snaps/snap-poc.ts, prompts in scripts/snaps/prompts.ts),
 // and the user's corrected boards snap-poc/truth/<image>.json.
 //
 // Every name that reaches the filesystem is first matched exactly against a
@@ -54,21 +55,48 @@ export function readSnapImage(image: string): Buffer {
   return readFileSync(path.join(SNAP_DIR, image));
 }
 
-/** Model folders under results/, with how many cached answers each holds. */
-export function listSnapModels(): { model: string; count: number }[] {
-  return listDir(RESULTS_DIR)
-    .filter((d) => d.isDirectory())
-    .map((d) => ({
-      model: d.name,
-      count: listDir(path.join(RESULTS_DIR, d.name)).filter((f) => f.isFile() && f.name.endsWith(".json")).length,
-    }))
-    .sort((a, b) => b.count - a.count || a.model.localeCompare(b.model));
+/** A (model, prompt version) results folder: results/<model>/<version>/. */
+export interface SnapRun {
+  model: string;
+  version: string;
+  /** Cached answers in the folder. */
+  count: number;
 }
 
-/** The listed model folder whose name is exactly `name`, or null. */
-export function allowedModel(name: unknown): string | null {
-  if (typeof name !== "string") return null;
-  return listSnapModels().find((m) => m.model === name)?.model ?? null;
+/** "v12" -> 12; anything else -> -1 (sorts last). */
+export function snapVersionNumber(version: string): number {
+  const m = /^v(\d+)$/.exec(version);
+  return m ? Number(m[1]) : -1;
+}
+
+/**
+ * Every (model, version) folder under results/, newest version first, then
+ * the most answers, then by name. The first one is the page's default.
+ */
+export function listSnapRuns(): SnapRun[] {
+  const runs: SnapRun[] = [];
+  for (const m of listDir(RESULTS_DIR).filter((d) => d.isDirectory())) {
+    for (const v of listDir(path.join(RESULTS_DIR, m.name)).filter((d) => d.isDirectory())) {
+      runs.push({
+        model: m.name,
+        version: v.name,
+        count: listDir(path.join(RESULTS_DIR, m.name, v.name)).filter((f) => f.isFile() && f.name.endsWith(".json")).length,
+      });
+    }
+  }
+  return runs.sort(
+    (a, b) =>
+      snapVersionNumber(b.version) - snapVersionNumber(a.version) ||
+      b.count - a.count ||
+      a.model.localeCompare(b.model) ||
+      a.version.localeCompare(b.version),
+  );
+}
+
+/** The listed run whose model and version are exactly these, or null. */
+export function allowedRun(model: unknown, version: unknown): SnapRun | null {
+  if (typeof model !== "string" || typeof version !== "string") return null;
+  return listSnapRuns().find((r) => r.model === model && r.version === version) ?? null;
 }
 
 export interface SnapResult {
@@ -86,9 +114,9 @@ function readJson(file: string): unknown {
   }
 }
 
-/** Both arguments must already be allowlisted names. */
-export function readSnapResult(model: string, image: string): SnapResult | null {
-  const json = readJson(path.join(RESULTS_DIR, model, `${image}.json`)) as Record<string, unknown> | null;
+/** `run` must come from listSnapRuns/allowedRun and `image` be an allowlisted name. */
+export function readSnapResult(run: SnapRun, image: string): SnapResult | null {
+  const json = readJson(path.join(RESULTS_DIR, run.model, run.version, `${image}.json`)) as Record<string, unknown> | null;
   if (!json) return null;
   const v = validateSnapLayout(json.parsed);
   return {
@@ -100,7 +128,9 @@ export function readSnapResult(model: string, image: string): SnapResult | null 
 
 export interface SnapTruth {
   image: string;
+  /** The run whose answer pre-filled the builder (truth is shared by all runs). */
   model: string;
+  promptVersion?: string;
   orientation: SnapOrientation;
   layout: SnapLayout;
   savedAt: string;
@@ -126,6 +156,7 @@ export function readSnapTruth(image: string): SnapTruth | null {
   return {
     image,
     model: typeof json.model === "string" ? json.model : "",
+    ...(typeof json.promptVersion === "string" ? { promptVersion: json.promptVersion } : {}),
     orientation: json.orientation,
     layout: v.layout,
     savedAt: typeof json.savedAt === "string" ? json.savedAt : "",
